@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useRegistrationStore } from '../../store/useRegistrationStore';
+import { peopleService } from '../../api/services/people.service';
 
 export type RegistrationStep = 'user-account' | 'parent-details' | 'student-registration';
 
@@ -32,6 +34,7 @@ interface FormData {
     lastName: string;
     email: string;
     phone: string;
+    password: string; // Added password
     role: string;
     middleName: string;
     occupation: string;
@@ -44,15 +47,23 @@ interface FormData {
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }) => {
+    const { setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [success, setSuccess] = useState(false);
+
     const [currentStep, setCurrentStep] = useState<RegistrationStep>('user-account');
     const [studentStepView, setStudentStepView] = useState<'choice' | 'list' | 'form'>('choice');
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-    const [formData, setFormData] = useState<FormData>({
+    const initialFormData: FormData = {
         firstName: '',
         lastName: '',
         email: '',
         phone: '',
+        password: '',
         role: 'Parent',
         middleName: '',
         occupation: '',
@@ -62,7 +73,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         state: 'Bagmati',
         pincode: '44600',
         students: [],
-    });
+    };
+
+    const [formData, setFormData] = useState<FormData>(initialFormData);
 
     const [currentStudent, setCurrentStudent] = useState<Student>({
         admissionNo: '',
@@ -82,15 +95,29 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         isPrimary: false,
     });
 
+    // Reset state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setSuccess(false);
+            setError(null);
+            setFieldErrors({});
+            setCurrentStep('user-account');
+            setStudentStepView('choice');
+            setEditingIndex(null);
+            setFormData(initialFormData);
+            resetStore();
+        }
+    }, [isOpen]);
+
     // Initialize currentStudent admissionNo when component opens or students change
     useEffect(() => {
         if (isOpen && !currentStudent.admissionNo) {
-            setCurrentStudent(prev => ({
+            setCurrentStudent((prev: Student) => ({
                 ...prev,
                 admissionNo: `ADM-2026-${String(formData.students.length + 1).padStart(3, '0')}`
             }));
         }
-    }, [isOpen, formData.students.length]);
+    }, [isOpen, formData.students.length, currentStudent.admissionNo]);
 
     if (!isOpen) return null;
 
@@ -102,21 +129,87 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
     const stepIndex = steps.findIndex(s => s.id === currentStep);
 
+    const validateStep = () => {
+        const errors: Record<string, string> = {};
+
+        if (currentStep === 'user-account') {
+            if (!formData.firstName) errors.firstName = 'First name is required';
+            if (!formData.lastName) errors.lastName = 'Last name is required';
+            if (!formData.email) errors.email = 'Email is required';
+            else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
+            if (!formData.phone) errors.phone = 'Phone number is required';
+            if (!formData.password) errors.password = 'Password is required';
+            else if (formData.password.length < 8) errors.password = 'Password must be at least 8 characters';
+        } else if (currentStep === 'parent-details') {
+            if (!formData.firstName) errors.firstName = 'First name is required';
+            if (!formData.lastName) errors.lastName = 'Last name is required';
+            if (!formData.city) errors.city = 'City is required';
+            if (!formData.state) errors.state = 'State is required';
+            if (!formData.pincode) errors.pincode = 'Pincode is required';
+        } else if (currentStep === 'student-registration') {
+            if (formData.students.length === 0) {
+                setError('Please add at least one student before completing registration.');
+                return false;
+            }
+        }
+
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const validateStudent = () => {
+        const errors: Record<string, string> = {};
+        if (!currentStudent.firstName) errors.studentFirstName = 'First name is required';
+        if (!currentStudent.lastName) errors.studentLastName = 'Last name is required';
+        if (!currentStudent.dob) errors.studentDob = 'Date of birth is required';
+        if (currentStudent.gender === 'Select gender') errors.studentGender = 'Gender is required';
+        if (currentStudent.grade === 'Select class') errors.studentGrade = 'Class is required';
+        if (currentStudent.section === 'Select section') errors.studentSection = 'Section is required';
+
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const updateField = (field: keyof FormData, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev: FormData) => ({ ...prev, [field]: value }));
+        if (fieldErrors[field]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
     };
 
     const updateStudentField = (field: keyof Student, value: any) => {
-        setCurrentStudent(prev => ({ ...prev, [field]: value }));
+        setCurrentStudent((prev: Student) => ({ ...prev, [field]: value }));
+        const errorKey = `student${field.charAt(0).toUpperCase()}${field.slice(1)}`;
+        if (fieldErrors[errorKey]) {
+            setFieldErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[errorKey];
+                return newErrors;
+            });
+        }
     };
 
     const saveStudent = () => {
+        if (!validateStudent()) return;
+
         if (editingIndex !== null) {
             const updatedStudents = [...formData.students];
             updatedStudents[editingIndex] = currentStudent;
             updateField('students', updatedStudents);
+            storeUpdateStudent(editingIndex, {
+                ...currentStudent,
+                relationship: currentStudent.relationship
+            });
         } else {
             updateField('students', [...formData.students, currentStudent]);
+            storeAddStudent({
+                ...currentStudent,
+                relationship: currentStudent.relationship
+            });
         }
         setStudentStepView('list');
         setEditingIndex(null);
@@ -153,6 +246,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     const handleRemoveStudent = (index: number) => {
         const updatedStudents = formData.students.filter((_, i) => i !== index);
         updateField('students', updatedStudents);
+        storeRemoveStudent(index);
         if (updatedStudents.length === 0) {
             setStudentStepView('choice');
         }
@@ -217,7 +311,25 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
                 {/* Step Content */}
                 <div className="flex-1 overflow-y-auto p-10 bg-white">
-                    {currentStep === 'user-account' && (
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium animate-in fade-in slide-in-from-top-2">
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="mb-6 p-8 bg-green-50 border border-green-100 rounded-2xl text-center space-y-4 animate-in zoom-in-95 duration-500">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto text-green-500 shadow-sm">
+                                <CheckCircle2 className="w-10 h-10" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold text-slate-900">Registration Successful!</h3>
+                                <p className="text-sm text-green-700 font-medium">Please check your email for login credentials.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {!success && currentStep === 'user-account' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
                             {/* Blue Info Box */}
                             <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
@@ -230,12 +342,32 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} />
-                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} />
+                                <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} error={fieldErrors.firstName} />
+                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} error={fieldErrors.lastName} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} />
-                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val)} />
+                                <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} error={fieldErrors.email} />
+                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val)} error={fieldErrors.phone} />
+                            </div>
+
+                            <div className="relative">
+                                <FormInput
+                                    label="Create Password"
+                                    asterisk
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(val) => updateField('password', val)}
+                                    error={fieldErrors.password}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-[42px] text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                                <p className="text-[10px] text-slate-400 font-medium px-1 mt-1">Minimum 8 characters with a mix of letters and numbers</p>
                             </div>
 
                             <div className="space-y-2">
@@ -264,7 +396,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                         </div>
                     )}
 
-                    {currentStep === 'parent-details' && (
+                    {!success && currentStep === 'parent-details' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto pb-10">
                             {/* Personal Details */}
                             <div className="space-y-6">
@@ -272,9 +404,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                     <h3 className="text-lg font-bold text-slate-900">Personal Details</h3>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} />
+                                    <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} error={fieldErrors.firstName} />
                                     <FormInput label="Middle Name" placeholder="Kumar" value={formData.middleName} onChange={(val) => updateField('middleName', val)} />
-                                    <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} />
+                                    <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} error={fieldErrors.lastName} />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormInput label="Occupation" placeholder="Engineer" value={formData.occupation} onChange={(val) => updateField('occupation', val)} />
@@ -289,15 +421,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                 </div>
                                 <FormInput label="Address Line" placeholder="Kathmandu-15, Baneshwor" value={formData.address} onChange={(val) => updateField('address', val)} />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="City" placeholder="Kathmandu" value={formData.city} onChange={(val) => updateField('city', val)} />
-                                    <FormInput label="State" placeholder="Bagmati" value={formData.state} onChange={(val) => updateField('state', val)} />
-                                    <FormInput label="Pincode" placeholder="44600" value={formData.pincode} onChange={(val) => updateField('pincode', val)} />
+                                    <FormInput label="City" asterisk placeholder="Kathmandu" value={formData.city} onChange={(val) => updateField('city', val)} error={fieldErrors.city} />
+                                    <FormInput label="State" asterisk placeholder="Bagmati" value={formData.state} onChange={(val) => updateField('state', val)} error={fieldErrors.state} />
+                                    <FormInput label="Pincode" asterisk placeholder="44600" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {currentStep === 'student-registration' && (
+                    {!success && currentStep === 'student-registration' && (
                         <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                             {studentStepView === 'choice' && (
                                 <div className="max-w-2xl mx-auto text-center space-y-8 py-10">
@@ -404,13 +536,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 <p className="text-[10px] text-slate-400 font-medium px-1">Auto-generated but can be edited</p>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName', val)} />
+                                                <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName', val)} error={fieldErrors.studentFirstName} />
                                                 <FormInput label="Middle Name" placeholder="Kumar" value={currentStudent.middleName} onChange={val => updateStudentField('middleName', val)} />
-                                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={currentStudent.lastName} onChange={val => updateStudentField('lastName', val)} />
+                                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={currentStudent.lastName} onChange={val => updateStudentField('lastName', val)} error={fieldErrors.studentLastName} />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="Date of Birth" type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} />
-                                                <FormSelect label="Gender" options={['Select gender', 'Male', 'Female', 'Other']} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} />
+                                                <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} />
+                                                <FormSelect label="Gender" asterisk options={['Select gender', 'Male', 'Female', 'Other']} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
                                                 <FormSelect label="Blood Group" options={['Select blood group', 'A+', 'B+', 'O+', 'AB+']} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
                                             </div>
                                         </div>
@@ -432,8 +564,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="Admission Date" type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)} />
-                                                <FormSelect label="Class" options={['Select class', 'Grade 1', 'Grade 2', 'Grade 10']} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} />
-                                                <FormSelect label="Section" options={['Select section', 'A', 'B', 'C']} value={currentStudent.section} onChange={val => updateStudentField('section', val)} />
+                                                <FormSelect label="Class" asterisk options={['Select class', 'Grade 1', 'Grade 2', 'Grade 10']} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
+                                                <FormSelect label="Section" asterisk options={['Select section', 'A', 'B', 'C']} value={currentStudent.section} onChange={val => updateStudentField('section', val)} error={fieldErrors.studentSection} />
                                             </div>
                                         </div>
 
@@ -497,45 +629,111 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                 </div>
 
                 {/* Modal Footer */}
-                <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-white px-10">
-                    <div>
-                        {currentStep !== 'user-account' && (
+                {!success && (
+                    <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-white px-10">
+                        <div>
+                            {currentStep !== 'user-account' && (
+                                <button
+                                    onClick={() => {
+                                        if (currentStep === 'parent-details') setCurrentStep('user-account');
+                                        if (currentStep === 'student-registration') setCurrentStep('parent-details');
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                                >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    Back
+                                </button>
+                            )}
+                        </div>
+
+                        {currentStep === 'student-registration' && studentStepView === 'form' ? null : (
                             <button
-                                onClick={() => {
-                                    if (currentStep === 'parent-details') setCurrentStep('user-account');
-                                    if (currentStep === 'student-registration') setCurrentStep('parent-details');
+                                disabled={isLoading}
+                                onClick={async () => {
+                                    if (!validateStep()) return;
+
+                                    if (currentStep === 'user-account') {
+                                        setStep1({
+                                            email: formData.email,
+                                            phone: formData.phone,
+                                            password: formData.password,
+                                            firstName: formData.firstName,
+                                            lastName: formData.lastName
+                                        });
+                                        setCurrentStep('parent-details');
+                                    } else if (currentStep === 'parent-details') {
+                                        setStep2({
+                                            firstName: formData.firstName,
+                                            lastName: formData.lastName,
+                                            middleName: formData.middleName,
+                                            occupation: formData.occupation,
+                                            nationalId: formData.nationalId,
+                                            address: formData.address,
+                                            city: formData.city,
+                                            state: formData.state,
+                                            pincode: formData.pincode
+                                        });
+                                        setCurrentStep('student-registration');
+                                    } else if (currentStep === 'student-registration') {
+                                        // Final Complete
+                                        try {
+                                            setIsLoading(true);
+                                            setError(null);
+
+                                            const registrationData = {
+                                                userAccount: {
+                                                    email: formData.email,
+                                                    phone: formData.phone,
+                                                    password: formData.password
+                                                },
+                                                parentProfile: {
+                                                    firstName: formData.firstName,
+                                                    lastName: formData.lastName,
+                                                    middleName: formData.middleName,
+                                                    occupation: formData.occupation,
+                                                    nationalId: formData.nationalId,
+                                                    address: formData.address,
+                                                    city: formData.city,
+                                                    state: formData.state,
+                                                    pincode: formData.pincode
+                                                },
+                                                students: formData.students
+                                            };
+
+                                            await peopleService.registerParentStudent(registrationData);
+                                            setSuccess(true);
+                                            resetStore();
+                                            setTimeout(() => {
+                                                onClose();
+                                            }, 2000);
+                                        } catch (err: any) {
+                                            setError(err);
+                                            setSuccess(false);
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
+                                    }
                                 }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                                className={cn(
+                                    "group flex items-center gap-3 bg-brand hover:opacity-90 text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-brand/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+                                    (isLoading || success) && "opacity-50 cursor-not-allowed"
+                                )}
                             >
-                                <ArrowLeft className="w-4 h-4" />
-                                Back
+                                {isLoading ? 'Processing...' : currentStep === 'student-registration' ? (
+                                    <>
+                                        Complete Registration
+                                        <CheckCircle2 className="w-4 h-4" />
+                                    </>
+                                ) : (
+                                    <>
+                                        {currentStep === 'parent-details' ? 'Continue to Students' : 'Continue to Parent Details'}
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
                             </button>
                         )}
                     </div>
-
-                    {currentStep === 'student-registration' && studentStepView === 'form' ? null : (
-                        <button
-                            onClick={() => {
-                                if (currentStep === 'user-account') setCurrentStep('parent-details');
-                                else if (currentStep === 'parent-details') setCurrentStep('student-registration');
-                                else if (currentStep === 'student-registration') onClose(); // Final Complete
-                            }}
-                            className="group flex items-center gap-3 bg-brand hover:opacity-90 text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-brand/20 transition-all transform active:scale-95"
-                        >
-                            {currentStep === 'student-registration' ? (
-                                <>
-                                    Complete Registration
-                                    <CheckCircle2 className="w-4 h-4" />
-                                </>
-                            ) : (
-                                <>
-                                    {currentStep === 'parent-details' ? 'Continue to Students' : 'Continue to Parent Details'}
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
+                )}
             </div>
         </div>
     );
@@ -548,21 +746,34 @@ interface FormInputProps {
     value?: string;
     onChange?: (val: string) => void;
     asterisk?: boolean;
+    error?: string;
 }
 
-const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder, value, onChange, asterisk }) => (
-    <div className="space-y-2 group">
+const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder, value, onChange, asterisk, error }) => (
+    <div className="space-y-2 group text-left">
         <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors">
             {label}
             {asterisk && <span className="text-red-500 font-bold">*</span>}
         </label>
-        <input
-            type={type}
-            placeholder={placeholder}
-            value={value}
-            onChange={(e) => onChange?.(e.target.value)}
-            className="w-full bg-[#F8F9FB] border border-slate-100 focus:border-brand/30 focus:bg-white focus:ring-4 focus:ring-brand/5 rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none placeholder:text-slate-300"
-        />
+        <div className="relative">
+            <input
+                type={type}
+                placeholder={placeholder}
+                value={value}
+                onChange={(e) => onChange?.(e.target.value)}
+                className={cn(
+                    "w-full bg-[#F8F9FB] border focus:bg-white focus:ring-4 rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none placeholder:text-slate-300",
+                    error
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/10"
+                        : "border-slate-100 focus:border-brand/30 focus:ring-brand/5"
+                )}
+            />
+            {error && (
+                <p className="mt-1.5 text-[11px] font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
+                    {error}
+                </p>
+            )}
+        </div>
     </div>
 );
 
@@ -571,20 +782,33 @@ interface FormSelectProps {
     options: string[];
     value?: string;
     onChange?: (val: string) => void;
+    asterisk?: boolean;
+    error?: string;
 }
 
-const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange }) => (
-    <div className="space-y-2 group">
-        <label className="text-sm font-bold text-slate-900 transition-colors uppercase tracking-tight text-[11px] mb-1 block pl-0.5">{label}</label>
+const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange, asterisk, error }) => (
+    <div className="space-y-2 group text-left">
+        <label className="text-sm font-bold text-slate-900 transition-colors uppercase tracking-tight text-[11px] mb-1 block pl-0.5">
+            {label}
+            {asterisk && <span className="text-red-500 font-bold ml-0.5">*</span>}
+        </label>
         <div className="relative">
             <select
                 value={value}
                 onChange={(e) => onChange?.(e.target.value)}
-                className="w-full bg-[#F8F9FB] border border-slate-100 focus:border-brand/30 focus:bg-white rounded-xl py-3.5 px-5 text-sm text-slate-900 font-bold transition-all outline-none appearance-none cursor-pointer"
+                className={cn(
+                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-3.5 px-5 text-sm text-slate-900 font-bold transition-all outline-none appearance-none cursor-pointer",
+                    error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
+                )}
             >
                 {options.map((opt: string) => <option key={opt} className="font-semibold">{opt}</option>)}
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
+        {error && (
+            <p className="mt-1.5 text-[11px] font-bold text-red-500 animate-in fade-in slide-in-from-top-1 pl-0.5">
+                {error}
+            </p>
+        )}
     </div>
 );
