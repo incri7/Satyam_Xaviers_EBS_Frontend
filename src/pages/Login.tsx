@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -12,6 +12,7 @@ const LoginPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const { login } = useAuth();
+    const navigate = useNavigate();
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -19,7 +20,14 @@ const LoginPage: React.FC = () => {
         setError(null);
 
         try {
-            await login({ email, password });
+            const response = await login({ email, password });
+
+            // Redirect based on user role
+            if (response.user.role === 'principal') {
+                navigate('/principal-dashboard');
+            } else {
+                navigate('/dashboard'); // Default dashboard for other roles
+            }
         } catch (err: any) {
             const detail = err.response?.data?.detail;
 

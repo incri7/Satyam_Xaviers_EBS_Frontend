@@ -17,7 +17,6 @@ export const useAuth = () => {
         try {
             const data = await authService.login(credentials);
             setAuth(data.user, data.access_token, data.refresh_token || '');
-            navigate('/dashboard');
             return data;
         } catch (error) {
             throw error;

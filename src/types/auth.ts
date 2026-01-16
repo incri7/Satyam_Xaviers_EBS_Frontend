@@ -2,6 +2,8 @@ export interface User {
     id: number;
     email: string;
     phone: string;
+    firstName?: string;
+    lastName?: string;
     role: 'principal' | 'teacher' | 'student' | 'admin' | string;
     is_active: boolean;
     must_change_password: boolean;

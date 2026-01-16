@@ -4,6 +4,7 @@ import ForgotPasswordPage from '../pages/ForgotPassword';
 import ResetPasswordPage from '../pages/ResetPassword';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
+import PrincipalDashboard from '../pages/PrincipalDashboard';
 
 export const router = createBrowserRouter([
     {
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
             {
                 path: '/dashboard',
                 element: <DashboardLayout />,
+            },
+            {
+                path: '/principal-dashboard',
+                element: <PrincipalDashboard />,
             }
         ]
     },
