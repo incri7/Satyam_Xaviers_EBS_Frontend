@@ -133,7 +133,7 @@ const resetData = ()=>{
             if (!formData.email) errors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
             if (!formData.phone) errors.phone = 'Phone number is required';
-            else if (!/^\d+$/.test(formData.phone.replace(/[\s-]/g, ''))) errors.phone = 'Phone number must contain only digits';
+            else if (!/^\+?\d+$/.test(formData.phone.replace(/[\s-]/g, ''))) errors.phone = 'Phone number must contain only digits and optional + prefix';
         } else if (currentStep === 'parent-details') {
             if (!formData.firstName) errors.firstName = 'First name is required';
             if (!formData.lastName) errors.lastName = 'Last name is required';
@@ -341,7 +341,7 @@ const resetData = ()=>{
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} error={fieldErrors.email} />
-                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val.replace(/[^\d\s-]/g, ''))} error={fieldErrors.phone} />
+                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val.replace(/[^\d\s+-]/g, ''))} error={fieldErrors.phone} />
                             </div>
 
 
