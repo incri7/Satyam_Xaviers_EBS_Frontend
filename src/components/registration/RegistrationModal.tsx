@@ -47,7 +47,7 @@ interface FormData {
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }) => {
-    const { setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
+    const {setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -94,20 +94,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         isPrimary: false,
     });
 
-    // Reset state when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            setSuccess(false);
-            setError(null);
-            setFieldErrors({});
-            setCurrentStep('user-account');
-            setStudentStepView('choice');
-            setEditingIndex(null);
-            setFormData(initialFormData);
-            resetStore();
-        }
-    }, [isOpen]);
-
+const resetData = ()=>{
+    setSuccess(false);
+    setError(null);
+    setFieldErrors({});
+    setCurrentStep('user-account');
+    setStudentStepView('choice');
+    setEditingIndex(null);
+    setFormData(initialFormData);
+    resetStore();
+}
     // Initialize currentStudent admissionNo when component opens or students change
     useEffect(() => {
         if (isOpen && !currentStudent.admissionNo) {
@@ -609,7 +605,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                 {/* Modal Footer */}
                 {!success && (
                     <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-white px-10">
-                        <div>
+                        <div> 
+                            {currentStep === 'user-account' && (
+                                <button
+                                    onClick={() => {
+                                        resetData();
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                                >
+                                    Reset Data
+                                </button>
+                            )}
                             {currentStep !== 'user-account' && (
                                 <button
                                     onClick={() => {
