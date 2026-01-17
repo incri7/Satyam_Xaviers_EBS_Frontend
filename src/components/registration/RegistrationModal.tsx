@@ -48,7 +48,6 @@ interface FormData {
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }) => {
     const { setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
-    const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -138,8 +137,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             if (!formData.email) errors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
             if (!formData.phone) errors.phone = 'Phone number is required';
-            if (!formData.password) errors.password = 'Password is required';
-            else if (formData.password.length < 8) errors.password = 'Password must be at least 8 characters';
         } else if (currentStep === 'parent-details') {
             if (!formData.firstName) errors.firstName = 'First name is required';
             if (!formData.lastName) errors.lastName = 'Last name is required';
@@ -350,25 +347,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                 <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val)} error={fieldErrors.phone} />
                             </div>
 
-                            <div className="relative">
-                                <FormInput
-                                    label="Create Password"
-                                    asterisk
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••"
-                                    value={formData.password}
-                                    onChange={(val) => updateField('password', val)}
-                                    error={fieldErrors.password}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-[42px] text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                                <p className="text-[10px] text-slate-400 font-medium px-1 mt-1">Minimum 8 characters with a mix of letters and numbers</p>
-                            </div>
 
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-900">Role <span className="text-red-500">*</span></label>
@@ -656,7 +634,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                         setStep1({
                                             email: formData.email,
                                             phone: formData.phone,
-                                            password: formData.password,
+                                            password: "",
                                             firstName: formData.firstName,
                                             lastName: formData.lastName
                                         });
