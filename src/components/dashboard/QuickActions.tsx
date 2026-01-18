@@ -19,7 +19,7 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
             whileTap={{ scale: 0.98 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
             className={cn(
-                "flex flex-col items-center justify-center p-6 bg-white border rounded-xl shadow-sm transition-all duration-300 text-center group min-h-[160px]",
+                "flex flex-col items-center justify-center p-6 bg-white border rounded-xl shadow-sm text-center group min-h-[160px]",
                 isHighlighted ? "border-brand bg-[#FFF5F6]" : "border-slate-100"
             )}
         >
