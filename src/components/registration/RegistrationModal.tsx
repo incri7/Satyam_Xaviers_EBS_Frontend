@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useRegistrationStore } from '../../store/useRegistrationStore';
 import { peopleService } from '../../api/services/people.service';
@@ -93,6 +93,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         relationship: 'Father',
         isPrimary: false,
     });
+
+// Reset form data
+// when the registration is success
+// and is opened again
+useEffect(() => {
+    if(success)
+        resetData();
+}, [isOpen]);
 
 const resetData = ()=>{
     setSuccess(false);
