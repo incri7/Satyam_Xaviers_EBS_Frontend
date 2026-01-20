@@ -141,7 +141,14 @@ const resetData = ()=>{
             if (!formData.email) errors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
             if (!formData.phone) errors.phone = 'Phone number is required';
-            else if (!/^\+?\d+$/.test(formData.phone.replace(/[\s-]/g, ''))) errors.phone = 'Phone number must contain only digits and optional + prefix';
+            else {
+                const cleanPhone = formData.phone.replace(/[\s-]/g, '');
+                if (cleanPhone.startsWith('+')) {
+                    if (cleanPhone.length > 16) errors.phone = 'Phone number with country code must not exceed 16 characters';
+                } else {
+                    if (cleanPhone.length !== 10) errors.phone = 'Invalid phone number';
+                }
+            }
         } else if (currentStep === 'parent-details') {
             if (!formData.firstName) errors.firstName = 'First name is required';
             if (!formData.lastName) errors.lastName = 'Last name is required';
