@@ -3,12 +3,11 @@ import { create } from 'zustand';
 interface Student {
     firstName: string;
     lastName: string;
-    admissionNo: string;
     relationship: string;
     isPrimary: boolean;
     classId?: number;
     sectionId?: number;
-    academicYear?: string;
+    admissionDate?: string;
 }
 
 interface RegistrationState {

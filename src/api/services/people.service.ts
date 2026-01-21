@@ -32,7 +32,7 @@ export const peopleService = {
                     // For now using placeholders or handling as strings if backend supports
                     class_id: s.classId || 1,
                     section_id: s.sectionId || 1,
-                    academic_year: s.academicYear || '2026/27'
+                    admission_date: s.admissionDate || '2026/27'
                 }))
             });
             return response.data;

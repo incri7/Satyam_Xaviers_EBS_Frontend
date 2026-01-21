@@ -12,7 +12,6 @@ interface RegistrationModalProps {
 }
 
 interface Student {
-    admissionNo: string;
     firstName: string;
     middleName: string;
     lastName: string;
@@ -77,7 +76,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     const [formData, setFormData] = useState<FormData>(initialFormData);
 
     const [currentStudent, setCurrentStudent] = useState<Student>({
-        admissionNo: '',
         firstName: '',
         middleName: '',
         lastName: '',
@@ -94,33 +92,24 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         isPrimary: false,
     });
 
-// Reset form data
-// when the registration is success
-// and is opened again
-useEffect(() => {
-    if(success)
-        resetData();
-}, [isOpen]);
-
-const resetData = ()=>{
-    setSuccess(false);
-    setError(null);
-    setFieldErrors({});
-    setCurrentStep('user-account');
-    setStudentStepView('choice');
-    setEditingIndex(null);
-    setFormData(initialFormData);
-    resetStore();
-}
-    // Initialize currentStudent admissionNo when component opens or students change
+    // Reset form data
+    // when the registration is success
+    // and is opened again
     useEffect(() => {
-        if (isOpen && !currentStudent.admissionNo) {
-            setCurrentStudent((prev: Student) => ({
-                ...prev,
-                admissionNo: `ADM-2026-${String(formData.students.length + 1).padStart(3, '0')}`
-            }));
-        }
-    }, [isOpen, formData.students.length, currentStudent.admissionNo]);
+        if(success)
+            resetData();
+    }, [isOpen]);
+
+    const resetData = ()=>{
+        setSuccess(false);
+        setError(null);
+        setFieldErrors({});
+        setCurrentStep('user-account');
+        setStudentStepView('choice');
+        setEditingIndex(null);
+        setFormData(initialFormData);
+        resetStore();
+    }
 
     if (!isOpen) return null;
 
@@ -226,7 +215,6 @@ const resetData = ()=>{
 
     const handleAddStudent = () => {
         setCurrentStudent({
-            admissionNo: `ADM-2026-${String(formData.students.length + 1).padStart(3, '0')}`,
             firstName: '',
             middleName: '',
             lastName: '',
@@ -477,7 +465,6 @@ const resetData = ()=>{
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-6 text-xs text-slate-500 font-medium tracking-tight">
-                                                            <span>Admission No: {student.admissionNo}</span>
                                                             <span>Relationship: {student.relationship}</span>
                                                         </div>
                                                     </div>
@@ -520,10 +507,6 @@ const resetData = ()=>{
                                         <div className="space-y-6">
                                             <div className="border-b border-slate-100 pb-2">
                                                 <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <FormInput label="Admission Number" asterisk value={currentStudent.admissionNo} onChange={val => updateStudentField('admissionNo', val)} />
-                                                <p className="text-[10px] text-slate-400 font-medium px-1">Auto-generated but can be edited</p>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName', val)} error={fieldErrors.studentFirstName} />
@@ -788,7 +771,7 @@ interface FormSelectProps {
 
 const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange, asterisk, error }) => (
     <div className="space-y-2 group text-left">
-        <label className="text-sm font-bold text-slate-900 transition-colors uppercase tracking-tight text-[11px] mb-1 block pl-0.5">
+            <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors uppercase tracking-tight">
             {label}
             {asterisk && <span className="text-red-500 font-bold ml-0.5">*</span>}
         </label>
@@ -797,8 +780,8 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange
                 value={value}
                 onChange={(e) => onChange?.(e.target.value)}
                 className={cn(
-                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-3.5 px-5 text-sm text-slate-900 font-bold transition-all outline-none appearance-none cursor-pointer",
-                    error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
+                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none appearance-none cursor-pointer",
+                     error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
                 )}
             >
                 {options.map((opt: string) => <option key={opt} className="font-semibold">{opt}</option>)}
