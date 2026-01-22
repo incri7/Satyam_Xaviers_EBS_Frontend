@@ -3,6 +3,8 @@ import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, U
 import { cn } from '../../utils/cn';
 import { useRegistrationStore } from '../../store/useRegistrationStore';
 import { peopleService } from '../../api/services/people.service';
+import type { Class } from '../../types/academic';
+import { academicsService } from '../../api/services/academics.service';
 
 export type RegistrationStep = 'user-account' | 'parent-details' | 'student-registration';
 
@@ -23,7 +25,6 @@ interface Student {
     pincode: string;
     admissionDate: string;
     grade: string;
-    section: string;
     relationship: string;
     isPrimary: boolean;
 }
@@ -87,10 +88,31 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         pincode: '44600',
         admissionDate: '',
         grade: 'Select class',
-        section: 'Select section',
         relationship: 'Father',
         isPrimary: false,
     });
+
+    const [classOptions, setClassOptions] = useState<Class[]>([
+        {
+            id: 0,
+            name: 'Select class'
+        }
+    ]);
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const res = await academicsService.getClasses();
+                setClassOptions((prev)=>[
+                    ...prev,
+                    ...res.classes.map(({ id, name }) => ({ id, name }))
+                ]);
+            }catch(error){
+                console.log(error);
+            }
+        }
+        fetchClasses();
+    }, []);
+        
 
     // Reset form data
     // when the registration is success
@@ -136,17 +158,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         'AB-': 'AB-'
 
     }
-    const classOptions={
-        'Select class':'Select class',
-        'Class 1':'3',
-        'Class 2':'4',
-        'Class 3':'5',
-    }
-    const sectionOptions={
-        'Select section':'Select section',
-        'Section A':'2',
-        'Section B':'4',
-    }
 
     const stepIndex = steps.findIndex(s => s.id === currentStep);
 
@@ -191,7 +202,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         if (!currentStudent.dob) errors.studentDob = 'Date of birth is required';
         if (currentStudent.gender === 'Select gender') errors.studentGender = 'Gender is required';
         if (currentStudent.grade === 'Select class') errors.studentGrade = 'Class is required';
-        if (currentStudent.section === 'Select section') errors.studentSection = 'Section is required';
 
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
@@ -270,7 +280,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             pincode: formData.pincode,
             admissionDate: new Date().toISOString().split('T')[0],
             grade: 'Select class',
-            section: 'Select section',
             relationship: 'Father',
             isPrimary: formData.students.length === 0,
         });
@@ -579,10 +588,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             <div className="border-b border-slate-100 pb-2">
                                                 <h3 className="text-lg font-bold text-slate-900">Academic Placement</h3>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <FormInput label="Admission Date" type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)} />
-                                                <FormSelect label="Class" asterisk options={Object.entries(classOptions).map(([label, value]) => ({ label, value }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
-                                                <FormSelect label="Section" asterisk options={Object.entries(sectionOptions).map(([label, value]) => ({ label, value }))} value={currentStudent.section} onChange={val => updateStudentField('section', val)} error={fieldErrors.studentSection} />
+                                                <FormSelect label="Class" asterisk options={classOptions.map(cls => ({ label: cls.name, value: cls.id.toString() }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
                                             </div>
                                         </div>
 

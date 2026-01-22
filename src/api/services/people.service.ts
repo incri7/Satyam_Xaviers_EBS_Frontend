@@ -34,11 +34,8 @@ export const peopleService = {
                     city: s.city,
                     state: s.state,
                     pincode: s.pincode,
-                    // These should be mapped from class/section names to IDs once selection is enabled
-                    // For now using placeholders or handling as strings if backend supports
-                    class_id: s.classId || 1,
-                    section_id: s.sectionId || 1,
-                    admission_date: s.admissionDate || '2026/27'
+                    class_id: s.grade,
+                    admission_date: s.admissionDate
                 }))
             });
             return response.data;
