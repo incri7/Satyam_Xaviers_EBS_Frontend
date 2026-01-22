@@ -118,6 +118,35 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         { id: 'parent-details', label: 'Parent Details' },
         { id: 'student-registration', label: 'Student Info' },
     ];
+    const genderOptions = {
+        'Select gender': 'Select gender',
+        'Male': 'M',
+        'Female': 'F',
+        'Other': 'O'
+    };
+    const bloodGroupOptions = {
+        'Select blood group': 'Select blood group',
+        'A+': 'A+',
+        'A-': 'A-',
+        'B+': 'B+',
+        'B-': 'B-',
+        'O+': 'O+',
+        'O-': 'O-',
+        'AB+': 'AB+',
+        'AB-': 'AB-'
+
+    }
+    const classOptions={
+        'Select class':'Select class',
+        'Class 1':'3',
+        'Class 2':'4',
+        'Class 3':'5',
+    }
+    const sectionOptions={
+        'Select section':'Select section',
+        'Section A':'2',
+        'Section B':'4',
+    }
 
     const stepIndex = steps.findIndex(s => s.id === currentStep);
 
@@ -169,7 +198,22 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     };
 
     const updateField = (field: keyof FormData, value: any) => {
-        setFormData((prev: FormData) => ({ ...prev, [field]: value }));
+        setFormData((prev) => {
+            if (field === 'city' || field === 'state' || field === 'pincode') {
+                return {
+                    ...prev,
+                    [field]: value,
+                    students: prev.students.map((student) => ({
+                        ...student,
+                        city: field === 'city' ? value : prev.city,
+                        state: field === 'state' ? value : prev.state,
+                        pincode: field === 'pincode' ? value : prev.pincode,
+                    })),
+                };
+            }
+
+            return { ...prev, [field]: value };
+        });
         if (fieldErrors[field]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -515,8 +559,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} />
-                                                <FormSelect label="Gender" asterisk options={['Select gender', 'Male', 'Female', 'Other']} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
-                                                <FormSelect label="Blood Group" options={['Select blood group', 'A+', 'B+', 'O+', 'AB+']} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
+                                                <FormSelect label="Gender" asterisk options={Object.entries(genderOptions).map(([label, value]) => ({label,value}))} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
+                                                <FormSelect label="Blood Group" options={Object.entries(bloodGroupOptions).map(([label, value]) => ({label,value}))} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
                                             </div>
                                         </div>
 
@@ -537,8 +581,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="Admission Date" type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)} />
-                                                <FormSelect label="Class" asterisk options={['Select class', 'Grade 1', 'Grade 2', 'Grade 10']} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
-                                                <FormSelect label="Section" asterisk options={['Select section', 'A', 'B', 'C']} value={currentStudent.section} onChange={val => updateStudentField('section', val)} error={fieldErrors.studentSection} />
+                                                <FormSelect label="Class" asterisk options={Object.entries(classOptions).map(([label, value]) => ({ label, value }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
+                                                <FormSelect label="Section" asterisk options={Object.entries(sectionOptions).map(([label, value]) => ({ label, value }))} value={currentStudent.section} onChange={val => updateStudentField('section', val)} error={fieldErrors.studentSection} />
                                             </div>
                                         </div>
 
@@ -690,7 +734,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 onClose();
                                             }, 2000);
                                         } catch (err: any) {
-                                            setError(err);
+                                            const errorMessage = err?.response?.data?.detail || err?.message || err?.toString() || 'Registration failed';
+                                            setError(errorMessage);
                                             setSuccess(false);
                                         } finally {
                                             setIsLoading(false);
@@ -760,9 +805,14 @@ const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder
     </div>
 );
 
+interface SelectOption {
+    label: string;
+    value: string;
+}
+
 interface FormSelectProps {
     label: string;
-    options: string[];
+    options: SelectOption[];
     value?: string;
     onChange?: (val: string) => void;
     asterisk?: boolean;
@@ -784,7 +834,7 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange
                      error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
                 )}
             >
-                {options.map((opt: string) => <option key={opt} className="font-semibold">{opt}</option>)}
+                {options.map(opt => (<option key={opt.value} value={opt.value} className="font-semibold">{opt.label}</option>))}
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>

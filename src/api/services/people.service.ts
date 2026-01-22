@@ -28,6 +28,12 @@ export const peopleService = {
                     admission_no: s.admissionNo,
                     relationship_type: s.relationship.toLowerCase(),
                     is_primary_contact: s.isPrimary,
+                    dob: s.dob,
+                    gender: s.gender,
+                    blood_group: s.bloodGroup,
+                    city: s.city,
+                    state: s.state,
+                    pincode: s.pincode,
                     // These should be mapped from class/section names to IDs once selection is enabled
                     // For now using placeholders or handling as strings if backend supports
                     class_id: s.classId || 1,
