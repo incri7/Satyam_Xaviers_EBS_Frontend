@@ -28,11 +28,14 @@ export const peopleService = {
                     admission_no: s.admissionNo,
                     relationship_type: s.relationship.toLowerCase(),
                     is_primary_contact: s.isPrimary,
-                    // These should be mapped from class/section names to IDs once selection is enabled
-                    // For now using placeholders or handling as strings if backend supports
-                    class_id: s.classId || 1,
-                    section_id: s.sectionId || 1,
-                    academic_year: s.academicYear || '2026/27'
+                    dob: s.dob,
+                    gender: s.gender,
+                    blood_group: s.bloodGroup,
+                    city: s.city,
+                    state: s.state,
+                    pincode: s.pincode,
+                    class_id: s.grade,
+                    admission_date: s.admissionDate
                 }))
             });
             return response.data;

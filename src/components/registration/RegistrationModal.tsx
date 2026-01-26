@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useRegistrationStore } from '../../store/useRegistrationStore';
 import { peopleService } from '../../api/services/people.service';
+import type { Class } from '../../types/academic';
+import { academicsService } from '../../api/services/academics.service';
 
 export type RegistrationStep = 'user-account' | 'parent-details' | 'student-registration';
 
@@ -12,7 +14,6 @@ interface RegistrationModalProps {
 }
 
 interface Student {
-    admissionNo: string;
     firstName: string;
     middleName: string;
     lastName: string;
@@ -24,7 +25,6 @@ interface Student {
     pincode: string;
     admissionDate: string;
     grade: string;
-    section: string;
     relationship: string;
     isPrimary: boolean;
 }
@@ -47,8 +47,7 @@ interface FormData {
 }
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }) => {
-    const { setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
-    const [showPassword, setShowPassword] = useState(false);
+    const {setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -78,7 +77,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     const [formData, setFormData] = useState<FormData>(initialFormData);
 
     const [currentStudent, setCurrentStudent] = useState<Student>({
-        admissionNo: '',
         firstName: '',
         middleName: '',
         lastName: '',
@@ -90,34 +88,50 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         pincode: '44600',
         admissionDate: '',
         grade: 'Select class',
-        section: 'Select section',
         relationship: 'Father',
         isPrimary: false,
     });
 
-    // Reset state when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            setSuccess(false);
-            setError(null);
-            setFieldErrors({});
-            setCurrentStep('user-account');
-            setStudentStepView('choice');
-            setEditingIndex(null);
-            setFormData(initialFormData);
-            resetStore();
+    const [classOptions, setClassOptions] = useState<Class[]>([
+        {
+            id: 0,
+            name: 'Select class'
         }
+    ]);
+    useEffect(() => {
+        const fetchClasses = async () => {
+            try {
+                const res = await academicsService.getClasses();
+                setClassOptions((prev)=>[
+                    ...prev,
+                    ...res.classes.map(({ id, name }) => ({ id, name }))
+                ]);
+            }catch(error){
+                console.log(error);
+            }
+        }
+        fetchClasses();
+    }, []);
+        
+
+    // Reset form data
+    // when the registration is success
+    // and is opened again
+    useEffect(() => {
+        if(success)
+            resetData();
     }, [isOpen]);
 
-    // Initialize currentStudent admissionNo when component opens or students change
-    useEffect(() => {
-        if (isOpen && !currentStudent.admissionNo) {
-            setCurrentStudent((prev: Student) => ({
-                ...prev,
-                admissionNo: `ADM-2026-${String(formData.students.length + 1).padStart(3, '0')}`
-            }));
-        }
-    }, [isOpen, formData.students.length, currentStudent.admissionNo]);
+    const resetData = ()=>{
+        setSuccess(false);
+        setError(null);
+        setFieldErrors({});
+        setCurrentStep('user-account');
+        setStudentStepView('choice');
+        setEditingIndex(null);
+        setFormData(initialFormData);
+        resetStore();
+    }
 
     if (!isOpen) return null;
 
@@ -126,6 +140,24 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         { id: 'parent-details', label: 'Parent Details' },
         { id: 'student-registration', label: 'Student Info' },
     ];
+    const genderOptions = {
+        'Select gender': 'Select gender',
+        'Male': 'M',
+        'Female': 'F',
+        'Other': 'O'
+    };
+    const bloodGroupOptions = {
+        'Select blood group': 'Select blood group',
+        'A+': 'A+',
+        'A-': 'A-',
+        'B+': 'B+',
+        'B-': 'B-',
+        'O+': 'O+',
+        'O-': 'O-',
+        'AB+': 'AB+',
+        'AB-': 'AB-'
+
+    }
 
     const stepIndex = steps.findIndex(s => s.id === currentStep);
 
@@ -138,8 +170,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             if (!formData.email) errors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
             if (!formData.phone) errors.phone = 'Phone number is required';
-            if (!formData.password) errors.password = 'Password is required';
-            else if (formData.password.length < 8) errors.password = 'Password must be at least 8 characters';
+            else {
+                const cleanPhone = formData.phone.replace(/[\s-]/g, '');
+                if (cleanPhone.startsWith('+')) {
+                    if (cleanPhone.length > 16) errors.phone = 'Phone number with country code must not exceed 16 characters';
+                } else {
+                    if (cleanPhone.length !== 10) errors.phone = 'Invalid phone number';
+                }
+            }
         } else if (currentStep === 'parent-details') {
             if (!formData.firstName) errors.firstName = 'First name is required';
             if (!formData.lastName) errors.lastName = 'Last name is required';
@@ -164,14 +202,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         if (!currentStudent.dob) errors.studentDob = 'Date of birth is required';
         if (currentStudent.gender === 'Select gender') errors.studentGender = 'Gender is required';
         if (currentStudent.grade === 'Select class') errors.studentGrade = 'Class is required';
-        if (currentStudent.section === 'Select section') errors.studentSection = 'Section is required';
 
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
     };
 
     const updateField = (field: keyof FormData, value: any) => {
-        setFormData((prev: FormData) => ({ ...prev, [field]: value }));
+        setFormData((prev) => {
+            if (field === 'city' || field === 'state' || field === 'pincode') {
+                return {
+                    ...prev,
+                    [field]: value,
+                    students: prev.students.map((student) => ({
+                        ...student,
+                        city: field === 'city' ? value : prev.city,
+                        state: field === 'state' ? value : prev.state,
+                        pincode: field === 'pincode' ? value : prev.pincode,
+                    })),
+                };
+            }
+
+            return { ...prev, [field]: value };
+        });
         if (fieldErrors[field]) {
             setFieldErrors(prev => {
                 const newErrors = { ...prev };
@@ -217,7 +269,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
     const handleAddStudent = () => {
         setCurrentStudent({
-            admissionNo: `ADM-2026-${String(formData.students.length + 1).padStart(3, '0')}`,
             firstName: '',
             middleName: '',
             lastName: '',
@@ -229,7 +280,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             pincode: formData.pincode,
             admissionDate: new Date().toISOString().split('T')[0],
             grade: 'Select class',
-            section: 'Select section',
             relationship: 'Father',
             isPrimary: formData.students.length === 0,
         });
@@ -347,28 +397,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} error={fieldErrors.email} />
-                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val)} error={fieldErrors.phone} />
+                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val.replace(/[^\d\s+-]/g, ''))} error={fieldErrors.phone} />
                             </div>
 
-                            <div className="relative">
-                                <FormInput
-                                    label="Create Password"
-                                    asterisk
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••"
-                                    value={formData.password}
-                                    onChange={(val) => updateField('password', val)}
-                                    error={fieldErrors.password}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-[42px] text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
-                                <p className="text-[10px] text-slate-400 font-medium px-1 mt-1">Minimum 8 characters with a mix of letters and numbers</p>
-                            </div>
 
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-900">Role <span className="text-red-500">*</span></label>
@@ -487,7 +518,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-6 text-xs text-slate-500 font-medium tracking-tight">
-                                                            <span>Admission No: {student.admissionNo}</span>
                                                             <span>Relationship: {student.relationship}</span>
                                                         </div>
                                                     </div>
@@ -531,10 +561,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             <div className="border-b border-slate-100 pb-2">
                                                 <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
                                             </div>
-                                            <div className="space-y-2">
-                                                <FormInput label="Admission Number" asterisk value={currentStudent.admissionNo} onChange={val => updateStudentField('admissionNo', val)} />
-                                                <p className="text-[10px] text-slate-400 font-medium px-1">Auto-generated but can be edited</p>
-                                            </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName', val)} error={fieldErrors.studentFirstName} />
                                                 <FormInput label="Middle Name" placeholder="Kumar" value={currentStudent.middleName} onChange={val => updateStudentField('middleName', val)} />
@@ -542,8 +568,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                 <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} />
-                                                <FormSelect label="Gender" asterisk options={['Select gender', 'Male', 'Female', 'Other']} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
-                                                <FormSelect label="Blood Group" options={['Select blood group', 'A+', 'B+', 'O+', 'AB+']} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
+                                                <FormSelect label="Gender" asterisk options={Object.entries(genderOptions).map(([label, value]) => ({label,value}))} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
+                                                <FormSelect label="Blood Group" options={Object.entries(bloodGroupOptions).map(([label, value]) => ({label,value}))} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
                                             </div>
                                         </div>
 
@@ -562,10 +588,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             <div className="border-b border-slate-100 pb-2">
                                                 <h3 className="text-lg font-bold text-slate-900">Academic Placement</h3>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <FormInput label="Admission Date" type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)} />
-                                                <FormSelect label="Class" asterisk options={['Select class', 'Grade 1', 'Grade 2', 'Grade 10']} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
-                                                <FormSelect label="Section" asterisk options={['Select section', 'A', 'B', 'C']} value={currentStudent.section} onChange={val => updateStudentField('section', val)} error={fieldErrors.studentSection} />
+                                                <FormSelect label="Class" asterisk options={classOptions.map(cls => ({ label: cls.name, value: cls.id.toString() }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
                                             </div>
                                         </div>
 
@@ -631,7 +656,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                 {/* Modal Footer */}
                 {!success && (
                     <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-white px-10">
-                        <div>
+                        <div> 
+                            {currentStep === 'user-account' && (
+                                <button
+                                    onClick={() => {
+                                        resetData();
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
+                                >
+                                    Reset Data
+                                </button>
+                            )}
                             {currentStep !== 'user-account' && (
                                 <button
                                     onClick={() => {
@@ -656,7 +691,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                         setStep1({
                                             email: formData.email,
                                             phone: formData.phone,
-                                            password: formData.password,
+                                            password: "",
                                             firstName: formData.firstName,
                                             lastName: formData.lastName
                                         });
@@ -707,7 +742,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 onClose();
                                             }, 2000);
                                         } catch (err: any) {
-                                            setError(err);
+                                            const errorMessage = err?.response?.data?.detail || err?.message || err?.toString() || 'Registration failed';
+                                            setError(errorMessage);
                                             setSuccess(false);
                                         } finally {
                                             setIsLoading(false);
@@ -777,9 +813,14 @@ const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder
     </div>
 );
 
+interface SelectOption {
+    label: string;
+    value: string;
+}
+
 interface FormSelectProps {
     label: string;
-    options: string[];
+    options: SelectOption[];
     value?: string;
     onChange?: (val: string) => void;
     asterisk?: boolean;
@@ -788,7 +829,7 @@ interface FormSelectProps {
 
 const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange, asterisk, error }) => (
     <div className="space-y-2 group text-left">
-        <label className="text-sm font-bold text-slate-900 transition-colors uppercase tracking-tight text-[11px] mb-1 block pl-0.5">
+            <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors uppercase tracking-tight">
             {label}
             {asterisk && <span className="text-red-500 font-bold ml-0.5">*</span>}
         </label>
@@ -797,11 +838,11 @@ const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange
                 value={value}
                 onChange={(e) => onChange?.(e.target.value)}
                 className={cn(
-                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-3.5 px-5 text-sm text-slate-900 font-bold transition-all outline-none appearance-none cursor-pointer",
-                    error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
+                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none appearance-none cursor-pointer",
+                     error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
                 )}
             >
-                {options.map((opt: string) => <option key={opt} className="font-semibold">{opt}</option>)}
+                {options.map(opt => (<option key={opt.value} value={opt.value} className="font-semibold">{opt.label}</option>))}
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         </div>
