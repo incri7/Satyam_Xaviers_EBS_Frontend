@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -7,7 +7,6 @@ import { authService } from '../api/services/auth.service';
 
 const ResetPasswordPage: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
     const token = searchParams.get('token');
 
     const [newPassword, setNewPassword] = useState('');
