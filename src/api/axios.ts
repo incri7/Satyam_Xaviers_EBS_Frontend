@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 const ENV_API_URL = import.meta.env.VITE_API_URL;
 
 
+
 export const api = axios.create({
     baseURL: ENV_API_URL ,
     headers: {
