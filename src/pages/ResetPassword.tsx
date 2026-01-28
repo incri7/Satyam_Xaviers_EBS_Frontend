@@ -4,23 +4,18 @@ import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { authService } from '../api/services/auth.service';
+import { div } from 'framer-motion/client';
 
 const ResetPasswordPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const token = searchParams.get('token');
-
+    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!token) {
-            setError('Invalid or missing reset token.');
-        }
-    }, [token]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,16 +27,15 @@ const ResetPasswordPage: React.FC = () => {
             setIsLoading(false);
             return;
         }
-
-        if (!token) {
-            setError("Missing reset token.");
-            setIsLoading(false);
-            return;
-        }
-
+        
         try {
-            await authService.confirmPasswordReset({ token, new_password: newPassword });
-            setIsSuccess(true);
+            if (!token) {
+                await authService.changePassword({current_password: currentPassword, new_password: newPassword });
+                setIsSuccess(true);
+            }else{
+                await authService.confirmPasswordReset({ token, new_password: newPassword });
+                setIsSuccess(true);
+            }
         } catch (err: any) {
             const detail = err.response?.data?.detail;
             if (typeof detail === 'string') {
@@ -56,19 +50,14 @@ const ResetPasswordPage: React.FC = () => {
         }
     };
 
-    if (!token) {
-        return (
-            <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4">
-                <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 text-center">
-                    <h1 className="text-xl font-bold text-red-600 mb-2">Invalid Link</h1>
-                    <p className="text-slate-600 mb-6">This password reset link is invalid or missing a token.</p>
-                    <Link to="/login">
-                        <Button>Return to Login</Button>
-                    </Link>
-                </div>
-            </div>
-        )
-    }
+
+    useEffect(() => {
+        if (!token && isSuccess) {
+            setTimeout(() => {
+                navigate('/login');
+            }, 3000);
+        }
+    }, [isSuccess]);
 
     return (
         <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4 relative overflow-hidden">
@@ -86,8 +75,14 @@ const ResetPasswordPage: React.FC = () => {
                         Please enter your new password below
                     </p>
                 </div>
-
-                {isSuccess ? (
+                {!token && isSuccess ?  (
+                    <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
+                        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
+                            Your password has been successfully changed
+                        </div>
+                    </div>
+                    ) : 
+                token && isSuccess ? (
                     <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
                         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
                             Your password has been successfully reset. You can now log in with your new password.
@@ -106,7 +101,19 @@ const ResetPasswordPage: React.FC = () => {
                             </div>
                         )}
 
-                        <Input
+                       {!token && (
+                         <Input
+                            label="Current Password"
+                            type="password"
+                            placeholder="Enter current password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            required
+                            minLength={6}
+                        />
+                       )}
+
+                         <Input
                             label="New Password"
                             type="password"
                             placeholder="Enter new password"
@@ -129,7 +136,7 @@ const ResetPasswordPage: React.FC = () => {
                         <Button type="submit" isLoading={isLoading} className="mt-2">
                             Reset Password
                         </Button>
-
+                        {token ?
                         <div className="text-center mt-6">
                             <Link
                                 to="/login"
@@ -137,7 +144,7 @@ const ResetPasswordPage: React.FC = () => {
                             >
                                 Cancel
                             </Link>
-                        </div>
+                        </div>:<div></div>}
                     </form>
                 )}
             </div>

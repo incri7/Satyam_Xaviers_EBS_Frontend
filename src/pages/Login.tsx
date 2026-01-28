@@ -21,11 +21,14 @@ const LoginPage: React.FC = () => {
 
         try {
             const response = await login({ email, password });
-
+            if (response.user.must_change_password === true) {
+                navigate('/reset-password');
+            }
             // Redirect based on user role
-            if (response.user.role === 'principal') {
+            else if (response.user.role === 'principal') {
                 navigate('/principal-dashboard');
-            } else {
+            }
+             else {
                 navigate('/dashboard'); // Default dashboard for other roles
             }
         } catch (err: any) {
