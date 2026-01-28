@@ -68,9 +68,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         occupation: '',
         nationalId: '',
         address: '',
-        city: 'Kathmandu',
-        state: 'Bagmati',
-        pincode: '44600',
+        city: 'Hetauda',
+        state: 'Makwanpur',
+        pincode: '44107',
         students: [],
     };
 
@@ -83,9 +83,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         dob: '',
         gender: 'Select gender',
         bloodGroup: 'Select blood group',
-        city: 'Kathmandu',
-        state: 'Bagmati',
-        pincode: '44600',
+        city: 'Hetauda',
+        state: 'Makwanpur',
+        pincode: '44107',
         admissionDate: '',
         grade: 'Select class',
         relationship: 'Father',
@@ -98,12 +98,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             name: 'Select class'
         }
     ]);
+
+    // Fetch classes and set it to classOptions
     useEffect(() => {
         const fetchClasses = async () => {
             try {
                 const res = await academicsService.getClasses();
-                setClassOptions((prev)=>[
-                    ...prev,
+                setClassOptions([
+                    { id: 0, name: 'Select class' },
                     ...res.classes.map(({ id, name }) => ({ id, name }))
                 ]);
             }catch(error){
@@ -140,6 +142,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         { id: 'parent-details', label: 'Parent Details' },
         { id: 'student-registration', label: 'Student Info' },
     ];
+
     const genderOptions = {
         'Select gender': 'Select gender',
         'Male': 'M',
@@ -166,7 +169,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
         if (currentStep === 'user-account') {
             if (!formData.firstName) errors.firstName = 'First name is required';
+            else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName)) errors.firstName = 'First name invalid';
+            if (formData.middleName && !/^[a-zA-Z\s'-]+$/.test(formData.middleName)) errors.middleName = 'Middle name invalid';
             if (!formData.lastName) errors.lastName = 'Last name is required';
+            else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName)) errors.lastName = 'Last name invalid';
             if (!formData.email) errors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
             if (!formData.phone) errors.phone = 'Phone number is required';
@@ -180,10 +186,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             }
         } else if (currentStep === 'parent-details') {
             if (!formData.firstName) errors.firstName = 'First name is required';
+            else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName)) errors.firstName = 'First name invalid';
+            if (formData.middleName && !/^[a-zA-Z\s'-]+$/.test(formData.middleName)) errors.middleName = 'Middle name invalid';
             if (!formData.lastName) errors.lastName = 'Last name is required';
+            else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName)) errors.lastName = 'Last name invalid';
+            if(!formData.occupation) errors.occupation = "Occupation is required";
+            else if(!/^[a-zA-Z\s'-]+$/.test(formData.occupation)) errors.occupation = 'Occupation invalid';
+            if(!formData.nationalId) errors.nationalId = "National Id is required";
+            else if(!/^[0-9-]+$/.test(formData.nationalId)) errors.nationalId = 'National Id invalid';
+            if(!formData.address) errors.address = "Address is required";
             if (!formData.city) errors.city = 'City is required';
+            else if (!/^[a-zA-Z\s]+$/.test(formData.city)) errors.city = 'City invalid';
             if (!formData.state) errors.state = 'State is required';
+            else if (!/^[a-zA-Z\s]+$/.test(formData.state)) errors.state = 'State invalid';
             if (!formData.pincode) errors.pincode = 'Pincode is required';
+            else if (!/^[0-9]+$/.test(formData.pincode)) errors.pincode = 'Pincode invalid';
         } else if (currentStep === 'student-registration') {
             if (formData.students.length === 0) {
                 setError('Please add at least one student before completing registration.');
@@ -198,9 +215,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     const validateStudent = () => {
         const errors: Record<string, string> = {};
         if (!currentStudent.firstName) errors.studentFirstName = 'First name is required';
+        else if (!/^[a-zA-Z\s'-]+$/.test(currentStudent.firstName)) errors.studentFirstName = 'First name invalid';
+        if (currentStudent.middleName && !/^[a-zA-Z\s'-]+$/.test(currentStudent.middleName)) errors.studentmiddleName = 'Middle name invalid';
         if (!currentStudent.lastName) errors.studentLastName = 'Last name is required';
+        else if (!/^[a-zA-Z\s'-]+$/.test(currentStudent.lastName)) errors.studentLastName = 'Last name invalid';
         if (!currentStudent.dob) errors.studentDob = 'Date of birth is required';
+        else {
+            const dobDate = new Date(currentStudent.dob);
+            const fourYearsAgo = new Date();
+            fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
+            if (dobDate > fourYearsAgo) {
+                errors.studentDob = 'Student must be at least 4 years old';
+            }
+        }
         if (currentStudent.gender === 'Select gender') errors.studentGender = 'Gender is required';
+        if (currentStudent.bloodGroup === 'Select blood group') errors.studentBloodGroup = 'Blood group is required';
+        if(!currentStudent.city) errors.studentCity = 'City is required';
+        else if(!/^[a-zA-Z\s'-]+$/.test(currentStudent.city)) errors.studentCity = 'City invalid';
+        if(!currentStudent.state) errors.studentState = 'State is required';
+        else if(!/^[a-zA-Z\s'-]+$/.test(currentStudent.state)) errors.studentState = 'State invalid';
+        if(!currentStudent.pincode) errors.studentPincode = 'Pincode is required';
+        else if (!/^[0-9]+$/.test(currentStudent.pincode)) errors.studentPincode = 'Pincode invalid';
+        if (!currentStudent.admissionDate) errors.studentAdmissionDate = 'Admission date is required';
         if (currentStudent.grade === 'Select class') errors.studentGrade = 'Class is required';
 
         setFieldErrors(errors);
@@ -392,8 +428,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} error={fieldErrors.firstName} />
-                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} error={fieldErrors.lastName} />
+                                <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.firstName} />
+                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.lastName} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} error={fieldErrors.email} />
@@ -435,13 +471,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                     <h3 className="text-lg font-bold text-slate-900">Personal Details</h3>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val)} error={fieldErrors.firstName} />
-                                    <FormInput label="Middle Name" placeholder="Kumar" value={formData.middleName} onChange={(val) => updateField('middleName', val)} />
-                                    <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val)} error={fieldErrors.lastName} />
+                                    <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.firstName} />
+                                    <FormInput label="Middle Name" placeholder="Kumar" value={formData.middleName} onChange={(val) => updateField('middleName', val.replace(/[^a-zA-Z\s'-]/g, ''))} />
+                                    <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.lastName} />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormInput label="Occupation" placeholder="Engineer" value={formData.occupation} onChange={(val) => updateField('occupation', val)} />
-                                    <FormInput label="National ID (Citizenship)" placeholder="12345-6789-0123" value={formData.nationalId} onChange={(val) => updateField('nationalId', val)} />
+                                    <FormInput label="Occupation" asterisk placeholder="Engineer" value={formData.occupation} onChange={(val) => updateField('occupation', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.occupation} />
+                                    <FormInput label="National ID (Citizenship)" asterisk placeholder="12345-6789-0123" value={formData.nationalId} onChange={(val) => updateField('nationalId', val.replace(/[^\d\s+-]/g, ''))} error={fieldErrors.nationalId}/>
                                 </div>
                             </div>
 
@@ -450,11 +486,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                 <div className="border-b border-slate-100 pb-2">
                                     <h3 className="text-lg font-bold text-slate-900">Address Details</h3>
                                 </div>
-                                <FormInput label="Address Line" placeholder="Kathmandu-15, Baneshwor" value={formData.address} onChange={(val) => updateField('address', val)} />
+                                <FormInput label="Address Line" asterisk placeholder="Hetauda-4, Makwanpur" value={formData.address} onChange={(val) => updateField('address', val)} error={fieldErrors.address} />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="City" asterisk placeholder="Kathmandu" value={formData.city} onChange={(val) => updateField('city', val)} error={fieldErrors.city} />
-                                    <FormInput label="State" asterisk placeholder="Bagmati" value={formData.state} onChange={(val) => updateField('state', val)} error={fieldErrors.state} />
-                                    <FormInput label="Pincode" asterisk placeholder="44600" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
+                                    <FormInput label="City" asterisk placeholder="Hetauda" value={formData.city} onChange={(val) => updateField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.city} />
+                                    <FormInput label="State" asterisk placeholder="Makwanpur" value={formData.state} onChange={(val) => updateField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.state} />
+                                    <FormInput label="Pincode" asterisk placeholder="44107" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
                                 </div>
                             </div>
                         </div>
@@ -562,14 +598,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName', val)} error={fieldErrors.studentFirstName} />
-                                                <FormInput label="Middle Name" placeholder="Kumar" value={currentStudent.middleName} onChange={val => updateStudentField('middleName', val)} />
-                                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={currentStudent.lastName} onChange={val => updateStudentField('lastName', val)} error={fieldErrors.studentLastName} />
+                                                <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentFirstName} />
+                                                <FormInput label="Middle Name" placeholder="Kumar" value={currentStudent.middleName} onChange={val => updateStudentField('middleName',val.replace(/[^a-zA-Z\s'-]/g, ''))} />
+                                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={currentStudent.lastName} onChange={val => updateStudentField('lastName',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentLastName} />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} />
+                                                <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} max={new Date(new Date().setFullYear(new Date().getFullYear() - 4)).toISOString().split('T')[0]} />
                                                 <FormSelect label="Gender" asterisk options={Object.entries(genderOptions).map(([label, value]) => ({label,value}))} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
-                                                <FormSelect label="Blood Group" options={Object.entries(bloodGroupOptions).map(([label, value]) => ({label,value}))} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} />
+                                                <FormSelect label="Blood Group" asterisk options={Object.entries(bloodGroupOptions).map(([label, value]) => ({label,value}))} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} error={fieldErrors.studentBloodGroup} />
                                             </div>
                                         </div>
 
@@ -578,9 +614,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 <h3 className="text-lg font-bold text-slate-900">Address Details</h3>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="City" placeholder="Kathmandu" value={currentStudent.city} onChange={val => updateStudentField('city', val)} />
-                                                <FormInput label="State" placeholder="Bagmati" value={currentStudent.state} onChange={val => updateStudentField('state', val)} />
-                                                <FormInput label="Pincode" placeholder="44600" value={currentStudent.pincode} onChange={val => updateStudentField('pincode', val)} />
+                                                <FormInput label="City" asterisk placeholder="Hetauda" value={currentStudent.city} onChange={val => updateStudentField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentCity}/>
+                                                <FormInput label="State" asterisk placeholder="Makwanpur" value={currentStudent.state} onChange={val => updateStudentField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentState}/>
+                                                <FormInput label="Pincode" asterisk placeholder="44107" value={currentStudent.pincode} onChange={val => updateStudentField('pincode', val)} error={fieldErrors.studentPincode}/>
                                             </div>
                                         </div>
 
@@ -589,7 +625,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 <h3 className="text-lg font-bold text-slate-900">Academic Placement</h3>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <FormInput label="Admission Date" type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)} />
+                                                <FormInput label="Admission Date" asterisk type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)}  error={fieldErrors.admissionDate}/>
                                                 <FormSelect label="Class" asterisk options={classOptions.map(cls => ({ label: cls.name, value: cls.id.toString() }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
                                             </div>
                                         </div>
@@ -783,9 +819,10 @@ interface FormInputProps {
     onChange?: (val: string) => void;
     asterisk?: boolean;
     error?: string;
+    max?: string;
 }
 
-const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder, value, onChange, asterisk, error }) => (
+const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder, value, onChange, asterisk, error, max }) => (
     <div className="space-y-2 group text-left">
         <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors">
             {label}
@@ -796,6 +833,7 @@ const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder
                 type={type}
                 placeholder={placeholder}
                 value={value}
+                max={max}
                 onChange={(e) => onChange?.(e.target.value)}
                 className={cn(
                     "w-full bg-[#F8F9FB] border focus:bg-white focus:ring-4 rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none placeholder:text-slate-300",
