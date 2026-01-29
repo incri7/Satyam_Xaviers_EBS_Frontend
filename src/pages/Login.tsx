@@ -58,7 +58,7 @@ const LoginPage: React.FC = () => {
                 <div className="flex flex-col items-center mb-10">
                     <SchoolLogo className="w-24 h-24 mb-6 shadow-lg shadow-brand/20" />
                     <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        Satyam English School
+                        Satyam Xaviers English School
                     </h1>
                     <p className="text-slate-500 font-medium text-sm mt-1">
                         Management System
