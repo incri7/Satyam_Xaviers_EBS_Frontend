@@ -6,7 +6,7 @@ export const SchoolLogo: React.FC<{ className?: string }> = ({ className = "w-20
         <div className={`rounded-full bg-white flex items-center justify-center p-1 overflow-hidden ${className}`}>
             <img
                 src={logo}
-                alt="Satyam English School Logo"
+                alt="Satyam Xavier's EBS Logo"
                 className="w-full h-full object-contain"
             />
         </div>

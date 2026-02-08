@@ -42,5 +42,39 @@ export const peopleService = {
         } catch (error: any) {
             throw error.response?.data?.detail || 'Registration failed';
         }
+    },
+
+    getParents: async (search?: string) => {
+        try {
+            const params = search ? { search } : {};
+            const response = await api.get('people/parents', { params });
+            return response.data;
+        } catch (error: any) {
+            throw error.response?.data?.detail || 'Failed to fetch parents';
+        }
+    },
+
+    createStudent: async (data: any) => {
+        try {
+            const response = await api.post('people/students', {
+                first_name: data.firstName,
+                last_name: data.lastName,
+                middle_name: data.middleName || '',
+                dob: data.dob,
+                gender: data.gender,
+                blood_group: data.bloodGroup,
+                city: data.city,
+                state: data.state,
+                pincode: data.pincode,
+                admission_date: data.admissionDate,
+                admission_no: data.admissionNo,
+                parent_id: data.parentId,
+                class_id: data.classId,
+                status: 'active'
+            });
+            return response.data;
+        } catch (error: any) {
+            throw error.response?.data?.detail || 'Failed to create student';
+        }
     }
 };

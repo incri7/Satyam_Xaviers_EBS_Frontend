@@ -3,8 +3,8 @@ import LoginPage from '../pages/Login';
 import ForgotPasswordPage from '../pages/ForgotPassword';
 import ResetPasswordPage from '../pages/ResetPassword';
 import { ProtectedRoute } from '../components/ProtectedRoute';
-import { DashboardLayout } from '../components/DashboardLayout';
-import PrincipalDashboard from '../pages/PrincipalDashboard';
+import Dashboard from '../pages/Dashboard';
+import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 
 export const router = createBrowserRouter([
     {
@@ -24,13 +24,41 @@ export const router = createBrowserRouter([
         children: [
             {
                 path: '/dashboard',
-                element: <DashboardLayout />,
+                element: <Dashboard />,
             },
             {
-                path: '/principal-dashboard',
-                element: <PrincipalDashboard />,
+                path: '/academics',
+                element: <Dashboard />,
+            },
+            {
+                path: '/staff',
+                element: <Dashboard />,
+            },
+            {
+                path: '/financials',
+                element: <Dashboard />,
+            },
+            {
+                path: '/communication',
+                element: <Dashboard />,
+            },
+            {
+                path: '/reports',
+                element: <Dashboard />,
+            },
+            {
+                path: '/settings',
+                element: <Dashboard />,
+            },
+            {
+                path: '/settings/permissions',
+                element: <PermissionsDashboard />,
             }
         ]
+    },
+    {
+        path: '/',
+        element: <Navigate to="/dashboard" replace />,
     },
     {
         path: '*',

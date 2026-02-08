@@ -23,13 +23,9 @@ const LoginPage: React.FC = () => {
             const response = await login({ email, password });
             if (response.user.must_change_password === true) {
                 navigate('/reset-password');
-            }
-            // Redirect based on user role
-            else if (response.user.role === 'principal') {
-                navigate('/principal-dashboard');
-            }
-             else {
-                navigate('/dashboard'); // Default dashboard for other roles
+            } else {
+                // All users go to unified dashboard
+                navigate('/dashboard');
             }
         } catch (err: any) {
             const detail = err.response?.data?.detail;
@@ -58,7 +54,7 @@ const LoginPage: React.FC = () => {
                 <div className="flex flex-col items-center mb-10">
                     <SchoolLogo className="w-24 h-24 mb-6 shadow-lg shadow-brand/20" />
                     <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        Satyam English School
+                        Satyam Xavier's EBS
                     </h1>
                     <p className="text-slate-500 font-medium text-sm mt-1">
                         Management System

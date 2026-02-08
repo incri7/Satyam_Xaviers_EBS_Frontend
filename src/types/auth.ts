@@ -28,3 +28,49 @@ export interface ApiError {
     message: string;
     detail?: string;
 }
+
+// Permission-related types
+export interface Permission {
+    id: number;
+    role: string;
+    resource: string;
+    can_create: boolean;
+    can_read: boolean;
+    can_update: boolean;
+    can_delete: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'view';
+
+export type PermissionsResponse = Permission[];
+
+// Admin Permission Management Types
+
+export const RoleEnum = {
+    ADMIN: 'admin',
+    PRINCIPAL: 'principal',
+    TEACHER: 'teacher',
+    STUDENT: 'student',
+    STAFF: 'staff',
+    PARENT: 'parent',
+} as const;
+
+export type RoleEnumType = typeof RoleEnum[keyof typeof RoleEnum];
+
+export interface PermissionCreatePayload {
+    role: RoleEnumType | string;
+    resource: string;
+    can_create?: boolean;
+    can_read?: boolean;
+    can_update?: boolean;
+    can_delete?: boolean;
+}
+
+export interface PermissionUpdatePayload {
+    can_create?: boolean;
+    can_read?: boolean;
+    can_update?: boolean;
+    can_delete?: boolean;
+}
