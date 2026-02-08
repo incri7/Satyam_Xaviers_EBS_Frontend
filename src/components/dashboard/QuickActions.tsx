@@ -1,6 +1,8 @@
-import { UserPlus, CalendarClock, BellRing, FileBarChart2, Settings2 } from 'lucide-react';
+import { UserPlus, CalendarClock, BellRing, FileBarChart2, GraduationCap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
+import { AccessControl } from '../AccessControl';
+import type { PermissionAction } from '../../types/auth';
 
 interface QuickActionProps {
     title: string;
@@ -32,42 +34,61 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
     );
 };
 
-export const QuickActions: React.FC<{ onRegisterParent?: () => void }> = ({ onRegisterParent }) => {
-    const actions = [
-        {
-            title: 'Register Parent',
-            description: 'Add new parent & students',
-            icon: UserPlus,
-            onClick: onRegisterParent,
-            isHighlighted: true,
-        },
-        {
-            title: 'Leave Requests',
-            description: '3 pending',
-            icon: CalendarClock,
-        },
-        {
-            title: 'Review Notices',
-            description: '2 drafts',
-            icon: BellRing,
-        },
-        {
-            title: 'Generate Reports',
-            description: 'Monthly',
-            icon: FileBarChart2,
-        },
-        {
-            title: 'System Settings',
-            description: 'Configure',
-            icon: Settings2,
-        },
-    ];
+export const QuickActions: React.FC<{ onRegisterParent?: () => void, onAddStudent?: () => void }> = ({ onRegisterParent, onAddStudent }) => {
+    const actions: Array<{
+        title: string;
+        description: string;
+        icon: React.ElementType;
+        onClick?: () => void;
+        isHighlighted?: boolean;
+        permissions: Array<{ resource: string; action: PermissionAction }>;
+    }> = [
+            {
+                title: 'Register Parent',
+                description: 'Add new parent & students',
+                icon: UserPlus,
+                onClick: onRegisterParent,
+                isHighlighted: true,
+                permissions: [{ resource: 'parents', action: 'create' }],
+            },
+            {
+                title: 'Add Student',
+                description: 'Assign to existing parent',
+                icon: GraduationCap,
+                onClick: onAddStudent,
+                isHighlighted: false,
+                permissions: [{ resource: 'students', action: 'create' }],
+            },
+            {
+                title: 'Leave Requests',
+                description: '3 pending',
+                icon: CalendarClock,
+                permissions: [{ resource: 'staff', action: 'read' }],
+            },
+            {
+                title: 'Review Notices',
+                description: '2 drafts',
+                icon: BellRing,
+                permissions: [{ resource: 'staff', action: 'create' }],
+            },
+            {
+                title: 'Generate Reports',
+                description: 'Monthly',
+                icon: FileBarChart2,
+                permissions: [{ resource: 'finances', action: 'read' }],
+            },
+        ];
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {actions.map((action, index) => (
-                <QuickAction key={action.title} {...action} index={index} />
-            ))}
+            {actions.map((action, index) => {
+                const id = `action_${action.title.toLowerCase().replace(/\s+/g, '_')}`;
+                return (
+                    <AccessControl key={action.title} id={id as any}>
+                        <QuickAction {...action} index={index} />
+                    </AccessControl>
+                );
+            })}
         </div>
     );
 };

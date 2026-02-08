@@ -7,22 +7,87 @@ import {
     Wallet,
     MessageSquare,
     BarChart3,
-    Settings
+    Settings,
+    Shield
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
 
-const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/principal-dashboard' },
-    { icon: GraduationCap, label: 'Academics', href: '/academics' },
-    { icon: Users, label: 'Staff Management', href: '/staff' },
-    { icon: Wallet, label: 'Financials', href: '/financials' },
-    { icon: MessageSquare, label: 'Communication', href: '/communication' },
-    { icon: BarChart3, label: 'Reports', href: '/reports' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+import type { PermissionAction } from '../../types/auth';
+
+interface MenuItem {
+    icon: React.ElementType;
+    label: string;
+    href: string;
+    permission?: { resource: string; action: PermissionAction };
+}
+
+const menuItems: MenuItem[] = [
+    {
+        icon: LayoutDashboard,
+        label: 'Dashboard',
+        href: '/dashboard',
+        permission: { resource: 'dashboard', action: 'read' } // Everyone should have dashboard:read or similar
+    },
+    {
+        icon: GraduationCap,
+        label: 'Academics',
+        href: '/academics',
+        permission: { resource: 'classes', action: 'read' }
+    },
+    {
+        icon: Users,
+        label: 'Staff Management',
+        href: '/staff',
+        permission: { resource: 'staff', action: 'read' }
+    },
+    {
+        icon: Wallet,
+        label: 'Financials',
+        href: '/financials',
+        permission: { resource: 'finances', action: 'read' }
+    },
+    {
+        icon: MessageSquare,
+        label: 'Communication',
+        href: '/communication',
+        // 'communication' resource doesn't exist in backend, falling back to basic role check or skipping if strictly permission based.
+        // Assuming 'notices' or similar feature. Without explicit resource, maybe use 'staff:read' as placeholder or just show it.
+        // Let's use 'staff:read' for now as a proxy since communication usually involves staff.
+        permission: { resource: 'staff', action: 'read' }
+    },
+    {
+        icon: BarChart3,
+        label: 'Reports',
+        href: '/reports',
+        permission: { resource: 'finances', action: 'read' }
+    },
+    {
+        icon: Settings,
+        label: 'Settings',
+        href: '/settings',
+        permission: { resource: 'users', action: 'read' }
+    },
+    {
+        icon: Shield,
+        label: 'Access Control',
+        href: '/settings/permissions',
+        permission: { resource: 'permissions', action: 'read' }
+    }
 ];
 
 export const Sidebar: React.FC = () => {
+    const { hasPermission } = usePermissionsStore();
+
+
+    const filteredMenuItems = menuItems.filter(item => {
+
+
+        if (!item.permission) return true;
+        return hasPermission(item.permission.resource, item.permission.action);
+    });
+
     return (
         <motion.aside
             initial={{ x: -288 }}
@@ -40,10 +105,11 @@ export const Sidebar: React.FC = () => {
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-                {menuItems.map((item) => (
+                {filteredMenuItems.map((item) => (
                     <NavLink
                         key={item.label}
                         to={item.href}
+                        end={item.href === '/settings'} // Only match exact path for Settings to avoid conflict with /settings/permissions
                         className={({ isActive }) => cn(
                             "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
                             isActive
