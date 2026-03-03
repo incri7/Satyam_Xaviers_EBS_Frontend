@@ -10,19 +10,7 @@ interface AddStudentToParentModalProps {
     onClose: () => void;
 }
 
-interface Parent {
-    id: number;
-    user_id: number;
-    first_name: string;
-    middle_name?: string;
-    last_name: string;
-    address_line?: string;
-    city?: string;
-    user: {
-        email: string;
-        phone: string;
-    };
-}
+import type { Parent } from '../../types/people';
 
 export const AddStudentToParentModal: React.FC<AddStudentToParentModalProps> = ({ isOpen, onClose }) => {
     const getFullName = (p: Parent) => {
@@ -111,7 +99,7 @@ export const AddStudentToParentModal: React.FC<AddStudentToParentModalProps> = (
         setIsLoading(true);
         setError(null);
         try {
-            const data = await peopleService.getParents(searchQuery);
+            const data = await peopleService.getParents({ search: searchQuery });
             setParents(data.parents || []);
         } catch (err: any) {
             setError('Failed to search parents');
@@ -234,10 +222,10 @@ export const AddStudentToParentModal: React.FC<AddStudentToParentModalProps> = (
                                                 <p className="font-bold text-slate-900">{getFullName(parent)}</p>
                                                 <div className="flex items-center gap-4 mt-0.5">
                                                     <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                        <Phone className="w-3 h-3" /> {parent.user.phone}
+                                                        <Phone className="w-3 h-3" /> {parent.user?.phone}
                                                     </span>
                                                     <span className="text-xs text-slate-500 flex items-center gap-1">
-                                                        <Mail className="w-3 h-3" /> {parent.user.email}
+                                                        <Mail className="w-3 h-3" /> {parent.user?.email}
                                                     </span>
                                                 </div>
                                             </div>
