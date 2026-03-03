@@ -6,6 +6,8 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import Dashboard from '../pages/Dashboard';
 import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 import AcademicsPage from '../pages/Academics/AcademicsPage';
+import PeoplePage from '../pages/People/PeoplePage';
+import ProfilePage from '../pages/Profile/ProfilePage';
 
 export const router = createBrowserRouter([
     {
@@ -32,8 +34,16 @@ export const router = createBrowserRouter([
                 element: <AcademicsPage />,
             },
             {
+                path: '/people',
+                element: <PeoplePage />,
+            },
+            {
+                path: '/profile',
+                element: <ProfilePage />,
+            },
+            {
                 path: '/staff',
-                element: <Dashboard />,
+                element: <Navigate to="/people" replace />,
             },
             {
                 path: '/financials',

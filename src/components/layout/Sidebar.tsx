@@ -38,9 +38,9 @@ const menuItems: MenuItem[] = [
     },
     {
         icon: Users,
-        label: 'Staff Management',
-        href: '/staff',
-        permission: { resource: 'staff', action: 'read' }
+        label: 'People Management',
+        href: '/people',
+        permission: { resource: 'users', action: 'read' }
     },
     {
         icon: Wallet,
