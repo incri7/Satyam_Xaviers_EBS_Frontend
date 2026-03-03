@@ -76,5 +76,23 @@ export const peopleService = {
         } catch (error: any) {
             throw error.response?.data?.detail || 'Failed to create student';
         }
+    },
+
+    getStudents: async (params?: { search?: string; page?: number; limit?: number }) => {
+        try {
+            const response = await api.get('people/students', { params });
+            return response.data;
+        } catch (error: any) {
+            throw error.response?.data?.detail || 'Failed to fetch students';
+        }
+    },
+
+    getTeachers: async (params?: { search?: string; page?: number; limit?: number }) => {
+        try {
+            const response = await api.get('people/teachers', { params });
+            return response.data;
+        } catch (error: any) {
+            throw error.response?.data?.detail || 'Failed to fetch teachers';
+        }
     }
 };

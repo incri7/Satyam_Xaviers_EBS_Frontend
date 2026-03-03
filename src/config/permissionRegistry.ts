@@ -39,6 +39,38 @@ export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
     'action_generate_reports': [
         { resource: 'finances', action: 'read' }
     ],
+    'finance_summary': [
+        { resource: 'finances', action: 'read' }
+    ],
+
+    // Academics
+    'classes_create': [
+        { resource: 'classes', action: 'create' }
+    ],
+    'classes_update': [
+        { resource: 'classes', action: 'update' }
+    ],
+    'classes_delete': [
+        { resource: 'classes', action: 'delete' }
+    ],
+    'sections_create': [
+        { resource: 'sections', action: 'create' }
+    ],
+    'sections_update': [
+        { resource: 'sections', action: 'update' }
+    ],
+    'sections_delete': [
+        { resource: 'sections', action: 'delete' }
+    ],
+    'enrollments_create': [
+        { resource: 'enrollments', action: 'create' }
+    ],
+    'enrollments_update': [
+        { resource: 'enrollments', action: 'update' }
+    ],
+    'enrollments_delete': [
+        { resource: 'enrollments', action: 'delete' }
+    ],
 
     // Add more component IDs here as you build the app...
 };

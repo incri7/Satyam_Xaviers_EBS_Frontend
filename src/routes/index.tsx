@@ -5,6 +5,7 @@ import ResetPasswordPage from '../pages/ResetPassword';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import Dashboard from '../pages/Dashboard';
 import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
+import AcademicsPage from '../pages/Academics/AcademicsPage';
 
 export const router = createBrowserRouter([
     {
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: '/academics',
-                element: <Dashboard />,
+                element: <AcademicsPage />,
             },
             {
                 path: '/staff',
