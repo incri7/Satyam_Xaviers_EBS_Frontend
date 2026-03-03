@@ -4,11 +4,11 @@ import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { authService } from '../api/services/auth.service';
-import { div } from 'framer-motion/client';
+
 
 const ResetPasswordPage: React.FC = () => {
-    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
