@@ -8,6 +8,7 @@ import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 import AcademicsPage from '../pages/Academics/AcademicsPage';
 import PeoplePage from '../pages/People/PeoplePage';
 import ProfilePage from '../pages/Profile/ProfilePage';
+import FinancesPage from '../pages/Finances/FinancesPage';
 
 export const router = createBrowserRouter([
     {
@@ -46,8 +47,12 @@ export const router = createBrowserRouter([
                 element: <Navigate to="/people" replace />,
             },
             {
+                path: '/finances',
+                element: <FinancesPage />,
+            },
+            {
                 path: '/financials',
-                element: <Dashboard />,
+                element: <Navigate to="/finances" replace />,
             },
             {
                 path: '/communication',

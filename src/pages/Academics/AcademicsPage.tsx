@@ -66,7 +66,7 @@ const AcademicsPage: React.FC = () => {
                                 className={cn(
                                     "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200",
                                     activeTab === tab.id
-                                        ? "bg-slate-900 text-white shadow-md shadow-slate-200 scale-100"
+                                        ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
                                         : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                                 )}
                             >

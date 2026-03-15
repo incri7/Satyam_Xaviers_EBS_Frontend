@@ -1,4 +1,4 @@
-import { UserPlus, CalendarClock, BellRing, FileBarChart2, GraduationCap } from 'lucide-react';
+import { CalendarClock, BellRing, FileBarChart2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
@@ -34,7 +34,7 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
     );
 };
 
-export const QuickActions: React.FC<{ onRegisterParent?: () => void, onAddStudent?: () => void }> = ({ onRegisterParent, onAddStudent }) => {
+export const QuickActions: React.FC = () => {
     const actions: Array<{
         title: string;
         description: string;
@@ -43,22 +43,6 @@ export const QuickActions: React.FC<{ onRegisterParent?: () => void, onAddStuden
         isHighlighted?: boolean;
         permissions: Array<{ resource: string; action: PermissionAction }>;
     }> = [
-            {
-                title: 'Register Parent',
-                description: 'Add new parent & students',
-                icon: UserPlus,
-                onClick: onRegisterParent,
-                isHighlighted: true,
-                permissions: [{ resource: 'parents', action: 'create' }],
-            },
-            {
-                title: 'Add Student',
-                description: 'Assign to existing parent',
-                icon: GraduationCap,
-                onClick: onAddStudent,
-                isHighlighted: false,
-                permissions: [{ resource: 'students', action: 'create' }],
-            },
             {
                 title: 'Leave Requests',
                 description: '3 pending',

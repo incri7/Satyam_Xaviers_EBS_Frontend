@@ -28,7 +28,6 @@ const menuItems: MenuItem[] = [
         icon: LayoutDashboard,
         label: 'Dashboard',
         href: '/dashboard',
-        permission: { resource: 'dashboard', action: 'read' } // Everyone should have dashboard:read or similar
     },
     {
         icon: GraduationCap,
@@ -44,8 +43,8 @@ const menuItems: MenuItem[] = [
     },
     {
         icon: Wallet,
-        label: 'Financials',
-        href: '/financials',
+        label: 'Finances',
+        href: '/finances',
         permission: { resource: 'finances', action: 'read' }
     },
     {
