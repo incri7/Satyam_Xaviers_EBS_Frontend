@@ -12,6 +12,7 @@ import { ParentManagement } from '../../components/people/ParentManagement';
 import { UserManagement } from '../../components/people/UserManagement';
 import { RegistrationModal } from '../../components/registration/RegistrationModal';
 import { AddStudentToParentModal } from '../../components/registration/AddStudentToParentModal';
+import { WorkforceRegistrationModal } from '../../components/people/WorkforceRegistrationModal';
 
 type PeopleTab = 'students' | 'teachers' | 'staff' | 'parents' | 'users';
 
@@ -21,6 +22,7 @@ const PeoplePage: React.FC = () => {
     });
     const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
     const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+    const [isWorkforceModalOpen, setIsWorkforceModalOpen] = useState(false);
 
     const setActiveTab = (tab: PeopleTab) => {
         setActiveTabState(tab);
@@ -85,19 +87,20 @@ const PeoplePage: React.FC = () => {
                                             className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                         >
                                             <Plus className="w-5 h-5 text-white" />
-                                            <span>Register Full Family</span>
+                                            <span>Register New Guardian</span>
                                         </button>
                                     </AccessControl>
                                 </>
                             )}
 
-                            {activeTab !== 'students' && activeTab !== 'parents' && activeTab !== 'users' && (
-                                <AccessControl id={`${activeTab}_create`}>
+                            {activeTab === 'users' && (
+                                <AccessControl id="users_create">
                                     <button
+                                        onClick={() => setIsWorkforceModalOpen(true)}
                                         className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                     >
                                         <Plus className="w-5 h-5" />
-                                        <span>Add New {activeTab.slice(0, -1)}</span>
+                                        <span>Register New User</span>
                                     </button>
                                 </AccessControl>
                             )}
@@ -169,6 +172,11 @@ const PeoplePage: React.FC = () => {
                     onClose={() => setIsAddStudentModalOpen(false)}
                 />
             </AccessControl>
+
+            <WorkforceRegistrationModal
+                isOpen={isWorkforceModalOpen}
+                onClose={() => setIsWorkforceModalOpen(false)}
+            />
         </div>
     );
 };

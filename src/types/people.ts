@@ -205,3 +205,108 @@ export interface UserUpdate {
     role?: string;
     is_active?: boolean;
 }
+
+// Unified Registration Payloads
+export interface ParentUnifiedCreate {
+    first_name: string;
+    last_name: string;
+    middle_name?: string;
+    occupation?: string;
+    address_line?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    national_id?: string;
+}
+
+export interface UserUnifiedCreate {
+    email: string;
+    phone?: string;
+    password?: string;
+    role?: string;
+    first_name?: string;
+    last_name?: string;
+}
+
+export interface StudentCreate {
+    first_name: string;
+    last_name: string;
+    middle_name?: string;
+    dob: string;
+    gender: string;
+    blood_group?: string;
+    admission_no?: string;
+    admission_date: string;
+    class_id?: number;
+    relationship_type?: string;
+    is_primary_contact?: boolean;
+    city?: string;
+    state?: string;
+    pincode?: string;
+}
+
+export interface UnifiedRegistrationCreate {
+    user_in: UserUnifiedCreate;
+    parent_in: ParentUnifiedCreate;
+    students_in: StudentCreate[];
+}
+
+export interface UnifiedRegistrationResponse {
+    message: string;
+    user: User;
+    parent: Parent;
+    students: Student[];
+}
+
+// --- Unified User Registration (Teacher/Staff/Admin/etc.) ---
+
+export interface TeacherUnifiedCreate {
+    first_name: string;
+    last_name: string;
+    middle_name?: string;
+    staff_code?: string;
+    join_date?: string;
+    designation?: string;
+    dob?: string;
+    gender?: string;
+    blood_group?: string;
+    address_line?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    qualification?: string;
+    experience_years?: number;
+}
+
+export interface StaffUnifiedCreate {
+    first_name: string;
+    last_name: string;
+    middle_name?: string;
+    staff_code?: string;
+    join_date?: string;
+    designation?: string;
+    dob?: string;
+    gender?: string;
+    blood_group?: string;
+    address_line?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+}
+
+export interface UserRegistrationCreate {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    role: string;
+    teacher_in?: TeacherUnifiedCreate;
+    staff_in?: StaffUnifiedCreate;
+}
+
+export interface UserRegistrationResponse {
+    message: string;
+    user: User;
+    teacher?: Teacher;
+    staff?: Staff;
+}

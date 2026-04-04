@@ -1,10 +1,10 @@
 import { api } from '../axios';
 import type {
     FeeStructure, FeeStructureCreate, FeeStructureUpdate,
-    StudentFeeAssignment, StudentFeeAssignmentCreate,
-    Payment, PaymentCreate,
-    FeeDiscount, FeeDiscountCreate,
-    Expense, ExpenseCreate,
+    StudentFeeAssignment, StudentFeeAssignmentCreate, StudentFeeAssignmentUpdate,
+    Payment, PaymentCreate, PaymentUpdate,
+    FeeDiscount, FeeDiscountCreate, FeeDiscountUpdate,
+    Expense, ExpenseCreate, ExpenseUpdate,
     FinancialSummary
 } from '../../types/finance';
 
@@ -36,6 +36,10 @@ export const financesService = {
         const response = await api.post('finances/student-fees', data);
         return response.data;
     },
+    updateStudentFeeAssignment: async (id: number, data: StudentFeeAssignmentUpdate): Promise<StudentFeeAssignment> => {
+        const response = await api.put(`finances/student-fees/${id}`, data);
+        return response.data;
+    },
 
     // Payments
     listPayments: async (studentId?: number): Promise<Payment[]> => {
@@ -46,6 +50,10 @@ export const financesService = {
         const response = await api.post('finances/payments', data);
         return response.data;
     },
+    updatePayment: async (id: number, data: PaymentUpdate): Promise<Payment> => {
+        const response = await api.put(`finances/payments/${id}`, data);
+        return response.data;
+    },
     voidPayment: async (id: number): Promise<Payment> => {
         const response = await api.delete(`finances/payments/${id}`);
         return response.data;
@@ -54,6 +62,10 @@ export const financesService = {
     // Discounts
     createDiscount: async (data: FeeDiscountCreate): Promise<FeeDiscount> => {
         const response = await api.post('finances/discounts', data);
+        return response.data;
+    },
+    updateDiscount: async (id: number, data: FeeDiscountUpdate): Promise<FeeDiscount> => {
+        const response = await api.put(`finances/discounts/${id}`, data);
         return response.data;
     },
     deleteDiscount: async (id: number): Promise<FeeDiscount> => {
@@ -68,6 +80,10 @@ export const financesService = {
     },
     recordExpense: async (data: ExpenseCreate): Promise<Expense> => {
         const response = await api.post('finances/expenses', data);
+        return response.data;
+    },
+    updateExpense: async (id: number, data: ExpenseUpdate): Promise<Expense> => {
+        const response = await api.put(`finances/expenses/${id}`, data);
         return response.data;
     },
     voidExpense: async (id: number): Promise<Expense> => {

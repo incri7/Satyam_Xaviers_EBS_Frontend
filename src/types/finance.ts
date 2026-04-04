@@ -1,5 +1,5 @@
-export type PaymentMethod = 'cash' | 'bank_transfer' | 'online' | 'cheque';
-export type FeeFrequency = 'one_time' | 'monthly' | 'quarterly' | 'half_yearly' | 'yearly';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'online' | 'cheque' | 'card';
+export type FeeFrequency = 'one_time' | 'monthly' | 'quarterly' | 'yearly';
 
 export interface FeeStructure {
     id: number;
@@ -45,6 +45,11 @@ export interface StudentFeeAssignmentCreate {
     fee_structure_id: number;
 }
 
+export interface StudentFeeAssignmentUpdate {
+    student_id?: number;
+    fee_structure_id?: number;
+}
+
 export interface Payment {
     id: number;
     student_id: number;
@@ -68,6 +73,14 @@ export interface PaymentCreate {
     received_by_user_id?: number;
 }
 
+export interface PaymentUpdate {
+    amount?: number;
+    method?: PaymentMethod;
+    paid_at?: string;
+    receipt_no?: string;
+    transaction_id?: string;
+}
+
 export interface FeeDiscount {
     id: number;
     student_id: number;
@@ -84,6 +97,14 @@ export interface FeeDiscountCreate {
     fee_structure_id: number;
     is_percent: boolean;
     value: number;
+    reason?: string;
+    valid_from?: string;
+    valid_to?: string;
+}
+
+export interface FeeDiscountUpdate {
+    is_percent?: boolean;
+    value?: number;
     reason?: string;
     valid_from?: string;
     valid_to?: string;
@@ -110,6 +131,16 @@ export interface ExpenseCreate {
     payment_mode: PaymentMethod;
     description?: string;
     recorded_by_user_id?: number;
+}
+
+export interface ExpenseUpdate {
+    date?: string;
+    category?: string;
+    amount?: number;
+    vendor_name?: string;
+    invoice_no?: string;
+    payment_mode?: PaymentMethod;
+    description?: string;
 }
 
 export interface FinancialSummary {

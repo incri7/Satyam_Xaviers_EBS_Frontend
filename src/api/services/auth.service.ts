@@ -27,4 +27,9 @@ export const authService = {
     changePassword: async (data: any): Promise<void> => {
         await api.post('auth/password-change', data);
     },
+ 
+    register: async (data: any): Promise<any> => {
+        const response = await api.post('auth/register', data);
+        return response.data;
+    }
 };

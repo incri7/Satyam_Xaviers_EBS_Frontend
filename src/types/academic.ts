@@ -28,8 +28,11 @@ export interface Enrollment {
   section?: Section;
 }
 
-// Request Payloads
 export interface ClassCreate {
+  name: string;
+}
+
+export interface ClassUpdate {
   name: string;
 }
 
@@ -40,11 +43,26 @@ export interface SectionCreate {
   class_teacher_id?: number;
 }
 
+export interface SectionUpdate {
+  name?: string;
+  class_id?: number;
+  capacity?: number;
+  class_teacher_id?: number;
+}
+
 export interface EnrollmentCreate {
   student_id: number;
   class_id: number;
   section_id?: number;
   academic_year: string;
+  is_active?: boolean;
+}
+
+export interface EnrollmentUpdate {
+  student_id?: number;
+  class_id?: number;
+  section_id?: number;
+  academic_year?: string;
   is_active?: boolean;
 }
 

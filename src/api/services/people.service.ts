@@ -1,47 +1,15 @@
 import { api } from '../axios';
 import type {
-    ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, UserUpdate
+    ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, UserUpdate,
+    UnifiedRegistrationCreate, UnifiedRegistrationResponse,
+    UserRegistrationCreate, UserRegistrationResponse
 } from '../../types/people';
-
+ 
 export const peopleService = {
     // Shared Registration
-    registerParentStudent: async (data: any) => {
+    registerParentStudent: async (data: UnifiedRegistrationCreate): Promise<UnifiedRegistrationResponse> => {
         try {
-            const response = await api.post('people/register/parent-student', {
-                user_in: {
-                    email: data.userAccount.email,
-                    phone: data.userAccount.phone,
-                    password: data.userAccount.password,
-                    role: 'parent'
-                },
-                parent_in: {
-                    first_name: data.parentProfile.firstName,
-                    last_name: data.parentProfile.lastName,
-                    middle_name: data.parentProfile.middleName,
-                    occupation: data.parentProfile.occupation,
-                    national_id: data.parentProfile.nationalId,
-                    address_line: data.parentProfile.address,
-                    city: data.parentProfile.city,
-                    state: data.parentProfile.state,
-                    pincode: data.parentProfile.pincode
-                },
-                students_in: data.students.map((s: any) => ({
-                    first_name: s.firstName,
-                    last_name: s.lastName,
-                    middle_name: s.middleName || '',
-                    admission_no: s.admissionNo,
-                    relationship_type: s.relationship.toLowerCase(),
-                    is_primary_contact: s.isPrimary,
-                    dob: s.dob,
-                    gender: s.gender,
-                    blood_group: s.bloodGroup,
-                    city: s.city,
-                    state: s.state,
-                    pincode: s.pincode,
-                    class_id: s.grade,
-                    admission_date: s.admissionDate
-                }))
-            });
+            const response = await api.post<UnifiedRegistrationResponse>('people/register/parent-student', data);
             return response.data;
         } catch (error: any) {
             throw error.response?.data?.detail || 'Registration failed';
@@ -146,5 +114,15 @@ export const peopleService = {
     getMe: async () => {
         const response = await api.get('people/me');
         return response.data;
-    }
+    },
+
+    // Unified User Registration (atomic user + role profile)
+    registerUser: async (data: UserRegistrationCreate): Promise<UserRegistrationResponse> => {
+        try {
+            const response = await api.post<UserRegistrationResponse>('people/register/user', data);
+            return response.data;
+        } catch (error: any) {
+            throw error.response?.data?.detail || 'User registration failed';
+        }
+    },
 };

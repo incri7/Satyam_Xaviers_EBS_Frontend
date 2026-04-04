@@ -74,3 +74,12 @@ export interface PermissionUpdatePayload {
     can_update?: boolean;
     can_delete?: boolean;
 }
+
+export interface UserCreatePayload {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    role: string;
+    password?: string;
+}

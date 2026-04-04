@@ -9,6 +9,7 @@ import AcademicsPage from '../pages/Academics/AcademicsPage';
 import PeoplePage from '../pages/People/PeoplePage';
 import ProfilePage from '../pages/Profile/ProfilePage';
 import FinancesPage from '../pages/Finances/FinancesPage';
+import CommunicationPage from '../pages/CommunicationPage';
 
 export const router = createBrowserRouter([
     {
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: '/communication',
-                element: <Dashboard />,
+                element: <CommunicationPage />,
             },
             {
                 path: '/reports',

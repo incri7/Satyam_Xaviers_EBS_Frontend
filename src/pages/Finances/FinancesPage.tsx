@@ -12,6 +12,11 @@ import { FeeStructureManagement } from '../../components/finances/FeeStructureMa
 import { PaymentManagement } from '../../components/finances/PaymentManagement';
 import { ExpenseManagement } from '../../components/finances/ExpenseManagement';
 
+// Create Modals
+import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStructureModal';
+import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
+import { RecordExpenseModal } from '../../components/finances/RecordExpenseModal';
+
 const tabs = [
     { id: 'summary', label: 'Summary', icon: PieChart, resource: 'finances' },
     { id: 'fees', label: 'Fee Structures', icon: Landmark, resource: 'finances' },
@@ -24,9 +29,19 @@ export const FinancesPage: React.FC = () => {
         return localStorage.getItem('finances_active_tab') || 'summary';
     });
 
+    const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+
     const setActiveTab = (tab: string) => {
         setActiveTabState(tab);
         localStorage.setItem('finances_active_tab', tab);
+    };
+
+    const handleCreateAction = () => {
+        if (activeTab === 'fees') setIsFeeModalOpen(true);
+        else if (activeTab === 'payments') setIsPaymentModalOpen(true);
+        else if (activeTab === 'expenses') setIsExpenseModalOpen(true);
     };
 
     return (
@@ -46,6 +61,7 @@ export const FinancesPage: React.FC = () => {
                         {activeTab !== 'summary' && (
                             <AccessControl id={`${activeTab === 'fees' ? 'finances' : activeTab}_create`}>
                                 <button
+                                    onClick={handleCreateAction}
                                     className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                 >
                                     <Plus className="w-5 h-5" />
@@ -101,6 +117,11 @@ export const FinancesPage: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Create Modals */}
+            <CreateFeeStructureModal isOpen={isFeeModalOpen} onClose={() => setIsFeeModalOpen(false)} />
+            <RecordPaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
+            <RecordExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
         </div>
     );
 };

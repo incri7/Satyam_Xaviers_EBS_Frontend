@@ -2,12 +2,15 @@ import { api } from '../axios';
 import type {
     Class,
     ClassCreate,
+    ClassUpdate,
     ClassListResponse,
     Section,
     SectionCreate,
+    SectionUpdate,
     SectionListResponse,
     Enrollment,
     EnrollmentCreate,
+    EnrollmentUpdate,
     EnrollmentBulkCreate,
     EnrollmentListResponse
 } from '../../types/academic';
@@ -29,7 +32,7 @@ export const academicsService = {
         return response.data;
     },
 
-    updateClass: async (id: number, data: ClassCreate): Promise<Class> => {
+    updateClass: async (id: number, data: ClassUpdate): Promise<Class> => {
         const response = await api.put<Class>(`academics/classes/${id}`, data);
         return response.data;
     },
@@ -54,7 +57,7 @@ export const academicsService = {
         return response.data;
     },
 
-    updateSection: async (id: number, data: Partial<SectionCreate>): Promise<Section> => {
+    updateSection: async (id: number, data: SectionUpdate): Promise<Section> => {
         const response = await api.put<Section>(`academics/sections/${id}`, data);
         return response.data;
     },
@@ -92,7 +95,7 @@ export const academicsService = {
         return response.data;
     },
 
-    updateEnrollment: async (id: number, data: any): Promise<Enrollment> => {
+    updateEnrollment: async (id: number, data: EnrollmentUpdate): Promise<Enrollment> => {
         const response = await api.put<Enrollment>(`academics/enrollments/${id}`, data);
         return response.data;
     },
