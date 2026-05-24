@@ -4,6 +4,7 @@ import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
+import { requestFCMToken, deviceService } from '../api/services/device.service';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -21,11 +22,31 @@ const LoginPage: React.FC = () => {
 
         try {
             const response = await login({ email, password });
+
+            // Register FCM token in background — never blocks login
+            requestFCMToken().then((token) => {
+                if (token) deviceService.registerToken(token).catch(() => {});
+            });
+
             if (response.user.must_change_password === true) {
                 navigate('/reset-password');
             } else {
-                // All users go to unified dashboard
-                navigate('/dashboard');
+                const role = response.user.role;
+                if (role === 'teacher') {
+                    navigate('/home/teacher');
+                } else if (role === 'parent') {
+                    navigate('/home/parent');
+                } else if (role === 'accountant') {
+                    navigate('/home/accountant');
+                } else if (role === 'coordinator') {
+                    navigate('/home/coordinator');
+                } else if (role === 'student') {
+                    navigate('/home/student');
+                } else if (role === 'principal') {
+                    navigate('/home/principal');
+                } else {
+                    navigate('/dashboard');
+                }
             }
         } catch (err: any) {
             const detail = err.response?.data?.detail;

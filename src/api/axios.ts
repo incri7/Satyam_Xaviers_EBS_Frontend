@@ -53,6 +53,20 @@ api.interceptors.response.use(
             }
         }
 
+        // Normalize Pydantic 422 validation errors: convert detail array to a readable string
+        // so components can safely render error.response.data.detail without React error #31
+        if (error.response?.status === 422) {
+            const detail = error.response.data?.detail;
+            if (Array.isArray(detail)) {
+                error.response.data.detail = detail
+                    .map((d: any) => {
+                        const field = Array.isArray(d.loc) ? d.loc.slice(1).join('.') : '';
+                        return field ? `${field}: ${d.msg}` : d.msg;
+                    })
+                    .join('; ');
+            }
+        }
+
         return Promise.reject(error);
     }
 );

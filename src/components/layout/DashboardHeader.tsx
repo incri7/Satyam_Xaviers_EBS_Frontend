@@ -26,7 +26,9 @@ export const DashboardHeader: React.FC = () => {
                 </motion.div>
                 <div>
                     <h1 className="text-xl font-bold text-slate-900 leading-tight">Satyam Xavier's EBS</h1>
-                    <p className="text-[11px] font-bold text-slate-400">Friday, January 16, 2026</p>
+                    <p className="text-[11px] font-bold text-slate-400">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
                 </div>
             </div>
 

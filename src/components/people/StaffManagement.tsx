@@ -11,7 +11,7 @@ export const StaffManagement: React.FC = () => {
     const [page] = useState(1);
     const [limit] = useState(20);
 
-    const { data: staffData, isLoading } = useQuery({
+    const { data: staffData, isLoading, isError } = useQuery({
         queryKey: ['staff', searchQuery, page, limit],
         queryFn: () => peopleService.getStaffList({ search: searchQuery, page, limit }),
     });
@@ -96,7 +96,16 @@ export const StaffManagement: React.FC = () => {
                     </motion.div>
                 ))}
 
-                {staffList.length === 0 && !isLoading && (
+                {isError && (
+                    <div className="col-span-full py-20 text-center space-y-4">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+                            <Users className="w-10 h-10 text-red-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">Failed to load staff</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto">There was a problem fetching staff records. Please try again.</p>
+                    </div>
+                )}
+                {staffList.length === 0 && !isLoading && !isError && (
                     <div className="col-span-full py-20 text-center space-y-4">
                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
                             <Users className="w-10 h-10 text-slate-300" />

@@ -43,6 +43,14 @@ export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
         { resource: 'finances', action: 'read' }
     ],
 
+    // People
+    'students_update': [
+        { resource: 'students', action: 'update' }
+    ],
+    'students_delete': [
+        { resource: 'students', action: 'delete' }
+    ],
+
     // Academics
     'classes_create': [
         { resource: 'classes', action: 'create' }

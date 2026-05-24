@@ -35,9 +35,9 @@ export const CreateSectionModal: React.FC<CreateSectionModalProps> = ({ isOpen, 
         return () => clearTimeout(timer);
     }, [teacherSearchQuery]);
 
-    // Fetch teachers when debounced query changes
+    // Fetch teachers when debounced query changes (any non-empty input)
     useEffect(() => {
-        if (!debouncedTeacherQuery || debouncedTeacherQuery.length < 2 || selectedTeacher) {
+        if (selectedTeacher) {
             setTeacherResults([]);
             return;
         }
@@ -174,7 +174,7 @@ export const CreateSectionModal: React.FC<CreateSectionModalProps> = ({ isOpen, 
                                     setTeacherSearchQuery(e.target.value);
                                     if (selectedTeacher) setSelectedTeacher(null);
                                 }}
-                                onFocus={() => teacherSearchQuery.length >= 2 && setShowTeacherResults(true)}
+                                onFocus={() => teacherResults.length > 0 && setShowTeacherResults(true)}
                                 className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
                             />
                             {isSearchingTeachers && (

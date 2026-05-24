@@ -1,12 +1,34 @@
+import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
-
-const data = [
-    { name: 'Collected', value: 1912100, color: '#10B981' },
-    { name: 'Outstanding', value: 537900, color: '#EF4444' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { financesService } from '../../api/services/finances.service';
+import { cn } from '../../utils/cn';
 
 export const FeeCollectionCard: React.FC = () => {
+    const now = new Date();
+
+    const { data: outstanding } = useQuery({
+        queryKey: ['fee-outstanding'],
+        queryFn: () => financesService.getOutstanding(500),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const { data: monthlyReport } = useQuery({
+        queryKey: ['monthly-report-fee-card', now.getFullYear(), now.getMonth() + 1],
+        queryFn: () => financesService.getMonthlyReport(now.getFullYear(), now.getMonth() + 1),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const collected = monthlyReport?.total_collected ?? 0;
+    const totalOutstanding = outstanding?.total_outstanding ?? 0;
+    const isLoading = !monthlyReport && !outstanding;
+
+    const data = [
+        { name: 'Collected', value: collected, color: '#10B981' },
+        { name: 'Outstanding', value: totalOutstanding, color: '#EF4444' },
+    ];
+
     return (
         <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -14,7 +36,10 @@ export const FeeCollectionCard: React.FC = () => {
             viewport={{ once: true }}
             className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm"
         >
-            <h3 className="text-base font-bold text-slate-800 mb-6">Fee Collection Status</h3>
+            <h3 className="text-base font-bold text-slate-800 mb-1">Fee Collection Status</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
+                {now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+            </p>
             <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="h-[200px] w-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -33,7 +58,7 @@ export const FeeCollectionCard: React.FC = () => {
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                             </Pie>
-                            <Tooltip />
+                            <Tooltip formatter={(value) => `Rs ${Number(value).toLocaleString()}`} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
@@ -47,7 +72,7 @@ export const FeeCollectionCard: React.FC = () => {
                                 "text-xs font-bold",
                                 item.name === 'Collected' ? "text-green-500" : "text-red-500"
                             )}>
-                                ₹{item.value.toLocaleString('en-IN')}
+                                {isLoading ? '—' : `Rs ${item.value.toLocaleString()}`}
                             </span>
                         </div>
                     ))}
@@ -56,6 +81,3 @@ export const FeeCollectionCard: React.FC = () => {
         </motion.div>
     );
 };
-
-// Helper function needed for imports in next steps
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

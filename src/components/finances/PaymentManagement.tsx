@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financesService } from '../../api/services/finances.service';
-import { Receipt, Search, Filter, ShieldX, Calendar, CreditCard, MoreVertical } from 'lucide-react';
+import { Receipt, Search, Filter, RotateCcw, Download, Calendar, CreditCard } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
 
@@ -14,10 +14,28 @@ export const PaymentManagement: React.FC = () => {
         queryFn: () => financesService.listPayments(),
     });
 
-    const voidMutation = useMutation({
-        mutationFn: (id: number) => financesService.voidPayment(id),
+    const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+    const reverseMutation = useMutation({
+        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+            financesService.reversePayment(id, reason),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['payments'] }),
     });
+
+    const handleDownload = async (payment: { id: number; receipt_no?: string }) => {
+        setDownloadingId(payment.id);
+        try {
+            const blob = await financesService.downloadReceiptBlob(payment.id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `receipt-${payment.receipt_no ?? payment.id}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } finally {
+            setDownloadingId(null);
+        }
+    };
 
     const formatCurrency = (amt: number) => {
         return new Intl.NumberFormat('en-NP', {
@@ -132,21 +150,28 @@ export const PaymentManagement: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleDownload(payment)}
+                                                    disabled={downloadingId === payment.id}
+                                                    title="Download receipt PDF"
+                                                    className="p-2 text-slate-400 hover:text-brand hover:bg-blue-50 rounded-lg transition-all disabled:opacity-40"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                </button>
                                                 {!isVoid && (
-                                                    <AccessControl id="payments_delete">
-                                                        <button 
+                                                    <AccessControl id="payments_create">
+                                                        <button
                                                             onClick={() => {
-                                                                if (confirm('Void this payment? This action cannot be undone.')) voidMutation.mutate(payment.id);
+                                                                const reason = prompt('Reason for reversal:');
+                                                                if (reason) reverseMutation.mutate({ id: payment.id, reason });
                                                             }}
-                                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                            title="Reverse payment"
+                                                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                                                         >
-                                                            <ShieldX className="w-4 h-4" />
+                                                            <RotateCcw className="w-4 h-4" />
                                                         </button>
                                                     </AccessControl>
                                                 )}
-                                                <button className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </button>
                                             </div>
                                         </td>
                                     </tr>

@@ -5,11 +5,13 @@ import { permissionsService } from '../api/services/permissions.service';
 
 export const usePermissionsInit = () => {
     const { isAuthenticated, _hasHydrated: authHydrated } = useAuthStore();
-    const { setPermissions, _hasHydrated: permsHydrated } = usePermissionsStore();
+    const { permissions, setPermissions, _hasHydrated: permsHydrated } = usePermissionsStore();
 
     useEffect(() => {
         const fetchMyPermissions = async () => {
-            if (authHydrated && permsHydrated && isAuthenticated) {
+            // Skip if already loaded — login() fetches permissions immediately after auth,
+            // so this hook only needs to run on page refresh when store is empty.
+            if (authHydrated && permsHydrated && isAuthenticated && permissions.length === 0) {
                 try {
                     const data = await permissionsService.getMyPermissions();
                     setPermissions(data);
@@ -20,5 +22,5 @@ export const usePermissionsInit = () => {
         };
 
         fetchMyPermissions();
-    }, [authHydrated, permsHydrated, isAuthenticated, setPermissions]);
+    }, [authHydrated, permsHydrated, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 };

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Bell, Search, Plus, Calendar, User, 
-    MoreVertical, Trash2, Edit2, 
+import {
+    Bell, Search, Plus, Calendar, User,
+    MoreVertical, Trash2, Edit2,
     Megaphone, Users, GraduationCap, UserCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
 import { noticesService } from '../api/services/notices.service';
+import { CreateNoticeModal } from '../components/communication/CreateNoticeModal';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 
 const CommunicationPage: React.FC = () => {
@@ -17,6 +18,7 @@ const CommunicationPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'all' | 'my_role'>('all');
 
     const canCreate = user?.role === 'admin' || user?.role === 'principal';
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     useEffect(() => {
         fetchNotices();
@@ -43,6 +45,11 @@ const CommunicationPage: React.FC = () => {
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
+            <CreateNoticeModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onCreated={fetchNotices}
+            />
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="flex items-center gap-6">
@@ -67,7 +74,10 @@ const CommunicationPage: React.FC = () => {
                         />
                     </div>
                     {canCreate && (
-                        <button className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2">
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                        >
                             <Plus className="w-4 h-4" />
                             Post Notice
                         </button>

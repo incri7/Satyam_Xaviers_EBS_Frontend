@@ -3,7 +3,6 @@ import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, U
 import { cn } from '../../utils/cn';
 import { useRegistrationStore } from '../../store/useRegistrationStore';
 import { peopleService } from '../../api/services/people.service';
-import type { Class } from '../../types/academic';
 import { academicsService } from '../../api/services/academics.service';
 
 export type RegistrationStep = 'user-account' | 'parent-details' | 'student-registration';
@@ -92,11 +91,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         isPrimary: false,
     });
 
-    const [classOptions, setClassOptions] = useState<Class[]>([
-        {
-            id: 0,
-            name: 'Select class'
-        }
+    const [classOptions, setClassOptions] = useState<{ id: number; name: string }[]>([
+        { id: 0, name: 'Select class' }
     ]);
 
     // Fetch classes and set it to classOptions
@@ -752,23 +748,37 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             setError(null);
 
                                             const registrationData = {
-                                                userAccount: {
+                                                user_in: {
                                                     email: formData.email,
                                                     phone: formData.phone,
-                                                    password: formData.password
+                                                    password: formData.password,
                                                 },
-                                                parentProfile: {
-                                                    firstName: formData.firstName,
-                                                    lastName: formData.lastName,
-                                                    middleName: formData.middleName,
-                                                    occupation: formData.occupation,
-                                                    nationalId: formData.nationalId,
-                                                    address: formData.address,
-                                                    city: formData.city,
-                                                    state: formData.state,
-                                                    pincode: formData.pincode
+                                                parent_in: {
+                                                    first_name: formData.firstName,
+                                                    last_name: formData.lastName,
+                                                    middle_name: formData.middleName || undefined,
+                                                    occupation: formData.occupation || undefined,
+                                                    national_id: formData.nationalId || undefined,
+                                                    address_line: formData.address || undefined,
+                                                    city: formData.city || undefined,
+                                                    state: formData.state || undefined,
+                                                    pincode: formData.pincode || undefined,
                                                 },
-                                                students: formData.students
+                                                students_in: formData.students.map(s => ({
+                                                    first_name: s.firstName,
+                                                    last_name: s.lastName,
+                                                    middle_name: s.middleName || undefined,
+                                                    dob: s.dob,
+                                                    gender: s.gender,
+                                                    blood_group: s.bloodGroup || undefined,
+                                                    admission_date: s.admissionDate,
+                                                    class_id: s.grade && s.grade !== 'Select class' ? Number(s.grade) : undefined,
+                                                    city: s.city || undefined,
+                                                    state: s.state || undefined,
+                                                    pincode: s.pincode || undefined,
+                                                    relationship_type: s.relationship || undefined,
+                                                    is_primary_contact: s.isPrimary,
+                                                })),
                                             };
 
                                             await peopleService.registerParentStudent(registrationData);

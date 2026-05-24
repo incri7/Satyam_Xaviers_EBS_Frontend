@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
-                    className="flex-1 overflow-y-auto p-8 space-y-6"
+                    className="flex-1 min-h-0 overflow-y-auto p-8 space-y-6"
                 >
                     {/* Stat Cards Grid */}
                     <AccessControl id="dashboard_stats">

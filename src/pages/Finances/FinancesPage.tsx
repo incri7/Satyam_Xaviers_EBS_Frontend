@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { Wallet, Landmark, Receipt, PieChart, Plus } from 'lucide-react';
+import { Wallet, Landmark, Receipt, PieChart, Plus, Tag } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AccessControl } from '../../components/AccessControl';
@@ -11,6 +11,7 @@ import { FinancialSummary } from '../../components/finances/FinancialSummary';
 import { FeeStructureManagement } from '../../components/finances/FeeStructureManagement';
 import { PaymentManagement } from '../../components/finances/PaymentManagement';
 import { ExpenseManagement } from '../../components/finances/ExpenseManagement';
+import { DiscountManagement } from '../../components/finances/DiscountManagement';
 
 // Create Modals
 import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStructureModal';
@@ -22,6 +23,7 @@ const tabs = [
     { id: 'fees', label: 'Fee Structures', icon: Landmark, resource: 'finances' },
     { id: 'payments', label: 'Payments', icon: Receipt, resource: 'payments' },
     { id: 'expenses', label: 'Expenses', icon: Wallet, resource: 'expenses' },
+    { id: 'discounts', label: 'Discounts', icon: Tag, resource: 'finances' },
 ];
 
 export const FinancesPage: React.FC = () => {
@@ -112,6 +114,7 @@ export const FinancesPage: React.FC = () => {
                                 {activeTab === 'fees' && <FeeStructureManagement />}
                                 {activeTab === 'payments' && <PaymentManagement />}
                                 {activeTab === 'expenses' && <ExpenseManagement />}
+                                {activeTab === 'discounts' && <DiscountManagement />}
                             </motion.div>
                         </AnimatePresence>
                     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { academicsService } from '../../api/services/academics.service';
 import { Search, Edit2, Trash2, BookOpen, Clock, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ export const ClassManagement: React.FC = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['classes', searchQuery],
         queryFn: () => academicsService.getClasses({ search: searchQuery }),
+        placeholderData: keepPreviousData,
     });
 
     const deleteMutation = useMutation({
@@ -38,7 +39,9 @@ export const ClassManagement: React.FC = () => {
         );
     }
 
-    const classes = data?.classes || [];
+    const classes = [...(data?.classes || [])].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
     return (
         <div className="space-y-6">

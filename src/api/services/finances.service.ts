@@ -8,6 +8,34 @@ import type {
     FinancialSummary
 } from '../../types/finance';
 
+export interface OutstandingEntry {
+    student_id: number;
+    student_name: string;
+    admission_no: string;
+    total_assigned: number;
+    total_paid: number;
+    balance: number;
+    days_overdue: number;
+    risk: 'High' | 'Medium' | 'Low';
+}
+
+export interface OutstandingResponse {
+    entries: OutstandingEntry[];
+    total_outstanding: number;
+}
+
+export interface MonthlyReport {
+    year: number;
+    month: number;
+    total_collected: number;
+    transaction_count: number;
+    first_receipt: string | null;
+    last_receipt: string | null;
+    receipt_gaps: string[];
+    outstanding_balance: number;
+    generated_at: string;
+}
+
 export const financesService = {
     // Fee Structures
     getFeeStructures: async (activeOnly: boolean = false): Promise<FeeStructure[]> => {
@@ -97,5 +125,38 @@ export const financesService = {
             params: { start_date: startDate, end_date: endDate }
         });
         return response.data;
-    }
+    },
+
+    // Block 4 — Compliance additions
+    getOutstanding: async (limit = 100): Promise<OutstandingResponse> => {
+        const response = await api.get('finances/outstanding', { params: { limit } });
+        return response.data;
+    },
+
+    sendBulkReminders: async (): Promise<{ message: string }> => {
+        const response = await api.post('finances/reminders/send');
+        return response.data;
+    },
+
+    getMonthlyReport: async (year: number, month: number): Promise<MonthlyReport> => {
+        const response = await api.get('finances/reports/monthly', { params: { year, month } });
+        return response.data;
+    },
+
+    reversePayment: async (paymentId: number, reason: string): Promise<Payment> => {
+        const response = await api.post(`finances/payments/${paymentId}/reverse`, { reason });
+        return response.data;
+    },
+
+    getStudentDiscounts: async (studentId: number): Promise<FeeDiscount[]> => {
+        const response = await api.get(`finances/discounts/${studentId}`);
+        return response.data;
+    },
+
+    downloadReceiptBlob: async (paymentId: number): Promise<Blob> => {
+        const response = await api.get(`finances/payments/${paymentId}/receipt`, {
+            responseType: 'blob',
+        });
+        return response.data;
+    },
 };
