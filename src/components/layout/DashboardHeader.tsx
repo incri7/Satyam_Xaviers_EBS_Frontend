@@ -1,14 +1,21 @@
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown, Languages } from 'lucide-react';
 import { SchoolLogo } from '../icons/SchoolLogo';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useAuth } from '../../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 
 export const DashboardHeader: React.FC = () => {
     const { user } = useAuthStore();
     const { logout } = useAuth();
+    const { t, i18n } = useTranslation();
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
     const firstLetter = displayName.charAt(0).toUpperCase();
+    const isNepali = i18n.language === 'ne';
+
+    const toggleLanguage = () => {
+        i18n.changeLanguage(isNepali ? 'en' : 'ne');
+    };
 
     return (
         <motion.header
@@ -25,14 +32,26 @@ export const DashboardHeader: React.FC = () => {
                     <SchoolLogo className="w-12 h-12" />
                 </motion.div>
                 <div>
-                    <h1 className="text-xl font-bold text-slate-900 leading-tight">Satyam Xavier's EBS</h1>
+                    <h1 className="text-xl font-bold text-slate-900 leading-tight">{t('app.name')}</h1>
                     <p className="text-[11px] font-bold text-slate-400">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                        {new Date().toLocaleDateString(isNepali ? 'ne-NP' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                 </div>
             </div>
 
             <div className="flex items-center gap-6">
+                {/* Language toggle */}
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={toggleLanguage}
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all border border-slate-200"
+                    title={t('language.toggle')}
+                >
+                    <Languages className="w-4 h-4" />
+                    <span className="text-xs font-bold">{isNepali ? t('language.english') : t('language.nepali')}</span>
+                </motion.button>
+
                 <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -72,7 +91,7 @@ export const DashboardHeader: React.FC = () => {
                                 onClick={() => logout()}
                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                             >
-                                Sign Out
+                                {t('auth.signOut')}
                             </button>
                         </div>
                     </div>

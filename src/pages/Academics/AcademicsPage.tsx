@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Layers, Users, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../../components/AccessControl';
+import { useTranslation } from 'react-i18next';
 
 import { ClassManagement } from '../../components/academics/ClassManagement';
 import { SectionManagement } from '../../components/academics/SectionManagement';
@@ -16,6 +17,7 @@ import { CreateEnrollmentModal } from '../../components/academics/CreateEnrollme
 type ActiveTab = 'classes' | 'sections' | 'enrollments';
 
 const AcademicsPage: React.FC = () => {
+    const { t } = useTranslation();
     const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
         return (localStorage.getItem('academics_active_tab') as ActiveTab) || 'classes';
     });
@@ -27,10 +29,16 @@ const AcademicsPage: React.FC = () => {
     };
 
     const tabs = [
-        { id: 'classes', label: 'Classes', icon: BookOpen, permission: 'classes' },
-        { id: 'sections', label: 'Sections', icon: Layers, permission: 'sections' },
-        { id: 'enrollments', label: 'Enrollments', icon: Users, permission: 'enrollments' },
+        { id: 'classes', labelKey: 'academics.classes', icon: BookOpen, permission: 'classes' },
+        { id: 'sections', labelKey: 'academics.sections', icon: Layers, permission: 'sections' },
+        { id: 'enrollments', labelKey: 'academics.enrollments', icon: Users, permission: 'enrollments' },
     ];
+
+    const addButtonLabel = activeTab === 'classes'
+        ? t('academics.addClass')
+        : activeTab === 'sections'
+            ? t('academics.addSection')
+            : t('academics.addEnrollment');
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -42,8 +50,8 @@ const AcademicsPage: React.FC = () => {
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Academics Management</h1>
-                            <p className="text-slate-500 font-medium">Manage your school's classes, sections, and student enrollments</p>
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('academics.title')}</h1>
+                            <p className="text-slate-500 font-medium">{t('academics.subtitle')}</p>
                         </div>
 
                         <AccessControl id={`${activeTab}_create`}>
@@ -52,7 +60,7 @@ const AcademicsPage: React.FC = () => {
                                 className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                             >
                                 <Plus className="w-5 h-5" />
-                                <span>Add {activeTab.slice(0, -1)}</span>
+                                <span>{addButtonLabel}</span>
                             </button>
                         </AccessControl>
                     </div>
@@ -71,7 +79,7 @@ const AcademicsPage: React.FC = () => {
                                 )}
                             >
                                 <tab.icon className="w-4 h-4" />
-                                {tab.label}
+                                {t(tab.labelKey)}
                             </button>
                         ))}
                     </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { attendanceService } from '../../api/services/attendance.service';
@@ -15,12 +16,13 @@ import {
 import { cn } from '../../utils/cn';
 
 const TeacherHome: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
     const today = new Date().toISOString().split('T')[0];
-    const todayLabel = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric'
-    });
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const greeting = new Date().getHours() < 12 ? t('home.goodMorning') : t('home.goodAfternoon');
 
     const { data: myAssignments } = useQuery({
         queryKey: ['assignments', 'my-classes'],
@@ -57,8 +59,14 @@ const TeacherHome: React.FC = () => {
         return due >= now && due <= weekFromNow;
     });
     const overdue = assignments.filter(a => new Date(a.due_date) < new Date());
-
     const hasMarkedToday = (todayAttendance?.total_count ?? 0) > 0;
+
+    const balanceItems = leaveBalance ? [
+        { labelKey: 'leaves.typeCasual', remaining: leaveBalance.casual_remaining, total: leaveBalance.casual_total },
+        { labelKey: 'leaves.typeSick', remaining: leaveBalance.sick_remaining, total: leaveBalance.sick_total },
+        { labelKey: 'leaves.typeEarned', remaining: leaveBalance.earned_remaining, total: leaveBalance.earned_total },
+        { labelKey: 'leaves.typeMaternity', remaining: leaveBalance.maternity_remaining, total: leaveBalance.maternity_total },
+    ] : [];
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -72,13 +80,10 @@ const TeacherHome: React.FC = () => {
                         <div className="relative z-10">
                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">{todayLabel}</p>
                             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                                Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'},{' '}
-                                {user?.firstName || 'Teacher'}
+                                {greeting}, {user?.firstName || 'Teacher'}
                             </h1>
                             <p className="text-slate-500 font-medium mt-1">
-                                {hasMarkedToday
-                                    ? "Attendance marked for today."
-                                    : "Attendance not yet marked for today."}
+                                {hasMarkedToday ? t('home.teacher.attendanceMarked') : t('home.teacher.attendanceNotMarked')}
                             </p>
                         </div>
                     </div>
@@ -89,22 +94,17 @@ const TeacherHome: React.FC = () => {
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <Umbrella className="w-4 h-4 text-brand" />
-                                    <span className="text-sm font-bold text-slate-700">Leave Balance {leaveBalance.year}</span>
+                                    <span className="text-sm font-bold text-slate-700">{t('home.teacher.leaveBalance')} {leaveBalance.year}</span>
                                 </div>
                                 <Link to="/leave" className="text-xs font-bold text-brand hover:underline">
-                                    Apply →
+                                    {t('home.teacher.applyLeave')}
                                 </Link>
                             </div>
                             <div className="grid grid-cols-4 gap-3">
-                                {[
-                                    { label: 'Casual', remaining: leaveBalance.casual_remaining, total: leaveBalance.casual_total },
-                                    { label: 'Sick', remaining: leaveBalance.sick_remaining, total: leaveBalance.sick_total },
-                                    { label: 'Earned', remaining: leaveBalance.earned_remaining, total: leaveBalance.earned_total },
-                                    { label: 'Maternity', remaining: leaveBalance.maternity_remaining, total: leaveBalance.maternity_total },
-                                ].map(item => (
-                                    <div key={item.label} className="text-center">
+                                {balanceItems.map(item => (
+                                    <div key={item.labelKey} className="text-center">
                                         <p className="text-lg font-black text-slate-900">{item.remaining}</p>
-                                        <p className="text-xs text-slate-400 font-medium">/{item.total} {item.label}</p>
+                                        <p className="text-xs text-slate-400 font-medium">/{item.total} {t(item.labelKey)}</p>
                                     </div>
                                 ))}
                             </div>
@@ -126,15 +126,15 @@ const TeacherHome: React.FC = () => {
                             )}>
                                 <ClipboardCheck className="w-6 h-6" />
                             </div>
-                            <h3 className="font-bold text-slate-900 mb-1">Mark Attendance</h3>
+                            <h3 className="font-bold text-slate-900 mb-1">{t('home.teacher.markAttendance')}</h3>
                             <p className="text-sm text-slate-500 font-medium mb-4">
-                                {hasMarkedToday ? "Already marked today" : "Not marked yet — tap to mark"}
+                                {hasMarkedToday ? t('home.teacher.alreadyMarked') : t('home.teacher.notMarkedYet')}
                             </p>
                             <div className="flex items-center gap-1 text-sm font-bold text-brand group-hover:gap-2 transition-all">
                                 {hasMarkedToday ? (
-                                    <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-emerald-600">Done</span></>
+                                    <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-emerald-600">{t('home.teacher.done')}</span></>
                                 ) : (
-                                    <><span>Mark now</span><ArrowRight className="w-4 h-4" /></>
+                                    <><span>{t('home.teacher.markNow')}</span><ArrowRight className="w-4 h-4" /></>
                                 )}
                             </div>
                         </Link>
@@ -146,10 +146,10 @@ const TeacherHome: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mb-4">
                                 <BookMarked className="w-6 h-6" />
                             </div>
-                            <h3 className="font-bold text-slate-900 mb-1">Enter Marks</h3>
-                            <p className="text-sm text-slate-500 font-medium mb-4">Bulk marks entry for your classes</p>
+                            <h3 className="font-bold text-slate-900 mb-1">{t('home.teacher.enterMarks')}</h3>
+                            <p className="text-sm text-slate-500 font-medium mb-4">{t('home.teacher.marksSubtitle')}</p>
                             <div className="flex items-center gap-1 text-sm font-bold text-brand group-hover:gap-2 transition-all">
-                                <span>Open marks grid</span><ArrowRight className="w-4 h-4" />
+                                <span>{t('home.teacher.openMarks')}</span><ArrowRight className="w-4 h-4" />
                             </div>
                         </Link>
 
@@ -160,16 +160,16 @@ const TeacherHome: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mb-4">
                                 <ClipboardList className="w-6 h-6" />
                             </div>
-                            <h3 className="font-bold text-slate-900 mb-1">Assignments</h3>
+                            <h3 className="font-bold text-slate-900 mb-1">{t('nav.assignments')}</h3>
                             <p className="text-sm text-slate-500 font-medium mb-4">
                                 {dueThisWeek.length > 0
-                                    ? `${dueThisWeek.length} due this week`
+                                    ? `${dueThisWeek.length} ${t('home.teacher.assignmentsDue')}`
                                     : overdue.length > 0
-                                    ? `${overdue.length} overdue`
-                                    : 'Manage class assignments'}
+                                    ? `${overdue.length} ${t('home.teacher.assignmentsOverdue')}`
+                                    : t('home.teacher.manageAssignments')}
                             </p>
                             <div className="flex items-center gap-1 text-sm font-bold text-brand group-hover:gap-2 transition-all">
-                                <span>View assignments</span><ArrowRight className="w-4 h-4" />
+                                <span>{t('home.teacher.viewAssignments')}</span><ArrowRight className="w-4 h-4" />
                             </div>
                         </Link>
                     </div>
@@ -179,7 +179,7 @@ const TeacherHome: React.FC = () => {
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-amber-500" />
-                                <h3 className="font-bold text-slate-900 text-sm">Due This Week</h3>
+                                <h3 className="font-bold text-slate-900 text-sm">{t('home.teacher.dueThisWeek')}</h3>
                             </div>
                             <div className="divide-y divide-slate-50">
                                 {dueThisWeek.slice(0, 5).map(a => (
@@ -187,7 +187,7 @@ const TeacherHome: React.FC = () => {
                                         <span className="text-sm font-bold text-slate-900">{a.title}</span>
                                         <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
-                                            {new Date(a.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                            {new Date(a.due_date).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
                                         </span>
                                     </div>
                                 ))}
@@ -202,11 +202,11 @@ const TeacherHome: React.FC = () => {
                                 <AlertTriangle className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
-                                <p className="font-bold text-red-900 text-sm">{overdue.length} assignment{overdue.length > 1 ? 's' : ''} past due date</p>
-                                <p className="text-xs text-red-600 font-medium mt-0.5">Review submissions and update status</p>
+                                <p className="font-bold text-red-900 text-sm">{overdue.length} {t('home.teacher.pastDue')}</p>
+                                <p className="text-xs text-red-600 font-medium mt-0.5">{t('home.teacher.reviewSubmissions')}</p>
                             </div>
                             <Link to="/assignments" className="text-xs font-bold text-red-600 hover:underline shrink-0">
-                                Review →
+                                {t('home.teacher.review')}
                             </Link>
                         </div>
                     )}
@@ -216,8 +216,8 @@ const TeacherHome: React.FC = () => {
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                             <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4 text-orange-500" />
-                                <h3 className="font-bold text-slate-900 text-sm">At-Risk Students</h3>
-                                <span className="ml-auto text-xs text-slate-400 font-medium">AI flagged · confidence ≥ 70%</span>
+                                <h3 className="font-bold text-slate-900 text-sm">{t('home.teacher.atRiskStudents')}</h3>
+                                <span className="ml-auto text-xs text-slate-400 font-medium">{t('home.teacher.aiFlag')}</span>
                             </div>
                             <div className="divide-y divide-slate-50">
                                 {riskFlags.map((flag: RiskFlag) => (
@@ -230,16 +230,16 @@ const TeacherHome: React.FC = () => {
                                             <div className="flex flex-wrap gap-2 mt-1.5">
                                                 {flag.attendance_flag && (
                                                     <span className="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-lg">
-                                                        {flag.consecutive_absences}d absent · {flag.attendance_pct.toFixed(0)}% attendance
+                                                        {flag.consecutive_absences}{t('home.teacher.daysAbsent')} · {flag.attendance_pct.toFixed(0)}% attendance
                                                     </span>
                                                 )}
                                                 {flag.fee_default_flag && (
                                                     <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-lg">
-                                                        Fee default
+                                                        {t('home.teacher.feeDefault')}
                                                     </span>
                                                 )}
                                                 <span className="text-xs font-medium text-slate-400">
-                                                    Score: {(flag.risk_score * 100).toFixed(0)}%
+                                                    {t('home.teacher.score')} {(flag.risk_score * 100).toFixed(0)}%
                                                 </span>
                                             </div>
                                         </div>
@@ -247,7 +247,6 @@ const TeacherHome: React.FC = () => {
                                             onClick={() => dismissMutation.mutate(flag.student_id)}
                                             disabled={dismissMutation.isPending}
                                             className="p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100 transition-colors shrink-0"
-                                            title="Dismiss flag"
                                         >
                                             <X className="w-4 h-4" />
                                         </button>

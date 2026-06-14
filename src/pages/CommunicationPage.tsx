@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Bell, Search, Plus, Calendar, User,
     MoreVertical, Trash2, Edit2,
@@ -11,6 +12,7 @@ import { CreateNoticeModal } from '../components/communication/CreateNoticeModal
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 
 const CommunicationPage: React.FC = () => {
+    const { t } = useTranslation();
     const { user } = useAuthStore();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +40,7 @@ const CommunicationPage: React.FC = () => {
         }
     };
 
-    const filteredNotices = notices.filter((n: Notice) => 
+    const filteredNotices = notices.filter((n: Notice) =>
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.body.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -57,8 +59,8 @@ const CommunicationPage: React.FC = () => {
                         <Megaphone className="w-8 h-8" />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Communication</h1>
-                        <p className="text-slate-500 font-medium">School announcements and important notices</p>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">{t('communication.title')}</h1>
+                        <p className="text-slate-500 font-medium">{t('communication.subtitle')}</p>
                     </div>
                 </div>
 
@@ -67,7 +69,7 @@ const CommunicationPage: React.FC = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand transition-colors" />
                         <input
                             type="text"
-                            placeholder="Search notices..."
+                            placeholder={t('communication.searchNotices')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="bg-slate-50 border-none rounded-2xl py-3 pl-11 pr-6 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-brand/5 w-[280px] transition-all outline-none"
@@ -79,7 +81,7 @@ const CommunicationPage: React.FC = () => {
                             className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
                         >
                             <Plus className="w-4 h-4" />
-                            Post Notice
+                            {t('communication.postNotice')}
                         </button>
                     )}
                 </div>
@@ -89,23 +91,23 @@ const CommunicationPage: React.FC = () => {
                 {/* Sidebar Filters */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm overflow-hidden relative">
-                         <div className="absolute top-0 right-0 -m-4 w-24 h-24 bg-brand/5 rounded-full blur-2xl" />
-                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 px-2">Filters</h3>
-                         <div className="space-y-2 relative z-10">
-                            <FilterButton 
-                                active={activeTab === 'all'} 
+                        <div className="absolute top-0 right-0 -m-4 w-24 h-24 bg-brand/5 rounded-full blur-2xl" />
+                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 px-2">{t('communication.filters')}</h3>
+                        <div className="space-y-2 relative z-10">
+                            <FilterButton
+                                active={activeTab === 'all'}
                                 onClick={() => setActiveTab('all')}
                                 icon={<Bell className="w-4 h-4" />}
-                                label="All Notices"
+                                label={t('communication.allNotices')}
                                 count={notices.length}
                             />
-                            <FilterButton 
-                                active={activeTab === 'my_role'} 
+                            <FilterButton
+                                active={activeTab === 'my_role'}
                                 onClick={() => setActiveTab('my_role')}
                                 icon={<UserCircle className="w-4 h-4" />}
-                                label="For My Role"
+                                label={t('communication.forMyRole')}
                             />
-                         </div>
+                        </div>
                     </div>
 
                     <div className="bg-brand rounded-[2rem] p-8 text-white shadow-xl shadow-brand/20 relative overflow-hidden group">
@@ -114,12 +116,12 @@ const CommunicationPage: React.FC = () => {
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                                 <Bell className="w-5 h-5 text-white" />
                             </div>
-                            <h4 className="font-bold tracking-tight">Stay Updated</h4>
+                            <h4 className="font-bold tracking-tight">{t('communication.stayUpdated')}</h4>
                             <p className="text-xs text-brand-50/80 font-medium leading-relaxed">
-                                Enable browser notifications to never miss an urgent school notice or exam update.
+                                {t('communication.enableNotificationsDesc')}
                             </p>
                             <button className="w-full bg-white text-brand py-3 rounded-xl font-bold text-xs hover:bg-brand-50 transition-colors">
-                                Enable Notifications
+                                {t('communication.enableNotifications')}
                             </button>
                         </div>
                     </div>
@@ -139,13 +141,13 @@ const CommunicationPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="bg-white rounded-[2rem] p-20 flex flex-col items-center justify-center text-center space-y-4 shadow-sm border border-slate-100">
-                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                                 <Search className="w-8 h-8" />
-                             </div>
-                             <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-900">No notices found</h3>
-                                <p className="text-slate-500 font-medium max-w-xs">Try adjusting your filters or search query to find what you're looking for.</p>
-                             </div>
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-xl font-bold text-slate-900">{t('communication.noNoticesFound')}</h3>
+                                <p className="text-slate-500 font-medium max-w-xs">{t('communication.noNoticesDesc')}</p>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -155,10 +157,19 @@ const CommunicationPage: React.FC = () => {
 };
 
 const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, canManage }) => {
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+
     const priorityColors: Record<NoticePriority, string> = {
         low: 'bg-green-50 text-green-600 border-green-100',
         medium: 'bg-amber-50 text-amber-600 border-amber-100',
         high: 'bg-red-50 text-red-600 border-red-100'
+    };
+
+    const PRIORITY_LABEL: Record<string, string> = {
+        low: t('communication.priorityLow'),
+        medium: t('communication.priorityMedium'),
+        high: t('communication.priorityHigh'),
     };
 
     const scopeIcons: Record<NoticeAudienceScope, React.ReactNode> = {
@@ -170,11 +181,11 @@ const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, 
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
     const getDay = (dateStr: string) => new Date(dateStr).getDate();
-    const getMonthStr = (dateStr: string) => new Date(dateStr).toLocaleString('default', { month: 'short' });
+    const getMonthStr = (dateStr: string) => new Date(dateStr).toLocaleString(locale, { month: 'short' });
 
     return (
         <div className="group bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 relative overflow-hidden">
@@ -182,22 +193,22 @@ const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, 
                 "absolute top-0 right-0 px-6 py-4 rounded-bl-[2rem] border-l border-b border-inherit text-[10px] font-black uppercase tracking-widest",
                 priorityColors[notice.priority]
             )}>
-                {notice.priority} priority
+                {PRIORITY_LABEL[notice.priority] ?? notice.priority} {t('communication.priority')}
             </div>
 
             <div className="flex gap-8">
                 <div className="w-14 h-14 bg-slate-50 rounded-[1.25rem] flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-brand/5 group-hover:text-brand transition-colors">
-                     <span className="text-[10px] font-black uppercase text-slate-400 group-hover:text-brand/60">{getMonthStr(notice.created_at)}</span>
-                     <span className="text-lg font-black text-slate-900">{getDay(notice.created_at)}</span>
+                    <span className="text-[10px] font-black uppercase text-slate-400 group-hover:text-brand/60">{getMonthStr(notice.created_at)}</span>
+                    <span className="text-lg font-black text-slate-900">{getDay(notice.created_at)}</span>
                 </div>
 
                 <div className="flex-1 space-y-4">
                     <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-100">
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-100">
                                 {scopeIcons[notice.scope]}
                                 {notice.scope === 'role' ? notice.role : notice.scope}
-                             </div>
+                            </div>
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 leading-tight group-hover:text-brand transition-colors">{notice.title}</h3>
                     </div>
@@ -210,11 +221,11 @@ const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, 
                         <div className="flex items-center gap-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-3.5 h-3.5" />
-                                Valid thru: {notice.valid_to ? formatDate(notice.valid_to) : 'No expiry'}
+                                {t('communication.validThru')} {notice.valid_to ? formatDate(notice.valid_to) : t('communication.noExpiry')}
                             </div>
                             <div className="flex items-center gap-2">
                                 <User className="w-3.5 h-3.5" />
-                                Posted by: Staff ID #{notice.posted_by_user_id}
+                                {t('communication.postedBy')}{notice.posted_by_user_id}
                             </div>
                         </div>
 
@@ -239,18 +250,18 @@ const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, 
 };
 
 const FilterButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: number }> = ({ active, onClick, icon, label, count }) => (
-    <button 
+    <button
         onClick={onClick}
         className={cn(
             "w-full flex items-center justify-between px-5 py-4 rounded-2xl font-bold transition-all duration-300",
-            active 
-                ? "bg-brand text-white shadow-lg shadow-brand/20 translate-x-1" 
+            active
+                ? "bg-brand text-white shadow-lg shadow-brand/20 translate-x-1"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
         )}
     >
         <div className="flex items-center gap-3">
-             <span className={cn(active ? "text-white" : "text-brand")}>{icon}</span>
-             <span className="text-sm">{label}</span>
+            <span className={cn(active ? "text-white" : "text-brand")}>{icon}</span>
+            <span className="text-sm">{label}</span>
         </div>
         {count !== undefined && (
             <span className={cn(

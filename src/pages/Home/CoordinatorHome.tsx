@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import {
@@ -16,22 +17,23 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-const LEAVE_TYPE_LABEL: Record<string, string> = {
-    casual: 'Casual',
-    sick: 'Sick',
-    earned: 'Earned',
-    maternity: 'Maternity',
-    unpaid: 'Unpaid',
-};
-
 const LeaveCard: React.FC<{
     leave: PendingLeaveRead;
     onApprove: (leaveId: number, substituteId: number | null) => void;
     onReject: (leaveId: number) => void;
     isPending: boolean;
 }> = ({ leave, onApprove, onReject, isPending }) => {
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const [selectedSubstitute, setSelectedSubstitute] = useState<number | null>(null);
+
+    const LEAVE_TYPE_LABEL: Record<string, string> = {
+        casual: t('leaves.typeCasual'),
+        sick: t('leaves.typeSick'),
+        earned: t('leaves.typeEarned'),
+        maternity: t('leaves.typeMaternity'),
+        unpaid: t('leaves.typeUnpaid'),
+    };
 
     const { data: substitutes, isFetching: loadingSubs } = useQuery({
         queryKey: ['leaves', leave.id, 'substitutes'],
@@ -66,7 +68,6 @@ const LeaveCard: React.FC<{
                         <button
                             onClick={() => setExpanded(s => !s)}
                             className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
-                            title="View substitute suggestions"
                         >
                             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
@@ -75,7 +76,6 @@ const LeaveCard: React.FC<{
                         onClick={() => onReject(leave.id)}
                         disabled={isPending}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
-                        title="Reject"
                     >
                         <XCircle className="w-5 h-5" />
                     </button>
@@ -85,24 +85,23 @@ const LeaveCard: React.FC<{
                         className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                     >
                         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                        Approve
+                        {t('home.coordinator.approve')}
                     </button>
                 </div>
             </div>
 
-            {/* Substitute panel */}
             {expanded && leave.applicant_type === 'teacher' && (
                 <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5" /> Assign Substitute
+                        <UserCheck className="w-3.5 h-3.5" /> {t('home.coordinator.assignSubstitute')}
                     </p>
                     {loadingSubs && (
                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading suggestions…
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('home.coordinator.loadingSuggestions')}
                         </div>
                     )}
                     {!loadingSubs && substitutes && substitutes.length === 0 && (
-                        <p className="text-xs text-slate-400 font-medium">No available substitutes found.</p>
+                        <p className="text-xs text-slate-400 font-medium">{t('home.coordinator.noSubstitutes')}</p>
                     )}
                     {!loadingSubs && substitutes && substitutes.length > 0 && (
                         <div className="flex flex-wrap gap-2">
@@ -129,7 +128,7 @@ const LeaveCard: React.FC<{
                     )}
                     {selectedSubstitute && (
                         <p className="text-xs text-brand font-bold mt-2">
-                            Substitute will be assigned on approval.
+                            {t('home.coordinator.substituteOnApproval')}
                         </p>
                     )}
                 </div>
@@ -139,15 +138,15 @@ const LeaveCard: React.FC<{
 };
 
 const CoordinatorHome: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
     const [actionError, setActionError] = useState('');
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
-    const todayLabel = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric',
-    });
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
     const firstName = user?.firstName || 'Coordinator';
 
     const { data: pendingLeaves, isLoading: leavesLoading } = useQuery({
@@ -183,7 +182,7 @@ const CoordinatorHome: React.FC = () => {
         },
         onError: (err: any) => {
             const detail = err.response?.data?.detail;
-            setActionError(typeof detail === 'string' ? detail : 'Action failed. Please try again.');
+            setActionError(typeof detail === 'string' ? detail : t('common.error'));
         },
         onSettled: () => setProcessingId(null),
     });
@@ -204,10 +203,9 @@ const CoordinatorHome: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Greeting */}
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">
-                            Good morning, {firstName}
+                            {t('home.goodMorning')}, {firstName}
                         </h1>
                         <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
                     </div>
@@ -216,15 +214,13 @@ const CoordinatorHome: React.FC = () => {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div className={cn(
                             'rounded-2xl p-4 border-2',
-                            pending.length > 0
-                                ? 'bg-amber-50 border-amber-200'
-                                : 'bg-emerald-50 border-emerald-100'
+                            pending.length > 0 ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-100'
                         )}>
                             <p className={cn(
                                 'text-xs font-bold uppercase tracking-wide',
                                 pending.length > 0 ? 'text-amber-600' : 'text-emerald-600'
                             )}>
-                                Pending Approvals
+                                {t('home.coordinator.pendingApprovals')}
                             </p>
                             <p className={cn(
                                 'text-3xl font-black mt-1',
@@ -234,20 +230,19 @@ const CoordinatorHome: React.FC = () => {
                             </p>
                         </div>
                         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Staff Leaves</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.coordinator.staffLeaves')}</p>
                             <p className="text-3xl font-black text-slate-900 mt-1">
                                 {pending.filter(l => l.applicant_type === 'teacher' || l.applicant_type === 'staff').length}
                             </p>
                         </div>
                         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Student Leaves</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.coordinator.studentLeaves')}</p>
                             <p className="text-3xl font-black text-slate-900 mt-1">
                                 {pending.filter(l => l.applicant_type === 'student').length}
                             </p>
                         </div>
                     </div>
 
-                    {/* Error banner */}
                     {actionError && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 font-medium text-sm">
                             <AlertCircle className="w-5 h-5 shrink-0" />
@@ -259,10 +254,10 @@ const CoordinatorHome: React.FC = () => {
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                             <Users className="w-5 h-5 text-amber-500" />
-                            <h2 className="font-bold text-slate-800">Pending Leave Requests</h2>
+                            <h2 className="font-bold text-slate-800">{t('home.coordinator.pendingLeaveRequests')}</h2>
                             {pending.length > 0 && (
                                 <span className="ml-auto text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">
-                                    {pending.length} awaiting
+                                    {pending.length} {t('home.coordinator.awaiting')}
                                 </span>
                             )}
                         </div>
@@ -276,7 +271,7 @@ const CoordinatorHome: React.FC = () => {
                         {!leavesLoading && pending.length === 0 && (
                             <div className="py-14 text-center">
                                 <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
-                                <p className="font-bold text-slate-400">All clear — no pending requests.</p>
+                                <p className="font-bold text-slate-400">{t('home.coordinator.allClear')}</p>
                             </div>
                         )}
 
@@ -305,8 +300,8 @@ const CoordinatorHome: React.FC = () => {
                                 <Users className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-900 text-sm">Attendance</p>
-                                <p className="text-xs text-slate-500 font-medium">View school attendance</p>
+                                <p className="font-bold text-slate-900 text-sm">{t('nav.attendance')}</p>
+                                <p className="text-xs text-slate-500 font-medium">{t('home.coordinator.viewAttendance')}</p>
                             </div>
                         </a>
                         <a
@@ -317,18 +312,18 @@ const CoordinatorHome: React.FC = () => {
                                 <BookOpen className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-900 text-sm">Marks</p>
-                                <p className="text-xs text-slate-500 font-medium">Review marks entry</p>
+                                <p className="font-bold text-slate-900 text-sm">{t('nav.marks')}</p>
+                                <p className="text-xs text-slate-500 font-medium">{t('home.coordinator.reviewMarks')}</p>
                             </div>
                         </a>
                     </div>
 
-                    {/* Marks entry progress tracker */}
+                    {/* Marks entry progress */}
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">
                                 <BarChart2 className="w-5 h-5 text-violet-500" />
-                                <h2 className="font-bold text-slate-800">Marks Entry Progress</h2>
+                                <h2 className="font-bold text-slate-800">{t('home.coordinator.marksEntryProgress')}</h2>
                             </div>
                             {examsData && examsData.length > 0 && (
                                 <select
@@ -336,7 +331,7 @@ const CoordinatorHome: React.FC = () => {
                                     onChange={(e) => setSelectedExamId(e.target.value ? Number(e.target.value) : null)}
                                     className="text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-brand/20"
                                 >
-                                    <option value="">Select exam…</option>
+                                    <option value="">{t('home.coordinator.selectExam')}</option>
                                     {examsData.map((exam) => (
                                         <option key={exam.id} value={exam.id}>{exam.name}</option>
                                     ))}
@@ -346,7 +341,7 @@ const CoordinatorHome: React.FC = () => {
 
                         {selectedExamId === null && (
                             <div className="py-10 text-center text-sm text-slate-400 font-medium">
-                                Select an exam above to see marks entry status.
+                                {t('home.coordinator.selectExamPrompt')}
                             </div>
                         )}
 
@@ -358,9 +353,8 @@ const CoordinatorHome: React.FC = () => {
 
                         {marksProgress && (
                             <div className="p-5 space-y-4">
-                                {/* Overall */}
                                 <div className="flex items-center justify-between mb-1">
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Overall</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.coordinator.overall')}</p>
                                     <p className="text-xs font-black text-slate-900">
                                         {marksProgress.overall_pct.toFixed(0)}%
                                     </p>
@@ -372,19 +366,14 @@ const CoordinatorHome: React.FC = () => {
                                     />
                                 </div>
 
-                                {/* Per-entry rows */}
                                 {marksProgress.entries.length === 0 && (
                                     <p className="text-sm text-slate-400 font-medium text-center py-4">
-                                        No schedules found for this exam.
+                                        {t('home.coordinator.noSchedules')}
                                     </p>
                                 )}
                                 {marksProgress.entries.map((entry) => {
                                     const pct = Math.min(100, entry.completion_pct);
-                                    const color = pct === 100
-                                        ? 'bg-emerald-500'
-                                        : pct >= 50
-                                        ? 'bg-amber-400'
-                                        : 'bg-rose-400';
+                                    const color = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-400';
                                     return (
                                         <div key={entry.schedule_id}>
                                             <div className="flex items-center justify-between mb-1">
@@ -396,9 +385,7 @@ const CoordinatorHome: React.FC = () => {
                                                 </p>
                                                 <p className="text-xs font-black text-slate-900">
                                                     {entry.marks_entered}/{entry.total_enrolled}
-                                                    <span className="ml-1 text-slate-400 font-medium">
-                                                        ({pct.toFixed(0)}%)
-                                                    </span>
+                                                    <span className="ml-1 text-slate-400 font-medium">({pct.toFixed(0)}%)</span>
                                                 </p>
                                             </div>
                                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">

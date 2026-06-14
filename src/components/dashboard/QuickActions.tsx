@@ -2,6 +2,7 @@ import { CalendarClock, BellRing, FileBarChart2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
+import { useTranslation } from 'react-i18next';
 import type { PermissionAction } from '../../types/auth';
 
 interface QuickActionProps {
@@ -35,6 +36,8 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
 };
 
 export const QuickActions: React.FC = () => {
+    const { t } = useTranslation();
+
     const actions: Array<{
         title: string;
         description: string;
@@ -44,20 +47,20 @@ export const QuickActions: React.FC = () => {
         permissions: Array<{ resource: string; action: PermissionAction }>;
     }> = [
             {
-                title: 'Leave Requests',
-                description: '3 pending',
+                title: t('dashboard.leaveRequests'),
+                description: t('dashboard.pending', { count: 3 }),
                 icon: CalendarClock,
                 permissions: [{ resource: 'staff', action: 'read' }],
             },
             {
-                title: 'Review Notices',
-                description: '2 drafts',
+                title: t('dashboard.reviewNotices'),
+                description: t('dashboard.drafts', { count: 2 }),
                 icon: BellRing,
                 permissions: [{ resource: 'staff', action: 'create' }],
             },
             {
-                title: 'Generate Reports',
-                description: 'Monthly',
+                title: t('dashboard.generateReports'),
+                description: t('dashboard.monthly'),
                 icon: FileBarChart2,
                 permissions: [{ resource: 'finances', action: 'read' }],
             },

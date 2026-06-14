@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { academicCalendarService, type AttendanceStudentRow } from '../../api/services/academicCalendar.service';
@@ -10,6 +11,7 @@ import { cn } from '../../utils/cn';
 type ReportTab = 'attendance' | 'fees';
 
 const ReportsPage: React.FC = () => {
+    const { t } = useTranslation();
     const [tab, setTab] = useState<ReportTab>('attendance');
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
 
@@ -36,6 +38,10 @@ const ReportsPage: React.FC = () => {
         enabled: !!currentYear && !!selectedClassId && tab === 'attendance',
     });
 
+    const tabs = [
+        { key: 'attendance' as ReportTab, labelKey: 'reports.attendance', icon: Users },
+        { key: 'fees' as ReportTab, labelKey: 'reports.fees', icon: TrendingDown },
+    ];
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -44,23 +50,22 @@ const ReportsPage: React.FC = () => {
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+                        <h1 className="text-2xl font-bold text-slate-900">{t('reports.title')}</h1>
                         {currentYear ? (
-                            <p className="text-slate-500 text-sm mt-0.5">Academic Year: {currentYear.name} · {currentYear.working_days_count ?? '—'} working days</p>
+                            <p className="text-slate-500 text-sm mt-0.5">
+                                {t('reports.academicYear')} {currentYear.name} · {currentYear.working_days_count ?? '—'} {t('reports.workingDays')}
+                            </p>
                         ) : (
                             <p className="text-amber-600 text-sm mt-0.5 flex items-center gap-1">
                                 <AlertCircle className="w-3.5 h-3.5" />
-                                No current academic year set — attendance % will not be available.
+                                {t('reports.noCalendarWarning')}
                             </p>
                         )}
                     </div>
 
                     {/* Tab bar */}
                     <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
-                        {([
-                            { key: 'attendance', label: 'Attendance', icon: Users },
-                            { key: 'fees', label: 'Fees', icon: TrendingDown },
-                        ] as { key: ReportTab; label: string; icon: any }[]).map(({ key, label, icon: Icon }) => (
+                        {tabs.map(({ key, labelKey, icon: Icon }) => (
                             <button
                                 key={key}
                                 onClick={() => setTab(key)}
@@ -70,7 +75,7 @@ const ReportsPage: React.FC = () => {
                                 )}
                             >
                                 <Icon className="w-4 h-4" />
-                                {label}
+                                {t(labelKey)}
                             </button>
                         ))}
                     </div>
@@ -78,7 +83,6 @@ const ReportsPage: React.FC = () => {
                     {/* Attendance tab */}
                     {tab === 'attendance' && (
                         <div className="space-y-4">
-                            {/* Class selector */}
                             <div className="flex items-center gap-3 flex-wrap">
                                 <button
                                     onClick={() => setSelectedClassId(null)}
@@ -87,7 +91,7 @@ const ReportsPage: React.FC = () => {
                                         !selectedClassId ? 'bg-brand text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                                     )}
                                 >
-                                    All Classes
+                                    {t('reports.allClasses')}
                                 </button>
                                 {classes?.classes?.map((c: any) => (
                                     <button
@@ -105,25 +109,24 @@ const ReportsPage: React.FC = () => {
 
                             {!currentYear && (
                                 <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-sm text-amber-700 font-medium">
-                                    Set up an academic calendar first to see attendance reports with correct working-day calculations.
+                                    {t('reports.calendarSetupMsg')}
                                 </div>
                             )}
 
-                            {/* School-wide view */}
                             {currentYear && !selectedClassId && (
                                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                                     <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                                         <BarChart2 className="w-4 h-4 text-brand" />
-                                        <h2 className="font-bold text-slate-900 text-sm">School-Wide Attendance</h2>
+                                        <h2 className="font-bold text-slate-900 text-sm">{t('reports.schoolWideAttendance')}</h2>
                                     </div>
                                     {loadingSchool ? (
                                         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-brand animate-spin" /></div>
                                     ) : (
                                         <div className="divide-y divide-slate-50">
                                             <div className="grid grid-cols-4 gap-2 px-5 py-2 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
-                                                <span className="col-span-2">Class</span>
-                                                <span className="text-right">Students</span>
-                                                <span className="text-right">Avg Attendance</span>
+                                                <span className="col-span-2">{t('academics.class')}</span>
+                                                <span className="text-right">{t('academics.students')}</span>
+                                                <span className="text-right">{t('reports.avgAttendance')}</span>
                                             </div>
                                             {schoolAttendance?.map(row => (
                                                 <button
@@ -148,20 +151,19 @@ const ReportsPage: React.FC = () => {
                                                 </button>
                                             ))}
                                             {(!schoolAttendance || schoolAttendance.length === 0) && (
-                                                <div className="py-12 text-center text-slate-400 text-sm font-medium">No attendance data yet</div>
+                                                <div className="py-12 text-center text-slate-400 text-sm font-medium">{t('reports.noAttendanceData')}</div>
                                             )}
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {/* Per-class detail */}
                             {currentYear && selectedClassId && (
                                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                                     <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                                         <BarChart2 className="w-4 h-4 text-brand" />
                                         <h2 className="font-bold text-slate-900 text-sm">
-                                            {classes?.classes?.find((c: any) => c.id === selectedClassId)?.name ?? 'Class'} — Student Attendance
+                                            {classes?.classes?.find((c: any) => c.id === selectedClassId)?.name ?? t('academics.class')} — {t('reports.studentAttendance')}
                                         </h2>
                                     </div>
                                     {loadingClass ? (
@@ -169,10 +171,10 @@ const ReportsPage: React.FC = () => {
                                     ) : (
                                         <div className="divide-y divide-slate-50">
                                             <div className="hidden md:grid grid-cols-12 gap-2 px-5 py-2 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
-                                                <span className="col-span-5">Student</span>
-                                                <span className="col-span-2 text-right">Present</span>
-                                                <span className="col-span-2 text-right">Working Days</span>
-                                                <span className="col-span-3 text-right">Attendance %</span>
+                                                <span className="col-span-5">{t('marks.student')}</span>
+                                                <span className="col-span-2 text-right">{t('reports.present')}</span>
+                                                <span className="col-span-2 text-right">{t('reports.workingDaysLabel')}</span>
+                                                <span className="col-span-3 text-right">{t('reports.attendancePct')}</span>
                                             </div>
                                             {classAttendance?.map((row: AttendanceStudentRow) => (
                                                 <div key={row.student_id} className="grid grid-cols-12 gap-2 px-5 py-3.5 items-center">
@@ -194,7 +196,7 @@ const ReportsPage: React.FC = () => {
                                                 </div>
                                             ))}
                                             {(!classAttendance || classAttendance.length === 0) && (
-                                                <div className="py-12 text-center text-slate-400 text-sm font-medium">No attendance data for this class</div>
+                                                <div className="py-12 text-center text-slate-400 text-sm font-medium">{t('reports.noAttendanceClass')}</div>
                                             )}
                                         </div>
                                     )}
@@ -207,8 +209,8 @@ const ReportsPage: React.FC = () => {
                     {tab === 'fees' && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
                             <TrendingDown className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="font-bold text-slate-400 text-sm">Fee reports are available from the Finances page.</p>
-                            <p className="text-xs text-slate-400 mt-1">Outstanding balances and monthly collection reports live in Finances → Reports.</p>
+                            <p className="font-bold text-slate-400 text-sm">{t('reports.feesNote')}</p>
+                            <p className="text-xs text-slate-400 mt-1">{t('reports.feesDesc')}</p>
                         </div>
                     )}
                 </div>

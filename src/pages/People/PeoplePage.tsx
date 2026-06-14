@@ -13,10 +13,12 @@ import { UserManagement } from '../../components/people/UserManagement';
 import { RegistrationModal } from '../../components/registration/RegistrationModal';
 import { AddStudentToParentModal } from '../../components/registration/AddStudentToParentModal';
 import { WorkforceRegistrationModal } from '../../components/people/WorkforceRegistrationModal';
+import { useTranslation } from 'react-i18next';
 
 type PeopleTab = 'students' | 'teachers' | 'staff' | 'parents' | 'users';
 
 const PeoplePage: React.FC = () => {
+    const { t } = useTranslation();
     const [activeTab, setActiveTabState] = useState<PeopleTab>(() => {
         return (localStorage.getItem('people_active_tab') as PeopleTab) || 'students';
     });
@@ -32,25 +34,25 @@ const PeoplePage: React.FC = () => {
     const categories = [
         {
             id: 'system',
-            label: 'System',
+            labelKey: 'people.system',
             tabs: [
-                { id: 'users', label: 'User Accounts', icon: UserCircle, resource: 'users' },
+                { id: 'users', labelKey: 'people.userAccounts', icon: UserCircle, resource: 'users' },
             ]
         },
         {
             id: 'workforce',
-            label: 'School Personnel',
+            labelKey: 'people.schoolPersonnel',
             tabs: [
-                { id: 'teachers', label: 'Teachers', icon: Microscope, resource: 'teachers' },
-                { id: 'staff', label: 'Staff', icon: Users, resource: 'staff' },
+                { id: 'teachers', labelKey: 'people.teachers', icon: Microscope, resource: 'teachers' },
+                { id: 'staff', labelKey: 'people.staff', icon: Users, resource: 'staff' },
             ]
         },
         {
             id: 'family',
-            label: 'School Family',
+            labelKey: 'people.schoolFamily',
             tabs: [
-                { id: 'students', label: 'Students', icon: GraduationCap, resource: 'students' },
-                { id: 'parents', label: 'Parents', icon: Home, resource: 'parents' },
+                { id: 'students', labelKey: 'people.students', icon: GraduationCap, resource: 'students' },
+                { id: 'parents', labelKey: 'people.parents', icon: Home, resource: 'parents' },
             ]
         }
     ];
@@ -65,8 +67,8 @@ const PeoplePage: React.FC = () => {
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div className="space-y-1">
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">People Management</h1>
-                            <p className="text-slate-500 font-medium">Manage students, teachers, staff and system users</p>
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('people.title')}</h1>
+                            <p className="text-slate-500 font-medium">{t('people.subtitle')}</p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
@@ -78,7 +80,7 @@ const PeoplePage: React.FC = () => {
                                             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-700 font-bold rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98]"
                                         >
                                             <Plus className="w-5 h-5" />
-                                            <span>Assign Student</span>
+                                            <span>{t('people.assignStudent')}</span>
                                         </button>
                                     </AccessControl>
                                     <AccessControl id="registration_modal">
@@ -87,7 +89,7 @@ const PeoplePage: React.FC = () => {
                                             className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                         >
                                             <Plus className="w-5 h-5 text-white" />
-                                            <span>Register New Guardian</span>
+                                            <span>{t('people.registerGuardian')}</span>
                                         </button>
                                     </AccessControl>
                                 </>
@@ -100,7 +102,7 @@ const PeoplePage: React.FC = () => {
                                         className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                     >
                                         <Plus className="w-5 h-5" />
-                                        <span>Register New User</span>
+                                        <span>{t('people.registerUser')}</span>
                                     </button>
                                 </AccessControl>
                             )}
@@ -113,7 +115,7 @@ const PeoplePage: React.FC = () => {
                             {categories.map((category) => (
                                 <div key={category.id} className="space-y-2.5">
                                     <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] px-2">
-                                        {category.label}
+                                        {t(category.labelKey)}
                                     </h3>
                                     <div className="flex p-1 bg-white rounded-2xl border border-slate-100 shadow-sm w-fit">
                                         {category.tabs.map((tab) => (
@@ -128,7 +130,7 @@ const PeoplePage: React.FC = () => {
                                                 )}
                                             >
                                                 <tab.icon className="w-3.5 h-3.5" />
-                                                {tab.label}
+                                                {t(tab.labelKey)}
                                             </button>
                                         ))}
                                     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { leavesService, type LeaveType } from '../../api/services/leaves.service';
@@ -19,16 +20,11 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
     rejected: <XCircle className="w-3.5 h-3.5" />,
 };
 
-const LEAVE_TYPES: { value: LeaveType; label: string }[] = [
-    { value: 'casual', label: 'Casual' },
-    { value: 'sick', label: 'Sick' },
-    { value: 'earned', label: 'Earned' },
-    { value: 'maternity', label: 'Maternity' },
-    { value: 'unpaid', label: 'Unpaid' },
-];
+const LEAVE_TYPE_VALUES: LeaveType[] = ['casual', 'sick', 'earned', 'maternity', 'unpaid'];
 
 const ChildLeavePage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
+    const { t } = useTranslation();
     const id = Number(studentId);
     const queryClient = useQueryClient();
 
@@ -41,6 +37,20 @@ const ChildLeavePage: React.FC = () => {
     });
     const [formError, setFormError] = useState('');
     const [formSuccess, setFormSuccess] = useState('');
+
+    const LEAVE_TYPE_LABEL: Record<string, string> = {
+        casual: t('leaves.typeCasual'),
+        sick: t('leaves.typeSick'),
+        earned: t('leaves.typeEarned'),
+        maternity: t('leaves.typeMaternity'),
+        unpaid: t('leaves.typeUnpaid'),
+    };
+
+    const STATUS_LABEL: Record<string, string> = {
+        pending: t('leaves.statusPending'),
+        approved: t('leaves.statusApproved'),
+        rejected: t('leaves.statusRejected'),
+    };
 
     const { data, isLoading } = useQuery({
         queryKey: ['parent', 'child-leaves', id],
@@ -59,21 +69,21 @@ const ChildLeavePage: React.FC = () => {
         }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['parent', 'child-leaves', id] });
-            setFormSuccess('Leave request submitted successfully.');
+            setFormSuccess(t('parent.leaveSubmitted'));
             setFormError('');
             setShowForm(false);
             setFormData({ leave_type: 'casual', start_date: '', end_date: '', reason: '' });
             setTimeout(() => setFormSuccess(''), 4000);
         },
         onError: (err: any) => {
-            setFormError(err.response?.data?.detail || 'Failed to submit leave request.');
+            setFormError(err.response?.data?.detail || t('parent.failedSubmit'));
         },
     });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.start_date || !formData.end_date) {
-            setFormError('Please fill in start and end dates.');
+            setFormError(t('parent.dateRequired'));
             return;
         }
         setFormError('');
@@ -91,14 +101,14 @@ const ChildLeavePage: React.FC = () => {
                             <Link to="/home/parent" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
                                 <ArrowLeft className="w-5 h-5 text-slate-600" />
                             </Link>
-                            <h1 className="text-xl font-bold text-slate-900">Leave Requests</h1>
+                            <h1 className="text-xl font-bold text-slate-900">{t('parent.leaveRequests')}</h1>
                         </div>
                         <button
                             onClick={() => setShowForm(v => !v)}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:opacity-95 transition-all"
                         >
                             <Plus className="w-4 h-4" />
-                            New Request
+                            {t('parent.newRequest')}
                         </button>
                     </div>
 
@@ -110,7 +120,7 @@ const ChildLeavePage: React.FC = () => {
 
                     {showForm && (
                         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-                            <h2 className="font-bold text-slate-800">New Leave Request</h2>
+                            <h2 className="font-bold text-slate-800">{t('parent.newLeaveRequest')}</h2>
 
                             {formError && (
                                 <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium flex items-center gap-2">
@@ -120,20 +130,20 @@ const ChildLeavePage: React.FC = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Leave Type</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('leaves.leaveType')}</label>
                                     <select
                                         value={formData.leave_type}
                                         onChange={e => setFormData(p => ({ ...p, leave_type: e.target.value as LeaveType }))}
                                         className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
                                     >
-                                        {LEAVE_TYPES.map(t => (
-                                            <option key={t.value} value={t.value}>{t.label}</option>
+                                        {LEAVE_TYPE_VALUES.map(val => (
+                                            <option key={val} value={val}>{LEAVE_TYPE_LABEL[val]}</option>
                                         ))}
                                     </select>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Start Date</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('parent.startDate')}</label>
                                     <input
                                         type="date"
                                         value={formData.start_date}
@@ -143,7 +153,7 @@ const ChildLeavePage: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">End Date</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('parent.endDate')}</label>
                                     <input
                                         type="date"
                                         value={formData.end_date}
@@ -153,12 +163,12 @@ const ChildLeavePage: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Reason (optional)</label>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('leaves.reason')}</label>
                                     <input
                                         type="text"
                                         value={formData.reason}
                                         onChange={e => setFormData(p => ({ ...p, reason: e.target.value }))}
-                                        placeholder="Brief reason..."
+                                        placeholder={t('parent.briefReason')}
                                         className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
                                     />
                                 </div>
@@ -171,14 +181,14 @@ const ChildLeavePage: React.FC = () => {
                                     className="px-5 py-2.5 bg-brand text-white text-sm font-bold rounded-xl disabled:opacity-50 flex items-center gap-2"
                                 >
                                     {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    Submit Request
+                                    {t('leaves.submitRequest')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setShowForm(false)}
                                     className="px-5 py-2.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-200 transition-colors"
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </button>
                             </div>
                         </form>
@@ -193,14 +203,14 @@ const ChildLeavePage: React.FC = () => {
                     {data && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                             {data.leaves.length === 0 ? (
-                                <p className="text-center text-slate-400 font-medium py-10">No leave requests yet.</p>
+                                <p className="text-center text-slate-400 font-medium py-10">{t('parent.noLeaves')}</p>
                             ) : (
                                 <div className="divide-y divide-slate-50">
                                     {data.leaves.map(leave => (
                                         <div key={leave.id} className="px-5 py-4 flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="text-sm font-bold text-slate-800 capitalize">
-                                                    {leave.leave_type} Leave
+                                                <p className="text-sm font-bold text-slate-800">
+                                                    {LEAVE_TYPE_LABEL[leave.leave_type] ?? leave.leave_type} {t('parent.leaveLabel')}
                                                 </p>
                                                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                                                     {leave.start_date} → {leave.end_date}
@@ -214,7 +224,7 @@ const ChildLeavePage: React.FC = () => {
                                                 STATUS_STYLE[leave.status]
                                             )}>
                                                 {STATUS_ICON[leave.status]}
-                                                {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                                                {STATUS_LABEL[leave.status] ?? leave.status}
                                             </span>
                                         </div>
                                     ))}

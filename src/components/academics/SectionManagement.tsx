@@ -4,10 +4,12 @@ import { academicsService } from '../../api/services/academics.service';
 import { Search, Trash2, Layers, Users as UsersIcon, GraduationCap, Edit2 } from 'lucide-react';
 import { AccessControl } from '../AccessControl';
 import { EditSectionModal } from './EditSectionModal';
+import { useTranslation } from 'react-i18next';
 import type { Section } from '../../types/academic';
 
 export const SectionManagement: React.FC = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [classFilter, setClassFilterState] = useState<number | null>(() => {
         const saved = localStorage.getItem('academics_section_class_filter');
@@ -64,7 +66,7 @@ export const SectionManagement: React.FC = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Search sections..."
+                            placeholder={t('academics.searchSections')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
@@ -76,7 +78,7 @@ export const SectionManagement: React.FC = () => {
                         onChange={(e) => setClassFilter(e.target.value ? Number(e.target.value) : null)}
                         className="px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none cursor-pointer"
                     >
-                        <option value="">All Classes</option>
+                        <option value="">{t('academics.allClasses')}</option>
                         {classes.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -84,22 +86,22 @@ export const SectionManagement: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 text-sm font-bold text-slate-400 shrink-0">
-                    <span>Active Sections:</span>
+                    <span>{t('academics.activeSections')}</span>
                     <span className="text-slate-900">{sectionsData?.total_count || 0}</span>
                 </div>
             </div>
 
-            {/* List Table View (Premium Style) */}
+            {/* List Table View */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50/50">
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Section Name</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Class</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Capacity</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Class Teacher</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('academics.sectionName')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('academics.class')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('academics.capacity')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('academics.classTeacher')}</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">{t('academics.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -132,12 +134,12 @@ export const SectionManagement: React.FC = () => {
                                     <td className="px-6 py-5">
                                         <div className="flex items-center gap-2">
                                             <UsersIcon className="w-4 h-4 text-slate-400" />
-                                            <span className="text-sm font-bold text-slate-600">{section.capacity} Students</span>
+                                            <span className="text-sm font-bold text-slate-600">{section.capacity} {t('academics.students')}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-5">
                                         <span className="text-sm font-medium text-slate-500 italic">
-                                            {section.class_teacher_id ? `ID: ${section.class_teacher_id}` : 'Not Assigned'}
+                                            {section.class_teacher_id ? `ID: ${section.class_teacher_id}` : t('academics.notAssigned')}
                                         </span>
                                     </td>
                                     <td className="px-6 py-5 text-right">
@@ -156,7 +158,7 @@ export const SectionManagement: React.FC = () => {
                                             <AccessControl id="sections_delete">
                                                 <button
                                                     onClick={() => {
-                                                        if (window.confirm('Are you sure you want to delete this section?')) {
+                                                        if (window.confirm(t('common.confirm') + '?')) {
                                                             deleteMutation.mutate(section.id);
                                                         }
                                                     }}
@@ -178,8 +180,8 @@ export const SectionManagement: React.FC = () => {
                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
                             <Layers className="w-10 h-10 text-slate-300" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900">No sections found</h3>
-                        <p className="text-slate-500 max-w-sm mx-auto">Click the add button above to create your first section.</p>
+                        <h3 className="text-lg font-bold text-slate-900">{t('academics.noSectionsFound')}</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto">{t('academics.noSectionsDesc')}</p>
                     </div>
                 )}
             </div>

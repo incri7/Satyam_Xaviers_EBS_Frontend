@@ -9,6 +9,8 @@ import { FeeCollectionCard } from '../components/dashboard/FeeCollectionCard';
 import { RecentActivities } from '../components/dashboard/RecentActivities';
 import { AccessControl } from '../components/AccessControl';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+
 const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -34,6 +36,7 @@ const itemVariants = {
 };
 
 const Dashboard: React.FC = () => {
+    const { t } = useTranslation();
 
     return (
         <div className="flex h-screen bg-[#FDFCFB] overflow-hidden">
@@ -55,18 +58,15 @@ const Dashboard: React.FC = () => {
 
                     {/* Quick Actions Grid */}
                     <motion.div variants={itemVariants} className="space-y-4">
-                        <h2 className="text-base font-bold text-slate-800">Quick Actions</h2>
+                        <h2 className="text-base font-bold text-slate-800">{t('dashboard.quickActions')}</h2>
                         <QuickActions />
                     </motion.div>
 
                     {/* Charts & Activities Grid */}
                     <AccessControl id="enrollment_trends">
                         <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
-                            {/* Row 1 Charts */}
                             <EnrollmentTrendsCard />
                             <AttendanceOverviewCard />
-
-                            {/* Row 2: Fee Status and Activities */}
                             <FeeCollectionCard />
                             <RecentActivities />
                         </motion.div>

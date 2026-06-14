@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Languages } from 'lucide-react';
 import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -8,6 +10,9 @@ import { authService } from '../api/services/auth.service';
 
 const ResetPasswordPage: React.FC = () => {
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
+    const isNepali = i18n.language === 'ne';
+    const toggleLanguage = () => i18n.changeLanguage(isNepali ? 'en' : 'ne');
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -23,7 +28,7 @@ const ResetPasswordPage: React.FC = () => {
         setError(null);
 
         if (newPassword !== confirmPassword) {
-            setError("Passwords do not match.");
+            setError(t('register.passwordsNoMatch'));
             setIsLoading(false);
             return;
         }
@@ -43,7 +48,7 @@ const ResetPasswordPage: React.FC = () => {
             } else if (Array.isArray(detail)) {
                 setError(detail[0]?.msg || 'Validation error occurred.');
             } else {
-                setError('Failed to reset password. The link may have expired.');
+                setError(t('register.resetFailed'));
             }
         } finally {
             setIsLoading(false);
@@ -66,30 +71,40 @@ const ResetPasswordPage: React.FC = () => {
             <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-blue-100/30 to-transparent pointer-events-none" />
 
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-12 z-10 transition-all duration-300">
+                <div className="flex justify-end mb-2">
+                    <button
+                        onClick={toggleLanguage}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
+                        title={t('language.toggle')}
+                    >
+                        <Languages className="w-3.5 h-3.5" />
+                        {isNepali ? t('language.english') : t('language.nepali')}
+                    </button>
+                </div>
                 <div className="flex flex-col items-center mb-8">
                     <SchoolLogo className="w-20 h-20 mb-6 shadow-lg shadow-brand/20" />
                     <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        Set New Password
+                        {t('register.setNewPassword')}
                     </h1>
                     <p className="text-slate-500 font-medium text-sm mt-2 text-center">
-                        Please enter your new password below
+                        {t('register.newPasswordSubtitle')}
                     </p>
                 </div>
                 {!token && isSuccess ?  (
                     <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
                         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            Your password has been successfully changed
+                            {t('register.passwordChanged')}
                         </div>
                     </div>
-                    ) : 
+                    ) :
                 token && isSuccess ? (
                     <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
                         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            Your password has been successfully reset. You can now log in with your new password.
+                            {t('register.passwordReset')}
                         </div>
                         <Link to="/login">
                             <Button className="w-full mt-4">
-                                Sign In Now
+                                {t('register.signInNow')}
                             </Button>
                         </Link>
                     </div>
@@ -103,9 +118,9 @@ const ResetPasswordPage: React.FC = () => {
 
                        {!token && (
                          <Input
-                            label="Current Password"
+                            label={t('register.currentPassword')}
                             type="password"
-                            placeholder="Enter current password"
+                            placeholder={t('register.enterCurrentPassword')}
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             required
@@ -114,9 +129,9 @@ const ResetPasswordPage: React.FC = () => {
                        )}
 
                          <Input
-                            label="New Password"
+                            label={t('register.newPassword')}
                             type="password"
-                            placeholder="Enter new password"
+                            placeholder={t('register.enterNewPassword')}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
@@ -124,9 +139,9 @@ const ResetPasswordPage: React.FC = () => {
                         />
 
                         <Input
-                            label="Confirm Password"
+                            label={t('register.confirmPassword')}
                             type="password"
-                            placeholder="Confirm new password"
+                            placeholder={t('register.enterConfirmPassword')}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
@@ -134,7 +149,7 @@ const ResetPasswordPage: React.FC = () => {
                         />
 
                         <Button type="submit" isLoading={isLoading} className="mt-2">
-                            Reset Password
+                            {t('register.resetPassword')}
                         </Button>
                         {token ?
                         <div className="text-center mt-6">
@@ -142,7 +157,7 @@ const ResetPasswordPage: React.FC = () => {
                                 to="/login"
                                 className="text-sm font-semibold text-slate-500 hover:text-brand transition-colors flex items-center justify-center gap-2"
                             >
-                                Cancel
+                                {t('register.cancel')}
                             </Link>
                         </div>:<div></div>}
                     </form>

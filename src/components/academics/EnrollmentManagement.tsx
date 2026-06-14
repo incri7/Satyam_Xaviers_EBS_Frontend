@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
 import { EditEnrollmentModal } from './EditEnrollmentModal';
+import { useTranslation } from 'react-i18next';
 import type { Enrollment } from '../../types/academic';
 
 export const EnrollmentManagement: React.FC = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [academicYear, setAcademicYearState] = useState(() => {
         return localStorage.getItem('academics_enrollment_year') || '2024-2025';
     });
@@ -65,7 +67,7 @@ export const EnrollmentManagement: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
-                    <span>Active Enrollments:</span>
+                    <span>{t('academics.activeEnrollments')}</span>
                     <span className="text-slate-900">{enrollmentData?.total_count || 0}</span>
                 </div>
             </div>
@@ -88,18 +90,18 @@ export const EnrollmentManagement: React.FC = () => {
                                 <User className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900 line-clamp-1">Student ID: {enrollment.student_id}</h3>
+                                <h3 className="font-bold text-slate-900 line-clamp-1">{t('academics.studentId')} {enrollment.student_id}</h3>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{enrollment.academic_year}</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <div className="bg-slate-50 p-3 rounded-2xl">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Class</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('academics.class')}</p>
                                 <p className="text-sm font-bold text-slate-800">{enrollment.class_?.name || `ID: ${enrollment.class_id}`}</p>
                             </div>
                             <div className="bg-slate-50 p-3 rounded-2xl">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Section</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('academics.section')}</p>
                                 <p className="text-sm font-bold text-slate-800">{enrollment.section?.name || (enrollment.section_id ? `ID: ${enrollment.section_id}` : 'None')}</p>
                             </div>
                         </div>
@@ -109,7 +111,7 @@ export const EnrollmentManagement: React.FC = () => {
                                 "text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider",
                                 enrollment.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
                             )}>
-                                {enrollment.is_active ? 'Active' : 'Inactive'}
+                                {enrollment.is_active ? t('academics.active') : t('academics.inactive')}
                             </div>
 
                             <div className="flex gap-1">
@@ -127,7 +129,7 @@ export const EnrollmentManagement: React.FC = () => {
                                 <AccessControl id="enrollments_delete">
                                     <button
                                         onClick={() => {
-                                            if (window.confirm('Are you sure you want to delete this enrollment?')) {
+                                            if (window.confirm(t('common.confirm') + '?')) {
                                                 deleteMutation.mutate(enrollment.id);
                                             }
                                         }}
@@ -146,8 +148,8 @@ export const EnrollmentManagement: React.FC = () => {
                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
                             <UserCheck className="w-10 h-10 text-slate-300" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900">No enrollments found</h3>
-                        <p className="text-slate-500 max-w-sm mx-auto">Selected academic year might not have any enrolled students yet.</p>
+                        <h3 className="text-lg font-bold text-slate-900">{t('academics.noEnrollmentsFound')}</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto">{t('academics.noEnrollmentsDesc')}</p>
                     </div>
                 )}
             </div>

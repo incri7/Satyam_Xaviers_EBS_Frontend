@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { parentService } from '../../api/services/parent.service';
@@ -9,6 +10,7 @@ import { cn } from '../../utils/cn';
 
 const ChildMarksPage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
+    const { t } = useTranslation();
     const id = Number(studentId);
 
     const { data, isLoading, error } = useQuery({
@@ -33,7 +35,7 @@ const ChildMarksPage: React.FC = () => {
                         <Link to="/home/parent" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
                             <ArrowLeft className="w-5 h-5 text-slate-600" />
                         </Link>
-                        <h1 className="text-xl font-bold text-slate-900">Marks</h1>
+                        <h1 className="text-xl font-bold text-slate-900">{t('parent.marks')}</h1>
                     </div>
 
                     {isLoading && (
@@ -44,13 +46,13 @@ const ChildMarksPage: React.FC = () => {
 
                     {error && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-medium text-sm flex items-center gap-2">
-                            <AlertCircle className="w-5 h-5" /> Failed to load marks.
+                            <AlertCircle className="w-5 h-5" /> {t('parent.failedMarks')}
                         </div>
                     )}
 
                     {data && Object.keys(grouped).length === 0 && (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
-                            <p className="font-bold text-slate-400">No marks published yet.</p>
+                            <p className="font-bold text-slate-400">{t('parent.noMarks')}</p>
                         </div>
                     )}
 
@@ -69,7 +71,7 @@ const ChildMarksPage: React.FC = () => {
                                             <span className="text-sm font-semibold text-slate-700">{m.subject_name}</span>
                                             <div className="text-right">
                                                 {m.is_absent ? (
-                                                    <span className="text-xs font-bold px-2 py-1 rounded-lg bg-red-100 text-red-700">Absent</span>
+                                                    <span className="text-xs font-bold px-2 py-1 rounded-lg bg-red-100 text-red-700">{t('marks.absent')}</span>
                                                 ) : (
                                                     <>
                                                         <span className="text-sm font-bold text-slate-900">

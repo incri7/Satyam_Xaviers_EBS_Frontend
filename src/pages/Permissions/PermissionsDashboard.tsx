@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { Users, Shield, Database, CheckCircle2 } from 'lucide-react';
@@ -15,9 +16,9 @@ import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const PermissionsDashboard: React.FC = () => {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
 
-    // Fetch Permissions
     const {
         data: permissions = [],
         isLoading: isPermissionsLoading,
@@ -27,10 +28,8 @@ const PermissionsDashboard: React.FC = () => {
         queryFn: permissionsService.getAllPermissions
     });
 
-    // Fetch dynamic roles and resources
     const { options, isLoading: isOptionsLoading } = usePermissionOptions();
 
-    // Mutations
     const createMutation = useMutation({
         mutationFn: permissionsService.createPermission,
         onSuccess: () => {
@@ -38,7 +37,7 @@ const PermissionsDashboard: React.FC = () => {
             setIsCreateModalOpen(false);
         },
         onError: (err: any) => {
-            alert(err.message || 'Failed to create permission');
+            alert(err.message || t('common.error'));
         }
     });
 
@@ -64,11 +63,8 @@ const PermissionsDashboard: React.FC = () => {
 
     const isLoading = isPermissionsLoading || isOptionsLoading || createMutation.isPending || updateMutation.isPending;
 
-    // Filter Logic
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
-
-    // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -98,9 +94,7 @@ const PermissionsDashboard: React.FC = () => {
         const matchesSearch =
             p.resource.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.role.toLowerCase().includes(searchQuery.toLowerCase());
-
         const matchesRole = roleFilter === 'all' ? true : p.role.toLowerCase() === roleFilter.toLowerCase();
-
         return matchesSearch && matchesRole;
     });
 
@@ -113,35 +107,33 @@ const PermissionsDashboard: React.FC = () => {
                 <DashboardHeader />
 
                 <div className="p-8 max-w-7xl mx-auto space-y-8">
-                    {/* Stats Overview */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <PermissionStats
                             icon={CheckCircle2}
-                            label="Permissioned Roles"
+                            label={t('permissions.title')}
                             value={uniqueRoles.length}
                             color="blue"
                         />
                         <PermissionStats
                             icon={Database}
-                            label="Resources"
+                            label={t('permissions.resources')}
                             value={new Set(permissions.map(p => p.resource)).size}
                             color="indigo"
                         />
                         <PermissionStats
                             icon={Shield}
-                            label="Granted Permissions"
+                            label={t('permissions.granted')}
                             value={permissions.length.toString()}
                             color="emerald"
                         />
                         <PermissionStats
                             icon={Users}
-                            label="System Roles"
+                            label={t('permissions.systemRoles')}
                             value={options.roles.length.toString()}
                             color="purple"
                         />
                     </div>
 
-                    {/* Main Content Area */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -155,42 +147,37 @@ const PermissionsDashboard: React.FC = () => {
                                 roles={options.roles}
                             />
 
-                            {/* Error State */}
                             {permissionsError ? (
                                 <div className="text-center py-12">
                                     <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
                                         <Shield className="w-6 h-6 text-red-500" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-slate-900 mb-2">Access Denied</h3>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-2">{t('permissions.accessDenied')}</h3>
                                     <p className="text-slate-500 max-w-sm mx-auto mb-6">
-                                        {permissionsError instanceof Error ? permissionsError.message : 'Failed to request permissions'}
+                                        {permissionsError instanceof Error ? permissionsError.message : t('permissions.failedLoad')}
                                     </p>
                                     <button
                                         onClick={() => queryClient.invalidateQueries({ queryKey: ['permissions'] })}
                                         className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
                                     >
-                                        Try Again
+                                        {t('permissions.tryAgain')}
                                     </button>
                                 </div>
                             ) : isLoading ? (
                                 <PermissionSkeleton />
                             ) : (
-                                /* Grouped View by Role */
                                 <div className="space-y-4 mt-6">
-                                    {/* Table Header Row */}
                                     <div className="hidden md:flex items-center justify-between px-6 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        <div className="w-1/4">Role</div>
-                                        <div className="w-1/6">Department</div>
-                                        <div className="w-1/6">Users</div>
-                                        <div className="w-1/6">Resources</div>
-                                        <div className="w-1/6">Coverage</div>
-                                        <div className="w-20 text-right">Actions</div>
+                                        <div className="w-1/4">{t('permissions.role')}</div>
+                                        <div className="w-1/6">{t('permissions.department')}</div>
+                                        <div className="w-1/6">{t('permissions.users')}</div>
+                                        <div className="w-1/6">{t('permissions.resources')}</div>
+                                        <div className="w-1/6">{t('permissions.coverage')}</div>
+                                        <div className="w-20 text-right">{t('permissions.actions')}</div>
                                     </div>
 
                                     {uniqueRoles.map((role: any) => {
                                         const rolePerms = filteredPermissions.filter((p: Permission) => p.role === role);
-
-                                        // Calculate Stats
                                         const resourceCount = rolePerms.length;
                                         const totalPossible = resourceCount * 4;
                                         const activeCount = rolePerms.reduce((acc: number, p: Permission) => {
@@ -212,7 +199,7 @@ const PermissionsDashboard: React.FC = () => {
                                     })}
                                     {uniqueRoles.length === 0 && (
                                         <div className="text-center py-12 text-slate-400">
-                                            No permissions found matching your criteria.
+                                            {t('permissions.noResults')}
                                         </div>
                                     )}
                                 </div>

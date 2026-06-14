@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import {
@@ -37,9 +38,9 @@ type Step = 1 | 2 | 3 | 4 | 5;
 
 const AcademicCalendarPage: React.FC = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [step, setStep] = useState<Step>(1);
 
-    // Step 1: year form
     const [yearName, setYearName] = useState('');
     const [bsYear, setBsYear] = useState('');
     const [startDate, setStartDate] = useState('');
@@ -47,18 +48,15 @@ const AcademicCalendarPage: React.FC = () => {
     const [setCurrent, setSetCurrent] = useState(true);
     const [createdYear, setCreatedYear] = useState<AcademicYear | null>(null);
 
-    // Step 3: holidays
     const [holidays, setHolidays] = useState<HolidayEntry[]>(NEPAL_HOLIDAYS_2026_27);
     const [newHolidayDate, setNewHolidayDate] = useState('');
     const [newHolidayLabel, setNewHolidayLabel] = useState('');
 
-    // Step 4: terms
     const [terms, setTerms] = useState<TermSetup[]>([
         { term_number: 1, name: 'First Term', start_date: '', end_date: '' },
         { term_number: 2, name: 'Second Term', start_date: '', end_date: '' },
     ]);
 
-    // Step 5: summary
     const [summary, setSummary] = useState<{ working_days: number; holidays: number; weekends: number; total_days: number } | null>(null);
     const [setupError, setSetupError] = useState('');
 
@@ -84,7 +82,7 @@ const AcademicCalendarPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['academic-years'] });
             setStep(5);
         },
-        onError: (err: any) => setSetupError(err.response?.data?.detail || 'Setup failed.'),
+        onError: (err: any) => setSetupError(err.response?.data?.detail || t('academicCalendar.failedCreate')),
     });
 
     const handleCreateYear = (e: React.FormEvent) => {
@@ -119,18 +117,14 @@ const AcademicCalendarPage: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-3xl mx-auto w-full">
-                    {/* Header */}
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Academic Calendar Setup</h1>
-                        <p className="text-slate-500 text-sm mt-0.5">
-                            Set up the school year so attendance percentages are calculated correctly.
-                        </p>
+                        <h1 className="text-2xl font-bold text-slate-900">{t('academicCalendar.title')}</h1>
+                        <p className="text-slate-500 text-sm mt-0.5">{t('academicCalendar.subtitle')}</p>
                     </div>
 
-                    {/* Existing years */}
                     {existingYears && existingYears.length > 0 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                            <h2 className="text-sm font-bold text-slate-700 mb-3">Existing Academic Years</h2>
+                            <h2 className="text-sm font-bold text-slate-700 mb-3">{t('academicCalendar.existingYears')}</h2>
                             <div className="space-y-2">
                                 {existingYears.map(y => (
                                     <div key={y.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
@@ -138,17 +132,20 @@ const AcademicCalendarPage: React.FC = () => {
                                             <span className="font-bold text-slate-900 text-sm">{y.name}</span>
                                             {y.bs_year && <span className="text-xs text-slate-400 ml-2">({y.bs_year} BS)</span>}
                                             {y.is_current && (
-                                                <span className="ml-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">Current</span>
+                                                <span className="ml-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">{t('academicCalendar.current')}</span>
                                             )}
                                         </div>
-                                        <span className="text-xs text-slate-500">{y.working_days_count ? `${y.working_days_count} working days` : 'Calendar not set up'}</span>
+                                        <span className="text-xs text-slate-500">
+                                            {y.working_days_count
+                                                ? `${y.working_days_count} ${t('academicCalendar.workingDays')}`
+                                                : t('academicCalendar.notSetUp')}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Step indicator */}
                     <div className="flex items-center gap-2">
                         {([1, 2, 3, 4, 5] as Step[]).map((s) => (
                             <React.Fragment key={s}>
@@ -164,17 +161,16 @@ const AcademicCalendarPage: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* Step 1: Create academic year */}
                     {step === 1 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <Calendar className="w-5 h-5 text-brand" />
-                                <h2 className="font-bold text-slate-900">Step 1 — Create Academic Year</h2>
+                                <h2 className="font-bold text-slate-900">{t('academicCalendar.step1Title')}</h2>
                             </div>
                             <form onSubmit={handleCreateYear} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">Year Name *</label>
+                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.yearName')} *</label>
                                         <input
                                             type="text"
                                             value={yearName}
@@ -185,7 +181,7 @@ const AcademicCalendarPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">BS Year (optional)</label>
+                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.bsYear')}</label>
                                         <input
                                             type="text"
                                             value={bsYear}
@@ -195,7 +191,7 @@ const AcademicCalendarPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">Start Date *</label>
+                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.startDate')} *</label>
                                         <input
                                             type="date"
                                             value={startDate}
@@ -205,7 +201,7 @@ const AcademicCalendarPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">End Date *</label>
+                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.endDate')} *</label>
                                         <input
                                             type="date"
                                             value={endDate}
@@ -222,11 +218,11 @@ const AcademicCalendarPage: React.FC = () => {
                                         onChange={e => setSetCurrent(e.target.checked)}
                                         className="rounded"
                                     />
-                                    <span className="text-sm font-medium text-slate-700">Set as current academic year</span>
+                                    <span className="text-sm font-medium text-slate-700">{t('academicCalendar.setAsCurrent')}</span>
                                 </label>
                                 {createYearMutation.error && (
                                     <p className="text-sm text-red-600 font-medium">
-                                        {(createYearMutation.error as any).response?.data?.detail || 'Failed to create year.'}
+                                        {(createYearMutation.error as any).response?.data?.detail || t('academicCalendar.failedCreate')}
                                     </p>
                                 )}
                                 <button
@@ -235,19 +231,16 @@ const AcademicCalendarPage: React.FC = () => {
                                     className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
                                 >
                                     {createYearMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                                    Create Year
+                                    {t('academicCalendar.createYear')}
                                 </button>
                             </form>
                         </div>
                     )}
 
-                    {/* Step 2: Weekly schedule */}
                     {step === 2 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-2">Step 2 — Weekly Schedule</h2>
-                            <p className="text-sm text-slate-500 mb-4">
-                                Saturday and Sunday are automatically marked as weekends. Monday – Friday are school days.
-                            </p>
+                            <h2 className="font-bold text-slate-900 mb-2">{t('academicCalendar.step2Title')}</h2>
+                            <p className="text-sm text-slate-500 mb-4">{t('academicCalendar.step2Desc')}</p>
                             <div className="flex flex-wrap gap-2 mb-6">
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => (
                                     <span key={d} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-sm rounded-lg">✓ {d}</span>
@@ -261,16 +254,15 @@ const AcademicCalendarPage: React.FC = () => {
                                 className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 transition-all"
                             >
                                 <ChevronRight className="w-4 h-4" />
-                                Looks good — next
+                                {t('academicCalendar.looksGood')}
                             </button>
                         </div>
                     )}
 
-                    {/* Step 3: Holidays */}
                     {step === 3 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-1">Step 3 — Public Holidays</h2>
-                            <p className="text-sm text-slate-500 mb-4">Nepal public holidays for 2026-27 are pre-loaded. Add or remove as needed.</p>
+                            <h2 className="font-bold text-slate-900 mb-1">{t('academicCalendar.step3Title')}</h2>
+                            <p className="text-sm text-slate-500 mb-4">{t('academicCalendar.step3Desc')}</p>
 
                             <div className="space-y-1.5 max-h-64 overflow-y-auto mb-4">
                                 {holidays.map((h, i) => (
@@ -297,7 +289,7 @@ const AcademicCalendarPage: React.FC = () => {
                                     type="text"
                                     value={newHolidayLabel}
                                     onChange={e => setNewHolidayLabel(e.target.value)}
-                                    placeholder="Holiday name"
+                                    placeholder={t('academicCalendar.holidayName')}
                                     className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                                 />
                                 <button
@@ -313,41 +305,40 @@ const AcademicCalendarPage: React.FC = () => {
                                 className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 transition-all"
                             >
                                 <ChevronRight className="w-4 h-4" />
-                                Next — define terms
+                                {t('academicCalendar.nextTerms')}
                             </button>
                         </div>
                     )}
 
-                    {/* Step 4: Terms */}
                     {step === 4 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-4">Step 4 — Academic Terms</h2>
+                            <h2 className="font-bold text-slate-900 mb-4">{t('academicCalendar.step4Title')}</h2>
                             <div className="space-y-4 mb-4">
-                                {terms.map((t, i) => (
+                                {terms.map((term, i) => (
                                     <div key={i} className="grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl">
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{t.name}</label>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{term.name}</label>
                                             <input
                                                 type="text"
-                                                value={t.name}
+                                                value={term.name}
                                                 onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                                                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">Start</label>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{t('academicCalendar.termStart')}</label>
                                             <input
                                                 type="date"
-                                                value={t.start_date}
+                                                value={term.start_date}
                                                 onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, start_date: e.target.value } : x))}
                                                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">End</label>
+                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{t('academicCalendar.termEnd')}</label>
                                             <input
                                                 type="date"
-                                                value={t.end_date}
+                                                value={term.end_date}
                                                 onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, end_date: e.target.value } : x))}
                                                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
                                             />
@@ -367,31 +358,30 @@ const AcademicCalendarPage: React.FC = () => {
                                 className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
                             >
                                 {setupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                Confirm and Activate Calendar
+                                {t('academicCalendar.confirmActivate')}
                             </button>
                         </div>
                     )}
 
-                    {/* Step 5: Summary */}
                     {step === 5 && summary && (
                         <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-6">
                             <div className="flex items-center gap-2 mb-4">
                                 <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                                <h2 className="font-bold text-slate-900">Calendar Activated</h2>
+                                <h2 className="font-bold text-slate-900">{t('academicCalendar.step5Title')}</h2>
                             </div>
                             <p className="text-sm text-slate-500 mb-4">
-                                <strong>{createdYear?.name}</strong> is now set up. All attendance percentages will use working days.
+                                <strong>{createdYear?.name}</strong> {t('academicCalendar.step5Desc')}
                             </p>
                             <div className="grid grid-cols-4 gap-3">
                                 {[
-                                    { label: 'Total Days', value: summary.total_days, color: 'bg-slate-50 text-slate-700' },
-                                    { label: 'Working Days', value: summary.working_days, color: 'bg-emerald-50 text-emerald-700' },
-                                    { label: 'Holidays', value: summary.holidays, color: 'bg-amber-50 text-amber-700' },
-                                    { label: 'Weekends', value: summary.weekends, color: 'bg-slate-50 text-slate-600' },
+                                    { labelKey: 'academicCalendar.totalDays', value: summary.total_days, color: 'bg-slate-50 text-slate-700' },
+                                    { labelKey: 'academicCalendar.workingDaysLabel', value: summary.working_days, color: 'bg-emerald-50 text-emerald-700' },
+                                    { labelKey: 'academicCalendar.holidays', value: summary.holidays, color: 'bg-amber-50 text-amber-700' },
+                                    { labelKey: 'academicCalendar.weekends', value: summary.weekends, color: 'bg-slate-50 text-slate-600' },
                                 ].map(item => (
-                                    <div key={item.label} className={`rounded-xl p-3 text-center ${item.color}`}>
+                                    <div key={item.labelKey} className={`rounded-xl p-3 text-center ${item.color}`}>
                                         <p className="text-2xl font-black">{item.value}</p>
-                                        <p className="text-xs font-medium mt-0.5">{item.label}</p>
+                                        <p className="text-xs font-medium mt-0.5">{t(item.labelKey)}</p>
                                     </div>
                                 ))}
                             </div>

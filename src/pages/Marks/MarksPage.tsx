@@ -7,9 +7,11 @@ import { peopleService } from '../../api/services/people.service';
 import { examsService, type MarkEntry } from '../../api/services/exams.service';
 import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useTranslation } from 'react-i18next';
 
 const MarksPage: React.FC = () => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [selectedExamId, setSelectedExamId] = useState('');
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedSectionId, setSelectedSectionId] = useState('');
@@ -80,13 +82,13 @@ const MarksPage: React.FC = () => {
             return examsService.batchSaveMarks(examId, { schedule_id: scheduleId, marks });
         },
         onSuccess: () => {
-            setSuccessMessage('Marks saved successfully');
+            setSuccessMessage(t('common.success'));
             setErrorMessage('');
             setTimeout(() => setSuccessMessage(''), 4000);
             queryClient.invalidateQueries({ queryKey: ['marks'] });
         },
         onError: (err: any) => {
-            setErrorMessage(err.response?.data?.detail || 'Failed to save marks');
+            setErrorMessage(err.response?.data?.detail || t('common.error'));
         },
     });
 
@@ -100,8 +102,8 @@ const MarksPage: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-900">Marks Entry</h1>
-                            <p className="text-slate-500 text-sm font-medium">{students.length} students</p>
+                            <h1 className="text-2xl font-bold text-slate-900">{t('marks.title')}</h1>
+                            <p className="text-slate-500 text-sm font-medium">{students.length} {t('marks.students')}</p>
                         </div>
                         <button
                             onClick={() => selectedExamId && scheduleId && saveMutation.mutate({ examId: Number(selectedExamId), scheduleId })}
@@ -109,7 +111,7 @@ const MarksPage: React.FC = () => {
                             className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
                         >
                             {saveMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            Save Marks
+                            {t('marks.saveMarks')}
                         </button>
                     </div>
 
@@ -126,69 +128,70 @@ const MarksPage: React.FC = () => {
 
                     {/* Filters */}
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                            {
-                                label: 'Exam', value: selectedExamId,
-                                onChange: (v: string) => { setSelectedExamId(v); setMarksMap({}); },
-                                options: examsData?.exams.map((e: any) => ({ value: e.id, label: e.name })) || [],
-                                placeholder: 'Select exam',
-                            },
-                            {
-                                label: 'Class', value: selectedClassId,
-                                onChange: (v: string) => { setSelectedClassId(v); setSelectedSectionId(''); setMarksMap({}); },
-                                options: classesData?.classes.map((c: any) => ({ value: c.id, label: c.name })) || [],
-                                placeholder: 'Select class',
-                            },
-                            {
-                                label: 'Section', value: selectedSectionId,
-                                onChange: (v: string) => setSelectedSectionId(v),
-                                options: sectionsData?.sections.map((s: any) => ({ value: s.id, label: s.name })) || [],
-                                placeholder: 'All sections',
-                                disabled: !selectedClassId,
-                            },
-                            {
-                                label: 'Subject ID', value: selectedSubjectId,
-                                onChange: (v: string) => setSelectedSubjectId(v),
-                                options: [],
-                                placeholder: 'Subject ID (manual)',
-                                isInput: true,
-                            },
-                        ].map(field => (
-                            <div key={field.label} className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{field.label}</label>
-                                {field.isInput ? (
-                                    <input
-                                        type="number"
-                                        value={field.value}
-                                        onChange={e => field.onChange(e.target.value)}
-                                        placeholder={field.placeholder}
-                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                                    />
-                                ) : (
-                                    <div className="relative">
-                                        <select
-                                            value={field.value}
-                                            onChange={e => field.onChange(e.target.value)}
-                                            disabled={(field as any).disabled}
-                                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-                                        >
-                                            <option value="">{field.placeholder}</option>
-                                            {field.options.map((o: any) => (
-                                                <option key={o.value} value={o.value}>{o.label}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                    </div>
-                                )}
+                        {/* Exam dropdown */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.exam')}</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedExamId}
+                                    onChange={e => { setSelectedExamId(e.target.value); setMarksMap({}); }}
+                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                >
+                                    <option value="">{t('marks.selectExam')}</option>
+                                    {examsData?.exams.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
-                        ))}
+                        </div>
+                        {/* Class dropdown */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.class')}</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedClassId}
+                                    onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setMarksMap({}); }}
+                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                >
+                                    <option value="">{t('attendance.selectClass')}</option>
+                                    {classesData?.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+                        {/* Section dropdown */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.section')}</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedSectionId}
+                                    onChange={e => setSelectedSectionId(e.target.value)}
+                                    disabled={!selectedClassId}
+                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                >
+                                    <option value="">{t('marks.allSections')}</option>
+                                    {sectionsData?.sections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+                        {/* Subject ID input */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.subjectId')}</label>
+                            <input
+                                type="number"
+                                value={selectedSubjectId}
+                                onChange={e => setSelectedSubjectId(e.target.value)}
+                                placeholder={t('marks.subjectIdManual')}
+                                className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                            />
+                        </div>
                     </div>
 
                     {/* Marks Grid */}
                     {!selectedClassId ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
                             <GraduationCap className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="font-bold text-slate-400">Select exam and class to load students</p>
+                            <p className="font-bold text-slate-400">{t('marks.selectPrompt')}</p>
                         </div>
                     ) : loadingStudents ? (
                         <div className="grid gap-2">
@@ -198,10 +201,10 @@ const MarksPage: React.FC = () => {
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                             <div className="grid grid-cols-[2rem_1fr_auto_8rem_6rem] gap-4 px-5 py-3 bg-slate-50 border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-wider">
                                 <span>#</span>
-                                <span>Student</span>
-                                <span className="text-right">Admission No</span>
-                                <span className="text-right">Marks</span>
-                                <span className="text-center">Absent</span>
+                                <span>{t('marks.student')}</span>
+                                <span className="text-right">{t('marks.admissionNo')}</span>
+                                <span className="text-right">{t('marks.marksLabel')}</span>
+                                <span className="text-center">{t('marks.absent')}</span>
                             </div>
                             {students.map((student: any, index: number) => {
                                 const entry = marksMap[student.id] || { obtained: '', is_absent: false };
@@ -245,7 +248,7 @@ const MarksPage: React.FC = () => {
                                                         : 'bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500'
                                                 )}
                                             >
-                                                {entry.is_absent ? 'Absent' : 'Mark'}
+                                                {entry.is_absent ? t('marks.absent') : t('marks.mark')}
                                             </button>
                                         </div>
                                     </div>

@@ -2,6 +2,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion } from 'framer-motion';
 import { useQueries } from '@tanstack/react-query';
 import { academicsService } from '../../api/services/academics.service';
+import { useTranslation } from 'react-i18next';
 
 const now = new Date();
 const currentStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
@@ -11,6 +12,8 @@ const YEARS = Array.from({ length: 5 }, (_, i) => {
 });
 
 export const EnrollmentTrendsCard: React.FC = () => {
+    const { t } = useTranslation();
+
     const results = useQueries({
         queries: YEARS.map(year => ({
             queryKey: ['enrollment-count', year],
@@ -33,10 +36,10 @@ export const EnrollmentTrendsCard: React.FC = () => {
             viewport={{ once: true }}
             className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm"
         >
-            <h3 className="text-base font-bold text-slate-800 mb-6">Student Enrollment Trends</h3>
+            <h3 className="text-base font-bold text-slate-800 mb-6">{t('dashboard.enrollmentTrends')}</h3>
             {!hasData ? (
                 <div className="h-[240px] flex items-center justify-center">
-                    <p className="text-sm font-semibold text-slate-400">No enrollment data available</p>
+                    <p className="text-sm font-semibold text-slate-400">{t('dashboard.noEnrollmentData')}</p>
                 </div>
             ) : (
                 <div className="h-[240px] w-full">
@@ -57,7 +60,7 @@ export const EnrollmentTrendsCard: React.FC = () => {
                                 dx={-10}
                             />
                             <Tooltip
-                                formatter={(value) => [value, 'Students']}
+                                formatter={(value) => [value, t('people.students')]}
                                 contentStyle={{
                                     borderRadius: '12px',
                                     border: 'none',
@@ -79,7 +82,7 @@ export const EnrollmentTrendsCard: React.FC = () => {
             <div className="flex justify-center mt-4">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-1 bg-brand rounded-full"></div>
-                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">students enrolled</span>
+                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">{t('dashboard.studentsEnrolled')}</span>
                 </div>
             </div>
         </motion.div>

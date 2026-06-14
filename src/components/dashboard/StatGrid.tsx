@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
 import { attendanceService } from '../../api/services/attendance.service';
 import { financesService } from '../../api/services/finances.service';
+import { useTranslation } from 'react-i18next';
 
 interface StatCardProps {
     title: string;
@@ -46,6 +47,7 @@ export const StatCard: React.FC<StatCardProps & { index: number }> = ({ title, v
 };
 
 export const StatGrid: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
@@ -77,35 +79,38 @@ export const StatGrid: React.FC = () => {
         ? `Rs ${Number(monthlyReport.total_collected).toLocaleString()}`
         : '—';
 
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const monthYearLabel = now.toLocaleString(locale, { month: 'long', year: 'numeric' });
+
     const stats: StatCardProps[] = [
         {
-            title: 'Total Students',
+            title: t('dashboard.totalStudents'),
             value: totalStudents,
-            trend: 'Enrolled this year',
+            trend: t('dashboard.enrolledThisYear'),
             isPositive: true,
             icon: Users,
             color: 'blue',
         },
         {
-            title: 'Total Staff',
+            title: t('dashboard.totalStaff'),
             value: totalStaff,
-            trend: 'Active staff members',
+            trend: t('dashboard.activeStaff'),
             isPositive: true,
             icon: UserCheck,
             color: 'purple',
         },
         {
-            title: "Today's Attendance",
+            title: t('dashboard.todayAttendance'),
             value: todayMarked,
-            trend: 'Records marked today',
+            trend: t('dashboard.recordsMarked'),
             isPositive: true,
             icon: CheckCircle2,
             color: 'green',
         },
         {
-            title: 'Monthly Revenue',
+            title: t('dashboard.monthlyRevenue'),
             value: monthlyRevenue,
-            trend: new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+            trend: monthYearLabel,
             isPositive: true,
             icon: IndianRupee,
             color: 'red',

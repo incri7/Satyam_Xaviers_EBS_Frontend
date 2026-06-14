@@ -9,16 +9,18 @@ import { enqueueAttendance } from '../../lib/offlineQueue';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 import { CheckCircle2, XCircle, Clock, ChevronDown, Save, Users, AlertCircle, Loader2, WifiOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
-
-const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string; icon: React.ReactNode }[] = [
-    { value: 'P', label: 'Present', color: 'bg-emerald-100 text-emerald-700 ring-emerald-200', icon: <CheckCircle2 className="w-4 h-4" /> },
-    { value: 'A', label: 'Absent', color: 'bg-red-100 text-red-700 ring-red-200', icon: <XCircle className="w-4 h-4" /> },
-    { value: 'L', label: 'Late', color: 'bg-amber-100 text-amber-700 ring-amber-200', icon: <Clock className="w-4 h-4" /> },
-    { value: 'HD', label: 'Half Day', color: 'bg-blue-100 text-blue-700 ring-blue-200', icon: <Clock className="w-4 h-4" /> },
-];
+import { useTranslation } from 'react-i18next';
 
 const AttendancePage: React.FC = () => {
+    const { t } = useTranslation();
     const today = new Date().toISOString().split('T')[0];
+
+    const STATUS_OPTIONS: { value: AttendanceStatus; labelKey: string; color: string; icon: React.ReactNode }[] = [
+        { value: 'P', labelKey: 'attendance.present', color: 'bg-emerald-100 text-emerald-700 ring-emerald-200', icon: <CheckCircle2 className="w-4 h-4" /> },
+        { value: 'A', labelKey: 'attendance.absent', color: 'bg-red-100 text-red-700 ring-red-200', icon: <XCircle className="w-4 h-4" /> },
+        { value: 'L', labelKey: 'attendance.late', color: 'bg-amber-100 text-amber-700 ring-amber-200', icon: <Clock className="w-4 h-4" /> },
+        { value: 'HD', labelKey: 'attendance.halfDay', color: 'bg-blue-100 text-blue-700 ring-blue-200', icon: <Clock className="w-4 h-4" /> },
+    ];
 
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedSectionId, setSelectedSectionId] = useState('');
@@ -109,18 +111,18 @@ const AttendancePage: React.FC = () => {
                         )}>
                             <WifiOff className="w-5 h-5 shrink-0" />
                             {!isOnline
-                                ? "You're offline. Attendance will be saved locally and synced when you reconnect."
-                                : `${pendingCount} attendance record${pendingCount > 1 ? 's' : ''} pending sync.`}
+                                ? t('attendance.offlineWarning')
+                                : `${pendingCount} ${t('attendance.pendingSync')}`}
                         </div>
                     )}
 
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-900">Mark Attendance</h1>
+                            <h1 className="text-2xl font-bold text-slate-900">{t('attendance.title')}</h1>
                             <p className="text-slate-500 text-sm font-medium">
-                                {markedCount} / {students.length} marked
-                                {absentCount > 0 && ` · ${absentCount} absent`}
+                                {markedCount} / {students.length} {t('attendance.marked')}
+                                {absentCount > 0 && ` · ${absentCount} ${t('attendance.absent')}`}
                             </p>
                         </div>
                         <button
@@ -133,7 +135,7 @@ const AttendancePage: React.FC = () => {
                             ) : (
                                 <Save className="w-5 h-5" />
                             )}
-                            <span>Save Attendance</span>
+                            <span>{t('attendance.saveAttendance')}</span>
                         </button>
                     </div>
 
@@ -154,14 +156,14 @@ const AttendancePage: React.FC = () => {
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Class</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.class')}</label>
                                 <div className="relative">
                                     <select
                                         value={selectedClassId}
                                         onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setStatusMap({}); }}
                                         className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
                                     >
-                                        <option value="">Select class</option>
+                                        <option value="">{t('attendance.selectClass')}</option>
                                         {classesData?.classes.map((c: any) => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
@@ -171,7 +173,7 @@ const AttendancePage: React.FC = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Section</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.section')}</label>
                                 <div className="relative">
                                     <select
                                         value={selectedSectionId}
@@ -179,7 +181,7 @@ const AttendancePage: React.FC = () => {
                                         disabled={!selectedClassId}
                                         className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
                                     >
-                                        <option value="">All sections</option>
+                                        <option value="">{t('attendance.allSections')}</option>
                                         {sectionsData?.sections.map((s: any) => (
                                             <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
@@ -189,7 +191,7 @@ const AttendancePage: React.FC = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Date</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.date')}</label>
                                 <input
                                     type="date"
                                     value={attendanceDate}
@@ -202,14 +204,14 @@ const AttendancePage: React.FC = () => {
 
                         {students.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide mr-2">Mark all:</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide mr-2">{t('attendance.markAll')}</span>
                                 {STATUS_OPTIONS.map(opt => (
                                     <button
                                         key={opt.value}
                                         onClick={() => setAllStatus(opt.value)}
                                         className={cn('px-3 py-1.5 rounded-xl text-xs font-bold ring-1 transition-all', opt.color)}
                                     >
-                                        {opt.label}
+                                        {t(opt.labelKey)}
                                     </button>
                                 ))}
                             </div>
@@ -220,7 +222,7 @@ const AttendancePage: React.FC = () => {
                     {students.length > 0 && (
                         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
                             <div className="flex items-center justify-between text-sm font-bold mb-2">
-                                <span className="text-slate-700">Progress</span>
+                                <span className="text-slate-700">{t('attendance.progress')}</span>
                                 <span className="text-brand">{markedCount} / {students.length}</span>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -240,12 +242,12 @@ const AttendancePage: React.FC = () => {
                     ) : !selectedClassId ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
                             <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="font-bold text-slate-400">Select a class to load students</p>
+                            <p className="font-bold text-slate-400">{t('attendance.selectClassPrompt')}</p>
                         </div>
                     ) : students.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
                             <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="font-bold text-slate-400">No students found for this class</p>
+                            <p className="font-bold text-slate-400">{t('attendance.noStudentsFound')}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-2">
@@ -285,7 +287,7 @@ const AttendancePage: React.FC = () => {
                                                     )}
                                                 >
                                                     {opt.icon}
-                                                    <span className="hidden sm:inline">{opt.label}</span>
+                                                    <span className="hidden sm:inline">{t(opt.labelKey)}</span>
                                                 </button>
                                             ))}
                                         </div>

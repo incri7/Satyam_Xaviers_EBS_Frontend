@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { parentService } from '../../api/services/parent.service';
@@ -15,13 +16,19 @@ const STATUS_STYLE: Record<string, string> = {
     H: 'bg-slate-100 text-slate-500',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-    P: 'Present', A: 'Absent', L: 'Late', HD: 'Half Day', H: 'Holiday',
-};
-
 const ChildAttendancePage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
+    const { t, i18n } = useTranslation();
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
     const id = Number(studentId);
+
+    const STATUS_LABEL: Record<string, string> = {
+        P: t('attendance.present'),
+        A: t('attendance.absent'),
+        L: t('attendance.late'),
+        HD: t('attendance.halfDay'),
+        H: t('home.student.holiday'),
+    };
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['parent', 'child-attendance', id],
@@ -39,7 +46,7 @@ const ChildAttendancePage: React.FC = () => {
                         <Link to="/home/parent" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
                             <ArrowLeft className="w-5 h-5 text-slate-600" />
                         </Link>
-                        <h1 className="text-xl font-bold text-slate-900">Attendance History</h1>
+                        <h1 className="text-xl font-bold text-slate-900">{t('parent.attendanceHistory')}</h1>
                     </div>
 
                     {isLoading && (
@@ -51,38 +58,36 @@ const ChildAttendancePage: React.FC = () => {
                     {error && (
                         <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-medium text-sm flex items-center gap-2">
                             <AlertCircle className="w-5 h-5" />
-                            Failed to load attendance.
+                            {t('parent.failedAttendance')}
                         </div>
                     )}
 
                     {data && (
                         <>
-                            {/* Summary card */}
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
                                     <p className="text-2xl font-bold text-slate-900">{data.total_days}</p>
-                                    <p className="text-xs font-semibold text-slate-500 mt-0.5">Total Days</p>
+                                    <p className="text-xs font-semibold text-slate-500 mt-0.5">{t('parent.totalDays')}</p>
                                 </div>
                                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 shadow-sm text-center">
                                     <p className="text-2xl font-bold text-emerald-700">{data.present_days}</p>
-                                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">Present</p>
+                                    <p className="text-xs font-semibold text-emerald-600 mt-0.5">{t('parent.present')}</p>
                                 </div>
                                 <div className="bg-brand/5 rounded-2xl p-4 border border-brand/20 shadow-sm text-center">
                                     <p className="text-2xl font-bold text-brand">{data.attendance_percent}%</p>
-                                    <p className="text-xs font-semibold text-brand/70 mt-0.5">Attendance</p>
+                                    <p className="text-xs font-semibold text-brand/70 mt-0.5">{t('parent.attendance')}</p>
                                 </div>
                             </div>
 
-                            {/* Record list */}
                             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                                 {data.records.length === 0 ? (
-                                    <p className="text-center text-slate-400 font-medium py-10">No records yet.</p>
+                                    <p className="text-center text-slate-400 font-medium py-10">{t('parent.noRecords')}</p>
                                 ) : (
                                     <div className="divide-y divide-slate-50">
                                         {data.records.map(r => (
                                             <div key={r.date} className="flex items-center justify-between px-5 py-3">
                                                 <span className="text-sm font-semibold text-slate-700">
-                                                    {new Date(r.date).toLocaleDateString('en-US', {
+                                                    {new Date(r.date).toLocaleDateString(locale, {
                                                         weekday: 'short', month: 'short', day: 'numeric',
                                                     })}
                                                 </span>

@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { academicsService } from '../../api/services/academics.service';
 import { attendanceService } from '../../api/services/attendance.service';
+import { useTranslation } from 'react-i18next';
 
 export const AttendanceOverviewCard: React.FC = () => {
+    const { t } = useTranslation();
     const today = new Date().toISOString().split('T')[0];
 
     const { data: classesData } = useQuery({
@@ -49,11 +51,11 @@ export const AttendanceOverviewCard: React.FC = () => {
             viewport={{ once: true }}
             className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm"
         >
-            <h3 className="text-base font-bold text-slate-800 mb-1">Attendance Overview by Class</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">Today — {today}</p>
+            <h3 className="text-base font-bold text-slate-800 mb-1">{t('dashboard.attendanceByClass')}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">{t('dashboard.today')} — {today}</p>
             {!hasData ? (
                 <div className="h-[240px] flex items-center justify-center">
-                    <p className="text-sm font-semibold text-slate-400">No attendance marked today yet</p>
+                    <p className="text-sm font-semibold text-slate-400">{t('dashboard.noAttendanceToday')}</p>
                 </div>
             ) : (
                 <div className="h-[240px] w-full">
@@ -75,7 +77,7 @@ export const AttendanceOverviewCard: React.FC = () => {
                                 domain={[0, 100]}
                             />
                             <Tooltip
-                                formatter={(value) => [`${value}%`, 'Attendance']}
+                                formatter={(value) => [`${value}%`, t('dashboard.attendancePct')]}
                                 contentStyle={{
                                     borderRadius: '12px',
                                     border: 'none',
@@ -95,7 +97,7 @@ export const AttendanceOverviewCard: React.FC = () => {
             <div className="flex justify-center mt-4">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-[#10B981] rounded-sm"></div>
-                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">attendance %</span>
+                    <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest">{t('dashboard.attendancePct')}</span>
                 </div>
             </div>
         </motion.div>

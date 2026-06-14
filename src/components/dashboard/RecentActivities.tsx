@@ -2,22 +2,30 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { noticesService } from '../../api/services/notices.service';
+import { useTranslation } from 'react-i18next';
 
-const formatRelativeTime = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffDays === 0) {
-        if (diffHours < 1) return 'Just now';
-        return `${diffHours}h ago`;
-    }
-    if (diffDays === 1) return 'Yesterday';
-    return `${diffDays} days ago`;
+const useRelativeTime = () => {
+    const { t } = useTranslation();
+
+    return (dateStr: string): string => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        if (diffDays === 0) {
+            if (diffHours < 1) return t('dashboard.justNow');
+            return t('dashboard.hoursAgo', { count: diffHours });
+        }
+        if (diffDays === 1) return t('dashboard.yesterday');
+        return t('dashboard.daysAgo', { count: diffDays });
+    };
 };
 
 export const RecentActivities: React.FC = () => {
+    const { t } = useTranslation();
+    const formatRelativeTime = useRelativeTime();
+
     const { data: notices, isLoading } = useQuery({
         queryKey: ['recent-notices-dashboard'],
         queryFn: () => noticesService.getNotices({ limit: 5 }),
@@ -38,7 +46,7 @@ export const RecentActivities: React.FC = () => {
             viewport={{ once: true }}
             className="bg-white rounded-xl border border-slate-100 p-8 shadow-sm h-full"
         >
-            <h3 className="text-base font-bold text-slate-800 mb-8">Recent Notices</h3>
+            <h3 className="text-base font-bold text-slate-800 mb-8">{t('dashboard.recentNotices')}</h3>
             {isLoading ? (
                 <div className="space-y-8">
                     {[1, 2, 3].map(i => (
@@ -52,7 +60,7 @@ export const RecentActivities: React.FC = () => {
                     ))}
                 </div>
             ) : activities.length === 0 ? (
-                <p className="text-sm font-semibold text-slate-400">No notices posted yet</p>
+                <p className="text-sm font-semibold text-slate-400">{t('dashboard.noNotices')}</p>
             ) : (
                 <div className="space-y-8">
                     {activities.map((activity, index) => (

@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { financesService } from '../../api/services/finances.service';
 import { cn } from '../../utils/cn';
+import { useTranslation } from 'react-i18next';
 
 export const FeeCollectionCard: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const now = new Date();
 
     const { data: outstanding } = useQuery({
@@ -24,9 +26,11 @@ export const FeeCollectionCard: React.FC = () => {
     const totalOutstanding = outstanding?.total_outstanding ?? 0;
     const isLoading = !monthlyReport && !outstanding;
 
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+
     const data = [
-        { name: 'Collected', value: collected, color: '#10B981' },
-        { name: 'Outstanding', value: totalOutstanding, color: '#EF4444' },
+        { name: t('dashboard.collected'), value: collected, color: '#10B981' },
+        { name: t('dashboard.outstanding'), value: totalOutstanding, color: '#EF4444' },
     ];
 
     return (
@@ -36,9 +40,9 @@ export const FeeCollectionCard: React.FC = () => {
             viewport={{ once: true }}
             className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm"
         >
-            <h3 className="text-base font-bold text-slate-800 mb-1">Fee Collection Status</h3>
+            <h3 className="text-base font-bold text-slate-800 mb-1">{t('dashboard.feeStatus')}</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
-                {now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                {now.toLocaleString(locale, { month: 'long', year: 'numeric' })}
             </p>
             <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="h-[200px] w-[200px]">
@@ -70,7 +74,7 @@ export const FeeCollectionCard: React.FC = () => {
                             </div>
                             <span className={cn(
                                 "text-xs font-bold",
-                                item.name === 'Collected' ? "text-green-500" : "text-red-500"
+                                item.color === '#10B981' ? "text-green-500" : "text-red-500"
                             )}>
                                 {isLoading ? '—' : `Rs ${item.value.toLocaleString()}`}
                             </span>

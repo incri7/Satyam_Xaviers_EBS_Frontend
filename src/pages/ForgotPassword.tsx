@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Languages } from 'lucide-react';
 import { SchoolLogo } from '../components/icons/SchoolLogo';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { authService } from '../api/services/auth.service';
 
 const ForgotPasswordPage: React.FC = () => {
+    const { t, i18n } = useTranslation();
+    const isNepali = i18n.language === 'ne';
+    const toggleLanguage = () => i18n.changeLanguage(isNepali ? 'en' : 'ne');
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -24,7 +29,7 @@ const ForgotPasswordPage: React.FC = () => {
             if (typeof detail === 'string') {
                 setError(detail);
             } else {
-                setError('Failed to send reset link. Please try again.');
+                setError(t('register.sendFailed'));
             }
         } finally {
             setIsLoading(false);
@@ -33,29 +38,38 @@ const ForgotPasswordPage: React.FC = () => {
 
     return (
         <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Background Vignettes */}
             <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-100/30 to-transparent pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-blue-100/30 to-transparent pointer-events-none" />
 
             <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-12 z-10 transition-all duration-300">
+                <div className="flex justify-end mb-2">
+                    <button
+                        onClick={toggleLanguage}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
+                        title={t('language.toggle')}
+                    >
+                        <Languages className="w-3.5 h-3.5" />
+                        {isNepali ? t('language.english') : t('language.nepali')}
+                    </button>
+                </div>
                 <div className="flex flex-col items-center mb-8">
                     <SchoolLogo className="w-20 h-20 mb-6 shadow-lg shadow-brand/20" />
                     <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        Reset Password
+                        {t('register.forgotTitle')}
                     </h1>
                     <p className="text-slate-500 font-medium text-sm mt-2 text-center">
-                        Enter your email to receive a reset link
+                        {t('register.forgotSubtitle')}
                     </p>
                 </div>
 
                 {isSuccess ? (
                     <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
                         <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            If the email exists, a password reset link has been sent to <strong>{email}</strong>.
+                            {t('register.resetSent')} <strong>{email}</strong>.
                         </div>
                         <Link to="/login">
                             <Button variant="outline" className="w-full mt-4">
-                                Back to Sign In
+                                {t('register.backToSignIn')}
                             </Button>
                         </Link>
                     </div>
@@ -68,16 +82,16 @@ const ForgotPasswordPage: React.FC = () => {
                         )}
 
                         <Input
-                            label="Email Address"
+                            label={t('register.emailLabel')}
                             type="email"
-                            placeholder="Enter your registered email"
+                            placeholder={t('register.emailPlaceholder')}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
                         />
 
                         <Button type="submit" isLoading={isLoading} className="mt-2">
-                            Send Reset Link
+                            {t('register.sendResetLink')}
                         </Button>
 
                         <div className="text-center mt-6">
@@ -85,7 +99,7 @@ const ForgotPasswordPage: React.FC = () => {
                                 to="/login"
                                 className="text-sm font-semibold text-slate-500 hover:text-brand transition-colors flex items-center justify-center gap-2"
                             >
-                                <span>←</span> Back to Sign In
+                                <span>←</span> {t('register.backToSignIn')}
                             </Link>
                         </div>
                     </form>

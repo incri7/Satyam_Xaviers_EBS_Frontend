@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { studentService, type AssignmentSummary, type MarkTrendEntry } from '../../api/services/student.service';
@@ -18,15 +19,6 @@ const STATUS_STYLE: Record<string, string> = {
     not_marked: 'bg-slate-100 text-slate-500',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-    P: 'Present Today',
-    A: 'Absent Today',
-    L: 'Late Today',
-    HD: 'Half Day',
-    H: 'Holiday',
-    not_marked: 'Not Marked Yet',
-};
-
 const SUBMISSION_STYLE: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
     submitted: 'bg-emerald-100 text-emerald-700',
@@ -41,7 +33,18 @@ const TrendIcon: React.FC<{ trend: string }> = ({ trend }) => {
 };
 
 const StudentHome: React.FC = () => {
+    const { t, i18n } = useTranslation();
     const queryClient = useQueryClient();
+    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+
+    const STATUS_LABEL: Record<string, string> = {
+        P: t('home.student.presentToday'),
+        A: t('home.student.absentToday'),
+        L: t('home.student.lateToday'),
+        HD: t('home.student.halfDay'),
+        H: t('home.student.holiday'),
+        not_marked: t('home.student.notMarkedYet'),
+    };
 
     const { data, isLoading, isError } = useQuery({
         queryKey: ['student', 'home'],
@@ -71,7 +74,7 @@ const StudentHome: React.FC = () => {
                 <main className="flex-1 flex items-center justify-center lg:pl-72">
                     <div className="text-center">
                         <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-                        <p className="font-bold text-slate-500">Unable to load your dashboard.</p>
+                        <p className="font-bold text-slate-500">{t('home.student.loadError')}</p>
                     </div>
                 </main>
             </div>
@@ -93,7 +96,7 @@ const StudentHome: React.FC = () => {
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                    {new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}
                                 </p>
                                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
                                     {data.student_name}
@@ -111,10 +114,10 @@ const StudentHome: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Attendance % + summary */}
+                    {/* Attendance % */}
                     <div className={cn('rounded-2xl border p-5', attBgColor)}>
                         <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-bold text-slate-600">Attendance (Last 90 Days)</p>
+                            <p className="text-sm font-bold text-slate-600">{t('home.student.attendanceLast90')}</p>
                             <p className={cn('text-2xl font-black', attPctColor)}>
                                 {data.attendance_pct}%
                             </p>
@@ -130,22 +133,20 @@ const StudentHome: React.FC = () => {
                             />
                         </div>
                         <p className="text-xs text-slate-500 font-medium mt-2">
-                            {data.attendance_present} present out of {data.attendance_total} recorded days
+                            {data.attendance_present} {t('home.student.presentOf')} {data.attendance_total} {t('home.student.recordedDays')}
                         </p>
                         {data.attendance_pct < 75 && (
                             <p className="text-xs font-bold text-red-600 mt-1.5">
-                                Below 75% threshold — contact your coordinator.
+                                {t('home.student.lowAttendanceWarning')}
                             </p>
                         )}
                     </div>
 
-                    {/* Pending assignments this week */}
+                    {/* Pending assignments */}
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-amber-500" />
-                            <h2 className="font-bold text-slate-800">
-                                Due This Week
-                            </h2>
+                            <h2 className="font-bold text-slate-800">{t('home.student.dueThisWeek')}</h2>
                             <span className="ml-auto text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg">
                                 {data.pending_assignments.length}
                             </span>
@@ -154,7 +155,7 @@ const StudentHome: React.FC = () => {
                         {data.pending_assignments.length === 0 ? (
                             <div className="py-10 text-center">
                                 <CheckCircle2 className="w-10 h-10 text-emerald-300 mx-auto mb-2" />
-                                <p className="text-slate-400 font-medium text-sm">Nothing due this week.</p>
+                                <p className="text-slate-400 font-medium text-sm">{t('home.student.nothingDue')}</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-slate-50">
@@ -163,7 +164,7 @@ const StudentHome: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-slate-900 text-sm truncate">{a.title}</p>
                                             <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                {a.subject_name} · Due {a.due_date}
+                                                {a.subject_name} · {t('home.student.due')} {a.due_date}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
@@ -182,7 +183,7 @@ const StudentHome: React.FC = () => {
                                                     {submitMutation.isPending
                                                         ? <Loader2 className="w-3 h-3 animate-spin" />
                                                         : <ChevronRight className="w-3 h-3" />}
-                                                    Submit
+                                                    {t('home.student.submit')}
                                                 </button>
                                             )}
                                         </div>
@@ -192,12 +193,12 @@ const StudentHome: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Recent marks with trend */}
+                    {/* Recent marks */}
                     {data.recent_marks.length > 0 && (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                             <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
                                 <BookOpen className="w-4 h-4 text-violet-500" />
-                                <h2 className="font-bold text-slate-800">Recent Marks</h2>
+                                <h2 className="font-bold text-slate-800">{t('home.student.recentMarks')}</h2>
                             </div>
                             <div className="divide-y divide-slate-50">
                                 {data.recent_marks.map((m: MarkTrendEntry, i: number) => (

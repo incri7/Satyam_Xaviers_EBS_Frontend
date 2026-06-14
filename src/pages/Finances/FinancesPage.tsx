@@ -5,6 +5,7 @@ import { Wallet, Landmark, Receipt, PieChart, Plus, Tag } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AccessControl } from '../../components/AccessControl';
+import { useTranslation } from 'react-i18next';
 
 // Sub-components
 import { FinancialSummary } from '../../components/finances/FinancialSummary';
@@ -18,15 +19,8 @@ import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStru
 import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
 import { RecordExpenseModal } from '../../components/finances/RecordExpenseModal';
 
-const tabs = [
-    { id: 'summary', label: 'Summary', icon: PieChart, resource: 'finances' },
-    { id: 'fees', label: 'Fee Structures', icon: Landmark, resource: 'finances' },
-    { id: 'payments', label: 'Payments', icon: Receipt, resource: 'payments' },
-    { id: 'expenses', label: 'Expenses', icon: Wallet, resource: 'expenses' },
-    { id: 'discounts', label: 'Discounts', icon: Tag, resource: 'finances' },
-];
-
 export const FinancesPage: React.FC = () => {
+    const { t } = useTranslation();
     const [activeTab, setActiveTabState] = useState(() => {
         return localStorage.getItem('finances_active_tab') || 'summary';
     });
@@ -34,6 +28,14 @@ export const FinancesPage: React.FC = () => {
     const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+
+    const tabs = [
+        { id: 'summary', labelKey: 'finances.summary', icon: PieChart, resource: 'finances' },
+        { id: 'fees', labelKey: 'finances.feeStructures', icon: Landmark, resource: 'finances' },
+        { id: 'payments', labelKey: 'finances.payments', icon: Receipt, resource: 'payments' },
+        { id: 'expenses', labelKey: 'finances.expenses', icon: Wallet, resource: 'expenses' },
+        { id: 'discounts', labelKey: 'finances.discounts', icon: Tag, resource: 'finances' },
+    ];
 
     const setActiveTab = (tab: string) => {
         setActiveTabState(tab);
@@ -46,6 +48,12 @@ export const FinancesPage: React.FC = () => {
         else if (activeTab === 'expenses') setIsExpenseModalOpen(true);
     };
 
+    const createButtonLabel = activeTab === 'fees'
+        ? t('finances.newFeeStructure')
+        : activeTab === 'payments'
+            ? t('finances.recordPayment')
+            : t('finances.recordExpense');
+
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
@@ -56,8 +64,8 @@ export const FinancesPage: React.FC = () => {
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Finances Management</h1>
-                            <p className="text-slate-500 font-medium">Manage school fees, structures, payments, and expenses</p>
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('finances.title')}</h1>
+                            <p className="text-slate-500 font-medium">{t('finances.subtitle')}</p>
                         </div>
 
                         {activeTab !== 'summary' && (
@@ -67,11 +75,7 @@ export const FinancesPage: React.FC = () => {
                                     className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                                 >
                                     <Plus className="w-5 h-5" />
-                                    <span>
-                                        {activeTab === 'fees' ? 'New Fee Structure' : 
-                                         activeTab === 'payments' ? 'Record Payment' : 
-                                         'Record Expense'}
-                                    </span>
+                                    <span>{createButtonLabel}</span>
                                 </button>
                             </AccessControl>
                         )}
@@ -94,7 +98,7 @@ export const FinancesPage: React.FC = () => {
                                     )}
                                 >
                                     <Icon className="w-4 h-4" />
-                                    {tab.label}
+                                    {t(tab.labelKey)}
                                 </button>
                             );
                         })}

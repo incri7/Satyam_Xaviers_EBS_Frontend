@@ -10,16 +10,11 @@ import {
     AlertCircle, Loader2, Users, ClipboardList
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-
-const STATUS_CONFIG: Record<SubmissionStatus, { label: string; color: string }> = {
-    pending: { label: 'Pending', color: 'bg-slate-100 text-slate-500' },
-    submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700' },
-    graded: { label: 'Graded', color: 'bg-emerald-100 text-emerald-700' },
-    missing: { label: 'Missing', color: 'bg-red-100 text-red-600' },
-};
+import { useTranslation } from 'react-i18next';
 
 const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [form, setForm] = useState({
         title: '', description: '', class_id: '', section_id: '',
         subject_id: '', due_date: '', teacher_id: '',
@@ -74,7 +69,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                         <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center text-brand">
                             <ClipboardList className="w-5 h-5" />
                         </div>
-                        <h2 className="text-xl font-bold text-slate-900">New Assignment</h2>
+                        <h2 className="text-xl font-bold text-slate-900">{t('assignments.newAssignment')}</h2>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
                 </div>
@@ -85,41 +80,41 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                         </div>
                     )}
                     <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700">Title</label>
+                        <label className="text-sm font-bold text-slate-700">{t('assignments.titleField')}</label>
                         <input
                             type="text" value={form.title}
                             onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                            placeholder="Assignment title"
+                            placeholder={t('assignments.titlePlaceholder')}
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700">Description (optional)</label>
+                        <label className="text-sm font-bold text-slate-700">{t('assignments.description')}</label>
                         <textarea
                             value={form.description}
                             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                             rows={3}
-                            placeholder="Instructions for students..."
+                            placeholder={t('assignments.descPlaceholder')}
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20 resize-none"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">Class</label>
+                            <label className="text-sm font-bold text-slate-700">{t('assignments.class')}</label>
                             <div className="relative">
                                 <select
                                     value={form.class_id}
                                     onChange={e => setForm(p => ({ ...p, class_id: e.target.value, section_id: '' }))}
                                     className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
                                 >
-                                    <option value="">Select</option>
+                                    <option value="">{t('assignments.select')}</option>
                                     {classesData?.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">Section</label>
+                            <label className="text-sm font-bold text-slate-700">{t('assignments.section')}</label>
                             <div className="relative">
                                 <select
                                     value={form.section_id}
@@ -127,14 +122,14 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                                     disabled={!form.class_id}
                                     className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
                                 >
-                                    <option value="">Select</option>
+                                    <option value="">{t('assignments.select')}</option>
                                     {sectionsData?.sections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">Subject ID</label>
+                            <label className="text-sm font-bold text-slate-700">{t('assignments.subjectId')}</label>
                             <input
                                 type="number" value={form.subject_id}
                                 onChange={e => setForm(p => ({ ...p, subject_id: e.target.value }))}
@@ -143,7 +138,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">Teacher ID</label>
+                            <label className="text-sm font-bold text-slate-700">{t('assignments.teacherId')}</label>
                             <input
                                 type="number" value={form.teacher_id}
                                 onChange={e => setForm(p => ({ ...p, teacher_id: e.target.value }))}
@@ -153,7 +148,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                         </div>
                     </div>
                     <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-slate-700">Due Date</label>
+                        <label className="text-sm font-bold text-slate-700">{t('assignments.dueDate')}</label>
                         <input
                             type="date" value={form.due_date}
                             onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
@@ -166,7 +161,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                         className="w-full py-4 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                        Create Assignment
+                        {t('assignments.createAssignment')}
                     </button>
                 </form>
             </div>
@@ -176,6 +171,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
 const AssignmentsPage: React.FC = () => {
     const { user } = useAuthStore();
+    const { t } = useTranslation();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
@@ -194,6 +190,13 @@ const AssignmentsPage: React.FC = () => {
 
     const assignments = assignmentsData?.assignments || [];
 
+    const STATUS_CONFIG: Record<SubmissionStatus, { labelKey: string; color: string }> = {
+        pending: { labelKey: 'assignments.statusPending', color: 'bg-slate-100 text-slate-500' },
+        submitted: { labelKey: 'assignments.statusSubmitted', color: 'bg-blue-100 text-blue-700' },
+        graded: { labelKey: 'assignments.statusGraded', color: 'bg-emerald-100 text-emerald-700' },
+        missing: { labelKey: 'assignments.statusMissing', color: 'bg-red-100 text-red-600' },
+    };
+
     const isOverdue = (dueDate: string) => new Date(dueDate) < new Date();
 
     return (
@@ -206,8 +209,8 @@ const AssignmentsPage: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-2xl font-bold text-slate-900">Assignments</h1>
-                            <p className="text-slate-500 text-sm font-medium">{assignments.length} total</p>
+                            <h1 className="text-2xl font-bold text-slate-900">{t('assignments.title')}</h1>
+                            <p className="text-slate-500 text-sm font-medium">{assignments.length} {t('assignments.total')}</p>
                         </div>
                         {canCreate && (
                             <button
@@ -215,7 +218,7 @@ const AssignmentsPage: React.FC = () => {
                                 className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all"
                             >
                                 <Plus className="w-5 h-5" />
-                                New Assignment
+                                {t('assignments.newAssignment')}
                             </button>
                         )}
                     </div>
@@ -228,7 +231,7 @@ const AssignmentsPage: React.FC = () => {
                             ) : assignments.length === 0 ? (
                                 <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
                                     <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                                    <p className="font-bold text-slate-400">No assignments yet</p>
+                                    <p className="font-bold text-slate-400">{t('assignments.noAssignments')}</p>
                                 </div>
                             ) : (
                                 assignments.map(assignment => (
@@ -258,7 +261,7 @@ const AssignmentsPage: React.FC = () => {
                                                 'text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-lg shrink-0',
                                                 isOverdue(assignment.due_date) ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'
                                             )}>
-                                                {isOverdue(assignment.due_date) ? 'Overdue' : 'Due'}
+                                                {isOverdue(assignment.due_date) ? t('assignments.overdue') : t('assignments.due')}
                                             </div>
                                         </div>
                                         <div className="mt-3 flex items-center gap-4 text-xs font-bold text-slate-400">
@@ -278,12 +281,12 @@ const AssignmentsPage: React.FC = () => {
                             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                                 <div className="p-5 border-b border-slate-100">
                                     <h3 className="font-bold text-slate-900">{selectedAssignment.title}</h3>
-                                    <p className="text-sm text-slate-500 font-medium">Submissions</p>
+                                    <p className="text-sm text-slate-500 font-medium">{t('assignments.submissions')}</p>
                                 </div>
                                 {submissionsData?.submissions.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <Users className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                                        <p className="text-sm font-bold text-slate-400">No submissions yet</p>
+                                        <p className="text-sm font-bold text-slate-400">{t('assignments.noSubmissions')}</p>
                                     </div>
                                 ) : (
                                     <div className="divide-y divide-slate-50">
@@ -298,7 +301,7 @@ const AssignmentsPage: React.FC = () => {
                                                         'text-xs font-bold px-2.5 py-1 rounded-lg',
                                                         STATUS_CONFIG[sub.status].color
                                                     )}>
-                                                        {STATUS_CONFIG[sub.status].label}
+                                                        {t(STATUS_CONFIG[sub.status].labelKey)}
                                                     </span>
                                                 </div>
                                             </div>
