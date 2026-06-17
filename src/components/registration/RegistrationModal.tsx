@@ -197,12 +197,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
             else if (!/^[a-zA-Z\s]+$/.test(formData.state)) errors.state = 'State invalid';
             if (!formData.pincode) errors.pincode = 'Pincode is required';
             else if (!/^[0-9]+$/.test(formData.pincode)) errors.pincode = 'Pincode invalid';
-        } else if (currentStep === 'student-registration') {
-            if (formData.students.length === 0) {
-                setError('Please add at least one student before completing registration.');
-                return false;
-            }
         }
+        // 'student-registration' has no required fields: students are optional at
+        // registration. A parent can be registered alone and have students linked
+        // later via "Assign Student" (backend accepts students_in: []).
 
         setFieldErrors(errors);
         return Object.keys(errors).length === 0;
@@ -334,6 +332,62 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         }
     };
 
+    // Submit the registration. Students are optional — `students_in` may be empty
+    // (parent-only registration). Used by both "Complete Registration" and "Skip for Now".
+    const completeRegistration = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const registrationData = {
+                user_in: {
+                    email: formData.email,
+                    phone: formData.phone,
+                    password: formData.password,
+                },
+                parent_in: {
+                    first_name: formData.firstName,
+                    last_name: formData.lastName,
+                    middle_name: formData.middleName || undefined,
+                    occupation: formData.occupation || undefined,
+                    national_id: formData.nationalId || undefined,
+                    address_line: formData.address || undefined,
+                    city: formData.city || undefined,
+                    state: formData.state || undefined,
+                    pincode: formData.pincode || undefined,
+                },
+                students_in: formData.students.map(s => ({
+                    first_name: s.firstName,
+                    last_name: s.lastName,
+                    middle_name: s.middleName || undefined,
+                    dob: s.dob,
+                    gender: s.gender,
+                    blood_group: s.bloodGroup || undefined,
+                    admission_date: s.admissionDate,
+                    class_id: s.grade && s.grade !== 'Select class' ? Number(s.grade) : undefined,
+                    city: s.city || undefined,
+                    state: s.state || undefined,
+                    pincode: s.pincode || undefined,
+                    relationship_type: s.relationship || undefined,
+                    is_primary_contact: s.isPrimary,
+                })),
+            };
+
+            await peopleService.registerParentStudent(registrationData);
+            setSuccess(true);
+            resetStore();
+            setTimeout(() => {
+                onClose();
+            }, 2000);
+        } catch (err: any) {
+            const errorMessage = err?.response?.data?.detail || err?.message || err?.toString() || 'Registration failed';
+            setError(errorMessage);
+            setSuccess(false);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
@@ -348,7 +402,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">Parent & Student Registration</h2>
-                                <p className="text-sm font-medium text-slate-500">Step 1 of 3</p>
+                                <p className="text-sm font-medium text-slate-500">Step {stepIndex + 1} of {steps.length}</p>
                             </div>
                         </div>
                         <button
@@ -517,15 +571,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                             </div>
                                         </button>
                                         <button
-                                            onClick={onClose}
-                                            className="p-8 border-2 border-slate-100 bg-white rounded-2xl group hover:border-slate-300 transition-all text-left space-y-4"
+                                            onClick={completeRegistration}
+                                            disabled={isLoading}
+                                            className="p-8 border-2 border-slate-100 bg-white rounded-2xl group hover:border-slate-300 transition-all text-left space-y-4 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600">
                                                 <ArrowRight className="w-6 h-6" />
                                             </div>
                                             <div>
-                                                <p className="text-lg font-bold text-slate-900">Skip for Now</p>
-                                                <p className="text-sm text-slate-500">You can add students later from the dashboard</p>
+                                                <p className="text-lg font-bold text-slate-900">{isLoading ? 'Registering…' : 'Skip for Now'}</p>
+                                                <p className="text-sm text-slate-500">Register the guardian now; add students later via "Assign Student"</p>
                                             </div>
                                         </button>
                                     </div>
@@ -742,58 +797,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                         });
                                         setCurrentStep('student-registration');
                                     } else if (currentStep === 'student-registration') {
-                                        // Final Complete
-                                        try {
-                                            setIsLoading(true);
-                                            setError(null);
-
-                                            const registrationData = {
-                                                user_in: {
-                                                    email: formData.email,
-                                                    phone: formData.phone,
-                                                    password: formData.password,
-                                                },
-                                                parent_in: {
-                                                    first_name: formData.firstName,
-                                                    last_name: formData.lastName,
-                                                    middle_name: formData.middleName || undefined,
-                                                    occupation: formData.occupation || undefined,
-                                                    national_id: formData.nationalId || undefined,
-                                                    address_line: formData.address || undefined,
-                                                    city: formData.city || undefined,
-                                                    state: formData.state || undefined,
-                                                    pincode: formData.pincode || undefined,
-                                                },
-                                                students_in: formData.students.map(s => ({
-                                                    first_name: s.firstName,
-                                                    last_name: s.lastName,
-                                                    middle_name: s.middleName || undefined,
-                                                    dob: s.dob,
-                                                    gender: s.gender,
-                                                    blood_group: s.bloodGroup || undefined,
-                                                    admission_date: s.admissionDate,
-                                                    class_id: s.grade && s.grade !== 'Select class' ? Number(s.grade) : undefined,
-                                                    city: s.city || undefined,
-                                                    state: s.state || undefined,
-                                                    pincode: s.pincode || undefined,
-                                                    relationship_type: s.relationship || undefined,
-                                                    is_primary_contact: s.isPrimary,
-                                                })),
-                                            };
-
-                                            await peopleService.registerParentStudent(registrationData);
-                                            setSuccess(true);
-                                            resetStore();
-                                            setTimeout(() => {
-                                                onClose();
-                                            }, 2000);
-                                        } catch (err: any) {
-                                            const errorMessage = err?.response?.data?.detail || err?.message || err?.toString() || 'Registration failed';
-                                            setError(errorMessage);
-                                            setSuccess(false);
-                                        } finally {
-                                            setIsLoading(false);
-                                        }
+                                        await completeRegistration();
                                     }
                                 }}
                                 className={cn(
