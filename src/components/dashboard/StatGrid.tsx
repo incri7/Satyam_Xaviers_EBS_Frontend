@@ -56,9 +56,14 @@ export const StatGrid: React.FC = () => {
         queryFn: () => peopleService.getStudents({ limit: 1 }),
         staleTime: 5 * 60 * 1000,
     });
-    const { data: staffData } = useQuery({
-        queryKey: ['staff-count'],
-        queryFn: () => peopleService.getStaffList({ limit: 1 }),
+    const { data: usersData } = useQuery({
+        queryKey: ['users-count'],
+        queryFn: () => peopleService.getUsers({ limit: 1 }),
+        staleTime: 5 * 60 * 1000,
+    });
+    const { data: parentsData } = useQuery({
+        queryKey: ['parents-count'],
+        queryFn: () => peopleService.getParents({ limit: 1 }),
         staleTime: 5 * 60 * 1000,
     });
     const { data: attendanceData } = useQuery({
@@ -73,7 +78,15 @@ export const StatGrid: React.FC = () => {
     });
 
     const totalStudents = studentsData?.total_count != null ? studentsData.total_count.toLocaleString() : '—';
-    const totalStaff = staffData?.total_count != null ? staffData.total_count.toLocaleString() : '—';
+    // "Staff" = all employees = every user account that is neither a student nor a parent
+    // (students and parents are themselves user accounts). This includes teachers and leadership
+    // (principal / coordinator / accountant / admin), which the staff-profile table omits — the
+    // old getStaffList only counted non-teaching staff, so the card read "3" for ~19 employees.
+    const employeeCount =
+        usersData?.total_count != null && studentsData?.total_count != null && parentsData?.total_count != null
+            ? Math.max(0, usersData.total_count - studentsData.total_count - parentsData.total_count)
+            : null;
+    const totalStaff = employeeCount != null ? employeeCount.toLocaleString() : '—';
     const todayMarked = attendanceData?.total_count != null ? attendanceData.total_count.toLocaleString() : '—';
     const monthlyRevenue = monthlyReport?.total_collected != null
         ? `Rs ${Number(monthlyReport.total_collected).toLocaleString()}`
