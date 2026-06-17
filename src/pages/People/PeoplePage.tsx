@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,7 +20,11 @@ type PeopleTab = 'students' | 'teachers' | 'staff' | 'parents' | 'users';
 
 const PeoplePage: React.FC = () => {
     const { t } = useTranslation();
+    const [searchParams] = useSearchParams();
     const [activeTab, setActiveTabState] = useState<PeopleTab>(() => {
+        const validTabs: PeopleTab[] = ['students', 'teachers', 'staff', 'parents', 'users'];
+        const fromUrl = searchParams.get('tab') as PeopleTab | null;
+        if (fromUrl && validTabs.includes(fromUrl)) return fromUrl;
         return (localStorage.getItem('people_active_tab') as PeopleTab) || 'students';
     });
     const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);

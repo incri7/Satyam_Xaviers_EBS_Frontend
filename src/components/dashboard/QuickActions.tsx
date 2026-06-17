@@ -1,9 +1,10 @@
-import { CalendarClock, BellRing, FileBarChart2 } from 'lucide-react';
+import { UserPlus, Users, Briefcase, ShieldCheck, BookOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { AccessControl } from '../AccessControl';
+import type { ComponentId } from '../../config/permissionRegistry';
 import { useTranslation } from 'react-i18next';
-import type { PermissionAction } from '../../types/auth';
 
 interface QuickActionProps {
     title: string;
@@ -37,45 +38,67 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
 
 export const QuickActions: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
+    // Admin provisioning actions. Each carries a STABLE `id` for permission gating
+    // (never derived from the translated title) and a real navigation target.
     const actions: Array<{
+        id: ComponentId;
         title: string;
         description: string;
         icon: React.ElementType;
-        onClick?: () => void;
-        isHighlighted?: boolean;
-        permissions: Array<{ resource: string; action: PermissionAction }>;
+        to: string;
     }> = [
             {
-                title: t('dashboard.leaveRequests'),
-                description: t('dashboard.pending', { count: 3 }),
-                icon: CalendarClock,
-                permissions: [{ resource: 'staff', action: 'read' }],
+                id: 'action_add_student',
+                title: t('dashboard.addStudent'),
+                description: t('dashboard.addStudentDesc'),
+                icon: UserPlus,
+                to: '/people?tab=students',
             },
             {
-                title: t('dashboard.reviewNotices'),
-                description: t('dashboard.drafts', { count: 2 }),
-                icon: BellRing,
-                permissions: [{ resource: 'staff', action: 'create' }],
+                id: 'action_register_parent',
+                title: t('dashboard.registerParent'),
+                description: t('dashboard.registerParentDesc'),
+                icon: Users,
+                to: '/people?tab=parents',
             },
             {
-                title: t('dashboard.generateReports'),
-                description: t('dashboard.monthly'),
-                icon: FileBarChart2,
-                permissions: [{ resource: 'finances', action: 'read' }],
+                id: 'action_register_user',
+                title: t('dashboard.registerUser'),
+                description: t('dashboard.registerUserDesc'),
+                icon: Briefcase,
+                to: '/people?tab=users',
+            },
+            {
+                id: 'action_setup_academics',
+                title: t('dashboard.setupAcademics'),
+                description: t('dashboard.setupAcademicsDesc'),
+                icon: BookOpen,
+                to: '/academics',
+            },
+            {
+                id: 'action_manage_permissions',
+                title: t('dashboard.managePermissions'),
+                description: t('dashboard.managePermissionsDesc'),
+                icon: ShieldCheck,
+                to: '/settings/permissions',
             },
         ];
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {actions.map((action, index) => {
-                const id = `action_${action.title.toLowerCase().replace(/\s+/g, '_')}`;
-                return (
-                    <AccessControl key={action.title} id={id as any}>
-                        <QuickAction {...action} index={index} />
-                    </AccessControl>
-                );
-            })}
+            {actions.map((action, index) => (
+                <AccessControl key={action.id} id={action.id}>
+                    <QuickAction
+                        title={action.title}
+                        description={action.description}
+                        icon={action.icon}
+                        onClick={() => navigate(action.to)}
+                        index={index}
+                    />
+                </AccessControl>
+            ))}
         </div>
     );
 };

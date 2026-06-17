@@ -30,6 +30,15 @@ export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
     'action_add_student': [
         { resource: 'students', action: 'create' }
     ],
+    'action_register_user': [
+        { resource: 'users', action: 'create' }
+    ],
+    'action_manage_permissions': [
+        { resource: 'permissions', action: 'read' }
+    ],
+    'action_setup_academics': [
+        { resource: 'classes', action: 'create' }
+    ],
     'action_leave_requests': [
         { resource: 'staff', action: 'read' }
     ],
