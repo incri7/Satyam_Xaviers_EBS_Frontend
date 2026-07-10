@@ -94,7 +94,14 @@ const AcademicsPage: React.FC = () => {
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {activeTab === 'classes' && <ClassManagement />}
+                                {activeTab === 'classes' && (
+                                    <ClassManagement
+                                        onViewSections={(classId) => {
+                                            localStorage.setItem('academics_section_class_filter', String(classId));
+                                            setActiveTab('sections');
+                                        }}
+                                    />
+                                )}
                                 {activeTab === 'sections' && <SectionManagement />}
                                 {activeTab === 'enrollments' && <EnrollmentManagement />}
                             </motion.div>

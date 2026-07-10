@@ -8,7 +8,7 @@ import { EditClassModal } from './EditClassModal';
 import { useTranslation } from 'react-i18next';
 import type { Class } from '../../types/academic';
 
-export const ClassManagement: React.FC = () => {
+export const ClassManagement: React.FC<{ onViewSections?: (classId: number) => void }> = ({ onViewSections }) => {
     const queryClient = useQueryClient();
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
@@ -131,7 +131,10 @@ export const ClassManagement: React.FC = () => {
                         </div>
 
                         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 group-hover:bg-brand/5 transition-colors">
-                            <button className="text-sm font-bold text-brand hover:underline">
+                            <button
+                                onClick={() => onViewSections?.(cls.id)}
+                                className="text-sm font-bold text-brand hover:underline"
+                            >
                                 {t('academics.viewSections')}
                             </button>
                         </div>

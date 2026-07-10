@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
-import { Search, Edit2, Trash2, Users, MapPin, Briefcase } from 'lucide-react';
+import { Search, Edit2, Users, MapPin, Briefcase } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
+import { EditStaffModal } from './EditStaffModal';
 import type { Staff } from '../../types/people';
 
 export const StaffManagement: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [page] = useState(1);
     const [limit] = useState(20);
+    const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
 
     const { data: staffData, isLoading, isError } = useQuery({
         queryKey: ['staff', searchQuery, page, limit],
@@ -57,13 +59,11 @@ export const StaffManagement: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <AccessControl id="staff_update">
-                                        <button className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all">
+                                        <button
+                                            onClick={() => setEditingStaff(m)}
+                                            className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                                        >
                                             <Edit2 className="w-4 h-4" />
-                                        </button>
-                                    </AccessControl>
-                                    <AccessControl id="staff_delete">
-                                        <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-                                            <Trash2 className="w-4 h-4" />
                                         </button>
                                     </AccessControl>
                                 </div>
@@ -89,7 +89,10 @@ export const StaffManagement: React.FC = () => {
 
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-amber-50/50 transition-colors flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Joined: {m.join_date ? new Date(m.join_date).toLocaleDateString() : 'N/A'}</span>
-                            <button className="text-xs font-bold text-amber-600 hover:underline">
+                            <button
+                                onClick={() => setEditingStaff(m)}
+                                className="text-xs font-bold text-amber-600 hover:underline"
+                            >
                                 Details →
                             </button>
                         </div>
@@ -114,6 +117,14 @@ export const StaffManagement: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {editingStaff && (
+                <EditStaffModal
+                    staff={editingStaff}
+                    isOpen={!!editingStaff}
+                    onClose={() => setEditingStaff(null)}
+                />
+            )}
         </div>
     );
 };

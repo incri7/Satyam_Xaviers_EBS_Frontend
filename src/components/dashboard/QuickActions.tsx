@@ -1,4 +1,5 @@
 import { CalendarClock, BellRing, FileBarChart2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
@@ -37,6 +38,7 @@ const QuickAction: React.FC<QuickActionProps & { isHighlighted?: boolean, index:
 
 export const QuickActions: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
 
     const actions: Array<{
         title: string;
@@ -48,20 +50,23 @@ export const QuickActions: React.FC = () => {
     }> = [
             {
                 title: t('dashboard.leaveRequests'),
-                description: t('dashboard.pending', { count: 3 }),
+                description: t('dashboard.reviewApprove', 'Review & approve'),
                 icon: CalendarClock,
+                onClick: () => navigate('/leave'),
                 permissions: [{ resource: 'staff', action: 'read' }],
             },
             {
                 title: t('dashboard.reviewNotices'),
-                description: t('dashboard.drafts', { count: 2 }),
+                description: t('dashboard.manageNotices', 'Manage notices'),
                 icon: BellRing,
+                onClick: () => navigate('/communication'),
                 permissions: [{ resource: 'staff', action: 'create' }],
             },
             {
                 title: t('dashboard.generateReports'),
                 description: t('dashboard.monthly'),
                 icon: FileBarChart2,
+                onClick: () => navigate('/reports'),
                 permissions: [{ resource: 'finances', action: 'read' }],
             },
         ];

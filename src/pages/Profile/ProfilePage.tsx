@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { peopleService } from '../../api/services/people.service';
@@ -9,6 +10,7 @@ import { motion } from 'framer-motion';
 
 const ProfilePage: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { data: profile, isLoading } = useQuery({
         queryKey: ['me'],
         queryFn: peopleService.getMe,
@@ -144,7 +146,10 @@ const ProfilePage: React.FC = () => {
                                             <span className="font-bold text-slate-700 text-sm">{t('profile.verifiedActive')}</span>
                                         </div>
                                     </div>
-                                    <button className="w-full py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-lg shadow-slate-200 hover:scale-[1.02] transition-all active:scale-[0.98]">
+                                    <button
+                                        onClick={() => navigate('/reset-password')}
+                                        className="w-full py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-lg shadow-slate-200 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                    >
                                         {t('profile.changePassword')}
                                     </button>
                                 </div>

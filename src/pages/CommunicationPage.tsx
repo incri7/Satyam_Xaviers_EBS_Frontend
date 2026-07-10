@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Bell, Search, Plus, Calendar, User,
-    MoreVertical, Trash2, Edit2,
+    Trash2, Edit2, X, Save,
     Megaphone, Users, GraduationCap, UserCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
 import { noticesService } from '../api/services/notices.service';
+import { requestFCMToken, deviceService } from '../api/services/device.service';
 import { CreateNoticeModal } from '../components/communication/CreateNoticeModal';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 
@@ -21,6 +22,33 @@ const CommunicationPage: React.FC = () => {
 
     const canCreate = user?.role === 'admin' || user?.role === 'principal';
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+    const [notifStatus, setNotifStatus] = useState<'idle' | 'enabling' | 'enabled' | 'unavailable'>('idle');
+
+    const handleDelete = async (notice: Notice) => {
+        if (!window.confirm(`Delete notice "${notice.title}"?`)) return;
+        try {
+            await noticesService.deleteNotice(notice.id);
+            fetchNotices();
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Failed to delete notice');
+        }
+    };
+
+    const handleEnableNotifications = async () => {
+        setNotifStatus('enabling');
+        try {
+            const token = await requestFCMToken();
+            if (token) {
+                await deviceService.registerToken(token);
+                setNotifStatus('enabled');
+            } else {
+                setNotifStatus('unavailable');
+            }
+        } catch {
+            setNotifStatus('unavailable');
+        }
+    };
 
     useEffect(() => {
         fetchNotices();
@@ -52,6 +80,13 @@ const CommunicationPage: React.FC = () => {
                 onClose={() => setIsCreateModalOpen(false)}
                 onCreated={fetchNotices}
             />
+            {editingNotice && (
+                <EditNoticeModal
+                    notice={editingNotice}
+                    onClose={() => setEditingNotice(null)}
+                    onSaved={() => { setEditingNotice(null); fetchNotices(); }}
+                />
+            )}
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="flex items-center gap-6">
@@ -120,8 +155,15 @@ const CommunicationPage: React.FC = () => {
                             <p className="text-xs text-brand-50/80 font-medium leading-relaxed">
                                 {t('communication.enableNotificationsDesc')}
                             </p>
-                            <button className="w-full bg-white text-brand py-3 rounded-xl font-bold text-xs hover:bg-brand-50 transition-colors">
-                                {t('communication.enableNotifications')}
+                            <button
+                                onClick={handleEnableNotifications}
+                                disabled={notifStatus === 'enabling' || notifStatus === 'enabled'}
+                                className="w-full bg-white text-brand py-3 rounded-xl font-bold text-xs hover:bg-brand-50 transition-colors disabled:opacity-70"
+                            >
+                                {notifStatus === 'enabling' ? '…' :
+                                 notifStatus === 'enabled' ? '✓ Notifications enabled' :
+                                 notifStatus === 'unavailable' ? 'Not available on this device' :
+                                 t('communication.enableNotifications')}
                             </button>
                         </div>
                     </div>
@@ -136,7 +178,13 @@ const CommunicationPage: React.FC = () => {
                     ) : filteredNotices.length > 0 ? (
                         <div className="grid grid-cols-1 gap-6">
                             {filteredNotices.map((notice: Notice) => (
-                                <NoticeCard key={notice.id} notice={notice} canManage={canCreate} />
+                                <NoticeCard
+                                    key={notice.id}
+                                    notice={notice}
+                                    canManage={canCreate}
+                                    onEdit={() => setEditingNotice(notice)}
+                                    onDelete={() => handleDelete(notice)}
+                                />
                             ))}
                         </div>
                     ) : (
@@ -156,7 +204,129 @@ const CommunicationPage: React.FC = () => {
     );
 };
 
-const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, canManage }) => {
+const EditNoticeModal: React.FC<{
+    notice: Notice;
+    onClose: () => void;
+    onSaved: () => void;
+}> = ({ notice, onClose, onSaved }) => {
+    const [title, setTitle] = useState(notice.title);
+    const [body, setBody] = useState(notice.body);
+    const [priority, setPriority] = useState<NoticePriority>(notice.priority);
+    const [validTo, setValidTo] = useState(notice.valid_to ? notice.valid_to.slice(0, 10) : '');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim()) return setError('Title is required');
+        if (!body.trim()) return setError('Body is required');
+        setSaving(true);
+        setError(null);
+        try {
+            await noticesService.updateNotice(notice.id, {
+                title: title.trim(),
+                body: body.trim(),
+                priority,
+                valid_to: validTo || undefined,
+            });
+            onSaved();
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to update notice');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl p-8 space-y-5">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-slate-900">Edit Notice</h2>
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Title</label>
+                        <input
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Body</label>
+                        <textarea
+                            value={body}
+                            onChange={(e) => setBody(e.target.value)}
+                            rows={5}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20 resize-none"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Priority</label>
+                            <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value as NoticePriority)}
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                            >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Valid Until</label>
+                            <input
+                                type="date"
+                                value={validTo}
+                                onChange={(e) => setValidTo(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                            />
+                        </div>
+                    </div>
+
+                    {error && (
+                        <p className="text-sm font-medium text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-5 py-2.5 font-bold text-slate-500 hover:text-slate-900 transition-colors text-sm"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-brand text-white text-sm font-bold rounded-xl hover:opacity-95 transition-all disabled:opacity-50"
+                        >
+                            {saving ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Save className="w-4 h-4" />
+                            )}
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const NoticeCard: React.FC<{
+    notice: Notice;
+    canManage: boolean;
+    onEdit: () => void;
+    onDelete: () => void;
+}> = ({ notice, canManage, onEdit, onDelete }) => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
 
@@ -231,14 +401,17 @@ const NoticeCard: React.FC<{ notice: Notice; canManage: boolean }> = ({ notice, 
 
                         {canManage && (
                             <div className="flex items-center gap-2">
-                                <button className="p-2 hover:bg-slate-50 text-slate-400 hover:text-brand rounded-xl transition-all">
+                                <button
+                                    onClick={onEdit}
+                                    className="p-2 hover:bg-slate-50 text-slate-400 hover:text-brand rounded-xl transition-all"
+                                >
                                     <Edit2 className="w-4 h-4" />
                                 </button>
-                                <button className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-all">
+                                <button
+                                    onClick={onDelete}
+                                    className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-all"
+                                >
                                     <Trash2 className="w-4 h-4" />
-                                </button>
-                                <button className="p-2 hover:bg-slate-50 text-slate-400 rounded-xl transition-all">
-                                    <MoreVertical className="w-4 h-4" />
                                 </button>
                             </div>
                         )}

@@ -47,6 +47,10 @@ export const peopleService = {
         const response = await api.get(`people/students/${id}`);
         return response.data;
     },
+    getStudentSummary: async (id: number): Promise<StudentSummary> => {
+        const response = await api.get(`people/students/${id}/summary`);
+        return response.data;
+    },
     createStudent: async (data: any) => {
         const response = await api.post('people/students', data);
         return response.data;
@@ -126,3 +130,54 @@ export const peopleService = {
         }
     },
 };
+
+export interface StudentSummary {
+    student: {
+        id: number;
+        first_name: string;
+        middle_name?: string | null;
+        last_name?: string | null;
+        admission_no?: string | null;
+        status?: string | null;
+        dob?: string | null;
+        gender?: string | null;
+        blood_group?: string | null;
+        city?: string | null;
+        state?: string | null;
+        admission_date?: string | null;
+    };
+    guardians: {
+        parent_id: number;
+        name: string;
+        relationship?: string | null;
+        is_primary_contact: boolean;
+        phone?: string | null;
+        email?: string | null;
+        occupation?: string | null;
+    }[];
+    enrollment: {
+        class_id: number;
+        class_name?: string | null;
+        section_id?: number | null;
+        section_name?: string | null;
+        academic_year: string;
+    } | null;
+    attendance: {
+        last_30_days_total: number;
+        last_30_days_present: number;
+        attendance_pct: number | null;
+        recent: { date: string; status: string }[];
+    };
+    fees: {
+        total_assigned: number;
+        total_paid: number;
+        balance: number;
+    };
+    recent_payments: {
+        id: number;
+        amount: number;
+        method?: string | null;
+        receipt_no?: string | null;
+        paid_at?: string | null;
+    }[];
+}

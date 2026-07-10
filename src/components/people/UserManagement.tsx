@@ -24,6 +24,16 @@ export const UserManagement: React.FC = () => {
         }
     });
 
+    const reactivateMutation = useMutation({
+        mutationFn: (id: number) => peopleService.updateUser(id, { is_active: true }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+        },
+        onError: (err: any) => {
+            alert(err.response?.data?.detail || 'Failed to reactivate account');
+        }
+    });
+
     const users = userData?.users || [];
 
     return (
@@ -116,6 +126,11 @@ export const UserManagement: React.FC = () => {
                                                     </button>
                                                 ) : (
                                                     <button
+                                                        onClick={() => {
+                                                            if (window.confirm('Reactivate this user account?')) {
+                                                                reactivateMutation.mutate(user.id);
+                                                            }
+                                                        }}
                                                         className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                                                         title="Reactivate Account"
                                                     >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     GraduationCap,
@@ -111,7 +111,9 @@ export const Sidebar: React.FC = () => {
     const { hasPermission } = usePermissionsStore();
     const { user } = useAuthStore();
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const role = user?.role ?? '';
+    const canOpenCalendar = role === 'admin' || role === 'principal';
     const now = new Date();
     const startYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
     const academicYear = `${startYear}-${startYear + 1}`;
@@ -130,7 +132,14 @@ export const Sidebar: React.FC = () => {
             className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-slate-100 flex flex-col z-50"
         >
             <div className="p-6">
-                <div className="bg-[#FFF5F6] rounded-xl p-4 border border-[#FEE2E5] flex items-center justify-between group cursor-pointer hover:bg-[#FEE2E5] transition-colors">
+                <div
+                    onClick={canOpenCalendar ? () => navigate('/academic-calendar') : undefined}
+                    title={canOpenCalendar ? t('nav.academicCalendar', 'Academic calendar') : undefined}
+                    className={cn(
+                        "bg-[#FFF5F6] rounded-xl p-4 border border-[#FEE2E5] flex items-center justify-between transition-colors",
+                        canOpenCalendar && "group cursor-pointer hover:bg-[#FEE2E5]"
+                    )}
+                >
                     <div className="flex-1 text-center">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t('nav.academicYear')}</p>
                         <p className="text-sm font-bold text-brand">{academicYear}</p>

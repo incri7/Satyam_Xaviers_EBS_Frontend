@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
 import { registrationService } from '../../api/services/registration.service';
@@ -11,6 +12,7 @@ import { EditStudentModal } from './EditStudentModal';
 import type { Student } from '../../types/people';
 
 export const StudentManagement: React.FC = () => {
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
@@ -208,7 +210,10 @@ export const StudentManagement: React.FC = () => {
 
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-brand/5 transition-colors flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">DOB: {new Date(student.dob).toLocaleDateString()}</span>
-                            <button className="text-xs font-bold text-brand hover:underline">
+                            <button
+                                onClick={() => navigate(`/people/students/${student.id}`)}
+                                className="text-xs font-bold text-brand hover:underline"
+                            >
                                 Details →
                             </button>
                         </div>

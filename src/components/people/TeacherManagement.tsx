@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
-import { Search, Edit2, Trash2, Microscope, MapPin, Briefcase, GraduationCap } from 'lucide-react';
+import { Search, Edit2, Microscope, MapPin, Briefcase, GraduationCap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { EditTeacherModal } from './EditTeacherModal';
@@ -68,13 +68,6 @@ export const TeacherManagement: React.FC = () => {
                                             <Edit2 className="w-4 h-4" />
                                         </button>
                                     </AccessControl>
-                                    <AccessControl id="teachers_delete">
-                                        <button
-                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </AccessControl>
                                 </div>
                             </div>
 
@@ -102,7 +95,10 @@ export const TeacherManagement: React.FC = () => {
 
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-blue-50/50 transition-colors flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Exp: {teacher.experience_years || 0} Years</span>
-                            <button className="text-xs font-bold text-blue-600 hover:underline">
+                            <button
+                                onClick={() => setEditingTeacher(teacher)}
+                                className="text-xs font-bold text-blue-600 hover:underline"
+                            >
                                 View Profile →
                             </button>
                         </div>

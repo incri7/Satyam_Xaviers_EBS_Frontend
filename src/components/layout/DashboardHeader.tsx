@@ -1,4 +1,5 @@
 import { Bell, ChevronDown, Languages } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { SchoolLogo } from '../icons/SchoolLogo';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -8,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 export const DashboardHeader: React.FC = () => {
     const { user } = useAuthStore();
     const { logout } = useAuth();
+    const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
     const firstLetter = displayName.charAt(0).toUpperCase();
@@ -55,10 +57,11 @@ export const DashboardHeader: React.FC = () => {
                 <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    onClick={() => navigate('/communication')}
+                    title={t('communication.title', 'Notices')}
                     className="relative p-2.5 bg-slate-50 rounded-xl text-slate-500 hover:text-brand hover:bg-brand/5 transition-all"
                 >
                     <Bell className="w-5 h-5" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-brand rounded-full border-2 border-white"></span>
                 </motion.button>
 
                 <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>

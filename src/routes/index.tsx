@@ -10,6 +10,7 @@ import Dashboard from '../pages/Dashboard';
 import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 import AcademicsPage from '../pages/Academics/AcademicsPage';
 import PeoplePage from '../pages/People/PeoplePage';
+import StudentDetailPage from '../pages/People/StudentDetailPage';
 import ProfilePage from '../pages/Profile/ProfilePage';
 import FinancesPage from '../pages/Finances/FinancesPage';
 import CommunicationPage from '../pages/CommunicationPage';
@@ -75,7 +76,7 @@ export const router = createBrowserRouter([
                 element: <RoleRoute roles={['principal']} />,
                 children: [
                     { path: '/dashboard', element: <Dashboard /> },
-                    { path: '/settings', element: <Dashboard /> },
+                    { path: '/settings', element: <Navigate to="/settings/permissions" replace /> },
                     { path: '/settings/permissions', element: <PermissionsDashboard /> },
                     { path: '/academic-calendar', element: <AcademicCalendarPage /> },
                     { path: '/promotion', element: <PromotionPage /> },
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
                 element: <RoleRoute roles={['principal', 'coordinator']} />,
                 children: [
                     { path: '/people', element: <PeoplePage /> },
+                    { path: '/people/students/:studentId', element: <StudentDetailPage /> },
                     { path: '/staff', element: <Navigate to="/people" replace /> },
                     { path: '/academics', element: <AcademicsPage /> },
                 ],

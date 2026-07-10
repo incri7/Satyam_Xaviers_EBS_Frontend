@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financesService } from '../../api/services/finances.service';
-import { Landmark, Search, Trash2, Edit2, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Landmark, Search, Trash2, Edit2, CheckCircle2, XCircle, Info, X, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
+import type { FeeStructure } from '../../types/finance';
 
 export const FeeStructureManagement: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingFee, setEditingFee] = useState<FeeStructure | null>(null);
+    const [editForm, setEditForm] = useState({ name: '', amount: '', fee_type: '' });
+    const [editError, setEditError] = useState<string | null>(null);
 
     const { data: feeStructures, isLoading } = useQuery({
         queryKey: ['fee-structures'],
@@ -19,6 +23,34 @@ export const FeeStructureManagement: React.FC = () => {
         mutationFn: (id: number) => financesService.deactivateFeeStructure(id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fee-structures'] }),
     });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: number; data: { name?: string; amount?: number; fee_type?: string } }) =>
+            financesService.updateFeeStructure(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fee-structures'] });
+            setEditingFee(null);
+            setEditError(null);
+        },
+        onError: (err: any) => setEditError(err.response?.data?.detail || 'Failed to update fee structure'),
+    });
+
+    const openEdit = (fee: FeeStructure) => {
+        setEditForm({ name: fee.name, amount: String(fee.amount), fee_type: fee.fee_type || '' });
+        setEditError(null);
+        setEditingFee(fee);
+    };
+
+    const handleEditSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const amount = parseFloat(editForm.amount);
+        if (!editForm.name.trim()) return setEditError('Name is required');
+        if (isNaN(amount) || amount <= 0) return setEditError('Enter a valid amount');
+        updateMutation.mutate({
+            id: editingFee!.id,
+            data: { name: editForm.name.trim(), amount, fee_type: editForm.fee_type || undefined },
+        });
+    };
 
     const formatCurrency = (amt: number) => {
         return new Intl.NumberFormat('en-NP', {
@@ -82,7 +114,10 @@ export const FeeStructureManagement: React.FC = () => {
                             
                             <div className="flex items-center gap-1">
                                 <AccessControl id="finances_update">
-                                    <button className="p-2 text-slate-400 hover:text-brand hover:bg-rose-50 rounded-xl transition-all">
+                                    <button
+                                        onClick={() => openEdit(fee)}
+                                        className="p-2 text-slate-400 hover:text-brand hover:bg-rose-50 rounded-xl transition-all"
+                                    >
                                         <Edit2 className="w-4 h-4" />
                                     </button>
                                 </AccessControl>
@@ -134,6 +169,88 @@ export const FeeStructureManagement: React.FC = () => {
                     <div>
                         <h4 className="font-bold text-slate-900">No results found</h4>
                         <p className="text-sm text-slate-500 font-medium">Try adjusting your search terms</p>
+                    </div>
+                </div>
+            )}
+
+            {editingFee && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        onClick={() => setEditingFee(null)}
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                    />
+                    <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900">Edit Fee Structure</h3>
+                                <p className="text-sm text-slate-500 font-medium capitalize">{editingFee.frequency.replace('_', ' ')} · #{editingFee.id}</p>
+                            </div>
+                            <button
+                                onClick={() => setEditingFee(null)}
+                                className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-400"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Name</label>
+                                <input
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm(f => ({ ...f, name: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Amount (Rs.)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editForm.amount}
+                                        onChange={(e) => setEditForm(f => ({ ...f, amount: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Type</label>
+                                    <input
+                                        placeholder="e.g. tuition"
+                                        value={editForm.fee_type}
+                                        onChange={(e) => setEditForm(f => ({ ...f, fee_type: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {editError && (
+                                <p className="text-sm font-medium text-rose-600 bg-rose-50 rounded-xl px-4 py-3">{editError}</p>
+                            )}
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingFee(null)}
+                                    className="px-5 py-2.5 font-bold text-slate-500 hover:text-slate-900 transition-colors text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={updateMutation.isPending}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-brand text-white text-sm font-bold rounded-xl hover:opacity-95 transition-all disabled:opacity-50"
+                                >
+                                    {updateMutation.isPending ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Save className="w-4 h-4" />
+                                    )}
+                                    Save
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

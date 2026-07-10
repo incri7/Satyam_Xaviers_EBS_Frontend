@@ -105,11 +105,7 @@ const LoginPage: React.FC = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
-                        <div className="flex items-center justify-between text-sm pt-1">
-                            <label className="flex items-center text-slate-600 cursor-pointer">
-                                <input type="checkbox" className="mr-2 rounded border-slate-300 text-brand focus:ring-brand" />
-                                {t('auth.rememberMe')}
-                            </label>
+                        <div className="flex items-center justify-end text-sm pt-1">
                             <Link to="/forgot-password" className="text-brand font-semibold hover:text-brand-dark transition-colors">
                                 {t('auth.forgotPassword')}
                             </Link>
@@ -121,7 +117,7 @@ const LoginPage: React.FC = () => {
                     </Button>
 
                     <p className="text-center text-sm text-slate-500 mt-8">
-                        {t('auth.needHelp')} <a href="#" className="text-brand font-semibold hover:text-brand-dark transition-colors">{t('auth.contactSupport')}</a>
+                        {t('auth.needHelp')} <a href="mailto:support@sxebs.edu.np" className="text-brand font-semibold hover:text-brand-dark transition-colors">{t('auth.contactSupport')}</a>
                     </p>
                 </form>
             </div>

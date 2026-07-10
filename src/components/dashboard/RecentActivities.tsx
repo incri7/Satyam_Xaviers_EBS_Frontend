@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { noticesService } from '../../api/services/notices.service';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +25,7 @@ const useRelativeTime = () => {
 
 export const RecentActivities: React.FC = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const formatRelativeTime = useRelativeTime();
 
     const { data: notices, isLoading } = useQuery({
@@ -70,6 +72,7 @@ export const RecentActivities: React.FC = () => {
                             viewport={{ once: true }}
                             transition={{ delay: index * 0.1 }}
                             key={activity.id}
+                            onClick={() => navigate('/communication')}
                             className="flex gap-4 group cursor-pointer"
                         >
                             <div className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 flex-shrink-0 group-hover:scale-150 transition-transform duration-300" />

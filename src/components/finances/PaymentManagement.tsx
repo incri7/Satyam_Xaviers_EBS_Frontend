@@ -8,6 +8,10 @@ import { AccessControl } from '../AccessControl';
 export const PaymentManagement: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterMethod, setFilterMethod] = useState('');
+    const [filterFrom, setFilterFrom] = useState('');
+    const [filterTo, setFilterTo] = useState('');
 
     const { data: payments, isLoading } = useQuery({
         queryKey: ['payments'],
@@ -52,10 +56,18 @@ export const PaymentManagement: React.FC = () => {
         });
     };
 
-    const filteredPayments = payments?.filter(p => 
-        p.receipt_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.transaction_id?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const filteredPayments = payments?.filter(p => {
+        const matchesSearch =
+            p.receipt_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.transaction_id?.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!matchesSearch) return false;
+        if (filterMethod && p.method !== filterMethod) return false;
+        if (filterFrom && p.paid_at && p.paid_at.slice(0, 10) < filterFrom) return false;
+        if (filterTo && p.paid_at && p.paid_at.slice(0, 10) > filterTo) return false;
+        return true;
+    }) || [];
+
+    const activeFilterCount = [filterMethod, filterFrom, filterTo].filter(Boolean).length;
 
     return (
         <div className="space-y-6">
@@ -71,17 +83,70 @@ export const PaymentManagement: React.FC = () => {
                     />
                 </div>
                 <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all">
+                    <button
+                        onClick={() => setShowFilters(v => !v)}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-bold transition-all",
+                            showFilters || activeFilterCount > 0
+                                ? "bg-brand/5 border-brand/20 text-brand"
+                                : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100"
+                        )}
+                    >
                         <Filter className="w-4 h-4" />
-                        <span>Filters</span>
+                        <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
                     </button>
                     <div className="h-8 w-[1px] bg-slate-200"></div>
                     <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
                         <span>Transactions:</span>
-                        <span className="text-slate-900">{payments?.length || 0}</span>
+                        <span className="text-slate-900">{filteredPayments.length}</span>
                     </div>
                 </div>
             </div>
+
+            {showFilters && (
+                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Method</label>
+                        <select
+                            value={filterMethod}
+                            onChange={(e) => setFilterMethod(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                        >
+                            <option value="">All methods</option>
+                            <option value="cash">Cash</option>
+                            <option value="online">Online</option>
+                            <option value="bank_transfer">Bank transfer</option>
+                            <option value="card">Card</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">From</label>
+                        <input
+                            type="date"
+                            value={filterFrom}
+                            onChange={(e) => setFilterFrom(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">To</label>
+                        <input
+                            type="date"
+                            value={filterTo}
+                            onChange={(e) => setFilterTo(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                        />
+                    </div>
+                    <button
+                        onClick={() => { setFilterMethod(''); setFilterFrom(''); setFilterTo(''); }}
+                        disabled={activeFilterCount === 0}
+                        className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors disabled:opacity-40"
+                    >
+                        Clear filters
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
