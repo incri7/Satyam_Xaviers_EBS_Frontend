@@ -21,7 +21,20 @@ export interface ParentRegisterOut {
     role: string;
 }
 
+export interface RegistrationTokenRead {
+    token: string;
+    student_id: number;
+    expires_at: string;
+    registration_url: string;
+}
+
 export const registrationService = {
+    /** Admin/principal/coordinator: mint a one-time parent registration link for a student. */
+    generateToken: async (studentId: number): Promise<RegistrationTokenRead> => {
+        const res = await api.post('/register/generate', { student_id: studentId });
+        return res.data;
+    },
+
     getTokenInfo: async (token: string): Promise<TokenInfo> => {
         const res = await api.get(`/register/${token}`);
         return res.data;

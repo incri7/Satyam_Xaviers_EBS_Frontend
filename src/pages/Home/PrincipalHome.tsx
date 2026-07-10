@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
@@ -7,6 +7,7 @@ import NLQBar from '../../components/NLQBar';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuthStore } from '../../store/useAuthStore';
 import { financesService } from '../../api/services/finances.service';
+import { attendanceService } from '../../api/services/attendance.service';
 import { Users, TrendingDown, CheckCircle2, Activity } from 'lucide-react';
 
 const PrincipalHome: React.FC = () => {
@@ -19,6 +20,18 @@ const PrincipalHome: React.FC = () => {
 
     const [presentCount, setPresentCount] = useState<number | null>(null);
     const [lateFlash, setLateFlash] = useState(false);
+
+    // Seed the live counter with today's actual count; WS events increment from there
+    const { data: todaySummary } = useQuery({
+        queryKey: ['attendance', 'today-summary'],
+        queryFn: attendanceService.getTodaySummary,
+    });
+    useEffect(() => {
+        if (todaySummary && presentCount === null) {
+            setPresentCount(todaySummary.present);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [todaySummary]);
 
     const { data: monthlyReport } = useQuery({
         queryKey: ['finances', 'monthly-report', today.getFullYear(), today.getMonth() + 1],

@@ -39,8 +39,12 @@ const MarksPage: React.FC = () => {
     });
 
     const { data: studentsData, isLoading: loadingStudents } = useQuery({
-        queryKey: ['students', 'marks', selectedClassId],
-        queryFn: () => peopleService.getStudents({ limit: 100 }),
+        queryKey: ['students', 'marks', selectedClassId, selectedSectionId],
+        queryFn: () => peopleService.getStudents({
+            limit: 100,
+            class_id: Number(selectedClassId),
+            section_id: selectedSectionId ? Number(selectedSectionId) : undefined,
+        }),
         enabled: !!selectedClassId,
     });
 

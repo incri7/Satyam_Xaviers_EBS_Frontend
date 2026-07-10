@@ -67,9 +67,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         occupation: '',
         nationalId: '',
         address: '',
-        city: 'Hetauda',
-        state: 'Makwanpur',
-        pincode: '44107',
+        city: '',
+        state: '',
+        pincode: '',
         students: [],
     };
 
@@ -82,9 +82,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         dob: '',
         gender: 'Select gender',
         bloodGroup: 'Select blood group',
-        city: 'Hetauda',
-        state: 'Makwanpur',
-        pincode: '44107',
+        city: '',
+        state: '',
+        pincode: '',
         admissionDate: '',
         grade: 'Select class',
         relationship: 'Father',
@@ -484,9 +484,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                 </div>
                                 <FormInput label="Address Line" asterisk placeholder="Hetauda-4, Makwanpur" value={formData.address} onChange={(val) => updateField('address', val)} error={fieldErrors.address} />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="City" asterisk placeholder="Hetauda" value={formData.city} onChange={(val) => updateField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.city} />
-                                    <FormInput label="State" asterisk placeholder="Makwanpur" value={formData.state} onChange={(val) => updateField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.state} />
-                                    <FormInput label="Pincode" asterisk placeholder="44107" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
+                                    <FormInput label="City" asterisk placeholder="Lalitpur" value={formData.city} onChange={(val) => updateField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.city} />
+                                    <FormInput label="State" asterisk placeholder="Bagmati" value={formData.state} onChange={(val) => updateField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.state} />
+                                    <FormInput label="Pincode" asterisk placeholder="44700" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
                                 </div>
                             </div>
                         </div>
@@ -610,9 +610,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                                 <h3 className="text-lg font-bold text-slate-900">Address Details</h3>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="City" asterisk placeholder="Hetauda" value={currentStudent.city} onChange={val => updateStudentField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentCity}/>
-                                                <FormInput label="State" asterisk placeholder="Makwanpur" value={currentStudent.state} onChange={val => updateStudentField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentState}/>
-                                                <FormInput label="Pincode" asterisk placeholder="44107" value={currentStudent.pincode} onChange={val => updateStudentField('pincode', val)} error={fieldErrors.studentPincode}/>
+                                                <FormInput label="City" asterisk placeholder="Lalitpur" value={currentStudent.city} onChange={val => updateStudentField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentCity}/>
+                                                <FormInput label="State" asterisk placeholder="Bagmati" value={currentStudent.state} onChange={val => updateStudentField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentState}/>
+                                                <FormInput label="Pincode" asterisk placeholder="44700" value={currentStudent.pincode} onChange={val => updateStudentField('pincode', val)} error={fieldErrors.studentPincode}/>
                                             </div>
                                         </div>
 

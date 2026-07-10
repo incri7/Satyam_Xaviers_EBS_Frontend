@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
-import { Search, Edit2, Trash2, GraduationCap, MapPin } from 'lucide-react';
+import { registrationService } from '../../api/services/registration.service';
+import { Search, Edit2, Trash2, GraduationCap, MapPin, Link2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { cn } from '../../utils/cn';
@@ -14,6 +15,24 @@ export const StudentManagement: React.FC = () => {
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+    const [copiedLinkFor, setCopiedLinkFor] = useState<number | null>(null);
+
+    const generateLinkMutation = useMutation({
+        mutationFn: registrationService.generateToken,
+        onSuccess: async (data) => {
+            const url = `${window.location.origin}${data.registration_url}`;
+            try {
+                await navigator.clipboard.writeText(url);
+            } catch {
+                window.prompt('Copy the parent registration link:', url);
+            }
+            setCopiedLinkFor(data.student_id);
+            setTimeout(() => setCopiedLinkFor(null), 3000);
+        },
+        onError: (err: any) => {
+            alert(err.response?.data?.detail || 'Failed to generate registration link');
+        }
+    });
 
     const { data: studentData, isLoading } = useQuery({
         queryKey: ['students', searchQuery, page, limit],
@@ -72,6 +91,17 @@ export const StudentManagement: React.FC = () => {
                                     <GraduationCap className="w-8 h-8" />
                                 </div>
                                 <div className="flex items-center gap-1">
+                                    <AccessControl id="students_update">
+                                        <button
+                                            onClick={() => generateLinkMutation.mutate(student.id)}
+                                            title="Generate parent registration link (copied to clipboard)"
+                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                        >
+                                            {copiedLinkFor === student.id
+                                                ? <Check className="w-4 h-4 text-emerald-600" />
+                                                : <Link2 className="w-4 h-4" />}
+                                        </button>
+                                    </AccessControl>
                                     <AccessControl id="students_update">
                                         <button
                                             onClick={() => setEditingStudent(student)}

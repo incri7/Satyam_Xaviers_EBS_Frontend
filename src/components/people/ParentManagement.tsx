@@ -4,12 +4,14 @@ import { peopleService } from '../../api/services/people.service';
 import { Search, Home, Edit2, MapPin, Briefcase, Mail, Phone, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
+import { EditParentModal } from './EditParentModal';
 import type { Parent } from '../../types/people';
 
 export const ParentManagement: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [page] = useState(1);
     const [limit] = useState(20);
+    const [editingParent, setEditingParent] = useState<Parent | null>(null);
 
     const { data: parentData, isLoading } = useQuery({
         queryKey: ['parents', searchQuery, page, limit],
@@ -64,7 +66,10 @@ export const ParentManagement: React.FC = () => {
                                 </div>
                             </div>
                             <AccessControl id="parents_update">
-                                <button className="p-2 text-slate-400 hover:text-brand hover:bg-rose-50 rounded-lg transition-all">
+                                <button
+                                    onClick={() => setEditingParent(p)}
+                                    className="p-2 text-slate-400 hover:text-brand hover:bg-rose-50 rounded-lg transition-all"
+                                >
                                     <Edit2 className="w-4 h-4" />
                                 </button>
                             </AccessControl>
@@ -102,6 +107,14 @@ export const ParentManagement: React.FC = () => {
                     </motion.div>
                 ))}
             </div>
+
+            {editingParent && (
+                <EditParentModal
+                    parent={editingParent}
+                    isOpen={!!editingParent}
+                    onClose={() => setEditingParent(null)}
+                />
+            )}
         </div>
     );
 };

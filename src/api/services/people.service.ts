@@ -35,7 +35,7 @@ export const peopleService = {
     },
 
     // Students
-    getStudents: async (params?: { search?: string; page?: number; limit?: number; filter_by_status?: string }) => {
+    getStudents: async (params?: { search?: string; page?: number; limit?: number; filter_by_status?: string; class_id?: number; section_id?: number }) => {
         try {
             const response = await api.get('people/students', { params });
             return response.data;

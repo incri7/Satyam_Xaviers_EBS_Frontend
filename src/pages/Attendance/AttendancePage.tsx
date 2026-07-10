@@ -44,8 +44,12 @@ const AttendancePage: React.FC = () => {
     });
 
     const { data: studentsData, isLoading: loadingStudents } = useQuery({
-        queryKey: ['students', 'enrollment', selectedSectionId || selectedClassId],
-        queryFn: () => peopleService.getStudents({ limit: 100 }),
+        queryKey: ['students', 'enrollment', selectedClassId, selectedSectionId],
+        queryFn: () => peopleService.getStudents({
+            limit: 100,
+            class_id: Number(selectedClassId),
+            section_id: selectedSectionId ? Number(selectedSectionId) : undefined,
+        }),
         enabled: !!selectedClassId,
     });
 

@@ -5,6 +5,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 import { requestFCMToken, deviceService } from '../api/services/device.service';
+import { homeForRole } from '../utils/roleHome';
 import { useTranslation } from 'react-i18next';
 import { Languages } from 'lucide-react';
 
@@ -35,22 +36,7 @@ const LoginPage: React.FC = () => {
             if (response.user.must_change_password === true) {
                 navigate('/reset-password');
             } else {
-                const role = response.user.role;
-                if (role === 'teacher') {
-                    navigate('/home/teacher');
-                } else if (role === 'parent') {
-                    navigate('/home/parent');
-                } else if (role === 'accountant') {
-                    navigate('/home/accountant');
-                } else if (role === 'coordinator') {
-                    navigate('/home/coordinator');
-                } else if (role === 'student') {
-                    navigate('/home/student');
-                } else if (role === 'principal') {
-                    navigate('/home/principal');
-                } else {
-                    navigate('/dashboard');
-                }
+                navigate(homeForRole(response.user.role));
             }
         } catch (err: any) {
             const detail = err.response?.data?.detail;

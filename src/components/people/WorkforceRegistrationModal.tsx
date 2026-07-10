@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, UserPlus, CheckCircle2, Shield, User, Mail, Phone, ChevronDown, Briefcase, Calendar, MapPin, Heart, GraduationCap, Hash } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { peopleService } from '../../api/services/people.service';
@@ -46,6 +47,7 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
     initialRole = 'teacher',
     onSuccess
 }) => {
+    const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -176,6 +178,9 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
             }
 
             await peopleService.registerUser(payload);
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            if (formData.role === 'teacher') queryClient.invalidateQueries({ queryKey: ['teachers'] });
+            if (formData.role === 'staff') queryClient.invalidateQueries({ queryKey: ['staff'] });
             setSuccess(true);
             if (onSuccess) onSuccess();
             setTimeout(() => {
