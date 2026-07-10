@@ -5,6 +5,7 @@ import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { academicsService } from '../../api/services/academics.service';
 import { peopleService } from '../../api/services/people.service';
 import { examsService, type MarkEntry } from '../../api/services/exams.service';
+import { useAuthStore } from '../../store/useAuthStore';
 import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTranslation } from 'react-i18next';
@@ -22,9 +23,18 @@ const MarksPage: React.FC = () => {
     const currentYear = new Date().getFullYear();
     const academicYear = `${currentYear}-${currentYear + 1}`;
 
+    const { user } = useAuthStore();
+    const isTeacher = user?.role === 'teacher';
+
     const { data: examsData } = useQuery({
         queryKey: ['exams', academicYear],
         queryFn: () => examsService.listExams({ academic_year: academicYear }),
+    });
+
+    // Teachers only see (and can pick) their own subjects; staff see all
+    const { data: subjects } = useQuery({
+        queryKey: ['subjects', isTeacher ? 'my' : 'all'],
+        queryFn: () => (isTeacher ? academicsService.getMySubjects() : academicsService.getSubjects()),
     });
 
     const { data: classesData } = useQuery({
@@ -178,16 +188,23 @@ const MarksPage: React.FC = () => {
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
-                        {/* Subject ID input */}
+                        {/* Subject dropdown (teachers: own subjects only) */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.subjectId')}</label>
-                            <input
-                                type="number"
-                                value={selectedSubjectId}
-                                onChange={e => setSelectedSubjectId(e.target.value)}
-                                placeholder={t('marks.subjectIdManual')}
-                                className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                            />
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.subject', 'Subject')}</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedSubjectId}
+                                    onChange={e => { setSelectedSubjectId(e.target.value); setMarksMap({}); }}
+                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                >
+                                    <option value="">{t('marks.selectSubject', 'Select subject…')}</option>
+                                    {(subjects || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                            {isTeacher && (subjects || []).length === 0 && (
+                                <p className="text-[11px] text-amber-600 font-medium">{t('marks.noSubjectsAssigned', 'No subjects assigned to you yet — ask the coordinator.')}</p>
+                            )}
                         </div>
                     </div>
 

@@ -43,7 +43,7 @@ export const DiscountManagement: React.FC = () => {
             setForm({ fee_structure_id: '', is_percent: true, value: '', reason: '' });
         },
         onError: (err: any) => {
-            setCreateError(err.response?.data?.detail || 'Failed to apply discount');
+            setCreateError(err.response?.data?.detail || 'Failed to apply scholarship');
         },
     });
 
@@ -52,7 +52,7 @@ export const DiscountManagement: React.FC = () => {
         setCreateError(null);
         if (!form.fee_structure_id) return setCreateError('Select a fee structure');
         const value = parseFloat(form.value);
-        if (isNaN(value) || value <= 0) return setCreateError('Enter a valid discount value');
+        if (isNaN(value) || value <= 0) return setCreateError('Enter a valid scholarship value');
         if (form.is_percent && value > 100) return setCreateError('Percentage cannot exceed 100');
         createMutation.mutate({
             student_id: searched!,
@@ -72,7 +72,7 @@ export const DiscountManagement: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h3 className="font-bold text-slate-900 mb-4">Look up student discounts</h3>
+                <h3 className="font-bold text-slate-900 mb-4">Look up student scholarships</h3>
                 <form onSubmit={handleSearch} className="flex gap-3">
                     <div className="relative flex-1 max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -101,8 +101,8 @@ export const DiscountManagement: React.FC = () => {
                                 <Tag className="w-4 h-4 text-violet-600" />
                             </div>
                             <div>
-                                <p className="font-bold text-slate-900 text-sm">Discounts — Student #{searched}</p>
-                                <p className="text-xs text-slate-400 font-medium">{discounts?.length ?? 0} active discounts</p>
+                                <p className="font-bold text-slate-900 text-sm">Scholarships — Student #{searched}</p>
+                                <p className="text-xs text-slate-400 font-medium">{discounts?.length ?? 0} active scholarships</p>
                             </div>
                         </div>
                         <AccessControl id="finances_create">
@@ -111,7 +111,7 @@ export const DiscountManagement: React.FC = () => {
                                 className="flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 text-sm font-bold rounded-xl hover:bg-violet-100 transition-all"
                             >
                                 <Plus className="w-4 h-4" />
-                                Add Discount
+                                Add Scholarship
                             </button>
                         </AccessControl>
                     </div>
@@ -125,7 +125,7 @@ export const DiscountManagement: React.FC = () => {
                             <div className="relative bg-white w-full max-w-lg rounded-[2rem] shadow-2xl p-8 space-y-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-900">Apply Discount</h3>
+                                        <h3 className="text-xl font-bold text-slate-900">Apply Scholarship</h3>
                                         <p className="text-sm text-slate-500 font-medium">Student #{searched}</p>
                                     </div>
                                     <button
@@ -205,7 +205,7 @@ export const DiscountManagement: React.FC = () => {
                                             disabled={createMutation.isPending}
                                             className="px-6 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 transition-all disabled:opacity-50"
                                         >
-                                            {createMutation.isPending ? 'Applying…' : 'Apply Discount'}
+                                            {createMutation.isPending ? 'Applying…' : 'Apply Scholarship'}
                                         </button>
                                     </div>
                                 </form>
@@ -239,7 +239,7 @@ export const DiscountManagement: React.FC = () => {
                                             <AccessControl id="finances_delete">
                                                 <button
                                                     onClick={() => {
-                                                        if (confirm('Remove this discount?')) deleteMutation.mutate(d.id);
+                                                        if (confirm('Remove this scholarship?')) deleteMutation.mutate(d.id);
                                                     }}
                                                     className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                                                 >
@@ -256,7 +256,7 @@ export const DiscountManagement: React.FC = () => {
                             <div className="inline-flex w-14 h-14 bg-slate-100 rounded-full items-center justify-center text-slate-400">
                                 <Tag className="w-6 h-6" />
                             </div>
-                            <p className="text-sm text-slate-500 font-medium">No discounts for this student</p>
+                            <p className="text-sm text-slate-500 font-medium">No scholarships for this student</p>
                         </div>
                     )}
                 </div>

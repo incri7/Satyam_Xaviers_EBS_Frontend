@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router } from './routes';
 import { usePermissionsInit } from './hooks/usePermissionsInit';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { InstallPrompt } from './components/InstallPrompt';
 
 const queryClient = new QueryClient();
 
@@ -13,6 +14,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
+        <InstallPrompt />
       </QueryClientProvider>
     </ErrorBoundary>
   );

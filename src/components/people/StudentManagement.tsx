@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
 import { registrationService } from '../../api/services/registration.service';
-import { Search, Edit2, Trash2, GraduationCap, MapPin, Link2, Check } from 'lucide-react';
+import { academicsService } from '../../api/services/academics.service';
+import { Search, Edit2, Trash2, GraduationCap, MapPin, Link2, Check, ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { cn } from '../../utils/cn';
@@ -16,6 +17,20 @@ export const StudentManagement: React.FC = () => {
     const [limit] = useState(20);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [copiedLinkFor, setCopiedLinkFor] = useState<number | null>(null);
+    const [filterClassId, setFilterClassId] = useState('');
+    const [filterSectionId, setFilterSectionId] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+
+    const { data: classesData } = useQuery({
+        queryKey: ['classes'],
+        queryFn: () => academicsService.getClasses({ limit: 100 }),
+    });
+
+    const { data: sectionsData } = useQuery({
+        queryKey: ['sections', filterClassId],
+        queryFn: () => academicsService.getSections({ class_id: Number(filterClassId), limit: 100 }),
+        enabled: !!filterClassId,
+    });
 
     const generateLinkMutation = useMutation({
         mutationFn: registrationService.generateToken,
@@ -35,8 +50,15 @@ export const StudentManagement: React.FC = () => {
     });
 
     const { data: studentData, isLoading } = useQuery({
-        queryKey: ['students', searchQuery, page, limit],
-        queryFn: () => peopleService.getStudents({ search: searchQuery, page, limit }),
+        queryKey: ['students', searchQuery, page, limit, filterClassId, filterSectionId, filterStatus],
+        queryFn: () => peopleService.getStudents({
+            search: searchQuery,
+            page,
+            limit,
+            class_id: filterClassId ? Number(filterClassId) : undefined,
+            section_id: filterSectionId ? Number(filterSectionId) : undefined,
+            filter_by_status: filterStatus || undefined,
+        }),
     });
 
     const deleteMutation = useMutation({
@@ -65,9 +87,48 @@ export const StudentManagement: React.FC = () => {
                         className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
                     />
                 </div>
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
-                    <span>Total Students:</span>
-                    <span className="text-slate-900">{studentData?.total_count || 0}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <select
+                            value={filterClassId}
+                            onChange={(e) => { setFilterClassId(e.target.value); setFilterSectionId(''); setPage(1); }}
+                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                        >
+                            <option value="">All classes</option>
+                            {classesData?.classes?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                        <select
+                            value={filterSectionId}
+                            onChange={(e) => { setFilterSectionId(e.target.value); setPage(1); }}
+                            disabled={!filterClassId}
+                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                        >
+                            <option value="">All sections</option>
+                            {sectionsData?.sections?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                        >
+                            <option value="">All statuses</option>
+                            <option value="active">Active</option>
+                            <option value="passed_out">Passed out</option>
+                            <option value="transferred">Transferred</option>
+                            <option value="discontinued">Discontinued</option>
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 pl-2">
+                        <span>Total:</span>
+                        <span className="text-slate-900">{studentData?.total_count || 0}</span>
+                    </div>
                 </div>
             </div>
 

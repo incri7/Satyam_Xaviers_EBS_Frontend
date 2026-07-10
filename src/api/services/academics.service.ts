@@ -102,5 +102,56 @@ export const academicsService = {
 
     deleteEnrollment: async (id: number): Promise<void> => {
         await api.delete(`academics/enrollments/${id}`);
+    },
+
+    // Subjects & teacher-subject mapping
+    getSubjects: async (): Promise<Subject[]> => {
+        const response = await api.get<Subject[]>('academics/subjects');
+        return response.data;
+    },
+
+    createSubject: async (name: string): Promise<Subject> => {
+        const response = await api.post<Subject>('academics/subjects', { name });
+        return response.data;
+    },
+
+    getMySubjects: async (): Promise<Subject[]> => {
+        const response = await api.get<Subject[]>('academics/subjects/my');
+        return response.data;
+    },
+
+    getTeacherOptions: async (): Promise<TeacherOption[]> => {
+        const response = await api.get<TeacherOption[]>('academics/teachers/options');
+        return response.data;
+    },
+
+    setTeacherSubjects: async (teacherId: number, subjectIds: number[]): Promise<Subject[]> => {
+        const response = await api.put<Subject[]>(`academics/teachers/${teacherId}/subjects`, { subject_ids: subjectIds });
+        return response.data;
+    },
+
+    // Sections where the logged-in teacher is class teacher
+    getMySections: async (): Promise<MySection[]> => {
+        const response = await api.get<MySection[]>('academics/my-sections');
+        return response.data;
     }
 };
+
+export interface Subject {
+    id: number;
+    name: string;
+}
+
+export interface TeacherOption {
+    id: number;
+    name: string;
+    designation?: string | null;
+    subjects: Subject[];
+}
+
+export interface MySection {
+    section_id: number;
+    section_name: string;
+    class_id: number;
+    class_name: string;
+}

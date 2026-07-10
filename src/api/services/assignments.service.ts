@@ -18,7 +18,7 @@ export interface AssignmentCreate {
     section_id: number;
     subject_id: number;
     due_date: string;
-    teacher_id: number;
+    teacher_id?: number; // omitted → backend uses the caller's own teacher record
 }
 
 export interface AssignmentListResponse {

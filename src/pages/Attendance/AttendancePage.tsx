@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -7,6 +7,7 @@ import { peopleService } from '../../api/services/people.service';
 import { attendanceService, type AttendanceStatus } from '../../api/services/attendance.service';
 import { enqueueAttendance } from '../../lib/offlineQueue';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
+import { useAuthStore } from '../../store/useAuthStore';
 import { CheckCircle2, XCircle, Clock, ChevronDown, Save, Users, AlertCircle, Loader2, WifiOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTranslation } from 'react-i18next';
@@ -28,19 +29,42 @@ const AttendancePage: React.FC = () => {
     const [statusMap, setStatusMap] = useState<Record<number, AttendanceStatus>>({});
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [viewMode, setViewMode] = useState<'mark' | 'history'>('mark');
+    const weekAgo = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().split('T')[0];
+    const [historyStart, setHistoryStart] = useState(weekAgo);
+    const [historyEnd, setHistoryEnd] = useState(today);
 
     const { pendingCount } = useOfflineSync();
     const isOnline = navigator.onLine;
 
+    const { user } = useAuthStore();
+    const isTeacher = user?.role === 'teacher';
+
+    // Class teachers land directly on their own roster — no dropdowns to fumble
+    const { data: mySections } = useQuery({
+        queryKey: ['my-sections'],
+        queryFn: academicsService.getMySections,
+        enabled: isTeacher,
+    });
+    const lockedToOwnSection = isTeacher && (mySections?.length ?? 0) > 0;
+    useEffect(() => {
+        if (lockedToOwnSection && !selectedClassId && mySections![0]) {
+            setSelectedClassId(String(mySections![0].class_id));
+            setSelectedSectionId(String(mySections![0].section_id));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mySections, lockedToOwnSection]);
+
     const { data: classesData } = useQuery({
         queryKey: ['classes'],
         queryFn: () => academicsService.getClasses({ limit: 100 }),
+        enabled: !lockedToOwnSection,
     });
 
     const { data: sectionsData } = useQuery({
         queryKey: ['sections', selectedClassId],
         queryFn: () => academicsService.getSections({ class_id: Number(selectedClassId), limit: 100 }),
-        enabled: !!selectedClassId,
+        enabled: !!selectedClassId && !lockedToOwnSection,
     });
 
     const { data: studentsData, isLoading: loadingStudents } = useQuery({
@@ -54,6 +78,31 @@ const AttendancePage: React.FC = () => {
     });
 
     const students = studentsData?.students || [];
+
+    // Attendance history (record view) for the selected class/section
+    const { data: historyData, isLoading: loadingHistory } = useQuery({
+        queryKey: ['attendance-history', selectedClassId, selectedSectionId, historyStart, historyEnd],
+        queryFn: () => attendanceService.getAttendances({
+            class_id: Number(selectedClassId),
+            section_id: selectedSectionId ? Number(selectedSectionId) : undefined,
+            start_date: historyStart,
+            end_date: historyEnd,
+            limit: 100,
+        }),
+        enabled: viewMode === 'history' && !!selectedClassId,
+    });
+
+    const studentNameById: Record<number, string> = {};
+    students.forEach((s: any) => {
+        studentNameById[s.id] = `${s.first_name} ${s.last_name || ''}`.trim();
+    });
+
+    const historyByDate: Record<string, any[]> = {};
+    (historyData?.attendances || []).forEach((rec: any) => {
+        const d = String(rec.date);
+        (historyByDate[d] = historyByDate[d] || []).push(rec);
+    });
+    const historyDates = Object.keys(historyByDate).sort().reverse();
 
     const setAllStatus = useCallback((status: AttendanceStatus) => {
         const all: Record<number, AttendanceStatus> = {};
@@ -121,26 +170,52 @@ const AttendancePage: React.FC = () => {
                     )}
 
                     {/* Header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">{t('attendance.title')}</h1>
-                            <p className="text-slate-500 text-sm font-medium">
-                                {markedCount} / {students.length} {t('attendance.marked')}
-                                {absentCount > 0 && ` · ${absentCount} ${t('attendance.absent')}`}
-                            </p>
-                        </div>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitMutation.isPending || markedCount === 0}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
-                        >
-                            {submitMutation.isPending ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <Save className="w-5 h-5" />
+                            {viewMode === 'mark' && (
+                                <p className="text-slate-500 text-sm font-medium">
+                                    {markedCount} / {students.length} {t('attendance.marked')}
+                                    {absentCount > 0 && ` · ${absentCount} ${t('attendance.absent')}`}
+                                </p>
                             )}
-                            <span>{t('attendance.saveAttendance')}</span>
-                        </button>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex p-1 bg-slate-100 rounded-2xl">
+                                <button
+                                    onClick={() => setViewMode('mark')}
+                                    className={cn(
+                                        'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                        viewMode === 'mark' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                                    )}
+                                >
+                                    {t('attendance.markMode', 'Mark')}
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('history')}
+                                    className={cn(
+                                        'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                        viewMode === 'history' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                                    )}
+                                >
+                                    {t('attendance.historyMode', 'History')}
+                                </button>
+                            </div>
+                            {viewMode === 'mark' && (
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={submitMutation.isPending || markedCount === 0}
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
+                                >
+                                    {submitMutation.isPending ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <Save className="w-5 h-5" />
+                                    )}
+                                    <span>{t('attendance.saveAttendance')}</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {successMessage && (
@@ -159,54 +234,111 @@ const AttendancePage: React.FC = () => {
                     {/* Filters */}
                     <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.class')}</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedClassId}
-                                        onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setStatusMap({}); }}
-                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                    >
-                                        <option value="">{t('attendance.selectClass')}</option>
-                                        {classesData?.classes.map((c: any) => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            {lockedToOwnSection ? (
+                                <div className="space-y-1.5 md:col-span-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.myClass', 'My Class')}</label>
+                                    {mySections!.length === 1 ? (
+                                        <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl text-sm font-bold text-emerald-800">
+                                            {mySections![0].class_name} — {t('attendance.section')} {mySections![0].section_name}
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            <select
+                                                value={selectedSectionId}
+                                                onChange={e => {
+                                                    const sec = mySections!.find(s => String(s.section_id) === e.target.value);
+                                                    if (sec) {
+                                                        setSelectedClassId(String(sec.class_id));
+                                                        setSelectedSectionId(String(sec.section_id));
+                                                        setStatusMap({});
+                                                    }
+                                                }}
+                                                className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                            >
+                                                {mySections!.map(s => (
+                                                    <option key={s.section_id} value={s.section_id}>{s.class_name} — {s.section_name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.class')}</label>
+                                        <div className="relative">
+                                            <select
+                                                value={selectedClassId}
+                                                onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setStatusMap({}); }}
+                                                className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                            >
+                                                <option value="">{t('attendance.selectClass')}</option>
+                                                {classesData?.classes.map((c: any) => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        </div>
+                                    </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.section')}</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedSectionId}
-                                        onChange={e => { setSelectedSectionId(e.target.value); setStatusMap({}); }}
-                                        disabled={!selectedClassId}
-                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-                                    >
-                                        <option value="">{t('attendance.allSections')}</option>
-                                        {sectionsData?.sections.map((s: any) => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.section')}</label>
+                                        <div className="relative">
+                                            <select
+                                                value={selectedSectionId}
+                                                onChange={e => { setSelectedSectionId(e.target.value); setStatusMap({}); }}
+                                                disabled={!selectedClassId}
+                                                className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                            >
+                                                <option value="">{t('attendance.allSections')}</option>
+                                                {sectionsData?.sections.map((s: any) => (
+                                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {viewMode === 'mark' ? (
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.date')}</label>
+                                    <input
+                                        type="date"
+                                        value={attendanceDate}
+                                        max={today}
+                                        onChange={e => setAttendanceDate(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                                    />
                                 </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.date')}</label>
-                                <input
-                                    type="date"
-                                    value={attendanceDate}
-                                    max={today}
-                                    onChange={e => setAttendanceDate(e.target.value)}
-                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                                />
-                            </div>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.dateRange', 'Date range')}</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            value={historyStart}
+                                            max={historyEnd}
+                                            onChange={e => setHistoryStart(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                                        />
+                                        <span className="text-slate-300 font-bold">→</span>
+                                        <input
+                                            type="date"
+                                            value={historyEnd}
+                                            min={historyStart}
+                                            max={today}
+                                            onChange={e => setHistoryEnd(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {students.length > 0 && (
+                        {viewMode === 'mark' && students.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wide mr-2">{t('attendance.markAll')}</span>
                                 {STATUS_OPTIONS.map(opt => (
@@ -223,7 +355,7 @@ const AttendancePage: React.FC = () => {
                     </div>
 
                     {/* Progress bar */}
-                    {students.length > 0 && (
+                    {viewMode === 'mark' && students.length > 0 && (
                         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
                             <div className="flex items-center justify-between text-sm font-bold mb-2">
                                 <span className="text-slate-700">{t('attendance.progress')}</span>
@@ -238,8 +370,62 @@ const AttendancePage: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Student list */}
-                    {loadingStudents ? (
+                    {/* History view */}
+                    {viewMode === 'history' && (
+                        !selectedClassId ? (
+                            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
+                                <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                <p className="font-bold text-slate-400">{t('attendance.selectClassPrompt')}</p>
+                            </div>
+                        ) : loadingHistory ? (
+                            <div className="grid grid-cols-1 gap-2">
+                                {[1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
+                            </div>
+                        ) : historyDates.length === 0 ? (
+                            <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
+                                <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                <p className="font-bold text-slate-400">{t('attendance.noHistory', 'No attendance records in this range.')}</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {historyDates.map(d => {
+                                    const recs = historyByDate[d];
+                                    const present = recs.filter(r => ['P', 'L', 'HD'].includes(r.status)).length;
+                                    return (
+                                        <div key={d} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                            <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between">
+                                                <span className="font-bold text-slate-900 text-sm">
+                                                    {new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-500">
+                                                    {present}/{recs.length} {t('attendance.present')}
+                                                </span>
+                                            </div>
+                                            <div className="divide-y divide-slate-50">
+                                                {recs.map((rec: any) => {
+                                                    const opt = STATUS_OPTIONS.find(o => o.value === rec.status);
+                                                    return (
+                                                        <div key={rec.id} className="px-5 py-2.5 flex items-center justify-between">
+                                                            <span className="text-sm font-medium text-slate-700">
+                                                                {studentNameById[rec.student_id] || `Student #${rec.student_id}`}
+                                                            </span>
+                                                            <span className={cn('flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-transparent', opt?.color)}>
+                                                                {opt?.icon}
+                                                                {opt ? t(opt.labelKey) : rec.status}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )
+                    )}
+
+                    {/* Student list (mark mode) */}
+                    {viewMode === 'history' ? null : loadingStudents ? (
                         <div className="grid grid-cols-1 gap-2">
                             {[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
                         </div>

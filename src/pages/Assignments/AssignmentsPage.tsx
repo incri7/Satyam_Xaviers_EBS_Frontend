@@ -32,6 +32,20 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
         enabled: !!form.class_id,
     });
 
+    const { user } = useAuthStore();
+    const isTeacher = user?.role === 'teacher';
+
+    const { data: subjects } = useQuery({
+        queryKey: ['subjects', isTeacher ? 'my' : 'all'],
+        queryFn: () => (isTeacher ? academicsService.getMySubjects() : academicsService.getSubjects()),
+    });
+
+    const { data: teacherOptions } = useQuery({
+        queryKey: ['teacher-options'],
+        queryFn: academicsService.getTeacherOptions,
+        enabled: !isTeacher, // teachers assign to themselves automatically
+    });
+
     const mutation = useMutation({
         mutationFn: assignmentsService.createAssignment,
         onSuccess: () => {
@@ -46,9 +60,9 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
         if (!form.title.trim()) return setError('Title is required');
         if (!form.class_id) return setError('Class is required');
         if (!form.section_id) return setError('Section is required');
-        if (!form.subject_id) return setError('Subject ID is required');
+        if (!form.subject_id) return setError('Subject is required');
         if (!form.due_date) return setError('Due date is required');
-        if (!form.teacher_id) return setError('Teacher ID is required');
+        if (!isTeacher && !form.teacher_id) return setError('Teacher is required');
         mutation.mutate({
             title: form.title,
             description: form.description || undefined,
@@ -56,7 +70,8 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
             section_id: Number(form.section_id),
             subject_id: Number(form.subject_id),
             due_date: form.due_date,
-            teacher_id: Number(form.teacher_id),
+            // teachers create as themselves — backend resolves it
+            teacher_id: form.teacher_id ? Number(form.teacher_id) : undefined,
         });
     };
 
@@ -129,23 +144,39 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">{t('assignments.subjectId')}</label>
-                            <input
-                                type="number" value={form.subject_id}
-                                onChange={e => setForm(p => ({ ...p, subject_id: e.target.value }))}
-                                placeholder="e.g. 3"
-                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                            />
+                            <label className="text-sm font-bold text-slate-700">{t('assignments.subject', 'Subject')}</label>
+                            <div className="relative">
+                                <select
+                                    value={form.subject_id}
+                                    onChange={e => setForm(p => ({ ...p, subject_id: e.target.value }))}
+                                    className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                >
+                                    <option value="">{t('assignments.select')}</option>
+                                    {(subjects || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">{t('assignments.teacherId')}</label>
-                            <input
-                                type="number" value={form.teacher_id}
-                                onChange={e => setForm(p => ({ ...p, teacher_id: e.target.value }))}
-                                placeholder="e.g. 1"
-                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                            />
-                        </div>
+                        {!isTeacher && (
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-bold text-slate-700">{t('assignments.teacher', 'Teacher')}</label>
+                                <div className="relative">
+                                    <select
+                                        value={form.teacher_id}
+                                        onChange={e => setForm(p => ({ ...p, teacher_id: e.target.value }))}
+                                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
+                                    >
+                                        <option value="">{t('assignments.select')}</option>
+                                        {(teacherOptions || []).map((tch) => (
+                                            <option key={tch.id} value={tch.id}>
+                                                {tch.name}{tch.subjects.length ? ` — ${tch.subjects.map(s => s.name).join(', ')}` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-sm font-bold text-slate-700">{t('assignments.dueDate')}</label>
