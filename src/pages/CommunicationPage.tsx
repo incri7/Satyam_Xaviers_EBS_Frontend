@@ -10,6 +10,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { noticesService } from '../api/services/notices.service';
 import { requestFCMToken, deviceService } from '../api/services/device.service';
 import { CreateNoticeModal } from '../components/communication/CreateNoticeModal';
+import { Sidebar } from '../components/layout/Sidebar';
+import { DashboardHeader } from '../components/layout/DashboardHeader';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 
 const CommunicationPage: React.FC = () => {
@@ -74,7 +76,12 @@ const CommunicationPage: React.FC = () => {
     );
 
     return (
-        <div className="p-8 space-y-8 animate-in fade-in duration-500">
+        <div className="flex h-screen bg-slate-50 overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
+                <DashboardHeader />
+                <div className="flex-1 overflow-y-auto">
+        <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
             <CreateNoticeModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
@@ -200,6 +207,9 @@ const CommunicationPage: React.FC = () => {
                     )}
                 </div>
             </div>
+        </div>
+                </div>
+            </main>
         </div>
     );
 };

@@ -14,9 +14,9 @@ import {
     ClipboardList
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { motion } from 'framer-motion';
 import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUiStore } from '../../store/useUiStore';
 import { useTranslation } from 'react-i18next';
 
 import type { PermissionAction } from '../../types/auth';
@@ -110,6 +110,7 @@ const menuItems: MenuItem[] = [
 export const Sidebar: React.FC = () => {
     const { hasPermission } = usePermissionsStore();
     const { user } = useAuthStore();
+    const { isSidebarOpen, closeSidebar } = useUiStore();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const role = user?.role ?? '';
@@ -125,15 +126,25 @@ export const Sidebar: React.FC = () => {
     });
 
     return (
-        <motion.aside
-            initial={{ x: -288 }}
-            animate={{ x: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-slate-100 flex flex-col z-50"
+        <>
+            {/* Mobile backdrop — tap to close the drawer */}
+            {isSidebarOpen && (
+                <div
+                    onClick={closeSidebar}
+                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+                />
+            )}
+        <aside
+            className={cn(
+                "fixed left-0 top-0 h-screen w-72 bg-white border-r border-slate-100 flex flex-col z-50",
+                "transform transition-transform duration-300 ease-out",
+                "lg:translate-x-0",
+                isSidebarOpen ? "translate-x-0 shadow-2xl lg:shadow-none" : "-translate-x-full"
+            )}
         >
             <div className="p-6">
                 <div
-                    onClick={canOpenCalendar ? () => navigate('/academic-calendar') : undefined}
+                    onClick={canOpenCalendar ? () => { navigate('/academic-calendar'); closeSidebar(); } : undefined}
                     title={canOpenCalendar ? t('nav.academicCalendar', 'Academic calendar') : undefined}
                     className={cn(
                         "bg-[#FFF5F6] rounded-xl p-4 border border-[#FEE2E5] flex items-center justify-between transition-colors",
@@ -153,6 +164,7 @@ export const Sidebar: React.FC = () => {
                         key={item.labelKey}
                         to={item.href}
                         end={item.href === '/settings'}
+                        onClick={closeSidebar}
                         className={({ isActive }) => cn(
                             "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
                             isActive
@@ -178,6 +190,7 @@ export const Sidebar: React.FC = () => {
 
             <div className="p-6 mt-auto">
             </div>
-        </motion.aside>
+        </aside>
+        </>
     );
 };

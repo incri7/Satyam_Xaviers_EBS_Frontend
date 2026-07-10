@@ -1,14 +1,16 @@
-import { Bell, ChevronDown, Languages } from 'lucide-react';
+import { Bell, ChevronDown, Languages, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SchoolLogo } from '../icons/SchoolLogo';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUiStore } from '../../store/useUiStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 
 export const DashboardHeader: React.FC = () => {
     const { user } = useAuthStore();
     const { logout } = useAuth();
+    const { toggleSidebar } = useUiStore();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
@@ -24,24 +26,31 @@ export const DashboardHeader: React.FC = () => {
             initial={{ y: -80 }}
             animate={{ y: 0 }}
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 sticky top-0 z-40"
+            className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30"
         >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                <button
+                    onClick={toggleSidebar}
+                    className="lg:hidden p-2.5 -ml-1 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all shrink-0"
+                    aria-label="Open menu"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
                 <motion.div
                     whileHover={{ scale: 1.05, rotate: 5 }}
-                    className="cursor-pointer"
+                    className="cursor-pointer hidden sm:block shrink-0"
                 >
                     <SchoolLogo className="w-12 h-12" />
                 </motion.div>
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900 leading-tight">{t('app.name')}</h1>
-                    <p className="text-[11px] font-bold text-slate-400">
+                <div className="min-w-0">
+                    <h1 className="text-base md:text-xl font-bold text-slate-900 leading-tight truncate">{t('app.name')}</h1>
+                    <p className="text-[11px] font-bold text-slate-400 truncate">
                         {new Date().toLocaleDateString(isNepali ? 'ne-NP' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 md:gap-6 shrink-0">
                 {/* Language toggle */}
                 <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -51,7 +60,7 @@ export const DashboardHeader: React.FC = () => {
                     title={t('language.toggle')}
                 >
                     <Languages className="w-4 h-4" />
-                    <span className="text-xs font-bold">{isNepali ? t('language.english') : t('language.nepali')}</span>
+                    <span className="text-xs font-bold hidden sm:inline">{isNepali ? t('language.english') : t('language.nepali')}</span>
                 </motion.button>
 
                 <motion.button
@@ -64,7 +73,7 @@ export const DashboardHeader: React.FC = () => {
                     <Bell className="w-5 h-5" />
                 </motion.button>
 
-                <div className="h-10 w-[1px] bg-slate-200 mx-2"></div>
+                <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
 
                 <div className="relative group">
                     <motion.div
