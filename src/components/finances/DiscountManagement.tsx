@@ -216,7 +216,8 @@ export const DiscountManagement: React.FC = () => {
                     {isLoading ? (
                         <div className="py-12 text-center text-slate-400 text-sm font-medium">Loading…</div>
                     ) : discounts && discounts.length > 0 ? (
-                        <table className="w-full text-left">
+                        <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[480px]">
                             <thead>
                                 <tr className="bg-slate-50/50">
                                     <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">Reason</th>
@@ -251,6 +252,7 @@ export const DiscountManagement: React.FC = () => {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     ) : (
                         <div className="py-16 text-center space-y-3">
                             <div className="inline-flex w-14 h-14 bg-slate-100 rounded-full items-center justify-center text-slate-400">

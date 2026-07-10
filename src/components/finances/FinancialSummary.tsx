@@ -81,7 +81,7 @@ export const FinancialSummary: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-1">{card.label}</p>
-                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                            <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
                                 {formatCurrency(card.value)}
                             </h3>
                         </motion.div>

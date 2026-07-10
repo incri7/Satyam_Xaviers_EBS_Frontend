@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             
             <div className="space-y-3">
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Something went wrong</h1>
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Something went wrong</h1>
               <p className="text-slate-500 font-medium leading-relaxed">
                 The application encountered an unexpected error. This usually happens when data from the server is mismatched or corrupted.
               </p>

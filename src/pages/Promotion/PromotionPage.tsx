@@ -104,7 +104,7 @@ const PromotionPage: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-4xl mx-auto w-full">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-4xl mx-auto w-full">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">{t('promotion.title')}</h1>
                         <p className="text-slate-500 text-sm mt-0.5">{t('promotion.subtitle')}</p>
@@ -147,7 +147,7 @@ const PromotionPage: React.FC = () => {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         {[
                                             { labelKey: 'promotion.promote', count: evalResult.promote.length, color: 'bg-emerald-50 text-emerald-700' },
                                             { labelKey: 'promotion.holdBack', count: evalResult.hold_back.length, color: 'bg-red-50 text-red-700' },
@@ -155,7 +155,7 @@ const PromotionPage: React.FC = () => {
                                             { labelKey: 'promotion.graduating', count: evalResult.graduating.length, color: 'bg-violet-50 text-violet-700' },
                                         ].map(item => (
                                             <div key={item.labelKey} className={`rounded-2xl p-4 text-center ${item.color}`}>
-                                                <p className="text-3xl font-black">{item.count}</p>
+                                                <p className="text-2xl md:text-3xl font-black">{item.count}</p>
                                                 <p className="text-xs font-bold mt-0.5">{t(item.labelKey)}</p>
                                             </div>
                                         ))}

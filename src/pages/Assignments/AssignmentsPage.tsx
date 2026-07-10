@@ -113,7 +113,7 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20 resize-none"
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <label className="text-sm font-bold text-slate-700">{t('assignments.class')}</label>
                             <div className="relative">
@@ -237,7 +237,7 @@ const AssignmentsPage: React.FC = () => {
                 <DashboardHeader />
                 {isCreateOpen && <CreateAssignmentModal onClose={() => setIsCreateOpen(false)} />}
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">{t('assignments.title')}</h1>

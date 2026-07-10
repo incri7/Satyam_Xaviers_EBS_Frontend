@@ -138,7 +138,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={handleClose}></div>
 
-            <div className="relative bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="relative bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
@@ -226,7 +226,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-slate-700 ml-1">Class</label>
                             <div className="relative">
@@ -263,7 +263,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-slate-700 ml-1">Academic Year</label>
                             <div className="relative">

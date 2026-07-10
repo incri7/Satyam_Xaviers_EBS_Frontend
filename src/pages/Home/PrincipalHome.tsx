@@ -64,7 +64,7 @@ const PrincipalHome: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">
                             {t('home.goodMorning')}, {firstName}
@@ -78,7 +78,7 @@ const PrincipalHome: React.FC = () => {
                                 <Activity className="w-4 h-4 text-emerald-500" />
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.principal.presentToday')}</p>
                             </div>
-                            <p className="text-3xl font-black text-slate-900 tabular-nums">
+                            <p className="text-2xl md:text-3xl font-black text-slate-900 tabular-nums">
                                 {presentCount !== null ? presentCount : '—'}
                             </p>
                             <p className="text-xs text-emerald-600 font-bold mt-0.5">{t('home.principal.liveUpdate')}</p>

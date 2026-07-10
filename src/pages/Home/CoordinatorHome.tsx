@@ -202,7 +202,7 @@ const CoordinatorHome: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">
                             {t('home.goodMorning')}, {firstName}
@@ -223,7 +223,7 @@ const CoordinatorHome: React.FC = () => {
                                 {t('home.coordinator.pendingApprovals')}
                             </p>
                             <p className={cn(
-                                'text-3xl font-black mt-1',
+                                'text-2xl md:text-3xl font-black mt-1',
                                 pending.length > 0 ? 'text-amber-700' : 'text-emerald-700'
                             )}>
                                 {pending.length}
@@ -231,13 +231,13 @@ const CoordinatorHome: React.FC = () => {
                         </div>
                         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.coordinator.staffLeaves')}</p>
-                            <p className="text-3xl font-black text-slate-900 mt-1">
+                            <p className="text-2xl md:text-3xl font-black text-slate-900 mt-1">
                                 {pending.filter(l => l.applicant_type === 'teacher' || l.applicant_type === 'staff').length}
                             </p>
                         </div>
                         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.coordinator.studentLeaves')}</p>
-                            <p className="text-3xl font-black text-slate-900 mt-1">
+                            <p className="text-2xl md:text-3xl font-black text-slate-900 mt-1">
                                 {pending.filter(l => l.applicant_type === 'student').length}
                             </p>
                         </div>

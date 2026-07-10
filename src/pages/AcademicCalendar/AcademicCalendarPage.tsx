@@ -116,7 +116,7 @@ const AcademicCalendarPage: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-3xl mx-auto w-full">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-3xl mx-auto w-full">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">{t('academicCalendar.title')}</h1>
                         <p className="text-slate-500 text-sm mt-0.5">{t('academicCalendar.subtitle')}</p>
@@ -168,7 +168,7 @@ const AcademicCalendarPage: React.FC = () => {
                                 <h2 className="font-bold text-slate-900">{t('academicCalendar.step1Title')}</h2>
                             </div>
                             <form onSubmit={handleCreateYear} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.yearName')} *</label>
                                         <input
@@ -372,7 +372,7 @@ const AcademicCalendarPage: React.FC = () => {
                             <p className="text-sm text-slate-500 mb-4">
                                 <strong>{createdYear?.name}</strong> {t('academicCalendar.step5Desc')}
                             </p>
-                            <div className="grid grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {[
                                     { labelKey: 'academicCalendar.totalDays', value: summary.total_days, color: 'bg-slate-50 text-slate-700' },
                                     { labelKey: 'academicCalendar.workingDaysLabel', value: summary.working_days, color: 'bg-emerald-50 text-emerald-700' },

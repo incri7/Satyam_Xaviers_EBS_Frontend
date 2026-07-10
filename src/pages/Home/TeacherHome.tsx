@@ -73,13 +73,13 @@ const TeacherHome: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     {/* Greeting */}
                     <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl -mr-16 -mt-16" />
                         <div className="relative z-10">
                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">{todayLabel}</p>
-                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
                                 {greeting}, {user?.firstName || 'Teacher'}
                             </h1>
                             <p className="text-slate-500 font-medium mt-1">
@@ -100,7 +100,7 @@ const TeacherHome: React.FC = () => {
                                     {t('home.teacher.applyLeave')}
                                 </Link>
                             </div>
-                            <div className="grid grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {balanceItems.map(item => (
                                     <div key={item.labelKey} className="text-center">
                                         <p className="text-lg font-black text-slate-900">{item.remaining}</p>

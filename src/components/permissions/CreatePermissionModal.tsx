@@ -95,7 +95,7 @@ export const CreatePermissionModal: React.FC<CreatePermissionModalProps> = ({
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
                 >
                     {/* Header */}
                     <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-brand/5 to-transparent">

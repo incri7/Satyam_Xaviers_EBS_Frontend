@@ -48,7 +48,7 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             </div>
                             <div className="pb-4">
-                                <h1 className="text-3xl font-bold text-slate-900">{userData.first_name} {userData.last_name}</h1>
+                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">{userData.first_name} {userData.last_name}</h1>
                                 <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-brand/10 text-brand text-xs font-bold rounded-full uppercase tracking-wider">
                                         {userData.role}

@@ -113,7 +113,7 @@ const MarksPage: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">{t('marks.title')}</h1>
@@ -220,10 +220,10 @@ const MarksPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                            <div className="grid grid-cols-[2rem_1fr_auto_8rem_6rem] gap-4 px-5 py-3 bg-slate-50 border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-wider">
+                            <div className="grid grid-cols-[1.5rem_1fr_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_auto_8rem_6rem] gap-2 sm:gap-4 px-3 sm:px-5 py-3 bg-slate-50 border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-wider">
                                 <span>#</span>
                                 <span>{t('marks.student')}</span>
-                                <span className="text-right">{t('marks.admissionNo')}</span>
+                                <span className="hidden sm:block text-right">{t('marks.admissionNo')}</span>
                                 <span className="text-right">{t('marks.marksLabel')}</span>
                                 <span className="text-center">{t('marks.absent')}</span>
                             </div>
@@ -233,7 +233,7 @@ const MarksPage: React.FC = () => {
                                     <div
                                         key={student.id}
                                         className={cn(
-                                            'grid grid-cols-[2rem_1fr_auto_8rem_6rem] gap-4 items-center px-5 py-3 border-b border-slate-50 last:border-none',
+                                            'grid grid-cols-[1.5rem_1fr_4.5rem_4.5rem] sm:grid-cols-[2rem_1fr_auto_8rem_6rem] gap-2 sm:gap-4 items-center px-3 sm:px-5 py-3 border-b border-slate-50 last:border-none',
                                             entry.is_absent && 'bg-red-50/30'
                                         )}
                                     >
@@ -241,7 +241,7 @@ const MarksPage: React.FC = () => {
                                         <span className="text-sm font-bold text-slate-900 truncate">
                                             {student.first_name} {student.last_name}
                                         </span>
-                                        <span className="text-xs font-medium text-slate-400 text-right">{student.admission_no}</span>
+                                        <span className="hidden sm:block text-xs font-medium text-slate-400 text-right">{student.admission_no}</span>
                                         <input
                                             type="number"
                                             min={0}

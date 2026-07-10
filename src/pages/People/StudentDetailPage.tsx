@@ -36,7 +36,7 @@ const StudentDetailPage: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <button
                         onClick={() => navigate('/people')}
                         className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
@@ -62,7 +62,7 @@ const StudentDetailPage: React.FC = () => {
                         <>
                             {/* Header card */}
                             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col md:flex-row md:items-center gap-5">
-                                <div className="w-20 h-20 bg-brand/10 rounded-3xl flex items-center justify-center text-brand text-3xl font-black shrink-0">
+                                <div className="w-20 h-20 bg-brand/10 rounded-3xl flex items-center justify-center text-brand text-2xl md:text-3xl font-black shrink-0">
                                     {data.student.first_name?.[0]?.toUpperCase() || 'S'}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -105,7 +105,7 @@ const StudentDetailPage: React.FC = () => {
                                         Attendance (30 days)
                                     </div>
                                     <p className={cn(
-                                        'text-3xl font-black',
+                                        'text-2xl md:text-3xl font-black',
                                         data.attendance.attendance_pct == null ? 'text-slate-300' :
                                         data.attendance.attendance_pct < 75 ? 'text-red-600' :
                                         data.attendance.attendance_pct < 85 ? 'text-amber-600' : 'text-emerald-600'
@@ -135,7 +135,7 @@ const StudentDetailPage: React.FC = () => {
                                         <Wallet className="w-4 h-4" />
                                         Fee Balance
                                     </div>
-                                    <p className={cn('text-3xl font-black', data.fees.balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                                    <p className={cn('text-2xl md:text-3xl font-black', data.fees.balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
                                         Rs. {Math.abs(data.fees.balance).toLocaleString()}
                                     </p>
                                     <p className="text-xs text-slate-400 font-medium mt-1">

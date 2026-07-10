@@ -63,11 +63,11 @@ const PeoplePage: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
 
-                <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-8">
                     {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div className="space-y-1">
-                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('people.title')}</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{t('people.title')}</h1>
                             <p className="text-slate-500 font-medium">{t('people.subtitle')}</p>
                         </div>
 

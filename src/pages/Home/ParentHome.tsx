@@ -118,7 +118,7 @@ const ParentHome: React.FC = () => {
             <Sidebar />
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">{t('home.goodMorning')}, {firstName}</h1>
                         <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>

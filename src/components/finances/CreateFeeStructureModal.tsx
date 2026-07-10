@@ -82,7 +82,7 @@ export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) =>
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-sky-500 to-brand p-8 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-6 opacity-10"><Landmark size={100} /></div>

@@ -95,32 +95,32 @@ const CommunicationPage: React.FC = () => {
                 />
             )}
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-                <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-brand/10 rounded-3xl flex items-center justify-center text-brand flex-shrink-0">
-                        <Megaphone className="w-8 h-8" />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-white p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+                <div className="flex items-center gap-4 md:gap-6">
+                    <div className="w-12 h-12 md:w-16 md:h-16 bg-brand/10 rounded-2xl md:rounded-3xl flex items-center justify-center text-brand flex-shrink-0">
+                        <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">{t('communication.title')}</h1>
-                        <p className="text-slate-500 font-medium">{t('communication.subtitle')}</p>
+                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{t('communication.title')}</h1>
+                        <p className="text-slate-500 font-medium text-sm md:text-base">{t('communication.subtitle')}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="relative group">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+                    <div className="relative group flex-1 sm:flex-none">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand transition-colors" />
                         <input
                             type="text"
                             placeholder={t('communication.searchNotices')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-slate-50 border-none rounded-2xl py-3 pl-11 pr-6 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-brand/5 w-[280px] transition-all outline-none"
+                            className="bg-slate-50 border-none rounded-2xl py-3 pl-11 pr-6 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-brand/5 w-full sm:w-[280px] transition-all outline-none"
                         />
                     </div>
                     {canCreate && (
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                            className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0"
                         >
                             <Plus className="w-4 h-4" />
                             {t('communication.postNotice')}
