@@ -71,25 +71,25 @@ const PeoplePage: React.FC = () => {
                             <p className="text-slate-500 font-medium">{t('people.subtitle')}</p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
                             {(activeTab === 'students' || activeTab === 'parents') && (
                                 <>
                                     <AccessControl id="add_student_modal">
                                         <button
                                             onClick={() => setIsAddStudentModalOpen(true)}
-                                            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-700 font-bold rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98]"
+                                            className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-white text-slate-700 font-bold text-xs md:text-base rounded-xl md:rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap"
                                         >
-                                            <Plus className="w-5 h-5" />
-                                            <span>{t('people.assignStudent')}</span>
+                                            <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+                                            <span className="truncate">{t('people.assignStudent')}</span>
                                         </button>
                                     </AccessControl>
                                     <AccessControl id="registration_modal">
                                         <button
                                             onClick={() => setIsRegistrationModalOpen(true)}
-                                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                            className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
                                         >
-                                            <Plus className="w-5 h-5 text-white" />
-                                            <span>{t('people.registerGuardian')}</span>
+                                            <Plus className="w-4 h-4 md:w-5 md:h-5 text-white shrink-0" />
+                                            <span className="truncate">{t('people.registerGuardian')}</span>
                                         </button>
                                     </AccessControl>
                                 </>
@@ -99,44 +99,42 @@ const PeoplePage: React.FC = () => {
                                 <AccessControl id="users_create">
                                     <button
                                         onClick={() => setIsWorkforceModalOpen(true)}
-                                        className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
                                     >
-                                        <Plus className="w-5 h-5" />
-                                        <span>{t('people.registerUser')}</span>
+                                        <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+                                        <span className="truncate">{t('people.registerUser')}</span>
                                     </button>
                                 </AccessControl>
                             )}
                         </div>
                     </div>
 
-                    {/* Grouped Tab Navigation */}
-                    <div className="space-y-6">
-                        <div className="flex flex-wrap gap-6 items-start">
-                            {categories.map((category) => (
-                                <div key={category.id} className="space-y-2.5">
-                                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] px-2">
-                                        {t(category.labelKey)}
-                                    </h3>
-                                    <div className="flex p-1 bg-white rounded-2xl border border-slate-100 shadow-sm w-fit">
-                                        {category.tabs.map((tab) => (
-                                            <button
-                                                key={tab.id}
-                                                onClick={() => setActiveTab(tab.id as PeopleTab)}
-                                                className={cn(
-                                                    "flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap",
-                                                    activeTab === tab.id
-                                                        ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
-                                                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                                                )}
-                                            >
-                                                <tab.icon className="w-3.5 h-3.5" />
-                                                {t(tab.labelKey)}
-                                            </button>
-                                        ))}
-                                    </div>
+                    {/* Grouped Tab Navigation — labeled groups on desktop, one compact wrapping row on phones */}
+                    <div className="flex flex-wrap gap-2 md:gap-6 items-start">
+                        {categories.map((category) => (
+                            <div key={category.id} className="md:space-y-2.5">
+                                <h3 className="hidden md:block text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] px-2">
+                                    {t(category.labelKey)}
+                                </h3>
+                                <div className="flex p-1 bg-white rounded-xl md:rounded-2xl border border-slate-100 shadow-sm w-fit">
+                                    {category.tabs.map((tab) => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id as PeopleTab)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl font-bold text-xs md:text-sm transition-all duration-200 whitespace-nowrap",
+                                                activeTab === tab.id
+                                                    ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
+                                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                            )}
+                                        >
+                                            <tab.icon className="w-3.5 h-3.5 shrink-0" />
+                                            {t(tab.labelKey)}
+                                        </button>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Content Area */}
