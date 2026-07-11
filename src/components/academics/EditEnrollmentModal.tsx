@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, CheckCircle2, UserPlus, AlertCircle, ChevronDown, Search, User, Loader2 } from 'lucide-react';
 import { academicsService } from '../../api/services/academics.service';
+import { academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
 import { peopleService } from '../../api/services/people.service';
 import type { Student } from '../../types/people';
 import type { Enrollment } from '../../types/academic';
@@ -18,7 +19,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
         student_id: '',
         class_id: '',
         section_id: '',
-        academic_year: '2024-2025',
+        academic_year: currentAcademicYear(),
         is_active: true,
     });
 
@@ -272,8 +273,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                                     onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
                                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
                                 >
-                                    <option value="2024-2025">2024-2025</option>
-                                    <option value="2023-2024">2023-2024</option>
+                                    {academicYearOptions(3).map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>

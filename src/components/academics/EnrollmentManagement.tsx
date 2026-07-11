@@ -4,6 +4,7 @@ import { academicsService } from '../../api/services/academics.service';
 import { Trash2, UserCheck, Calendar, User, Edit2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
+import { academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
 import { AccessControl } from '../AccessControl';
 import { EditEnrollmentModal } from './EditEnrollmentModal';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +13,10 @@ import type { Enrollment } from '../../types/academic';
 export const EnrollmentManagement: React.FC = () => {
     const queryClient = useQueryClient();
     const { t } = useTranslation();
+    const yearOptions = academicYearOptions(3);
     const [academicYear, setAcademicYearState] = useState(() => {
-        return localStorage.getItem('academics_enrollment_year') || '2024-2025';
+        const stored = localStorage.getItem('academics_enrollment_year');
+        return stored && yearOptions.includes(stored) ? stored : currentAcademicYear();
     });
     const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -61,8 +64,9 @@ export const EnrollmentManagement: React.FC = () => {
                             onChange={(e) => setAcademicYear(e.target.value)}
                             className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none cursor-pointer appearance-none"
                         >
-                            <option value="2024-2025">Year 2024-2025</option>
-                            <option value="2023-2024">Year 2023-2024</option>
+                            {yearOptions.map(y => (
+                                <option key={y} value={y}>Year {y}</option>
+                            ))}
                         </select>
                     </div>
                 </div>

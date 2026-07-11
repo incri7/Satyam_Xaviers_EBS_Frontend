@@ -65,14 +65,14 @@ const AcademicsPage: React.FC = () => {
                         </AccessControl>
                     </div>
 
-                    {/* Tab Navigation */}
-                    <div className="flex p-1.5 bg-white rounded-2xl border border-slate-100 w-fit shadow-sm">
+                    {/* Tab Navigation — scrolls on narrow screens instead of overflowing */}
+                    <div className="flex p-1.5 bg-white rounded-2xl border border-slate-100 w-fit max-w-full overflow-x-auto shadow-sm">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as ActiveTab)}
                                 className={cn(
-                                    "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200",
+                                    "flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0",
                                     activeTab === tab.id
                                         ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
                                         : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"

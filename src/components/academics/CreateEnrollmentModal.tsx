@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, CheckCircle2, UserCheck, AlertCircle, Calendar, Search, User, Loader2 } from 'lucide-react';
 import { academicsService } from '../../api/services/academics.service';
+import { academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
 import { peopleService } from '../../api/services/people.service';
 import type { Student } from '../../types/people';
 
@@ -16,7 +17,7 @@ export const CreateEnrollmentModal: React.FC<CreateEnrollmentModalProps> = ({ is
         student_id: '',
         class_id: '',
         section_id: '',
-        academic_year: '2024-2025',
+        academic_year: currentAcademicYear(),
     });
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +84,7 @@ export const CreateEnrollmentModal: React.FC<CreateEnrollmentModalProps> = ({ is
     });
 
     const handleClose = () => {
-        setFormData({ student_id: '', class_id: '', section_id: '', academic_year: '2024-2025' });
+        setFormData({ student_id: '', class_id: '', section_id: '', academic_year: currentAcademicYear() });
         setSearchQuery('');
         setDebouncedQuery('');
         setSelectedStudent(null);
@@ -148,8 +149,7 @@ export const CreateEnrollmentModal: React.FC<CreateEnrollmentModalProps> = ({ is
                                 onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
                                 className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none cursor-pointer"
                             >
-                                <option value="2024-2025">2024-2025</option>
-                                <option value="2023-2024">2023-2024</option>
+                                {academicYearOptions(3).map(y => <option key={y} value={y}>{y}</option>)}
                             </select>
                         </div>
                     </div>
