@@ -13,7 +13,12 @@ type ReportTab = 'attendance' | 'fees';
 
 const ReportsPage: React.FC = () => {
     const { t } = useTranslation();
-    const [tab, setTab] = useState<ReportTab>('attendance');
+    const [tab, setTab] = useState<ReportTab>(() => {
+        // One-shot deep link (e.g. dashboard "Fees Outstanding" card)
+        const wanted = localStorage.getItem('reports_active_tab') as ReportTab | null;
+        localStorage.removeItem('reports_active_tab');
+        return wanted === 'fees' ? 'fees' : 'attendance';
+    });
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
 
     const { data: currentYear } = useQuery({

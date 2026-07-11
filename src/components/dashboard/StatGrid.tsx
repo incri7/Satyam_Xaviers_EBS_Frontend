@@ -1,4 +1,4 @@
-import { Users, IndianRupee, UserCheck, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Users, IndianRupee, CheckCircle2, ArrowRight, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
@@ -65,20 +65,15 @@ export const StatGrid: React.FC = () => {
         queryFn: () => peopleService.getStudents({ limit: 1 }),
         staleTime: 5 * 60 * 1000,
     });
-    const { data: usersData } = useQuery({
-        queryKey: ['users-count'],
-        queryFn: () => peopleService.getUsers({ limit: 1 }),
-        staleTime: 5 * 60 * 1000,
-    });
-    const { data: parentsData } = useQuery({
-        queryKey: ['parents-count'],
-        queryFn: () => peopleService.getParents({ limit: 1 }),
-        staleTime: 5 * 60 * 1000,
-    });
-    const { data: attendanceData } = useQuery({
-        queryKey: ['attendance-today-count', today],
-        queryFn: () => attendanceService.getAttendances({ date: today, limit: 1 }),
+    const { data: todaySummary } = useQuery({
+        queryKey: ['attendance', 'today-summary', today],
+        queryFn: attendanceService.getTodaySummary,
         staleTime: 60 * 1000,
+    });
+    const { data: outstanding } = useQuery({
+        queryKey: ['finances', 'outstanding-summary'],
+        queryFn: () => financesService.getOutstanding(500),
+        staleTime: 5 * 60 * 1000,
     });
     const { data: monthlyReport } = useQuery({
         queryKey: ['monthly-revenue', now.getFullYear(), now.getMonth() + 1],
@@ -87,12 +82,24 @@ export const StatGrid: React.FC = () => {
     });
 
     const totalStudents = studentsData?.total_count != null ? studentsData.total_count.toLocaleString() : '—';
-    // Employees = every account that is not a student or a parent (FE-AD-04)
-    const totalStaff =
-        usersData?.total_count != null && studentsData?.total_count != null && parentsData?.total_count != null
-            ? Math.max(0, usersData.total_count - studentsData.total_count - parentsData.total_count).toLocaleString()
-            : '—';
-    const todayMarked = attendanceData?.total_count != null ? attendanceData.total_count.toLocaleString() : '—';
+
+    // Present today with full context: X present / Y expected, Z absent,
+    // and how many sections still haven't marked (per-class detail is in
+    // the Attendance Overview card below).
+    const s = todaySummary;
+    const presentToday = s ? `${s.present}/${s.expected || '—'}` : '—';
+    const sectionsUnmarked = s ? Math.max(0, (s.sections_total ?? 0) - (s.sections_marked ?? 0)) : 0;
+    const attendanceTrend = s
+        ? s.marked === 0
+            ? t('dashboard.noAttendanceYet', 'Not marked yet today')
+            : `${s.absent} ${t('dashboard.absent', 'absent')}${sectionsUnmarked > 0 ? ` · ${sectionsUnmarked} ${t('dashboard.sectionsUnmarked', 'sections unmarked')}` : ''}`
+        : '';
+
+    const outstandingTotal = outstanding?.total_outstanding != null
+        ? `Rs ${Number(outstanding.total_outstanding).toLocaleString()}`
+        : '—';
+    const familiesDue = outstanding?.entries?.length ?? 0;
+
     const monthlyRevenue = monthlyReport?.total_collected != null
         ? `Rs ${Number(monthlyReport.total_collected).toLocaleString()}`
         : '—';
@@ -108,6 +115,10 @@ export const StatGrid: React.FC = () => {
         localStorage.setItem('finances_active_tab', tab);
         navigate('/finances');
     };
+    const goToFeesReport = () => {
+        localStorage.setItem('reports_active_tab', 'fees');
+        navigate('/reports');
+    };
 
     const stats: StatCardProps[] = [
         {
@@ -120,22 +131,22 @@ export const StatGrid: React.FC = () => {
             onClick: () => goToPeopleTab('students'),
         },
         {
-            title: t('dashboard.totalStaff'),
-            value: totalStaff,
-            trend: t('dashboard.activeStaff'),
-            isPositive: true,
-            icon: UserCheck,
-            color: 'purple',
-            onClick: () => goToPeopleTab('users'),
-        },
-        {
-            title: t('dashboard.todayAttendance'),
-            value: todayMarked,
-            trend: t('dashboard.recordsMarked'),
+            title: t('dashboard.presentToday', 'Present Today'),
+            value: presentToday,
+            trend: attendanceTrend,
             isPositive: true,
             icon: CheckCircle2,
             color: 'green',
             onClick: () => navigate('/attendance'),
+        },
+        {
+            title: t('dashboard.feesOutstanding', 'Fees Outstanding'),
+            value: outstandingTotal,
+            trend: `${familiesDue} ${t('dashboard.familiesDue', 'families due')}`,
+            isPositive: false,
+            icon: TrendingDown,
+            color: 'purple',
+            onClick: goToFeesReport,
         },
         {
             title: t('dashboard.monthlyRevenue'),

@@ -60,7 +60,16 @@ export const attendanceService = {
         return response.data;
     },
 
-    getTodaySummary: async (): Promise<{ date: string; marked: number; present: number; absent: number; by_status: Record<string, number> }> => {
+    getTodaySummary: async (): Promise<{
+        date: string;
+        marked: number;
+        present: number;
+        absent: number;
+        expected: number;
+        sections_total: number;
+        sections_marked: number;
+        by_status: Record<string, number>;
+    }> => {
         const response = await api.get('attendance/student-attendance/today-summary');
         return response.data;
     },
