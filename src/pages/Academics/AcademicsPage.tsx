@@ -65,21 +65,21 @@ const AcademicsPage: React.FC = () => {
                         </AccessControl>
                     </div>
 
-                    {/* Tab Navigation — scrolls on narrow screens instead of overflowing */}
-                    <div className="flex p-1.5 bg-white rounded-2xl border border-slate-100 w-fit max-w-full overflow-x-auto shadow-sm">
+                    {/* Tab Navigation — compact equal-width tabs on phones, roomy pills on desktop */}
+                    <div className="flex w-full md:w-fit max-w-full overflow-x-auto p-1 md:p-1.5 bg-white rounded-2xl border border-slate-100 shadow-sm">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as ActiveTab)}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 md:px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0",
+                                    "flex flex-1 md:flex-initial items-center justify-center gap-1.5 md:gap-2 px-2 md:px-6 py-2 md:py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 whitespace-nowrap min-w-0",
                                     activeTab === tab.id
                                         ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
                                         : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                                 )}
                             >
-                                <tab.icon className="w-4 h-4" />
-                                {t(tab.labelKey)}
+                                <tab.icon className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
+                                <span className="truncate">{t(tab.labelKey)}</span>
                             </button>
                         ))}
                     </div>
