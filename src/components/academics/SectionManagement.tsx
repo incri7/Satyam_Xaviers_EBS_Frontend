@@ -143,16 +143,17 @@ export const SectionManagement: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-5 text-right">
-                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex justify-end gap-2">
                                             <AccessControl id="sections_update">
                                                 <button
                                                     onClick={() => {
                                                         setSelectedSection(section);
                                                         setIsEditModalOpen(true);
                                                     }}
-                                                    className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                                                    className="p-2 bg-slate-50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                    title={t('common.edit', 'Edit')}
                                                 >
-                                                    <Edit2 className="w-4.5 h-4.5" />
+                                                    <Edit2 className="w-4 h-4" />
                                                 </button>
                                             </AccessControl>
                                             <AccessControl id="sections_delete">
@@ -162,9 +163,10 @@ export const SectionManagement: React.FC = () => {
                                                             deleteMutation.mutate(section.id);
                                                         }
                                                     }}
-                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                                    className="p-2 bg-slate-50 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                    title={t('common.delete', 'Delete')}
                                                 >
-                                                    <Trash2 className="w-4.5 h-4.5" />
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </AccessControl>
                                         </div>
