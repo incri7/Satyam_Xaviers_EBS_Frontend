@@ -14,9 +14,12 @@ import {
     ClipboardList
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useQuery } from '@tanstack/react-query';
 import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
+import { homeForRole } from '../../utils/roleHome';
+import { academicCalendarService } from '../../api/services/academicCalendar.service';
 import { useTranslation } from 'react-i18next';
 
 import type { PermissionAction } from '../../types/auth';
@@ -115,15 +118,32 @@ export const Sidebar: React.FC = () => {
     const navigate = useNavigate();
     const role = user?.role ?? '';
     const canOpenCalendar = role === 'admin' || role === 'principal';
+
+    // Source of truth = the configured academic calendar; date-rule fallback
+    // only when no calendar exists yet (FE-AD-06)
+    const { data: currentYearData } = useQuery({
+        queryKey: ['academic-years', 'current'],
+        queryFn: academicCalendarService.getCurrentYear,
+        retry: false,
+        staleTime: 60 * 60 * 1000,
+    });
     const now = new Date();
     const startYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    const academicYear = `${startYear}-${startYear + 1}`;
+    const academicYear = currentYearData?.name ?? `${startYear}-${startYear + 1}`;
 
-    const filteredMenuItems = menuItems.filter(item => {
-        if (item.roles) return item.roles.includes(role);
-        if (!item.permission) return true;
-        return hasPermission(item.permission.resource, item.permission.action);
-    });
+    const filteredMenuItems = menuItems
+        .filter(item => {
+            if (item.roles) return item.roles.includes(role);
+            if (!item.permission) return true;
+            return hasPermission(item.permission.resource, item.permission.action);
+        })
+        // "Dashboard" points every role at THEIR home screen — /dashboard
+        // itself is admin/principal-only and would bounce anyone else.
+        .map(item =>
+            item.href === '/dashboard' && role !== 'admin' && role !== 'principal'
+                ? { ...item, href: homeForRole(role) }
+                : item
+        );
 
     return (
         <>

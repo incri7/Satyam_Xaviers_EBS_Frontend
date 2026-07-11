@@ -103,10 +103,10 @@ const PermissionsDashboard: React.FC = () => {
     return (
         <div className="flex h-screen bg-slate-50">
             <Sidebar />
-            <main className="flex-1 overflow-y-auto ml-72">
+            <main className="flex-1 overflow-y-auto min-w-0 lg:ml-72">
                 <DashboardHeader />
 
-                <div className="p-8 max-w-7xl mx-auto space-y-8">
+                <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-4 md:space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <PermissionStats
                             icon={CheckCircle2}
