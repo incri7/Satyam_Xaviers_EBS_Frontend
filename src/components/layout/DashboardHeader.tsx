@@ -1,7 +1,9 @@
-import { Bell, ChevronDown, Languages, Menu } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, ChevronDown, Languages, Menu, UserCircle, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SchoolLogo } from '../icons/SchoolLogo';
 import { motion } from 'framer-motion';
+import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useAuth } from '../../hooks/useAuth';
@@ -13,6 +15,7 @@ export const DashboardHeader: React.FC = () => {
     const { toggleSidebar } = useUiStore();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
+    const [menuOpen, setMenuOpen] = useState(false);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
     const firstLetter = displayName.charAt(0).toUpperCase();
     const isNepali = i18n.language === 'ne';
@@ -75,10 +78,12 @@ export const DashboardHeader: React.FC = () => {
 
                 <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
 
-                <div className="relative group">
-                    <motion.div
-                        whileHover={{ x: 4 }}
-                        className="flex items-center gap-4 cursor-pointer pl-2"
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setMenuOpen(v => !v)}
+                        aria-expanded={menuOpen}
+                        className="flex items-center gap-2 sm:gap-4 cursor-pointer pl-2 group"
                     >
                         <div className="text-right hidden sm:block">
                             <p className="text-sm font-bold text-slate-900 group-hover:text-brand transition-colors">{displayName}</p>
@@ -93,20 +98,40 @@ export const DashboardHeader: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-brand transition-colors" />
-                    </motion.div>
+                        <ChevronDown className={cn(
+                            "w-4 h-4 text-slate-400 group-hover:text-brand transition-transform",
+                            menuOpen && "rotate-180 text-brand"
+                        )} />
+                    </button>
 
-                    {/* Dropdown Menu */}
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
-                        <div className="p-2">
-                            <button
-                                onClick={() => logout()}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                                {t('auth.signOut')}
-                            </button>
-                        </div>
-                    </div>
+                    {/* Dropdown Menu — click-toggled (hover doesn't exist on touch) */}
+                    {menuOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                            <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 z-50 origin-top-right">
+                                <div className="p-2 space-y-1">
+                                    <div className="px-4 py-2 border-b border-slate-50 sm:hidden">
+                                        <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user?.role}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => { setMenuOpen(false); navigate('/profile'); }}
+                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                    >
+                                        <UserCircle className="w-4 h-4" />
+                                        {t('nav.profile', 'My Profile')}
+                                    </button>
+                                    <button
+                                        onClick={() => { setMenuOpen(false); logout(); }}
+                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        {t('auth.signOut')}
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </motion.header>
