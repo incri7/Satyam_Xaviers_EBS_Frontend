@@ -8,7 +8,12 @@ export interface WSEvent {
 
 type EventHandler = (event: WSEvent) => void;
 
-const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws';
+// Default: same-origin /ws (nginx proxies it to the backend). Works on any
+// domain and gets wss:// automatically under HTTPS. Override for local dev
+// against a bare backend with VITE_WS_URL=ws://localhost:8002/ws.
+const WS_BASE =
+    import.meta.env.VITE_WS_URL ||
+    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
 const RECONNECT_DELAY_MS = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 

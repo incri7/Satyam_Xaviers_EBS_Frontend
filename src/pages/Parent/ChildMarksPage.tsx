@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { parentService } from '../../api/services/parent.service';
-import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
+import { getMarksComparison } from '../../api/services/exams.service';
+import { ArrowLeft, AlertCircle, Loader2, TrendingUp } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const ChildMarksPage: React.FC = () => {
@@ -18,6 +19,13 @@ const ChildMarksPage: React.FC = () => {
         queryFn: () => parentService.getChildMarks(id),
         enabled: !!id,
     });
+
+    const { data: comparison } = useQuery({
+        queryKey: ['marks-comparison', id],
+        queryFn: () => getMarksComparison(id),
+        enabled: !!id,
+    });
+    const showComparison = (comparison?.exams.length ?? 0) >= 2;
 
     type MarkEntry = NonNullable<typeof data>['marks'][number];
     const grouped = (data?.marks ?? []).reduce<Record<string, MarkEntry[]>>((acc, m) => {
@@ -53,6 +61,56 @@ const ChildMarksPage: React.FC = () => {
                     {data && Object.keys(grouped).length === 0 && (
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
                             <p className="font-bold text-slate-400">{t('parent.noMarks')}</p>
+                        </div>
+                    )}
+
+                    {/* Compare marks through the year — per-subject % across exams */}
+                    {showComparison && comparison && (
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                            <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-brand" />
+                                <h2 className="font-bold text-slate-800 text-sm">{t('parent.marksComparison', 'Progress across exams')}</h2>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left min-w-[480px]">
+                                    <thead>
+                                        <tr className="bg-slate-50/50">
+                                            <th className="px-5 py-3 text-[11px] font-black uppercase tracking-widest text-slate-400">{t('marks.subject', 'Subject')}</th>
+                                            {comparison.exams.map(e => (
+                                                <th key={e.id} className="px-4 py-3 text-[11px] font-black uppercase tracking-widest text-slate-400 text-right">{e.name}</th>
+                                            ))}
+                                            <th className="px-5 py-3 text-[11px] font-black uppercase tracking-widest text-slate-400 text-right">{t('parent.trend', 'Trend')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {comparison.subjects.map(s => {
+                                            const values = comparison.exams.map(e => s.pct_by_exam[String(e.id)]);
+                                            const present = values.filter((v): v is number => v != null);
+                                            const delta = present.length >= 2 ? present[present.length - 1] - present[0] : null;
+                                            return (
+                                                <tr key={s.subject_id}>
+                                                    <td className="px-5 py-3 text-sm font-semibold text-slate-700">{s.subject_name}</td>
+                                                    {values.map((v, i) => (
+                                                        <td key={i} className={cn(
+                                                            'px-4 py-3 text-sm font-bold text-right',
+                                                            v == null ? 'text-slate-300' :
+                                                            v >= 80 ? 'text-emerald-600' : v >= 60 ? 'text-amber-600' : 'text-red-600'
+                                                        )}>
+                                                            {v != null ? `${v}%` : '—'}
+                                                        </td>
+                                                    ))}
+                                                    <td className={cn(
+                                                        'px-5 py-3 text-sm font-black text-right',
+                                                        delta == null ? 'text-slate-300' : delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-600' : 'text-slate-400'
+                                                    )}>
+                                                        {delta == null ? '—' : `${delta > 0 ? '▲' : delta < 0 ? '▼' : '•'} ${Math.abs(delta).toFixed(1)}`}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
 

@@ -89,3 +89,18 @@ export const examsService = {
         return response.data;
     },
 };
+
+export interface MarksComparison {
+    student_id: number;
+    exams: { id: number; name: string; academic_year: string; term?: string | null }[];
+    subjects: {
+        subject_id: number;
+        subject_name: string;
+        pct_by_exam: Record<string, number | null>;
+    }[];
+}
+
+export const getMarksComparison = async (studentId: number): Promise<MarksComparison> => {
+    const res = await api.get<MarksComparison>(`exams/marks/student/${studentId}/comparison`);
+    return res.data;
+};

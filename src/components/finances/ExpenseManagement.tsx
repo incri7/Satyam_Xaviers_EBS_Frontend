@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { financesService } from '../../api/services/finances.service';
-import { Wallet, Search, Ban, Calendar, User, ShoppingBag, Hash } from 'lucide-react';
+import { api } from '../../api/axios';
+import { Wallet, Search, Ban, Calendar, User, ShoppingBag, Hash, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
@@ -9,6 +10,9 @@ import { AccessControl } from '../AccessControl';
 export const ExpenseManagement: React.FC = () => {
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
+    const attachInputRef = useRef<HTMLInputElement>(null);
+    const [attachTarget, setAttachTarget] = useState<number | null>(null);
+    const [attaching, setAttaching] = useState(false);
 
     const { data: expenses, isLoading } = useQuery({
         queryKey: ['expenses'],
@@ -19,6 +23,36 @@ export const ExpenseManagement: React.FC = () => {
         mutationFn: (id: number) => financesService.voidExpense(id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
     });
+
+    const startAttach = (expenseId: number) => {
+        setAttachTarget(expenseId);
+        attachInputRef.current?.click();
+    };
+
+    const handleAttachFile = async (file: File) => {
+        if (!attachTarget) return;
+        setAttaching(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            await api.post(`finances/expenses/${attachTarget}/attachment`, form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            queryClient.invalidateQueries({ queryKey: ['expenses'] });
+        } catch (err: any) {
+            alert(err.response?.data?.detail || 'Failed to attach bill');
+        } finally {
+            setAttaching(false);
+            setAttachTarget(null);
+        }
+    };
+
+    const viewAttachment = async (expenseId: number) => {
+        const res = await api.get(`finances/expenses/${expenseId}/attachment`, { responseType: 'blob' });
+        const url = URL.createObjectURL(res.data);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    };
 
     const formatCurrency = (amt: number) => {
         return new Intl.NumberFormat('en-NP', {
@@ -44,6 +78,17 @@ export const ExpenseManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            <input
+                ref={attachInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleAttachFile(f);
+                    e.target.value = '';
+                }}
+            />
             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="relative w-full md:w-96">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -117,9 +162,29 @@ export const ExpenseManagement: React.FC = () => {
                                 </div>
                                 
                                 <div className="flex items-center gap-2 border-l border-slate-100 pl-8">
+                                    {(expense as any).attachment_key ? (
+                                        <button
+                                            onClick={() => viewAttachment(expense.id)}
+                                            className="p-3 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-2xl transition-all shadow-sm active:scale-95"
+                                            title="View attached bill"
+                                        >
+                                            <ImageIcon className="w-5 h-5" />
+                                        </button>
+                                    ) : !isVoid && (
+                                        <AccessControl id="expenses_update">
+                                            <button
+                                                onClick={() => startAttach(expense.id)}
+                                                disabled={attaching}
+                                                className="p-3 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-2xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                                                title="Attach bill photo / PDF"
+                                            >
+                                                <Paperclip className="w-5 h-5" />
+                                            </button>
+                                        </AccessControl>
+                                    )}
                                     {!isVoid && (
                                         <AccessControl id="expenses_delete">
-                                            <button 
+                                            <button
                                                 onClick={() => {
                                                     if (confirm('Void this expense record?')) voidMutation.mutate(expense.id);
                                                 }}

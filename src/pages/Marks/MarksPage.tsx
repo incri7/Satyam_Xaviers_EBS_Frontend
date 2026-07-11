@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -6,7 +6,7 @@ import { academicsService } from '../../api/services/academics.service';
 import { peopleService } from '../../api/services/people.service';
 import { examsService, type MarkEntry } from '../../api/services/exams.service';
 import { useAuthStore } from '../../store/useAuthStore';
-import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap, FileSpreadsheet } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTranslation } from 'react-i18next';
 
@@ -83,6 +83,70 @@ const MarksPage: React.FC = () => {
         },
     } as any);
 
+    // ── Excel import: pre-fills the grid from a spreadsheet; teacher reviews, then saves ──
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importSummary, setImportSummary] = useState('');
+
+    const handleExcelFile = async (file: File) => {
+        try {
+            const XLSX = await import('xlsx');
+            const data = await file.arrayBuffer();
+            const wb = XLSX.read(data, { type: 'array' });
+            const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            if (rows.length === 0) {
+                setErrorMessage('The spreadsheet is empty.');
+                return;
+            }
+
+            // Flexible column detection: "admission no" / "admission_no" / "adm no",
+            // "marks" / "obtained", optional "absent"
+            const normalize = (k: string) => k.toLowerCase().replace(/[^a-z]/g, '');
+            const keys = Object.keys(rows[0]);
+            const admKey = keys.find(k => normalize(k).includes('admission') || normalize(k) === 'admno');
+            const marksKey = keys.find(k => ['marks', 'obtained', 'mark', 'score'].includes(normalize(k)));
+            const absentKey = keys.find(k => normalize(k) === 'absent');
+            if (!admKey || !marksKey) {
+                setErrorMessage('Could not find "Admission No" and "Marks" columns in the sheet.');
+                return;
+            }
+
+            const byAdmission: Record<string, number> = {};
+            students.forEach((s: any) => {
+                if (s.admission_no) byAdmission[String(s.admission_no).trim().toLowerCase()] = s.id;
+            });
+
+            let matched = 0;
+            const unmatched: string[] = [];
+            const next: Record<number, { obtained: string; is_absent: boolean }> = { ...marksMap };
+            for (const row of rows) {
+                const adm = String(row[admKey] ?? '').trim().toLowerCase();
+                if (!adm) continue;
+                const studentId = byAdmission[adm];
+                if (!studentId) {
+                    unmatched.push(String(row[admKey]));
+                    continue;
+                }
+                const rawAbsent = absentKey ? String(row[absentKey] ?? '').trim().toLowerCase() : '';
+                const isAbsent = ['yes', 'true', 'a', 'absent', '1'].includes(rawAbsent);
+                const rawMarks = row[marksKey];
+                next[studentId] = {
+                    obtained: isAbsent || rawMarks == null || rawMarks === '' ? '' : String(rawMarks),
+                    is_absent: isAbsent,
+                };
+                matched++;
+            }
+            setMarksMap(next);
+            setErrorMessage('');
+            setImportSummary(
+                `Imported ${matched} of ${rows.length} rows.` +
+                (unmatched.length ? ` Unmatched admission numbers: ${unmatched.slice(0, 5).join(', ')}${unmatched.length > 5 ? '…' : ''}` : '') +
+                ' Review the grid, then Save Marks.'
+            );
+        } catch (err) {
+            setErrorMessage('Could not read that file. Use .xlsx, .xls, or .csv.');
+        }
+    };
+
     const saveMutation = useMutation({
         mutationFn: ({ examId, scheduleId }: { examId: number; scheduleId: number }) => {
             const marks: MarkEntry[] = students.map((s: any) => {
@@ -114,20 +178,48 @@ const MarksPage: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">{t('marks.title')}</h1>
                             <p className="text-slate-500 text-sm font-medium">{students.length} {t('marks.students')}</p>
                         </div>
-                        <button
-                            onClick={() => selectedExamId && scheduleId && saveMutation.mutate({ examId: Number(selectedExamId), scheduleId })}
-                            disabled={saveMutation.isPending || !selectedExamId || !selectedClassId || !scheduleId}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
-                        >
-                            {saveMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            {t('marks.saveMarks')}
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                className="hidden"
+                                onChange={e => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleExcelFile(f);
+                                    e.target.value = '';
+                                }}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={students.length === 0}
+                                title={t('marks.importExcelHint', 'Columns: Admission No, Marks, Absent (optional)')}
+                                className="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+                            >
+                                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                                {t('marks.importExcel', 'Import Excel')}
+                            </button>
+                            <button
+                                onClick={() => selectedExamId && scheduleId && saveMutation.mutate({ examId: Number(selectedExamId), scheduleId })}
+                                disabled={saveMutation.isPending || !selectedExamId || !selectedClassId || !scheduleId}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
+                            >
+                                {saveMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                                {t('marks.saveMarks')}
+                            </button>
+                        </div>
                     </div>
+
+                    {importSummary && (
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-3 text-blue-700 font-medium text-sm">
+                            <FileSpreadsheet className="w-5 h-5 shrink-0" />{importSummary}
+                        </div>
+                    )}
 
                     {successMessage && (
                         <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-700 font-medium text-sm">
