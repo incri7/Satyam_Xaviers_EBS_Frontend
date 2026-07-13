@@ -238,18 +238,19 @@ const AssignmentsPage: React.FC = () => {
                 {isCreateOpen && <CreateAssignmentModal onClose={() => setIsCreateOpen(false)} />}
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
                             <h1 className="text-2xl font-bold text-slate-900">{t('assignments.title')}</h1>
                             <p className="text-slate-500 text-sm font-medium">{assignments.length} {t('assignments.total')}</p>
                         </div>
                         {canCreate && (
                             <button
                                 onClick={() => setIsCreateOpen(true)}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all"
+                                className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all shrink-0"
                             >
-                                <Plus className="w-5 h-5" />
-                                {t('assignments.newAssignment')}
+                                <Plus className="w-5 h-5 shrink-0" />
+                                <span className="hidden sm:inline">{t('assignments.newAssignment')}</span>
+                                <span className="sm:hidden">{t('assignments.new', 'New')}</span>
                             </button>
                         )}
                     </div>

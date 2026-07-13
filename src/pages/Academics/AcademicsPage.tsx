@@ -57,7 +57,7 @@ const AcademicsPage: React.FC = () => {
                         <AccessControl id={`${activeTab}_create`}>
                             <button
                                 onClick={() => setIsCreateModalOpen(true)}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
+                                className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
                             >
                                 <Plus className="w-5 h-5" />
                                 <span>{addButtonLabel}</span>

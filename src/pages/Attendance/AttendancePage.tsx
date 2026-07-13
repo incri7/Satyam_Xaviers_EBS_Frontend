@@ -205,7 +205,7 @@ const AttendancePage: React.FC = () => {
                                 <button
                                     onClick={handleSubmit}
                                     disabled={submitMutation.isPending || markedCount === 0}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
+                                    className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
                                 >
                                     {submitMutation.isPending ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
