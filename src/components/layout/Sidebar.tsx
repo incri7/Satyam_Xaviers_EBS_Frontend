@@ -7,7 +7,6 @@ import {
     Wallet,
     MessageSquare,
     BarChart3,
-    Settings,
     Shield,
     ClipboardCheck,
     BookMarked,
@@ -93,13 +92,6 @@ const menuItems: MenuItem[] = [
         href: '/reports',
         permission: { resource: 'finances', action: 'read' },
         roles: ['admin', 'principal', 'coordinator', 'accountant'],
-    },
-    {
-        icon: Settings,
-        labelKey: 'nav.settings',
-        href: '/settings',
-        permission: { resource: 'users', action: 'read' },
-        roles: ['admin', 'principal'],
     },
     {
         icon: Shield,
