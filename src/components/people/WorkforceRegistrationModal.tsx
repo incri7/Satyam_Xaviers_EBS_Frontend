@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { X, UserPlus, CheckCircle2, Shield, User, Mail, Phone, ChevronDown, Briefcase, Calendar, MapPin, Heart, GraduationCap, Hash } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { peopleService } from '../../api/services/people.service';
+import { useAuthStore } from '../../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { UserRegistrationCreate, TeacherUnifiedCreate, StaffUnifiedCreate } from '../../types/people';
 
@@ -30,7 +31,7 @@ const BLOOD_GROUP_OPTIONS = [
     { label: 'AB-', value: 'AB-' },
 ];
 
-const ROLE_OPTIONS = [
+const ALL_ROLE_OPTIONS = [
     { label: 'Admin', value: 'admin' },
     { label: 'Principal', value: 'principal' },
     { label: 'Accountant', value: 'accountant' },
@@ -38,6 +39,9 @@ const ROLE_OPTIONS = [
     { label: 'Teacher', value: 'teacher' },
     { label: 'Staff', value: 'staff' },
 ];
+
+// Admin/principal are elevated roles — only an admin may create them.
+const ELEVATED = new Set(['admin', 'principal']);
 
 const roleHasProfile = (role: string) => role === 'teacher' || role === 'staff';
 
@@ -48,6 +52,11 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
     onSuccess
 }) => {
     const queryClient = useQueryClient();
+    const currentRole = useAuthStore((s) => s.user?.role);
+    // Only an admin may create elevated (admin/principal) accounts
+    const ROLE_OPTIONS = currentRole === 'admin'
+        ? ALL_ROLE_OPTIONS
+        : ALL_ROLE_OPTIONS.filter(r => !ELEVATED.has(r.value));
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
