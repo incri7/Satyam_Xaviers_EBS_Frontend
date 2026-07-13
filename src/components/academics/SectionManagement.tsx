@@ -132,10 +132,39 @@ export const SectionManagement: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                            <UsersIcon className="w-4 h-4 text-slate-400" />
-                                            <span className="text-sm font-bold text-slate-600">{section.capacity} {t('academics.students')}</span>
-                                        </div>
+                                        {(() => {
+                                            const enrolled = section.enrolled_count ?? 0;
+                                            const cap = section.capacity || 0;
+                                            const ratio = cap > 0 ? enrolled / cap : 0;
+                                            const over = cap > 0 && enrolled > cap;
+                                            // green < 75%, yellow 75–100%, red = full/over
+                                            const tone = over || ratio >= 1
+                                                ? { bar: 'bg-red-500', text: 'text-red-600' }
+                                                : ratio >= 0.75
+                                                    ? { bar: 'bg-amber-500', text: 'text-amber-600' }
+                                                    : { bar: 'bg-emerald-500', text: 'text-emerald-600' };
+                                            return (
+                                                <div className="w-32">
+                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                        <UsersIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span className={`text-sm font-bold ${tone.text}`}>
+                                                            {enrolled}/{cap || '—'}
+                                                        </span>
+                                                        {over && (
+                                                            <span className="text-[9px] font-black uppercase text-red-600 bg-red-50 px-1.5 py-0.5 rounded">over</span>
+                                                        )}
+                                                    </div>
+                                                    {cap > 0 && (
+                                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full ${tone.bar} transition-all`}
+                                                                style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-5">
                                         <span className="text-sm font-medium text-slate-500 italic">

@@ -11,6 +11,7 @@ export interface Section {
   class_id: number;
   capacity: number;
   class_teacher_id: number | null;
+  enrolled_count?: number;
   created_at: string;
   updated_at: string;
 }
