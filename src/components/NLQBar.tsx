@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { aiService } from '../api/services/ai.service';
-import { Sparkles, Loader2, ChevronRight } from 'lucide-react';
+import { Sparkles, Loader2, ChevronRight, X } from 'lucide-react';
 
 const EXAMPLE_QUESTIONS = [
     "Who hasn't paid fees this month?",
@@ -11,6 +11,7 @@ const EXAMPLE_QUESTIONS = [
 
 const NLQBar: React.FC = () => {
     const [question, setQuestion] = useState('');
+    const [askedQuestion, setAskedQuestion] = useState('');
     const [answer, setAnswer] = useState('');
     const [provider, setProvider] = useState('');
 
@@ -26,11 +27,25 @@ const NLQBar: React.FC = () => {
         },
     });
 
+    const ask = (q: string) => {
+        const trimmed = q.trim();
+        if (!trimmed) return;
+        setAskedQuestion(trimmed);
+        setAnswer('');
+        setQuestion('');            // clear the input so the next question is easy to type
+        queryMutation.mutate(trimmed);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!question.trim()) return;
+        ask(question);
+    };
+
+    const reset = () => {
+        setQuestion('');
+        setAskedQuestion('');
         setAnswer('');
-        queryMutation.mutate(question.trim());
+        setProvider('');
     };
 
     return (
@@ -61,13 +76,13 @@ const NLQBar: React.FC = () => {
                 </button>
             </form>
 
-            {/* Example chips */}
-            {!answer && !queryMutation.isPending && (
+            {/* Example chips — only before the first question */}
+            {!askedQuestion && !queryMutation.isPending && (
                 <div className="flex flex-wrap gap-2">
                     {EXAMPLE_QUESTIONS.map(q => (
                         <button
                             key={q}
-                            onClick={() => { setQuestion(q); }}
+                            onClick={() => ask(q)}
                             className="text-xs text-violet-600 bg-violet-50 border border-violet-100 px-3 py-1 rounded-lg font-medium hover:bg-violet-100 transition-colors"
                         >
                             {q}
@@ -76,15 +91,36 @@ const NLQBar: React.FC = () => {
                 </div>
             )}
 
-            {/* Answer */}
-            {answer && (
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <p className="text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">
-                        {answer}
-                    </p>
-                    {provider && (
-                        <p className="text-xs text-slate-400 font-medium mt-2">{provider}</p>
-                    )}
+            {/* Conversation: the question asked, then its answer */}
+            {askedQuestion && (
+                <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-bold text-slate-700">
+                            <span className="text-violet-500">Q:</span> {askedQuestion}
+                        </p>
+                        <button
+                            onClick={reset}
+                            title="Clear"
+                            className="p-1 text-slate-300 hover:text-slate-500 transition-colors shrink-0"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {queryMutation.isPending ? (
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex items-center gap-2 text-slate-400 text-sm font-medium">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
+                        </div>
+                    ) : answer ? (
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">
+                                {answer}
+                            </p>
+                            {provider && (
+                                <p className="text-xs text-slate-400 font-medium mt-2">{provider}</p>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
             )}
         </div>
