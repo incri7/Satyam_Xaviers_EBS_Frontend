@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
+import { useAuthStore } from '../../store/useAuthStore';
 import { Search, Mail, Shield, UserX, UserCheck } from 'lucide-react';
 import { AccessControl } from '../AccessControl';
 import { cn } from '../../utils/cn';
@@ -8,6 +9,7 @@ import type { User } from '../../types/people';
 
 export const UserManagement: React.FC = () => {
     const queryClient = useQueryClient();
+    const currentUser = useAuthStore((s) => s.user);
     const [searchQuery, setSearchQuery] = useState('');
     const [page] = useState(1);
     const [limit] = useState(20);
@@ -35,6 +37,10 @@ export const UserManagement: React.FC = () => {
     });
 
     const users = userData?.users || [];
+    const activeAdminCount = users.filter((u: User) => u.role === 'admin' && u.is_active).length;
+    // Deactivation is blocked for: yourself, and the last active admin
+    const canDeactivate = (u: User) =>
+        u.id !== currentUser?.id && !(u.role === 'admin' && u.is_active && activeAdminCount <= 1);
 
     return (
         <div className="space-y-6">
@@ -113,17 +119,26 @@ export const UserManagement: React.FC = () => {
                                         <div className="flex items-center justify-end gap-2">
                                             <AccessControl id="users_delete">
                                                 {user.is_active ? (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (window.confirm('Deactivate this user account?')) {
-                                                                deactivateMutation.mutate(user.id);
-                                                            }
-                                                        }}
-                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                        title="Deactivate Account"
-                                                    >
-                                                        <UserX className="w-4 h-4" />
-                                                    </button>
+                                                    canDeactivate(user) ? (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (window.confirm('Deactivate this user account?')) {
+                                                                    deactivateMutation.mutate(user.id);
+                                                                }
+                                                            }}
+                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                            title="Deactivate Account"
+                                                        >
+                                                            <UserX className="w-4 h-4" />
+                                                        </button>
+                                                    ) : (
+                                                        <span
+                                                            className="p-2 text-slate-200 cursor-not-allowed inline-flex"
+                                                            title={user.id === currentUser?.id ? "You can't deactivate your own account" : "Can't deactivate the last active admin"}
+                                                        >
+                                                            <UserX className="w-4 h-4" />
+                                                        </span>
+                                                    )
                                                 ) : (
                                                     <button
                                                         onClick={() => {
