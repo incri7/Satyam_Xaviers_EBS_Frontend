@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -8,11 +9,17 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuthStore } from '../../store/useAuthStore';
 import { financesService } from '../../api/services/finances.service';
 import { attendanceService } from '../../api/services/attendance.service';
-import { Users, TrendingDown, CheckCircle2, Activity } from 'lucide-react';
+import { Users, TrendingDown, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
 
 const PrincipalHome: React.FC = () => {
     const { t, i18n } = useTranslation();
+    const navigate = useNavigate();
     const { user } = useAuthStore();
+
+    const goToFeesReport = () => {
+        localStorage.setItem('reports_active_tab', 'fees');
+        navigate('/reports');
+    };
     const today = new Date();
     const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
     const todayLabel = today.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -73,44 +80,69 @@ const PrincipalHome: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className={`bg-white rounded-2xl border-2 p-4 transition-all ${lateFlash ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100'}`}>
+                        <button
+                            onClick={() => navigate('/reports')}
+                            className={`text-left bg-white rounded-2xl border-2 p-4 transition-all group hover:shadow-md hover:border-emerald-300 ${lateFlash ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100'}`}
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <Activity className="w-4 h-4 text-emerald-500" />
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.principal.presentToday')}</p>
                             </div>
                             <p className="text-2xl md:text-3xl font-black text-slate-900 tabular-nums">
                                 {presentCount !== null ? presentCount : '—'}
+                                {todaySummary?.expected ? <span className="text-base text-slate-400 font-bold">/{todaySummary.expected}</span> : null}
                             </p>
-                            <p className="text-xs text-emerald-600 font-bold mt-0.5">{t('home.principal.liveUpdate')}</p>
-                        </div>
+                            <p className="text-xs font-bold mt-0.5 flex items-center gap-1">
+                                {todaySummary && todaySummary.marked > 0 ? (
+                                    <span className="text-red-600">{todaySummary.absent} {t('dashboard.absent', 'absent')}</span>
+                                ) : (
+                                    <span className="text-slate-400">{t('dashboard.noAttendanceYet', 'Not marked yet')}</span>
+                                )}
+                                <ArrowRight className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </p>
+                        </button>
 
-                        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+                        <button
+                            onClick={goToFeesReport}
+                            className="text-left bg-red-50 border border-red-100 rounded-2xl p-4 transition-all group hover:shadow-md hover:border-red-300"
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <TrendingDown className="w-4 h-4 text-red-500" />
                                 <p className="text-xs font-bold text-red-500 uppercase tracking-wide">{t('home.principal.outstanding')}</p>
                             </div>
-                            <p className="text-2xl font-black text-red-700">
+                            <p className="text-2xl font-black text-red-700 flex items-center gap-1">
                                 Rs {Number(totalOutstanding).toLocaleString()}
+                                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </p>
-                        </div>
+                        </button>
 
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                        <button
+                            onClick={goToFeesReport}
+                            className="text-left bg-white border border-slate-100 rounded-2xl p-4 shadow-sm transition-all group hover:shadow-md hover:border-slate-300"
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <Users className="w-4 h-4 text-slate-400" />
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.principal.familiesDue')}</p>
                             </div>
-                            <p className="text-2xl font-black text-slate-900">{familiesDue}</p>
-                        </div>
+                            <p className="text-2xl font-black text-slate-900 flex items-center gap-1">
+                                {familiesDue}
+                                <ArrowRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </p>
+                        </button>
 
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                        <button
+                            onClick={goToFeesReport}
+                            className="text-left bg-emerald-50 border border-emerald-100 rounded-2xl p-4 transition-all group hover:shadow-md hover:border-emerald-300"
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide">{t('home.principal.thisMonth')}</p>
                             </div>
-                            <p className="text-2xl font-black text-emerald-700">
+                            <p className="text-2xl font-black text-emerald-700 flex items-center gap-1">
                                 Rs {monthlyReport ? Number(monthlyReport.total_collected).toLocaleString() : '—'}
+                                <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </p>
-                        </div>
+                        </button>
                     </div>
 
                     <NLQBar />
