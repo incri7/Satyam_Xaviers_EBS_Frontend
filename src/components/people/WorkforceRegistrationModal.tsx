@@ -60,6 +60,7 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     // User-level fields
@@ -68,6 +69,7 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
         last_name: '',
         email: '',
         phone: '',
+        password: '',
         role: initialRole,
     });
 
@@ -137,7 +139,8 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
     };
 
     const handleReset = () => {
-        setFormData({ first_name: '', last_name: '', email: '', phone: '', role: initialRole });
+        setFormData({ first_name: '', last_name: '', email: '', phone: '', password: '', role: initialRole });
+        setCreatedCreds(null);
         setTeacherData({ first_name: '', last_name: '', staff_code: '', designation: '', join_date: '', dob: '', gender: '', blood_group: '', qualification: '', experience_years: undefined, address_line: '', city: '', state: '', pincode: '' });
         setStaffData({ first_name: '', last_name: '', staff_code: '', designation: '', join_date: '', dob: '', gender: '', blood_group: '', address_line: '', city: '', state: '', pincode: '' });
         setFieldErrors({});
@@ -169,6 +172,7 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
                 email: formData.email,
                 phone: formData.phone,
                 role: formData.role,
+                ...(formData.password.trim() ? { password: formData.password.trim() } : {}),
             };
 
             if (formData.role === 'teacher') {
@@ -186,17 +190,17 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
                 payload.staff_in = cleanStaff as StaffUnifiedCreate;
             }
 
-            await peopleService.registerUser(payload);
+            const resp = await peopleService.registerUser(payload);
             queryClient.invalidateQueries({ queryKey: ['users'] });
             if (formData.role === 'teacher') queryClient.invalidateQueries({ queryKey: ['teachers'] });
             if (formData.role === 'staff') queryClient.invalidateQueries({ queryKey: ['staff'] });
+            setCreatedCreds({
+                email: formData.email,
+                password: (resp as any)?.temporary_password || formData.password.trim(),
+            });
             setSuccess(true);
             if (onSuccess) onSuccess();
-            setTimeout(() => {
-                onClose();
-                setSuccess(false);
-                handleReset();
-            }, 2000);
+            // Do NOT auto-close — the admin must read & share the credentials
         } catch (err: any) {
             const errorData = err?.response?.data?.detail || err;
             let errorMessage = 'Registration failed';
@@ -243,14 +247,48 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
                 {/* Scrollable Form */}
                 <div className="overflow-y-auto flex-1 p-8 pb-10 bg-white">
                     {success ? (
-                        <div className="py-12 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95">
-                            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 shadow-sm border border-green-100">
-                                <CheckCircle2 className="w-10 h-10" />
+                        <div className="py-8 flex flex-col items-center text-center space-y-5 animate-in zoom-in-95">
+                            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 shadow-sm border border-green-100">
+                                <CheckCircle2 className="w-8 h-8" />
                             </div>
                             <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-900">Registration Successful!</h3>
-                                <p className="text-slate-500 font-medium">A welcome email has been sent to the user.</p>
+                                <h3 className="text-xl font-bold text-slate-900">Account Created</h3>
+                                <p className="text-slate-500 font-medium text-sm">Share these login details with the user. They'll set their own password at first login.</p>
                             </div>
+
+                            {createdCreds && (
+                                <div className="w-full max-w-sm bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3 text-left">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email</p>
+                                        <p className="text-sm font-bold text-slate-800 break-all">{createdCreds.email}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Temporary Password</p>
+                                        <p className="text-lg font-black text-brand font-mono tracking-wide">{createdCreds.password}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigator.clipboard?.writeText(`Login: ${createdCreds.email}\nPassword: ${createdCreds.password}`)}
+                                        className="w-full mt-1 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+                                    >
+                                        Copy login details
+                                    </button>
+                                    <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                                        <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                        <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                                            This password is shown once. Write it down or copy it now — you won't see it again.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => { setSuccess(false); handleReset(); onClose(); }}
+                                className="px-8 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 transition-all"
+                            >
+                                Done
+                            </button>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-6">
@@ -307,6 +345,20 @@ export const WorkforceRegistrationModal: React.FC<WorkforceRegistrationModalProp
                                     error={fieldErrors.phone}
                                     required
                                 />
+
+                                <div>
+                                    <FormInput
+                                        label="Initial Password (optional)"
+                                        icon={<Shield size={18} />}
+                                        placeholder="Leave blank to auto-generate"
+                                        value={formData.password}
+                                        onChange={(v) => setFormData({ ...formData, password: v })}
+                                        error={fieldErrors.password}
+                                    />
+                                    <p className="text-[11px] text-slate-400 font-medium mt-1 ml-1">
+                                        Set one to share verbally, or leave blank and we'll generate one. Either way the user must change it at first login.
+                                    </p>
+                                </div>
 
                                 <FormSelect
                                     label="Account Role"

@@ -300,6 +300,7 @@ export interface UserRegistrationCreate {
     email: string;
     phone: string;
     role: string;
+    password?: string;
     teacher_in?: TeacherUnifiedCreate;
     staff_in?: StaffUnifiedCreate;
 }
@@ -309,4 +310,5 @@ export interface UserRegistrationResponse {
     user: User;
     teacher?: Teacher;
     staff?: Staff;
+    temporary_password?: string;
 }
