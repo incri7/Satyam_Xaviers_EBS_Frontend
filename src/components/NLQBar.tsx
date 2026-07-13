@@ -94,24 +94,38 @@ const NLQBar: React.FC = () => {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex gap-2">
-                <input
-                    type="text"
+            <form onSubmit={handleSubmit} className="space-y-2">
+                <textarea
                     value={question}
-                    onChange={e => setQuestion(e.target.value)}
+                    onChange={e => {
+                        setQuestion(e.target.value);
+                        // auto-grow with the content
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+                    }}
+                    onKeyDown={e => {
+                        // Enter submits; Shift+Enter adds a newline
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                        }
+                    }}
+                    rows={1}
                     placeholder="e.g. Who hasn't paid fees this month?"
-                    className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-slate-300"
+                    className="w-full resize-none border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium leading-relaxed focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-slate-300"
                 />
-                <button
-                    type="submit"
-                    disabled={queryMutation.isPending || !question.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-all"
-                >
-                    {queryMutation.isPending
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <ChevronRight className="w-4 h-4" />}
-                    Ask
-                </button>
+                <div className="flex justify-end">
+                    <button
+                        type="submit"
+                        disabled={queryMutation.isPending || !question.trim()}
+                        className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-all"
+                    >
+                        {queryMutation.isPending
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <ChevronRight className="w-4 h-4" />}
+                        Ask
+                    </button>
+                </div>
             </form>
 
             {/* Example chips — only before the first question */}
