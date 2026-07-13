@@ -9,6 +9,7 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { useAuthStore } from '../../store/useAuthStore';
 import { financesService } from '../../api/services/finances.service';
 import { attendanceService } from '../../api/services/attendance.service';
+import { peopleService } from '../../api/services/people.service';
 import { Users, TrendingDown, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
 
 const PrincipalHome: React.FC = () => {
@@ -50,6 +51,15 @@ const PrincipalHome: React.FC = () => {
         queryFn: () => financesService.getOutstanding(200),
     });
 
+    // Total students in the school — the denominator the principal expects,
+    // shown even before any attendance is marked.
+    const { data: studentsMeta } = useQuery({
+        queryKey: ['students-total'],
+        queryFn: () => peopleService.getStudents({ limit: 1, filter_by_status: 'active' }),
+        staleTime: 5 * 60 * 1000,
+    });
+    const totalStudents = studentsMeta?.total_count ?? todaySummary?.expected ?? null;
+
     const handleAttendanceUpdated = useCallback((event: { payload: Record<string, unknown> }) => {
         const status = event.payload.status as string;
         if (status === 'P' || status === 'L' || status === 'HD') {
@@ -90,7 +100,9 @@ const PrincipalHome: React.FC = () => {
                             </div>
                             <p className="text-2xl md:text-3xl font-black text-slate-900 tabular-nums">
                                 {presentCount !== null ? presentCount : '—'}
-                                {todaySummary?.expected ? <span className="text-base text-slate-400 font-bold">/{todaySummary.expected}</span> : null}
+                                {totalStudents != null && (
+                                    <span className="text-base text-slate-400 font-bold"> / {totalStudents}</span>
+                                )}
                             </p>
                             <p className="text-xs font-bold mt-0.5 flex items-center gap-1">
                                 {todaySummary && todaySummary.marked > 0 ? (
