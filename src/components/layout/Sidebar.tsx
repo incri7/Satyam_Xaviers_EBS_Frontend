@@ -129,10 +129,11 @@ export const Sidebar: React.FC = () => {
             if (!item.permission) return true;
             return hasPermission(item.permission.resource, item.permission.action);
         })
-        // "Dashboard" points every role at THEIR home screen — /dashboard
-        // itself is admin/principal-only and would bounce anyone else.
+        // "Dashboard" points every non-admin role at THEIR home screen.
+        // Only admin uses /dashboard; principal/teacher/parent/etc. each have
+        // their own home, so route the item there.
         .map(item =>
-            item.href === '/dashboard' && role !== 'admin' && role !== 'principal'
+            item.href === '/dashboard' && role !== 'admin'
                 ? { ...item, href: homeForRole(role) }
                 : item
         );

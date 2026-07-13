@@ -71,13 +71,20 @@ export const router = createBrowserRouter([
                 element: <CommunicationPage />,
             },
 
-            // ── Admin + principal (admin always allowed by RoleRoute) ──
+            // ── Admin-only (RoleRoute always allows admin) ──
             {
-                element: <RoleRoute roles={['principal']} />,
+                element: <RoleRoute roles={[]} />,
                 children: [
                     { path: '/dashboard', element: <Dashboard /> },
                     { path: '/settings', element: <Navigate to="/settings/permissions" replace /> },
                     { path: '/settings/permissions', element: <PermissionsDashboard /> },
+                ],
+            },
+
+            // ── Admin + principal ──
+            {
+                element: <RoleRoute roles={['principal']} />,
+                children: [
                     { path: '/academic-calendar', element: <AcademicCalendarPage /> },
                     { path: '/promotion', element: <PromotionPage /> },
                 ],
