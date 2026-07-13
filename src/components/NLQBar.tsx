@@ -114,18 +114,16 @@ const NLQBar: React.FC = () => {
                     placeholder="e.g. Who hasn't paid fees this month?"
                     className="w-full resize-none border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium leading-relaxed focus:outline-none focus:ring-2 focus:ring-violet-300 placeholder:text-slate-300"
                 />
-                <div className="flex justify-end">
-                    <button
-                        type="submit"
-                        disabled={queryMutation.isPending || !question.trim()}
-                        className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-all"
-                    >
-                        {queryMutation.isPending
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : <ChevronRight className="w-4 h-4" />}
-                        Ask
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={queryMutation.isPending || !question.trim()}
+                    className="w-full flex items-center justify-center gap-1.5 px-5 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-all"
+                >
+                    {queryMutation.isPending
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <ChevronRight className="w-4 h-4" />}
+                    Ask
+                </button>
             </form>
 
             {/* Example chips — only before the first question */}
