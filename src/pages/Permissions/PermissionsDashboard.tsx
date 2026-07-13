@@ -193,6 +193,7 @@ const PermissionsDashboard: React.FC = () => {
                                                 resourceCount={resourceCount}
                                                 permissionCount={activeCount}
                                                 totalPossiblePermissions={totalPossible}
+                                                locked={role === 'admin'}
                                                 onView={() => handleEditRole(role)}
                                             />
                                         );

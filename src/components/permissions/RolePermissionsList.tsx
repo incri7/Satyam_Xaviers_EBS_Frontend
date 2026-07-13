@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Pencil, Shield, Users } from 'lucide-react';
+import { Pencil, Shield, Users, Lock } from 'lucide-react';
 
 interface RolePermissionsListProps {
     roleName: string;
@@ -9,6 +9,7 @@ interface RolePermissionsListProps {
     resourceCount: number;
     permissionCount: number; // e.g., total "true" flags
     totalPossiblePermissions: number; // resources * 4
+    locked?: boolean; // admin: fixed super-role, not editable
     onView: () => void;
 }
 
@@ -19,6 +20,7 @@ export const RolePermissionsList: React.FC<RolePermissionsListProps> = ({
     resourceCount,
     permissionCount,
     totalPossiblePermissions,
+    locked = false,
     onView
 }) => {
     // Determine status color based on coverage
@@ -48,13 +50,22 @@ export const RolePermissionsList: React.FC<RolePermissionsListProps> = ({
                         <p className="text-xs text-slate-400 font-medium">System Role</p>
                     </div>
                 </div>
-                <button
-                    onClick={onView}
-                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-brand hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
-                    title="Edit Permissions"
-                >
-                    <Pencil className="w-5 h-5" />
-                </button>
+                {locked ? (
+                    <span
+                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center shrink-0 cursor-not-allowed"
+                        title="Admin permissions are fixed and cannot be changed"
+                    >
+                        <Lock className="w-5 h-5" />
+                    </span>
+                ) : (
+                    <button
+                        onClick={onView}
+                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-brand hover:text-white flex items-center justify-center transition-all shadow-sm shrink-0"
+                        title="Edit Permissions"
+                    >
+                        <Pencil className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
             {/* Stats row: wraps on phones, inline on desktop */}
