@@ -121,11 +121,7 @@ const ClassView: React.FC<{
         queryKey: ['class-detail', classId],
         queryFn: () => academicsService.getClassDetail(classId),
     });
-    const { data: teacherOptions } = useQuery({
-        queryKey: ['teacher-options'],
-        queryFn: academicsService.getTeacherOptions,
-        enabled: !!assignCT,
-    });
+    const classTeachers = data?.teachers || [];
 
     const setClassTeacher = useMutation({
         mutationFn: ({ sectionId, teacherId }: { sectionId: number; teacherId: number | null }) =>
@@ -221,6 +217,9 @@ const ClassView: React.FC<{
                             <h3 className="text-lg font-bold text-slate-900">Class teacher for {className} — {assignCT.name}</h3>
                             <button onClick={() => setAssignCT(null)} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
                         </div>
+                        <p className="text-xs text-slate-400 font-medium">
+                            Only teachers who teach a subject in {className} are shown.
+                        </p>
                         <div className="space-y-1.5">
                             <button
                                 onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: null })}
@@ -228,7 +227,7 @@ const ClassView: React.FC<{
                             >
                                 — No class teacher —
                             </button>
-                            {(teacherOptions || []).map(tch => (
+                            {classTeachers.map(tch => (
                                 <button
                                     key={tch.id}
                                     onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: tch.id })}
@@ -237,12 +236,12 @@ const ClassView: React.FC<{
                                         assignCT.class_teacher_id === tch.id ? 'bg-brand/5 text-brand' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                                     )}
                                 >
-                                    <span>{tch.name}{tch.subjects.length ? <span className="text-xs text-slate-400"> · {tch.subjects.map(s => s.name).join(', ')}</span> : ''}</span>
+                                    <span>{tch.name}{tch.subjects.length ? <span className="text-xs text-slate-400"> · {tch.subjects.join(', ')}</span> : ''}</span>
                                     {assignCT.class_teacher_id === tch.id && <Check className="w-4 h-4" />}
                                 </button>
                             ))}
-                            {(teacherOptions || []).length === 0 && (
-                                <p className="text-xs text-slate-400 py-2 text-center">No teachers registered yet.</p>
+                            {classTeachers.length === 0 && (
+                                <p className="text-xs text-slate-400 py-2 text-center">No teachers assigned to any subject in this class yet. Assign subject teachers first.</p>
                             )}
                         </div>
                         {setClassTeacher.isPending && <div className="flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-brand" /></div>}

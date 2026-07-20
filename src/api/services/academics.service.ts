@@ -175,6 +175,8 @@ export interface ClassDetail {
         class_teacher_id: number | null;
         class_teacher_name: string | null;
     }[];
+    /** Teachers who teach a subject in this class — the class-teacher candidate pool. */
+    teachers: { id: number; name: string; subjects: string[] }[];
 }
 
 export interface Subject {
