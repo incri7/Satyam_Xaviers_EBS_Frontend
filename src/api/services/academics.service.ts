@@ -134,8 +134,48 @@ export const academicsService = {
     getMySections: async (): Promise<MySection[]> => {
         const response = await api.get<MySection[]>('academics/my-sections');
         return response.data;
-    }
+    },
+
+    // Class drilldown
+    getClassDetail: async (classId: number): Promise<ClassDetail> => {
+        const response = await api.get<ClassDetail>(`academics/classes/${classId}/detail`);
+        return response.data;
+    },
+    getClassSubjects: async (classId: number): Promise<ClassSubjectRow[]> => {
+        const response = await api.get<ClassSubjectRow[]>(`academics/classes/${classId}/subjects`);
+        return response.data;
+    },
+    setClassSubjects: async (classId: number, subjectIds: number[]): Promise<ClassSubjectRow[]> => {
+        const response = await api.put<ClassSubjectRow[]>(`academics/classes/${classId}/subjects`, { subject_ids: subjectIds });
+        return response.data;
+    },
+    setClassSubjectTeacher: async (classSubjectId: number, teacherId: number | null): Promise<ClassSubjectRow> => {
+        const response = await api.put<ClassSubjectRow>(`academics/class-subjects/${classSubjectId}/teacher`, { teacher_id: teacherId });
+        return response.data;
+    },
 };
+
+export interface ClassSubjectRow {
+    id: number;
+    subject_id: number;
+    subject_name: string;
+    teacher_id: number | null;
+    teacher_name: string | null;
+}
+
+export interface ClassDetail {
+    id: number;
+    name: string;
+    subject_count: number;
+    sections: {
+        id: number;
+        name: string;
+        capacity: number | null;
+        enrolled_count: number;
+        class_teacher_id: number | null;
+        class_teacher_name: string | null;
+    }[];
+}
 
 export interface Subject {
     id: number;

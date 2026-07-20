@@ -2,25 +2,23 @@ import React, { useState } from 'react';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Layers, Users, Plus, BookMarked } from 'lucide-react';
+import { BookOpen, Users, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../../components/AccessControl';
 import { useTranslation } from 'react-i18next';
 
-import { ClassManagement } from '../../components/academics/ClassManagement';
-import { SectionManagement } from '../../components/academics/SectionManagement';
+import { AcademicsExplorer } from '../../components/academics/AcademicsExplorer';
 import { EnrollmentManagement } from '../../components/academics/EnrollmentManagement';
-import { SubjectManagement } from '../../components/academics/SubjectManagement';
 import { CreateClassModal } from '../../components/academics/CreateClassModal';
-import { CreateSectionModal } from '../../components/academics/CreateSectionModal';
 import { CreateEnrollmentModal } from '../../components/academics/CreateEnrollmentModal';
 
-type ActiveTab = 'classes' | 'sections' | 'subjects' | 'enrollments';
+type ActiveTab = 'classes' | 'enrollments';
 
 const AcademicsPage: React.FC = () => {
     const { t } = useTranslation();
     const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
-        return (localStorage.getItem('academics_active_tab') as ActiveTab) || 'classes';
+        const saved = localStorage.getItem('academics_active_tab');
+        return saved === 'enrollments' ? 'enrollments' : 'classes';
     });
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -31,16 +29,12 @@ const AcademicsPage: React.FC = () => {
 
     const tabs = [
         { id: 'classes', labelKey: 'academics.classes', icon: BookOpen, permission: 'classes' },
-        { id: 'sections', labelKey: 'academics.sections', icon: Layers, permission: 'sections' },
-        { id: 'subjects', labelKey: 'academics.subjects', icon: BookMarked, permission: 'classes' },
         { id: 'enrollments', labelKey: 'academics.enrollments', icon: Users, permission: 'enrollments' },
     ];
 
     const addButtonLabel = activeTab === 'classes'
         ? t('academics.addClass')
-        : activeTab === 'sections'
-            ? t('academics.addSection')
-            : t('academics.addEnrollment');
+        : t('academics.addEnrollment');
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -56,8 +50,7 @@ const AcademicsPage: React.FC = () => {
                             <p className="text-slate-500 font-medium">{t('academics.subtitle')}</p>
                         </div>
 
-                        {/* Subjects tab has its own Add button inside the component */}
-                        <AccessControl id={activeTab === 'subjects' ? 'never' : `${activeTab}_create`}>
+                        <AccessControl id={`${activeTab}_create`}>
                             <button
                                 onClick={() => setIsCreateModalOpen(true)}
                                 className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
@@ -97,16 +90,7 @@ const AcademicsPage: React.FC = () => {
                                 exit={{ opacity: 0, y: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {activeTab === 'classes' && (
-                                    <ClassManagement
-                                        onViewSections={(classId) => {
-                                            localStorage.setItem('academics_section_class_filter', String(classId));
-                                            setActiveTab('sections');
-                                        }}
-                                    />
-                                )}
-                                {activeTab === 'sections' && <SectionManagement />}
-                                {activeTab === 'subjects' && <SubjectManagement />}
+                                {activeTab === 'classes' && <AcademicsExplorer />}
                                 {activeTab === 'enrollments' && <EnrollmentManagement />}
                             </motion.div>
                         </AnimatePresence>
@@ -116,10 +100,6 @@ const AcademicsPage: React.FC = () => {
                 {/* Create Modals */}
                 <CreateClassModal
                     isOpen={activeTab === 'classes' && isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                />
-                <CreateSectionModal
-                    isOpen={activeTab === 'sections' && isCreateModalOpen}
                     onClose={() => setIsCreateModalOpen(false)}
                 />
                 <CreateEnrollmentModal
