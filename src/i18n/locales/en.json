@@ -74,6 +74,7 @@
     "subtitle": "Manage your school's classes, sections, and student enrollments",
     "classes": "Classes",
     "sections": "Sections",
+    "subjects": "Subjects",
     "enrollments": "Enrollments",
     "addClass": "Add Class",
     "addSection": "Add Section",
