@@ -153,7 +153,28 @@ export const academicsService = {
         const response = await api.put<ClassSubjectRow>(`academics/class-subjects/${classSubjectId}/teacher`, { teacher_id: teacherId });
         return response.data;
     },
+    getTeacherProfile: async (teacherId: number): Promise<TeacherProfile> => {
+        const response = await api.get<TeacherProfile>(`academics/teachers/${teacherId}/profile`);
+        return response.data;
+    },
 };
+
+export interface TeacherProfile {
+    id: number;
+    first_name: string;
+    last_name: string | null;
+    staff_code: string | null;
+    designation: string | null;
+    qualification: string | null;
+    experience_years: number | null;
+    city: string | null;
+    state: string | null;
+    email: string | null;
+    phone: string | null;
+    subjects: string[];
+    teaches: { class_name: string; subjects: string[] }[];
+    class_teacher_of: { class_name: string; section_name: string }[];
+}
 
 export interface ClassSubjectRow {
     id: number;

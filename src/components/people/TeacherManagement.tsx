@@ -5,6 +5,7 @@ import { Search, Edit2, Microscope, MapPin, Briefcase, GraduationCap } from 'luc
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { EditTeacherModal } from './EditTeacherModal';
+import { TeacherProfileDrawer } from './TeacherProfileDrawer';
 import type { Teacher } from '../../types/people';
 
 export const TeacherManagement: React.FC = () => {
@@ -12,6 +13,7 @@ export const TeacherManagement: React.FC = () => {
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
     const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+    const [viewingTeacherId, setViewingTeacherId] = useState<number | null>(null);
 
     const { data: teacherData, isLoading } = useQuery({
         queryKey: ['teachers', searchQuery, page, limit],
@@ -96,7 +98,7 @@ export const TeacherManagement: React.FC = () => {
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-blue-50/50 transition-colors flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Exp: {teacher.experience_years || 0} Years</span>
                             <button
-                                onClick={() => setEditingTeacher(teacher)}
+                                onClick={() => setViewingTeacherId(teacher.id)}
                                 className="text-xs font-bold text-blue-600 hover:underline"
                             >
                                 View Profile →
@@ -144,6 +146,11 @@ export const TeacherManagement: React.FC = () => {
                     onClose={() => setEditingTeacher(null)}
                 />
             )}
+
+            <TeacherProfileDrawer
+                teacherId={viewingTeacherId}
+                onClose={() => setViewingTeacherId(null)}
+            />
         </div>
     );
 };
