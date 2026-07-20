@@ -48,7 +48,7 @@ export interface SectionUpdate {
   name?: string;
   class_id?: number;
   capacity?: number;
-  class_teacher_id?: number;
+  class_teacher_id?: number | null;
 }
 
 export interface EnrollmentCreate {

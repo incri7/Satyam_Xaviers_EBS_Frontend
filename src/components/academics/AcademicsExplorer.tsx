@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicsService, type ClassSubjectRow } from '../../api/services/academics.service';
+import { academicsService, type ClassSubjectRow, type ClassDetail } from '../../api/services/academics.service';
 import {
     BookOpen, Layers, BookMarked, Users as UsersIcon, ChevronRight, ArrowLeft,
     Search, Loader2, Microscope, Pencil, X, Check,
@@ -107,14 +107,33 @@ const ClassList: React.FC<{ onOpen: (c: Class) => void }> = ({ onOpen }) => {
     );
 };
 
+type SectionRow = ClassDetail['sections'][number];
+
 // ── Level 2: one class → its sections + subject count ──────────────────────────
 const ClassView: React.FC<{
     classId: number; className: string; onBack: () => void;
     onOpenSection: (sectionId: number, sectionName: string) => void;
 }> = ({ classId, className, onBack, onOpenSection }) => {
+    const queryClient = useQueryClient();
+    const [assignCT, setAssignCT] = useState<SectionRow | null>(null);
+
     const { data, isLoading } = useQuery({
         queryKey: ['class-detail', classId],
         queryFn: () => academicsService.getClassDetail(classId),
+    });
+    const { data: teacherOptions } = useQuery({
+        queryKey: ['teacher-options'],
+        queryFn: academicsService.getTeacherOptions,
+        enabled: !!assignCT,
+    });
+
+    const setClassTeacher = useMutation({
+        mutationFn: ({ sectionId, teacherId }: { sectionId: number; teacherId: number | null }) =>
+            academicsService.updateSection(sectionId, { class_teacher_id: teacherId }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['class-detail', classId] });
+            setAssignCT(null);
+        },
     });
 
     return (
@@ -133,35 +152,48 @@ const ClassView: React.FC<{
                         {(data?.sections || []).map(s => {
                             const tone = capacityTone(s.enrolled_count, s.capacity);
                             return (
-                                <button
+                                <div
                                     key={s.id}
-                                    onClick={() => onOpenSection(s.id, s.name)}
-                                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-5 text-left hover:shadow-md hover:border-brand/20 transition-all"
+                                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
                                 >
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600">
-                                                <Layers className="w-5 h-5" />
+                                    <button
+                                        onClick={() => onOpenSection(s.id, s.name)}
+                                        className="w-full text-left"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600">
+                                                    <Layers className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-900">{s.name}</p>
+                                                    <p className="text-xs text-slate-400 font-medium">
+                                                        Class teacher: {s.class_teacher_name || 'Not assigned'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-slate-900">{s.name}</p>
-                                                <p className="text-xs text-slate-400 font-medium">
-                                                    Class teacher: {s.class_teacher_name || 'Not assigned'}
-                                                </p>
-                                            </div>
+                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors" />
                                         </div>
-                                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors" />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <UsersIcon className="w-3.5 h-3.5 text-slate-400" />
-                                        <span className={cn('text-sm font-bold', tone.text)}>{s.enrolled_count}/{s.capacity || '—'}</span>
-                                        {s.capacity ? (
-                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
-                                                <div className={cn('h-full rounded-full', tone.bar)} style={{ width: `${Math.min((s.enrolled_count / s.capacity) * 100, 100)}%` }} />
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                </button>
+                                        <div className="flex items-center gap-2">
+                                            <UsersIcon className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className={cn('text-sm font-bold', tone.text)}>{s.enrolled_count}/{s.capacity || '—'}</span>
+                                            {s.capacity ? (
+                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
+                                                    <div className={cn('h-full rounded-full', tone.bar)} style={{ width: `${Math.min((s.enrolled_count / s.capacity) * 100, 100)}%` }} />
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </button>
+                                    <AccessControl id="sections_update">
+                                        <button
+                                            onClick={() => setAssignCT(s)}
+                                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
+                                        >
+                                            <Microscope className="w-3.5 h-3.5" />
+                                            {s.class_teacher_name ? 'Change class teacher' : 'Assign class teacher'}
+                                        </button>
+                                    </AccessControl>
+                                </div>
                             );
                         })}
                         {(data?.sections || []).length === 0 && (
@@ -178,6 +210,44 @@ const ClassView: React.FC<{
                         </p>
                     </div>
                 </>
+            )}
+
+            {/* Assign class teacher modal */}
+            {assignCT && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div onClick={() => setAssignCT(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+                    <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-slate-900">Class teacher for {className} — {assignCT.name}</h3>
+                            <button onClick={() => setAssignCT(null)} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="space-y-1.5">
+                            <button
+                                onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: null })}
+                                className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-50 text-slate-500 hover:bg-slate-100"
+                            >
+                                — No class teacher —
+                            </button>
+                            {(teacherOptions || []).map(tch => (
+                                <button
+                                    key={tch.id}
+                                    onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: tch.id })}
+                                    className={cn(
+                                        'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                                        assignCT.class_teacher_id === tch.id ? 'bg-brand/5 text-brand' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                    )}
+                                >
+                                    <span>{tch.name}{tch.subjects.length ? <span className="text-xs text-slate-400"> · {tch.subjects.map(s => s.name).join(', ')}</span> : ''}</span>
+                                    {assignCT.class_teacher_id === tch.id && <Check className="w-4 h-4" />}
+                                </button>
+                            ))}
+                            {(teacherOptions || []).length === 0 && (
+                                <p className="text-xs text-slate-400 py-2 text-center">No teachers registered yet.</p>
+                            )}
+                        </div>
+                        {setClassTeacher.isPending && <div className="flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-brand" /></div>}
+                    </div>
+                </div>
             )}
         </div>
     );
