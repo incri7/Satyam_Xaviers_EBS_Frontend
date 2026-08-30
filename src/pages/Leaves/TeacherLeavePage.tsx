@@ -11,6 +11,7 @@ import {
 } from '../../api/services/leaves.service';
 import { Loader2, PlusCircle, CheckCircle2, XCircle, Clock, CalendarDays } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const STATUS_STYLE: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
@@ -27,10 +28,16 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 const TeacherLeavePage: React.FC = () => {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const { user } = useAuthStore();
+    // Only an actual Teacher profile can file as applicant_type 'teacher'
+    // (it resolves to Teacher.id server-side). Every other role reaching
+    // this page — staff, coordinator, principal, accountant — has no
+    // Teacher profile and must file as 'staff' (resolves to their user id).
+    const applicantType = user?.role === 'teacher' ? 'teacher' : 'staff';
     const [showForm, setShowForm] = useState(false);
     const [formError, setFormError] = useState('');
     const [form, setForm] = useState<LeaveCreate>({
-        applicant_type: 'teacher',
+        applicant_type: applicantType,
         leave_type: 'casual',
         start_date: '',
         end_date: '',
@@ -66,7 +73,7 @@ const TeacherLeavePage: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['leaves'] });
             setShowForm(false);
-            setForm({ applicant_type: 'teacher', leave_type: 'casual', start_date: '', end_date: '', reason: '' });
+            setForm({ applicant_type: applicantType, leave_type: 'casual', start_date: '', end_date: '', reason: '' });
             setFormError('');
         },
         onError: (err: any) => {

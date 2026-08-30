@@ -5,6 +5,7 @@ import { Search, Edit2, Users, MapPin, Briefcase } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { EditStaffModal } from './EditStaffModal';
+import { StaffProfileDrawer } from './StaffProfileDrawer';
 import type { Staff } from '../../types/people';
 
 export const StaffManagement: React.FC = () => {
@@ -12,6 +13,7 @@ export const StaffManagement: React.FC = () => {
     const [page] = useState(1);
     const [limit] = useState(20);
     const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
+    const [viewingStaffId, setViewingStaffId] = useState<number | null>(null);
 
     const { data: staffData, isLoading, isError } = useQuery({
         queryKey: ['staff', searchQuery, page, limit],
@@ -90,7 +92,7 @@ export const StaffManagement: React.FC = () => {
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-amber-50/50 transition-colors flex justify-between items-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase">Joined: {m.join_date ? new Date(m.join_date).toLocaleDateString() : 'N/A'}</span>
                             <button
-                                onClick={() => setEditingStaff(m)}
+                                onClick={() => setViewingStaffId(m.id)}
                                 className="text-xs font-bold text-amber-600 hover:underline"
                             >
                                 Details →
@@ -125,6 +127,8 @@ export const StaffManagement: React.FC = () => {
                     onClose={() => setEditingStaff(null)}
                 />
             )}
+
+            <StaffProfileDrawer staffId={viewingStaffId} onClose={() => setViewingStaffId(null)} />
         </div>
     );
 };

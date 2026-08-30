@@ -91,6 +91,10 @@ export const peopleService = {
         const response = await api.get(`people/staff/${id}`);
         return response.data;
     },
+    getStaffProfile: async (id: number): Promise<StaffProfile> => {
+        const response = await api.get(`people/staff/${id}/profile`);
+        return response.data;
+    },
     updateStaff: async (id: number, data: StaffUpdate) => {
         const response = await api.put(`people/staff/${id}`, data);
         return response.data;
@@ -130,6 +134,20 @@ export const peopleService = {
         }
     },
 };
+
+export interface StaffProfile {
+    id: number;
+    first_name: string;
+    last_name?: string | null;
+    staff_code?: string | null;
+    designation?: string | null;
+    join_date?: string | null;
+    city?: string | null;
+    state?: string | null;
+    address_line?: string | null;
+    email?: string | null;
+    phone?: string | null;
+}
 
 export interface StudentSummary {
     student: {
