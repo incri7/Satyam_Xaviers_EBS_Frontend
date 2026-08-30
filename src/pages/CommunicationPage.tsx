@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
+import { usePermissionsStore } from '../store/usePermissionsStore';
 import { noticesService } from '../api/services/notices.service';
 import { academicsService } from '../api/services/academics.service';
 import { peopleService } from '../api/services/people.service';
@@ -22,6 +23,7 @@ import type { Class, Section } from '../types/academic';
 const CommunicationPage: React.FC = () => {
     const { t } = useTranslation();
     const { user } = useAuthStore();
+    const { hasPermission } = usePermissionsStore();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,12 +88,16 @@ const CommunicationPage: React.FC = () => {
         const sectionIds = [...new Set(notices.filter(n => n.scope === 'class_section' && n.section_id).map(n => n.section_id!))];
         const studentIds = [...new Set(notices.filter(n => n.scope === 'student' && n.student_id).map(n => n.student_id!))];
 
-        if (classIds.length && Object.keys(classNames).length === 0) {
+        // Not everyone can list classes/sections (e.g. parents) — skip the
+        // enrichment call entirely rather than firing a request we already
+        // know will 403; the card already falls back to a generic
+        // "Class/Section" label when no name was resolved.
+        if (classIds.length && Object.keys(classNames).length === 0 && hasPermission('classes', 'read')) {
             academicsService.getClasses({ limit: 100 }).then(res => {
                 setClassNames(Object.fromEntries(res.classes.map((c: Class) => [c.id, c.name])));
             }).catch(() => {});
         }
-        if (sectionIds.length && Object.keys(sectionNames).length === 0) {
+        if (sectionIds.length && Object.keys(sectionNames).length === 0 && hasPermission('sections', 'read')) {
             academicsService.getSections({ limit: 100 }).then(res => {
                 setSectionNames(Object.fromEntries(res.sections.map((s: Section) => [s.id, s.name])));
             }).catch(() => {});
