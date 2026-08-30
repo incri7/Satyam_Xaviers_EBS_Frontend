@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -21,9 +21,25 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
     });
     const [error, setError] = useState('');
 
-    const { data: classesData } = useQuery({
+    const { user } = useAuthStore();
+    const isTeacher = user?.role === 'teacher';
+
+    // Teachers only pick among classes/subjects they're actually assigned to
+    // teach (ClassSubject.teacher_id) — never the whole school's list.
+    const { data: myClassSubjects } = useQuery({
+        queryKey: ['class-subjects', 'my'],
+        queryFn: () => academicsService.getMyClassSubjects(),
+        enabled: isTeacher,
+    });
+    const { data: allClassesData } = useQuery({
         queryKey: ['classes'],
         queryFn: () => academicsService.getClasses({ limit: 100 }),
+        enabled: !isTeacher,
+    });
+    const { data: allSubjects } = useQuery({
+        queryKey: ['subjects', 'all'],
+        queryFn: () => academicsService.getSubjects(),
+        enabled: !isTeacher,
     });
 
     const { data: sectionsData } = useQuery({
@@ -32,13 +48,35 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
         enabled: !!form.class_id,
     });
 
-    const { user } = useAuthStore();
-    const isTeacher = user?.role === 'teacher';
+    const myClasses = useMemo(() => {
+        const byId = new Map<number, string>();
+        (myClassSubjects || []).forEach(cs => byId.set(cs.class_id, cs.class_name));
+        return [...byId.entries()].map(([id, name]) => ({ id, name }));
+    }, [myClassSubjects]);
 
-    const { data: subjects } = useQuery({
-        queryKey: ['subjects', isTeacher ? 'my' : 'all'],
-        queryFn: () => (isTeacher ? academicsService.getMySubjects() : academicsService.getSubjects()),
-    });
+    const classes = isTeacher ? myClasses : (allClassesData?.classes || []);
+
+    const subjects = isTeacher
+        ? (myClassSubjects || [])
+            .filter(cs => String(cs.class_id) === form.class_id)
+            .map(cs => ({ id: cs.subject_id, name: cs.subject_name }))
+        : (allSubjects || []);
+
+    // Skip the picker when there's exactly one class (or one subject once a
+    // class is chosen) to choose from.
+    useEffect(() => {
+        if (isTeacher && myClasses.length === 1 && form.class_id !== String(myClasses[0].id)) {
+            setForm(p => ({ ...p, class_id: String(myClasses[0].id), section_id: '' }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isTeacher, myClassSubjects]);
+
+    useEffect(() => {
+        if (isTeacher && subjects.length === 1 && form.subject_id !== String(subjects[0].id)) {
+            setForm(p => ({ ...p, subject_id: String(subjects[0].id) }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isTeacher, myClassSubjects, form.class_id]);
 
     const { data: teacherOptions } = useQuery({
         queryKey: ['teacher-options'],
@@ -116,17 +154,27 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <label className="text-sm font-bold text-slate-700">{t('assignments.class')}</label>
-                            <div className="relative">
-                                <select
-                                    value={form.class_id}
-                                    onChange={e => setForm(p => ({ ...p, class_id: e.target.value, section_id: '' }))}
-                                    className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                >
-                                    <option value="">{t('assignments.select')}</option>
-                                    {classesData?.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
+                            {isTeacher && classes.length === 1 ? (
+                                <div className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-900">
+                                    {classes[0].name}
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <select
+                                        value={form.class_id}
+                                        onChange={e => setForm(p => ({ ...p, class_id: e.target.value, section_id: '', subject_id: '' }))}
+                                        disabled={isTeacher && classes.length === 0}
+                                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                    >
+                                        <option value="">{t('assignments.select')}</option>
+                                        {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            )}
+                            {isTeacher && classes.length === 0 && (
+                                <p className="text-[11px] text-amber-600 font-medium">{t('assignments.noClassesAssigned', 'No classes assigned to you yet — ask the coordinator.')}</p>
+                            )}
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-sm font-bold text-slate-700">{t('assignments.section')}</label>
@@ -145,17 +193,31 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-sm font-bold text-slate-700">{t('assignments.subject', 'Subject')}</label>
-                            <div className="relative">
-                                <select
-                                    value={form.subject_id}
-                                    onChange={e => setForm(p => ({ ...p, subject_id: e.target.value }))}
-                                    className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                >
-                                    <option value="">{t('assignments.select')}</option>
-                                    {(subjects || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
+                            {isTeacher && !form.class_id ? (
+                                <div className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium text-slate-400">
+                                    {t('assignments.selectClassFirst', 'Select a class first')}
+                                </div>
+                            ) : isTeacher && subjects.length === 1 ? (
+                                <div className="px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-900">
+                                    {subjects[0].name}
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <select
+                                        value={form.subject_id}
+                                        onChange={e => setForm(p => ({ ...p, subject_id: e.target.value }))}
+                                        disabled={isTeacher && subjects.length === 0}
+                                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                    >
+                                        <option value="">{t('assignments.select')}</option>
+                                        {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            )}
+                            {isTeacher && !!form.class_id && subjects.length === 0 && (
+                                <p className="text-[11px] text-amber-600 font-medium">{t('assignments.noSubjectsAssigned', 'No subjects assigned to you in this class — ask the coordinator.')}</p>
+                            )}
                         </div>
                         {!isTeacher && (
                             <div className="space-y-1.5">

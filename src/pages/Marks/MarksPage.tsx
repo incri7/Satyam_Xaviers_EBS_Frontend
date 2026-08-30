@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -31,16 +31,54 @@ const MarksPage: React.FC = () => {
         queryFn: () => examsService.listExams({ academic_year: academicYear }),
     });
 
-    // Teachers only see (and can pick) their own subjects; staff see all
-    const { data: subjects } = useQuery({
-        queryKey: ['subjects', isTeacher ? 'my' : 'all'],
-        queryFn: () => (isTeacher ? academicsService.getMySubjects() : academicsService.getSubjects()),
+    // Teachers only see (and can pick among) classes and subjects they're
+    // actually assigned to teach (ClassSubject.teacher_id) — never the whole
+    // school's class/subject list. Staff/admin/coordinator see everything.
+    const { data: myClassSubjects } = useQuery({
+        queryKey: ['class-subjects', 'my'],
+        queryFn: () => academicsService.getMyClassSubjects(),
+        enabled: isTeacher,
     });
-
-    const { data: classesData } = useQuery({
+    const { data: allSubjects } = useQuery({
+        queryKey: ['subjects', 'all'],
+        queryFn: () => academicsService.getSubjects(),
+        enabled: !isTeacher,
+    });
+    const { data: allClassesData } = useQuery({
         queryKey: ['classes'],
         queryFn: () => academicsService.getClasses({ limit: 100 }),
+        enabled: !isTeacher,
     });
+
+    const myClasses = useMemo(() => {
+        const byId = new Map<number, string>();
+        (myClassSubjects || []).forEach(cs => byId.set(cs.class_id, cs.class_name));
+        return [...byId.entries()].map(([id, name]) => ({ id, name }));
+    }, [myClassSubjects]);
+
+    const classes = isTeacher ? myClasses : (allClassesData?.classes || []);
+
+    const subjects = isTeacher
+        ? (myClassSubjects || [])
+            .filter(cs => String(cs.class_id) === selectedClassId)
+            .map(cs => ({ id: cs.subject_id, name: cs.subject_name }))
+        : (allSubjects || []);
+
+    // Skip the picker when there's exactly one class (or one subject once a
+    // class is chosen) to choose from.
+    useEffect(() => {
+        if (isTeacher && myClasses.length === 1 && selectedClassId !== String(myClasses[0].id)) {
+            setSelectedClassId(String(myClasses[0].id));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isTeacher, myClassSubjects]);
+
+    useEffect(() => {
+        if (isTeacher && subjects.length === 1 && selectedSubjectId !== String(subjects[0].id)) {
+            setSelectedSubjectId(String(subjects[0].id));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isTeacher, myClassSubjects, selectedClassId]);
 
     const { data: sectionsData } = useQuery({
         queryKey: ['sections', selectedClassId],
@@ -249,20 +287,32 @@ const MarksPage: React.FC = () => {
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
-                        {/* Class dropdown */}
+                        {/* Class: teachers only pick among classes they're assigned to
+                            teach a subject in; auto-selected and locked when there's
+                            just one. Staff/admin see every class. */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('attendance.class')}</label>
-                            <div className="relative">
-                                <select
-                                    value={selectedClassId}
-                                    onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setMarksMap({}); }}
-                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                >
-                                    <option value="">{t('attendance.selectClass')}</option>
-                                    {classesData?.classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
+                            {isTeacher && classes.length === 1 ? (
+                                <div className="px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-900">
+                                    {classes[0].name}
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <select
+                                        value={selectedClassId}
+                                        onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setSelectedSubjectId(''); setMarksMap({}); }}
+                                        disabled={isTeacher && classes.length === 0}
+                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                    >
+                                        <option value="">{t('attendance.selectClass')}</option>
+                                        {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            )}
+                            {isTeacher && classes.length === 0 && (
+                                <p className="text-[11px] text-amber-600 font-medium">{t('marks.noClassesAssigned', 'No classes assigned to you yet — ask the coordinator.')}</p>
+                            )}
                         </div>
                         {/* Section dropdown */}
                         <div className="space-y-1.5">
@@ -280,22 +330,35 @@ const MarksPage: React.FC = () => {
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
-                        {/* Subject dropdown (teachers: own subjects only) */}
+                        {/* Subject: teachers only pick among subjects they're assigned
+                            to teach in the selected class; auto-selected and locked
+                            when there's just one. Staff/admin see every subject. */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.subject', 'Subject')}</label>
-                            <div className="relative">
-                                <select
-                                    value={selectedSubjectId}
-                                    onChange={e => { setSelectedSubjectId(e.target.value); setMarksMap({}); }}
-                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                >
-                                    <option value="">{t('marks.selectSubject', 'Select subject…')}</option>
-                                    {(subjects || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-                            {isTeacher && (subjects || []).length === 0 && (
-                                <p className="text-[11px] text-amber-600 font-medium">{t('marks.noSubjectsAssigned', 'No subjects assigned to you yet — ask the coordinator.')}</p>
+                            {isTeacher && !selectedClassId ? (
+                                <div className="px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium text-slate-400">
+                                    {t('marks.selectClassFirst', 'Select a class first')}
+                                </div>
+                            ) : isTeacher && subjects.length === 1 ? (
+                                <div className="px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-900">
+                                    {subjects[0].name}
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <select
+                                        value={selectedSubjectId}
+                                        onChange={e => { setSelectedSubjectId(e.target.value); setMarksMap({}); }}
+                                        disabled={isTeacher && subjects.length === 0}
+                                        className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                    >
+                                        <option value="">{t('marks.selectSubject', 'Select subject…')}</option>
+                                        {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            )}
+                            {isTeacher && !!selectedClassId && subjects.length === 0 && (
+                                <p className="text-[11px] text-amber-600 font-medium">{t('marks.noSubjectsAssigned', 'No subjects assigned to you in this class — ask the coordinator.')}</p>
                             )}
                         </div>
                     </div>

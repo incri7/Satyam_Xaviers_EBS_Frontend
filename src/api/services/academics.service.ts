@@ -145,6 +145,12 @@ export const academicsService = {
         const response = await api.get<ClassSubjectRow[]>(`academics/classes/${classId}/subjects`);
         return response.data;
     },
+    // Every class+subject the logged-in teacher is assigned to teach, across
+    // the whole school — drives marks-entry class AND subject pickers.
+    getMyClassSubjects: async (): Promise<MyClassSubjectRow[]> => {
+        const response = await api.get<MyClassSubjectRow[]>('academics/my-class-subjects');
+        return response.data;
+    },
     setClassSubjects: async (classId: number, subjectIds: number[]): Promise<ClassSubjectRow[]> => {
         const response = await api.put<ClassSubjectRow[]>(`academics/classes/${classId}/subjects`, { subject_ids: subjectIds });
         return response.data;
@@ -182,6 +188,14 @@ export interface ClassSubjectRow {
     subject_name: string;
     teacher_id: number | null;
     teacher_name: string | null;
+}
+
+export interface MyClassSubjectRow {
+    class_subject_id: number;
+    class_id: number;
+    class_name: string;
+    subject_id: number;
+    subject_name: string;
 }
 
 export interface ClassDetail {
