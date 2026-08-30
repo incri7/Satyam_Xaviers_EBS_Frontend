@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Bell, Search, Plus, Calendar, User,
@@ -8,11 +8,14 @@ import {
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
 import { noticesService } from '../api/services/notices.service';
+import { academicsService } from '../api/services/academics.service';
+import { peopleService } from '../api/services/people.service';
 import { requestFCMToken, deviceService } from '../api/services/device.service';
 import { CreateNoticeModal } from '../components/communication/CreateNoticeModal';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
+import type { Class, Section } from '../types/academic';
 
 const CommunicationPage: React.FC = () => {
     const { t } = useTranslation();
@@ -26,6 +29,9 @@ const CommunicationPage: React.FC = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
     const [notifStatus, setNotifStatus] = useState<'idle' | 'enabling' | 'enabled' | 'unavailable'>('idle');
+    const [classNames, setClassNames] = useState<Record<number, string>>({});
+    const [sectionNames, setSectionNames] = useState<Record<number, string>>({});
+    const [studentNames, setStudentNames] = useState<Record<number, string>>({});
 
     const handleDelete = async (notice: Notice) => {
         if (!window.confirm(`Delete notice "${notice.title}"?`)) return;
@@ -70,6 +76,34 @@ const CommunicationPage: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        const classIds = [...new Set(notices.filter(n => n.scope === 'class_section' && n.class_id).map(n => n.class_id!))];
+        const sectionIds = [...new Set(notices.filter(n => n.scope === 'class_section' && n.section_id).map(n => n.section_id!))];
+        const studentIds = [...new Set(notices.filter(n => n.scope === 'student' && n.student_id).map(n => n.student_id!))];
+
+        if (classIds.length && Object.keys(classNames).length === 0) {
+            academicsService.getClasses({ limit: 100 }).then(res => {
+                setClassNames(Object.fromEntries(res.classes.map((c: Class) => [c.id, c.name])));
+            }).catch(() => {});
+        }
+        if (sectionIds.length && Object.keys(sectionNames).length === 0) {
+            academicsService.getSections({ limit: 100 }).then(res => {
+                setSectionNames(Object.fromEntries(res.sections.map((s: Section) => [s.id, s.name])));
+            }).catch(() => {});
+        }
+        const missingStudentIds = studentIds.filter(id => !(id in studentNames));
+        if (missingStudentIds.length) {
+            Promise.all(missingStudentIds.map(id => peopleService.getStudent(id).catch(() => null))).then(results => {
+                const found: Record<number, string> = {};
+                results.forEach((s: { first_name: string; last_name: string } | null, i) => {
+                    if (s) found[missingStudentIds[i]] = `${s.first_name} ${s.last_name}`;
+                });
+                if (Object.keys(found).length) setStudentNames(prev => ({ ...prev, ...found }));
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [notices]);
+
     const filteredNotices = notices.filter((n: Notice) =>
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.body.toLowerCase().includes(searchQuery.toLowerCase())
@@ -92,6 +126,7 @@ const CommunicationPage: React.FC = () => {
                     notice={editingNotice}
                     onClose={() => setEditingNotice(null)}
                     onSaved={() => { setEditingNotice(null); fetchNotices(); }}
+                    initialStudentLabel={editingNotice.student_id ? studentNames[editingNotice.student_id] : undefined}
                 />
             )}
             {/* Header */}
@@ -191,6 +226,9 @@ const CommunicationPage: React.FC = () => {
                                     canManage={canCreate}
                                     onEdit={() => setEditingNotice(notice)}
                                     onDelete={() => handleDelete(notice)}
+                                    targetClassName={notice.class_id ? classNames[notice.class_id] : undefined}
+                                    targetSectionName={notice.section_id ? sectionNames[notice.section_id] : undefined}
+                                    targetStudentName={notice.student_id ? studentNames[notice.student_id] : undefined}
                                 />
                             ))}
                         </div>
@@ -214,11 +252,23 @@ const CommunicationPage: React.FC = () => {
     );
 };
 
+const EDIT_NOTICE_ROLES = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'principal', label: 'Principal' },
+    { value: 'accountant', label: 'Accountant' },
+    { value: 'coordinator', label: 'Coordinator' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'parent', label: 'Parent' },
+    { value: 'student', label: 'Student' },
+    { value: 'staff', label: 'Staff' },
+];
+
 const EditNoticeModal: React.FC<{
     notice: Notice;
     onClose: () => void;
     onSaved: () => void;
-}> = ({ notice, onClose, onSaved }) => {
+    initialStudentLabel?: string;
+}> = ({ notice, onClose, onSaved, initialStudentLabel }) => {
     const [title, setTitle] = useState(notice.title);
     const [body, setBody] = useState(notice.body);
     const [priority, setPriority] = useState<NoticePriority>(notice.priority);
@@ -226,10 +276,64 @@ const EditNoticeModal: React.FC<{
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [scope, setScope] = useState<NoticeAudienceScope>(notice.scope);
+    const [role, setRole] = useState(notice.role || '');
+    const [classId, setClassId] = useState<number | ''>(notice.class_id ?? '');
+    const [sectionId, setSectionId] = useState<number | ''>(notice.section_id ?? '');
+    const [studentId, setStudentId] = useState<number | ''>(notice.student_id ?? '');
+    const [classes, setClasses] = useState<Class[]>([]);
+    const [sections, setSections] = useState<Section[]>([]);
+    const [studentQuery, setStudentQuery] = useState(initialStudentLabel || (notice.student_id ? `#${notice.student_id}` : ''));
+    const [studentResults, setStudentResults] = useState<{ id: number; first_name: string; last_name: string; admission_no?: string }[]>([]);
+    const studentSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        academicsService.getClasses({ limit: 100 }).then(res => setClasses(res.classes)).catch(() => setClasses([]));
+    }, []);
+
+    useEffect(() => {
+        if (scope !== 'class_section' || !classId) {
+            setSections([]);
+            return;
+        }
+        academicsService.getSections({ class_id: Number(classId), limit: 100 }).then(res => setSections(res.sections)).catch(() => setSections([]));
+    }, [scope, classId]);
+
+    const handleScopeChange = (next: NoticeAudienceScope) => {
+        setScope(next);
+        setRole('');
+        setClassId('');
+        setSectionId('');
+        setStudentId('');
+        setStudentQuery('');
+        setStudentResults([]);
+    };
+
+    const handleStudentSearch = (query: string) => {
+        setStudentQuery(query);
+        setStudentId('');
+        if (studentSearchTimer.current) clearTimeout(studentSearchTimer.current);
+        if (query.trim().length < 2) {
+            setStudentResults([]);
+            return;
+        }
+        studentSearchTimer.current = setTimeout(async () => {
+            try {
+                const res = await peopleService.getStudents({ search: query.trim(), limit: 8 });
+                setStudentResults(res.students || []);
+            } catch {
+                setStudentResults([]);
+            }
+        }, 300);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return setError('Title is required');
         if (!body.trim()) return setError('Body is required');
+        if (scope === 'role' && !role) return setError('Select which role this notice is for');
+        if (scope === 'class_section' && !classId) return setError('Select which class this notice is for');
+        if (scope === 'student' && !studentId) return setError('Search and select a student');
         setSaving(true);
         setError(null);
         try {
@@ -238,6 +342,11 @@ const EditNoticeModal: React.FC<{
                 body: body.trim(),
                 priority,
                 valid_to: validTo || undefined,
+                scope,
+                role: scope === 'role' ? role : undefined,
+                class_id: scope === 'class_section' ? Number(classId) : undefined,
+                section_id: scope === 'class_section' && sectionId ? Number(sectionId) : undefined,
+                student_id: scope === 'student' ? Number(studentId) : undefined,
             });
             onSaved();
         } catch (err: any) {
@@ -250,7 +359,7 @@ const EditNoticeModal: React.FC<{
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl p-8 space-y-5">
+            <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-8 space-y-5">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-bold text-slate-900">Edit Notice</h2>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
@@ -276,6 +385,90 @@ const EditNoticeModal: React.FC<{
                             className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20 resize-none"
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Audience</label>
+                        <select
+                            value={scope}
+                            onChange={(e) => handleScopeChange(e.target.value as NoticeAudienceScope)}
+                            className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                        >
+                            <option value="all">Everyone</option>
+                            <option value="role">By Role</option>
+                            <option value="class_section">Class/Section</option>
+                            <option value="student">Specific Student</option>
+                        </select>
+                    </div>
+
+                    {scope === 'role' && (
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Which Role</label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                            >
+                                <option value="">Select a role...</option>
+                                {EDIT_NOTICE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {scope === 'class_section' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Class</label>
+                                <select
+                                    value={classId}
+                                    onChange={(e) => { setClassId(e.target.value ? Number(e.target.value) : ''); setSectionId(''); }}
+                                    className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                                >
+                                    <option value="">Select class...</option>
+                                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Section (optional)</label>
+                                <select
+                                    value={sectionId}
+                                    onChange={(e) => setSectionId(e.target.value ? Number(e.target.value) : '')}
+                                    disabled={!classId}
+                                    className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+                                >
+                                    <option value="">Whole class</option>
+                                    {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {scope === 'student' && (
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Which Student</label>
+                            <input
+                                type="text"
+                                value={studentQuery}
+                                onChange={(e) => handleStudentSearch(e.target.value)}
+                                placeholder="Search student by name or admission no..."
+                                className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
+                            />
+                            {studentResults.length > 0 && (
+                                <div className="mt-2 bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-50">
+                                    {studentResults.map(s => (
+                                        <button
+                                            type="button"
+                                            key={s.id}
+                                            onClick={() => { setStudentId(s.id); setStudentQuery(`${s.first_name} ${s.last_name}`); setStudentResults([]); }}
+                                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                        >
+                                            <span>{s.first_name} {s.last_name}</span>
+                                            {s.admission_no && <span className="text-xs text-slate-400">{s.admission_no}</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-2">Priority</label>
@@ -336,7 +529,10 @@ const NoticeCard: React.FC<{
     canManage: boolean;
     onEdit: () => void;
     onDelete: () => void;
-}> = ({ notice, canManage, onEdit, onDelete }) => {
+    targetClassName?: string;
+    targetSectionName?: string;
+    targetStudentName?: string;
+}> = ({ notice, canManage, onEdit, onDelete, targetClassName, targetSectionName, targetStudentName }) => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
 
@@ -387,7 +583,14 @@ const NoticeCard: React.FC<{
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-100">
                                 {scopeIcons[notice.scope]}
-                                {notice.scope === 'role' ? notice.role : notice.scope}
+                                {notice.scope === 'role' && (notice.role || 'Role')}
+                                {notice.scope === 'all' && 'Everyone'}
+                                {notice.scope === 'class_section' && (
+                                    targetClassName
+                                        ? `${targetClassName}${targetSectionName ? ' - ' + targetSectionName : ''}`
+                                        : 'Class/Section'
+                                )}
+                                {notice.scope === 'student' && (targetStudentName || 'Student')}
                             </div>
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 leading-tight group-hover:text-brand transition-colors">{notice.title}</h3>
@@ -405,7 +608,7 @@ const NoticeCard: React.FC<{
                             </div>
                             <div className="flex items-center gap-2">
                                 <User className="w-3.5 h-3.5" />
-                                {t('communication.postedBy')}{notice.posted_by_user_id}
+                                {t('communication.postedBy')}{notice.posted_by_name || `#${notice.posted_by_user_id}`}
                             </div>
                         </div>
 

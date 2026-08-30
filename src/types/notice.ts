@@ -12,6 +12,7 @@ export interface Notice {
     section_id?: number;
     student_id?: number;
     posted_by_user_id: number;
+    posted_by_name?: string;
     valid_from?: string;
     valid_to?: string;
     created_at: string;

@@ -1,8 +1,29 @@
-import React, { useState } from 'react';
-import { X, CheckCircle2, Megaphone, AlertCircle, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, CheckCircle2, Megaphone, AlertCircle, ChevronDown, Search } from 'lucide-react';
 import { noticesService } from '../../api/services/notices.service';
+import { academicsService } from '../../api/services/academics.service';
+import { peopleService } from '../../api/services/people.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { NoticeAudienceScope, NoticePriority } from '../../types/notice';
+import type { Class, Section } from '../../types/academic';
+
+const NOTICE_ROLES = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'principal', label: 'Principal' },
+    { value: 'accountant', label: 'Accountant' },
+    { value: 'coordinator', label: 'Coordinator' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'parent', label: 'Parent' },
+    { value: 'student', label: 'Student' },
+    { value: 'staff', label: 'Staff' },
+];
+
+interface StudentOption {
+    id: number;
+    first_name: string;
+    last_name: string;
+    admission_no?: string;
+}
 
 interface CreateNoticeModalProps {
     isOpen: boolean;
@@ -10,28 +31,100 @@ interface CreateNoticeModalProps {
     onCreated: () => void;
 }
 
+const initialFormData = {
+    title: '',
+    body: '',
+    scope: 'all' as NoticeAudienceScope,
+    priority: 'medium' as NoticePriority,
+    valid_to: '',
+    role: '',
+    class_id: '' as number | '',
+    section_id: '' as number | '',
+    student_id: '' as number | '',
+};
+
 export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({ isOpen, onClose, onCreated }) => {
     const { user } = useAuthStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [formData, setFormData] = useState({
-        title: '',
-        body: '',
-        scope: 'all' as NoticeAudienceScope,
-        priority: 'medium' as NoticePriority,
-        valid_to: '',
-    });
+    const [formData, setFormData] = useState(initialFormData);
+
+    const [classes, setClasses] = useState<Class[]>([]);
+    const [sections, setSections] = useState<Section[]>([]);
+
+    const [studentQuery, setStudentQuery] = useState('');
+    const [studentResults, setStudentResults] = useState<StudentOption[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<StudentOption | null>(null);
+    const [studentSearching, setStudentSearching] = useState(false);
+    const studentSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        academicsService.getClasses({ limit: 100 }).then(res => setClasses(res.classes)).catch(() => setClasses([]));
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (formData.scope !== 'class_section' || !formData.class_id) {
+            setSections([]);
+            return;
+        }
+        academicsService.getSections({ class_id: Number(formData.class_id), limit: 100 })
+            .then(res => setSections(res.sections))
+            .catch(() => setSections([]));
+    }, [formData.scope, formData.class_id]);
 
     const handleClose = () => {
-        setFormData({ title: '', body: '', scope: 'all', priority: 'medium', valid_to: '' });
+        setFormData(initialFormData);
+        setStudentQuery('');
+        setStudentResults([]);
+        setSelectedStudent(null);
         setError(null);
         onClose();
+    };
+
+    const handleScopeChange = (scope: NoticeAudienceScope) => {
+        setFormData({ ...formData, scope, role: '', class_id: '', section_id: '', student_id: '' });
+        setStudentQuery('');
+        setStudentResults([]);
+        setSelectedStudent(null);
+    };
+
+    const handleStudentSearch = (query: string) => {
+        setStudentQuery(query);
+        setSelectedStudent(null);
+        setFormData(prev => ({ ...prev, student_id: '' }));
+        if (studentSearchTimer.current) clearTimeout(studentSearchTimer.current);
+        if (query.trim().length < 2) {
+            setStudentResults([]);
+            return;
+        }
+        studentSearchTimer.current = setTimeout(async () => {
+            setStudentSearching(true);
+            try {
+                const res = await peopleService.getStudents({ search: query.trim(), limit: 8 });
+                setStudentResults(res.students || []);
+            } catch {
+                setStudentResults([]);
+            } finally {
+                setStudentSearching(false);
+            }
+        }, 300);
+    };
+
+    const pickStudent = (s: StudentOption) => {
+        setSelectedStudent(s);
+        setFormData(prev => ({ ...prev, student_id: s.id }));
+        setStudentResults([]);
+        setStudentQuery(`${s.first_name} ${s.last_name}`);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.title.trim()) return setError('Title is required');
         if (!formData.body.trim()) return setError('Body is required');
+        if (formData.scope === 'role' && !formData.role) return setError('Select which role this notice is for');
+        if (formData.scope === 'class_section' && !formData.class_id) return setError('Select which class this notice is for');
+        if (formData.scope === 'student' && !formData.student_id) return setError('Search and select a student');
 
         setIsSubmitting(true);
         setError(null);
@@ -43,6 +136,10 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({ isOpen, on
                 priority: formData.priority,
                 posted_by_user_id: user?.id,
                 valid_to: formData.valid_to || undefined,
+                role: formData.scope === 'role' ? formData.role : undefined,
+                class_id: formData.scope === 'class_section' ? Number(formData.class_id) : undefined,
+                section_id: formData.scope === 'class_section' && formData.section_id ? Number(formData.section_id) : undefined,
+                student_id: formData.scope === 'student' ? Number(formData.student_id) : undefined,
             });
             onCreated();
             handleClose();
@@ -114,7 +211,7 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({ isOpen, on
                             <div className="relative">
                                 <select
                                     value={formData.scope}
-                                    onChange={(e) => setFormData({ ...formData, scope: e.target.value as NoticeAudienceScope })}
+                                    onChange={(e) => handleScopeChange(e.target.value as NoticeAudienceScope)}
                                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
                                 >
                                     <option value="all">Everyone</option>
@@ -142,6 +239,95 @@ export const CreateNoticeModal: React.FC<CreateNoticeModalProps> = ({ isOpen, on
                             </div>
                         </div>
                     </div>
+
+                    {formData.scope === 'role' && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 ml-1">Which Role</label>
+                            <div className="relative">
+                                <select
+                                    value={formData.role}
+                                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
+                                >
+                                    <option value="">Select a role...</option>
+                                    {NOTICE_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.scope === 'class_section' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700 ml-1">Class</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.class_id}
+                                        onChange={(e) => setFormData({ ...formData, class_id: e.target.value ? Number(e.target.value) : '', section_id: '' })}
+                                        className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
+                                    >
+                                        <option value="">Select class...</option>
+                                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700 ml-1">Section (optional)</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.section_id}
+                                        onChange={(e) => setFormData({ ...formData, section_id: e.target.value ? Number(e.target.value) : '' })}
+                                        disabled={!formData.class_id}
+                                        className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none disabled:opacity-50"
+                                    >
+                                        <option value="">Whole class</option>
+                                        {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {formData.scope === 'student' && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 ml-1">Which Student</label>
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={studentQuery}
+                                    onChange={(e) => handleStudentSearch(e.target.value)}
+                                    placeholder="Search student by name or admission no..."
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
+                                />
+                            </div>
+                            {studentSearching && <p className="text-xs text-slate-400 ml-1">Searching...</p>}
+                            {studentResults.length > 0 && (
+                                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-slate-50">
+                                    {studentResults.map(s => (
+                                        <button
+                                            type="button"
+                                            key={s.id}
+                                            onClick={() => pickStudent(s)}
+                                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                                        >
+                                            <span>{s.first_name} {s.last_name}</span>
+                                            {s.admission_no && <span className="text-xs text-slate-400">{s.admission_no}</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {selectedStudent && (
+                                <p className="text-xs font-bold text-brand ml-1">
+                                    Selected: {selectedStudent.first_name} {selectedStudent.last_name}
+                                    {selectedStudent.admission_no ? ` (${selectedStudent.admission_no})` : ''}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700 ml-1">Valid Until (optional)</label>
