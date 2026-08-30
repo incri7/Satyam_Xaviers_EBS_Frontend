@@ -352,7 +352,10 @@
       "late": "ढिलो",
       "halfDay": "आधा दिन",
       "notMarked": "चिन्ह लगाइएको छैन",
-      "myChildren": "मेरा बच्चाहरू"
+      "myChildren": "मेरा बच्चाहरू",
+      "due": "बाँकी",
+      "feeReminder": "शुल्क सम्झना",
+      "feeReminderTotal": "तपाईंका बच्चाहरूको कुल रु {{amount}} बाँकी छ"
     },
     "student": {
       "presentToday": "आज उपस्थित",

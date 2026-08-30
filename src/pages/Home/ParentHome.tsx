@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
@@ -8,11 +8,11 @@ import { parentService, type ChildSummary } from '../../api/services/parent.serv
 import { useAuthStore } from '../../store/useAuthStore';
 import {
     CheckCircle2, XCircle, Clock, AlertCircle, ChevronRight,
-    BookOpen, CreditCard, FileText, Calendar, Loader2
+    BookOpen, CreditCard, FileText, Calendar, Loader2, BellRing
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
+const ChildCard: React.FC<{ child: ChildSummary; feeDue?: number }> = ({ child, feeDue }) => {
     const { t } = useTranslation();
 
     const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
@@ -78,13 +78,21 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
 
                 <Link
                     to={`/parent/child/${child.student_id}/fees`}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-brand/5 hover:text-brand transition-colors group"
+                    className={cn(
+                        "flex items-center justify-between p-3 rounded-xl transition-colors group",
+                        feeDue && feeDue > 0
+                            ? "bg-red-50 hover:bg-red-100 text-red-700"
+                            : "bg-slate-50 hover:bg-brand/5 hover:text-brand"
+                    )}
                 >
-                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 group-hover:text-brand">
+                    <div className={cn(
+                        "flex items-center gap-2 text-sm font-semibold",
+                        feeDue && feeDue > 0 ? "text-red-700" : "text-slate-700 group-hover:text-brand"
+                    )}>
                         <CreditCard className="w-4 h-4" />
-                        {t('home.parent.fees')}
+                        {feeDue && feeDue > 0 ? `Rs ${feeDue.toLocaleString()} ${t('home.parent.due')}` : t('home.parent.fees')}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-brand" />
+                    <ChevronRight className={cn("w-4 h-4", feeDue && feeDue > 0 ? "text-red-400" : "text-slate-400 group-hover:text-brand")} />
                 </Link>
 
                 <Link
@@ -115,6 +123,25 @@ const ParentHome: React.FC = () => {
 
     const children = data?.children ?? [];
     const firstName = user?.firstName || 'Parent';
+
+    // Fee reminder — fetched per child (no bulk endpoint), shown as a banner
+    // whenever any child has an outstanding balance, so it surfaces the
+    // moment a parent opens the app rather than waiting to be discovered on
+    // each child's own Fees page.
+    const feeQueries = useQueries({
+        queries: children.map(child => ({
+            queryKey: ['parent', 'child-fees', child.student_id],
+            queryFn: () => parentService.getChildFees(child.student_id),
+            enabled: children.length > 0,
+        })),
+    });
+    const feeDueByStudent = new Map<number, number>();
+    children.forEach((child, i) => {
+        const due = Number(feeQueries[i]?.data?.total_due ?? 0);
+        if (due > 0) feeDueByStudent.set(child.student_id, due);
+    });
+    const childrenWithDues = children.filter(c => feeDueByStudent.has(c.student_id));
+    const totalDue = Array.from(feeDueByStudent.values()).reduce((sum, v) => sum + v, 0);
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -147,9 +174,40 @@ const ParentHome: React.FC = () => {
                         </div>
                     )}
 
+                    {childrenWithDues.length > 0 && (
+                        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-start gap-4">
+                            <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center text-red-600 shrink-0">
+                                <BellRing className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h2 className="font-bold text-red-800">{t('home.parent.feeReminder')}</h2>
+                                <p className="text-sm text-red-600 font-medium mt-0.5">
+                                    {t('home.parent.feeReminderTotal', { amount: totalDue.toLocaleString() })}
+                                </p>
+                                <div className="mt-3 space-y-1.5">
+                                    {childrenWithDues.map(child => (
+                                        <Link
+                                            key={child.student_id}
+                                            to={`/parent/child/${child.student_id}/fees`}
+                                            className="flex items-center justify-between bg-white/70 hover:bg-white rounded-xl px-3 py-2 transition-colors group"
+                                        >
+                                            <span className="text-sm font-semibold text-slate-700">
+                                                {[child.first_name, child.last_name].filter(Boolean).join(' ')}
+                                            </span>
+                                            <span className="flex items-center gap-1 text-sm font-bold text-red-700">
+                                                Rs {feeDueByStudent.get(child.student_id)!.toLocaleString()}
+                                                <ChevronRight className="w-4 h-4 text-red-400 group-hover:translate-x-0.5 transition-transform" />
+                                            </span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         {children.map(child => (
-                            <ChildCard key={child.student_id} child={child} />
+                            <ChildCard key={child.student_id} child={child} feeDue={feeDueByStudent.get(child.student_id)} />
                         ))}
                     </div>
                 </div>

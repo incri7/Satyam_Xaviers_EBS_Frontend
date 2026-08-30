@@ -352,7 +352,10 @@
       "late": "Late",
       "halfDay": "Half Day",
       "notMarked": "Not Marked",
-      "myChildren": "My Children"
+      "myChildren": "My Children",
+      "due": "due",
+      "feeReminder": "Fee Reminder",
+      "feeReminderTotal": "Rs {{amount}} outstanding across your children"
     },
     "student": {
       "presentToday": "Present Today",
