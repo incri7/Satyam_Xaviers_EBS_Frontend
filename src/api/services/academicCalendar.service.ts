@@ -100,7 +100,7 @@ export const academicCalendarService = {
         return res.data;
     },
 
-    getCurrentYear: async (): Promise<AcademicYear> => {
+    getCurrentYear: async (): Promise<AcademicYear | null> => {
         const res = await api.get('academic-calendar/years/current');
         return res.data;
     },
