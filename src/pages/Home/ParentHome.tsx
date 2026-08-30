@@ -31,7 +31,7 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
             status ? status.bg : "border-slate-200"
         )}>
             <Link
-                to={`/parent/child/${child.student_id}`}
+                to={`/parent/child/${child.student_id}/dashboard`}
                 className="flex items-start justify-between mb-4 -m-1 p-1 rounded-xl hover:bg-slate-50/80 transition-colors group/name"
             >
                 <div>
@@ -55,7 +55,7 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
 
             <div className="grid grid-cols-2 gap-2">
                 <Link
-                    to={`/parent/child/${child.student_id}?tab=attendance`}
+                    to={`/parent/child/${child.student_id}/attendance`}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-brand/5 hover:text-brand transition-colors group"
                 >
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 group-hover:text-brand">
@@ -66,7 +66,7 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
                 </Link>
 
                 <Link
-                    to={`/parent/child/${child.student_id}?tab=marks`}
+                    to={`/parent/child/${child.student_id}/marks`}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-brand/5 hover:text-brand transition-colors group"
                 >
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 group-hover:text-brand">
@@ -77,7 +77,7 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
                 </Link>
 
                 <Link
-                    to={`/parent/child/${child.student_id}?tab=fees`}
+                    to={`/parent/child/${child.student_id}/fees`}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-brand/5 hover:text-brand transition-colors group"
                 >
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 group-hover:text-brand">
@@ -88,7 +88,7 @@ const ChildCard: React.FC<{ child: ChildSummary }> = ({ child }) => {
                 </Link>
 
                 <Link
-                    to={`/parent/child/${child.student_id}?tab=leave`}
+                    to={`/parent/child/${child.student_id}/leave`}
                     className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-brand/5 hover:text-brand transition-colors group"
                 >
                     <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 group-hover:text-brand">
