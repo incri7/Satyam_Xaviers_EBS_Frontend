@@ -57,7 +57,12 @@ export const StaffProfileDrawer: React.FC<Props> = ({ staffId, onClose }) => {
                                         <Users className="w-8 h-8" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-900">{data.first_name} {data.last_name || ''}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-xl font-bold text-slate-900">{data.first_name} {data.last_name || ''}</h3>
+                                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full ${data.is_active === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                {data.is_active === false ? 'Inactive' : 'Active'}
+                                            </span>
+                                        </div>
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                                             {data.designation || 'Staff'}{data.staff_code ? ` • ${data.staff_code}` : ''}
                                         </p>

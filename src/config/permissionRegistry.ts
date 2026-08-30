@@ -5,7 +5,10 @@ export interface ComponentPermission {
     action: PermissionAction;
 }
 
-export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
+// NOTE: deliberately not annotated `Record<string, ...>`. The `satisfies` form
+// keeps the keys as literals so `ComponentId` is a real union — an unregistered
+// or misspelled id becomes a compile error instead of a silent runtime denial.
+export const PERMISSION_REGISTRY = {
     // Dashboard Components
     'dashboard_banner': [
         { resource: 'parents', action: 'create' }
@@ -41,6 +44,57 @@ export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
     ],
     'finance_summary': [
         { resource: 'finances', action: 'read' }
+    ],
+
+    // Finances — fee structures & discounts both sit on the `finances` resource
+    'finances_create': [
+        { resource: 'finances', action: 'create' }
+    ],
+    'finances_update': [
+        { resource: 'finances', action: 'update' }
+    ],
+    'finances_delete': [
+        { resource: 'finances', action: 'delete' }
+    ],
+    // FinancesPage builds this id from its `discounts` tab; discounts are
+    // governed by the finances resource, not a resource of their own.
+    'discounts_create': [
+        { resource: 'finances', action: 'create' }
+    ],
+    'payments_create': [
+        { resource: 'payments', action: 'create' }
+    ],
+    'expenses_create': [
+        { resource: 'expenses', action: 'create' }
+    ],
+    'expenses_update': [
+        { resource: 'expenses', action: 'update' }
+    ],
+    'expenses_delete': [
+        { resource: 'expenses', action: 'delete' }
+    ],
+
+    // People
+    'users_create': [
+        { resource: 'users', action: 'create' }
+    ],
+    'users_delete': [
+        { resource: 'users', action: 'delete' }
+    ],
+    'parents_update': [
+        { resource: 'parents', action: 'update' }
+    ],
+    'teachers_update': [
+        { resource: 'teachers', action: 'update' }
+    ],
+    'staff_create': [
+        { resource: 'staff', action: 'create' }
+    ],
+    'staff_update': [
+        { resource: 'staff', action: 'update' }
+    ],
+    'staff_delete': [
+        { resource: 'staff', action: 'delete' }
     ],
 
     // People
@@ -81,6 +135,6 @@ export const PERMISSION_REGISTRY: Record<string, ComponentPermission[]> = {
     ],
 
     // Add more component IDs here as you build the app...
-};
+} satisfies Record<string, ComponentPermission[]>;
 
 export type ComponentId = keyof typeof PERMISSION_REGISTRY;

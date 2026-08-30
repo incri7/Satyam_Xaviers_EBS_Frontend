@@ -72,6 +72,8 @@ export interface Staff {
     city?: string;
     state?: string;
     pincode?: string;
+    phone?: string;
+    is_active: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -195,6 +197,25 @@ export interface StaffUpdate {
     city?: string;
     state?: string;
     pincode?: string;
+    phone?: string;
+    is_active?: boolean;
+}
+
+export interface StaffCreate {
+    first_name: string;
+    middle_name?: string;
+    last_name?: string;
+    staff_code?: string;
+    join_date?: string;
+    designation?: string;
+    dob?: string;
+    gender?: string;
+    blood_group?: string;
+    address_line?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    phone?: string;
 }
 
 export interface UserUpdate {

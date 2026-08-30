@@ -106,6 +106,22 @@ const PeoplePage: React.FC = () => {
                                     </button>
                                 </AccessControl>
                             )}
+
+                            {activeTab === 'teachers' && (
+                                // Teachers need a login (they use the app for attendance/marks/etc.),
+                                // so "adding" one still goes through the same user-registration flow
+                                // as the Users tab — just pre-set to the teacher role and reachable
+                                // from here too, since that isn't obvious from this tab alone.
+                                <AccessControl id="users_create">
+                                    <button
+                                        onClick={() => setIsWorkforceModalOpen(true)}
+                                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
+                                    >
+                                        <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+                                        <span className="truncate">{t('people.addTeacher')}</span>
+                                    </button>
+                                </AccessControl>
+                            )}
                         </div>
                     </div>
 
@@ -176,6 +192,7 @@ const PeoplePage: React.FC = () => {
             <WorkforceRegistrationModal
                 isOpen={isWorkforceModalOpen}
                 onClose={() => setIsWorkforceModalOpen(false)}
+                initialRole={activeTab === 'teachers' ? 'teacher' : undefined}
             />
         </div>
     );

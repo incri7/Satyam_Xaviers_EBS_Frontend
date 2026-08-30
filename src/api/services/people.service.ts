@@ -1,6 +1,6 @@
 import { api } from '../axios';
 import type {
-    ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, UserUpdate,
+    ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, StaffCreate, UserUpdate,
     UnifiedRegistrationCreate, UnifiedRegistrationResponse,
     UserRegistrationCreate, UserRegistrationResponse
 } from '../../types/people';
@@ -95,8 +95,16 @@ export const peopleService = {
         const response = await api.get(`people/staff/${id}/profile`);
         return response.data;
     },
+    createStaff: async (data: StaffCreate) => {
+        const response = await api.post('people/staff', data);
+        return response.data;
+    },
     updateStaff: async (id: number, data: StaffUpdate) => {
         const response = await api.put(`people/staff/${id}`, data);
+        return response.data;
+    },
+    setStaffActive: async (id: number, isActive: boolean) => {
+        const response = await api.patch(`people/staff/${id}/status`, null, { params: { is_active: isActive } });
         return response.data;
     },
 
@@ -145,6 +153,7 @@ export interface StaffProfile {
     city?: string | null;
     state?: string | null;
     address_line?: string | null;
+    is_active?: boolean;
     email?: string | null;
     phone?: string | null;
 }
