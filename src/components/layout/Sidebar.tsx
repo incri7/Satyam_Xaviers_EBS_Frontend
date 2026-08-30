@@ -10,7 +10,9 @@ import {
     Shield,
     ClipboardCheck,
     BookMarked,
-    ClipboardList
+    ClipboardList,
+    Umbrella,
+    CalendarClock
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useQuery } from '@tanstack/react-query';
@@ -42,6 +44,12 @@ const menuItems: MenuItem[] = [
         labelKey: 'nav.academics',
         href: '/academics',
         permission: { resource: 'classes', action: 'read' },
+        roles: ['admin', 'principal', 'coordinator'],
+    },
+    {
+        icon: CalendarClock,
+        labelKey: 'nav.timetable',
+        href: '/timetable',
         roles: ['admin', 'principal', 'coordinator'],
     },
     {
@@ -78,6 +86,12 @@ const menuItems: MenuItem[] = [
         href: '/assignments',
         permission: { resource: 'assignments', action: 'read' },
         roles: ['admin', 'principal', 'coordinator', 'teacher', 'student'],
+    },
+    {
+        icon: Umbrella,
+        labelKey: 'nav.leave',
+        href: '/leave',
+        roles: ['teacher', 'staff', 'coordinator', 'principal', 'accountant'],
     },
     {
         icon: MessageSquare,

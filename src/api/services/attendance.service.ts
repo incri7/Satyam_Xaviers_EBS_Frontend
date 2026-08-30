@@ -74,6 +74,23 @@ export const attendanceService = {
         return response.data;
     },
 
+    getAbsentToday: async (): Promise<{
+        date: string;
+        count: number;
+        any_marked: boolean;
+        students: {
+            student_id: number;
+            student_name: string;
+            class_id: number | null;
+            class_name: string | null;
+            section_id: number | null;
+            section_name: string | null;
+        }[];
+    }> => {
+        const response = await api.get('attendance/student-attendance/absent-today');
+        return response.data;
+    },
+
     getAttendance: async (id: number): Promise<AttendanceEntry> => {
         const response = await api.get<AttendanceEntry>(`attendance/student-attendance/${id}`);
         return response.data;

@@ -7,11 +7,13 @@
   "nav": {
     "dashboard": "Dashboard",
     "academics": "Academics",
+    "timetable": "Timetable",
     "people": "People Management",
     "finances": "Finances",
     "attendance": "Attendance",
     "marks": "Marks",
     "assignments": "Assignments",
+    "leave": "Leave",
     "communication": "Communication",
     "reports": "Reports",
     "settings": "Settings",
@@ -236,7 +238,7 @@
     "priority": "priority",
     "validThru": "Valid thru:",
     "noExpiry": "No expiry",
-    "postedBy": "Posted by: Staff ID #",
+    "postedBy": "Posted by: ",
     "createTitle": "Post Notice",
     "noticeTitle": "Title",
     "noticeTitlePlaceholder": "Notice title...",
@@ -295,6 +297,12 @@
     "goodMorning": "Good morning",
     "goodAfternoon": "Good afternoon",
     "goodEvening": "Good evening",
+    "absentToday": {
+      "title": "Absent Today",
+      "allPresent": "Everyone marked present today.",
+      "notMarkedYet": "No attendance marked yet today.",
+      "noSection": "No section"
+    },
     "teacher": {
       "attendanceMarked": "Attendance marked for today.",
       "attendanceNotMarked": "Attendance not yet marked for today.",

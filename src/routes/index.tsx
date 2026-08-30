@@ -32,6 +32,7 @@ import RegisterPage from '../pages/Registration/RegisterPage';
 import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage';
 import ReportsPage from '../pages/Reports/ReportsPage';
 import PromotionPage from '../pages/Promotion/PromotionPage';
+import TimetablePage from '../pages/Timetable/TimetablePage';
 
 /** Role-aware landing: send each user to their own home screen. */
 const HomeRedirect = () => {
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
                     { path: '/people/students/:studentId', element: <StudentDetailPage /> },
                     { path: '/staff', element: <Navigate to="/people" replace /> },
                     { path: '/academics', element: <AcademicsPage /> },
+                    { path: '/timetable', element: <TimetablePage /> },
                 ],
             },
             {
@@ -128,7 +130,7 @@ export const router = createBrowserRouter([
 
             // ── Leave (staff-side) ─────────────────────────────────────
             {
-                element: <RoleRoute roles={['teacher', 'staff', 'coordinator', 'principal']} />,
+                element: <RoleRoute roles={['teacher', 'staff', 'coordinator', 'principal', 'accountant']} />,
                 children: [
                     { path: '/leave', element: <TeacherLeavePage /> },
                 ],

@@ -10,6 +10,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { financesService } from '../../api/services/finances.service';
 import { attendanceService } from '../../api/services/attendance.service';
 import { peopleService } from '../../api/services/people.service';
+import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
+import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import { Users, TrendingDown, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
 
 const PrincipalHome: React.FC = () => {
@@ -156,6 +158,10 @@ const PrincipalHome: React.FC = () => {
                             </p>
                         </button>
                     </div>
+
+                    <LeaveBalanceCard />
+
+                    <AbsentTodayCard />
 
                     <NLQBar />
                 </div>

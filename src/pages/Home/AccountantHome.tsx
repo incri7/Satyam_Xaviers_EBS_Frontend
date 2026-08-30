@@ -12,6 +12,7 @@ import {
 import { cn } from '../../utils/cn';
 import { Link } from 'react-router-dom';
 import NLQBar from '../../components/NLQBar';
+import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 
 const RISK_STYLE: Record<string, string> = {
     High: 'bg-red-100 text-red-700',
@@ -201,6 +202,8 @@ const AccountantHome: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    <LeaveBalanceCard />
 
                     <NLQBar />
 

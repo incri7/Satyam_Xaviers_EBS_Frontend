@@ -40,7 +40,9 @@ export interface MarksGridResponse {
 export interface MarksProgressEntry {
     schedule_id: number;
     class_id: number;
+    class_name: string;
     section_id: number;
+    section_name: string;
     subject_name: string;
     total_enrolled: number;
     marks_entered: number;

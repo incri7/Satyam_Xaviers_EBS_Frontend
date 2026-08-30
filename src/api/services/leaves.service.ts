@@ -14,6 +14,7 @@ export interface LeaveRead {
     status: LeaveStatus;
     applicant_student_id: number | null;
     applicant_teacher_id: number | null;
+    applicant_user_id: number | null;
     approved_by_user_id: number | null;
     decided_at: string | null;
     substitute_teacher_id: number | null;
@@ -33,6 +34,7 @@ export interface LeaveCreate {
     reason?: string;
     applicant_student_id?: number;
     applicant_teacher_id?: number;
+    applicant_user_id?: number;
 }
 
 export interface LeaveStatusUpdate {
@@ -68,6 +70,7 @@ export interface PendingLeaveRead {
     applicant_name: string;
     applicant_teacher_id: number | null;
     applicant_student_id: number | null;
+    applicant_user_id: number | null;
     created_at: string;
 }
 

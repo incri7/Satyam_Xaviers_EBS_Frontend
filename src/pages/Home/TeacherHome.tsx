@@ -6,12 +6,12 @@ import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { attendanceService } from '../../api/services/attendance.service';
 import { assignmentsService } from '../../api/services/assignments.service';
-import { leavesService } from '../../api/services/leaves.service';
 import { aiService, type RiskFlag } from '../../api/services/ai.service';
 import { useAuthStore } from '../../store/useAuthStore';
+import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import {
     ClipboardCheck, ClipboardList, BookMarked, ArrowRight,
-    Calendar, Clock, CheckCircle2, AlertTriangle, Umbrella, ShieldAlert, X
+    Calendar, Clock, CheckCircle2, AlertTriangle, ShieldAlert, X
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -32,11 +32,6 @@ const TeacherHome: React.FC = () => {
     const { data: todayAttendance } = useQuery({
         queryKey: ['attendance', 'today-summary', today],
         queryFn: () => attendanceService.getAttendances({ date: today, limit: 1 }),
-    });
-
-    const { data: leaveBalance } = useQuery({
-        queryKey: ['leaves', 'my-balance'],
-        queryFn: () => leavesService.getMyBalance(),
     });
 
     const { data: riskFlags } = useQuery({
@@ -61,13 +56,6 @@ const TeacherHome: React.FC = () => {
     const overdue = assignments.filter(a => new Date(a.due_date) < new Date());
     const hasMarkedToday = (todayAttendance?.total_count ?? 0) > 0;
 
-    const balanceItems = leaveBalance ? [
-        { labelKey: 'leaves.typeCasual', remaining: leaveBalance.casual_remaining, total: leaveBalance.casual_total },
-        { labelKey: 'leaves.typeSick', remaining: leaveBalance.sick_remaining, total: leaveBalance.sick_total },
-        { labelKey: 'leaves.typeEarned', remaining: leaveBalance.earned_remaining, total: leaveBalance.earned_total },
-        { labelKey: 'leaves.typeMaternity', remaining: leaveBalance.maternity_remaining, total: leaveBalance.maternity_total },
-    ] : [];
-
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
@@ -89,27 +77,7 @@ const TeacherHome: React.FC = () => {
                     </div>
 
                     {/* Leave balance strip */}
-                    {leaveBalance && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                    <Umbrella className="w-4 h-4 text-brand" />
-                                    <span className="text-sm font-bold text-slate-700">{t('home.teacher.leaveBalance')} {leaveBalance.year}</span>
-                                </div>
-                                <Link to="/leave" className="text-xs font-bold text-brand hover:underline">
-                                    {t('home.teacher.applyLeave')}
-                                </Link>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {balanceItems.map(item => (
-                                    <div key={item.labelKey} className="text-center">
-                                        <p className="text-lg font-black text-slate-900">{item.remaining}</p>
-                                        <p className="text-xs text-slate-400 font-medium">/{item.total} {t(item.labelKey)}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <LeaveBalanceCard />
 
                     {/* Quick action cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

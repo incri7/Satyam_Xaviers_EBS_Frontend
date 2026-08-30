@@ -11,6 +11,8 @@ import {
 } from '../../api/services/leaves.service';
 import { examsService } from '../../api/services/exams.service';
 import { useAuthStore } from '../../store/useAuthStore';
+import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
+import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import {
     CheckCircle2, XCircle, Loader2, Users, BookOpen,
     ChevronDown, ChevronUp, UserCheck, AlertCircle, BarChart2
@@ -149,7 +151,7 @@ const CoordinatorHome: React.FC = () => {
     const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
     const firstName = user?.firstName || 'Coordinator';
 
-    const { data: pendingLeaves, isLoading: leavesLoading } = useQuery({
+    const { data: pendingLeaves, isLoading: leavesLoading, isError: leavesError } = useQuery({
         queryKey: ['leaves', 'pending'],
         queryFn: () => leavesService.getPendingLeaves(),
     });
@@ -195,7 +197,10 @@ const CoordinatorHome: React.FC = () => {
         statusMutation.mutate({ leaveId, decision: 'rejected', substituteId: null });
     };
 
-    const pending = pendingLeaves ?? [];
+    // Your own leave request can still show up in the school-wide pending
+    // queue, but you can never approve/reject it yourself (server-enforced,
+    // segregation of duties) — so don't show it here at all.
+    const pending = (pendingLeaves ?? []).filter(l => l.applicant_user_id !== user?.id);
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -209,6 +214,10 @@ const CoordinatorHome: React.FC = () => {
                         </h1>
                         <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
                     </div>
+
+                    <LeaveBalanceCard />
+
+                    <AbsentTodayCard />
 
                     {/* Summary strip */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -268,7 +277,14 @@ const CoordinatorHome: React.FC = () => {
                             </div>
                         )}
 
-                        {!leavesLoading && pending.length === 0 && (
+                        {!leavesLoading && leavesError && (
+                            <div className="py-14 text-center">
+                                <AlertCircle className="w-12 h-12 text-red-300 mx-auto mb-3" />
+                                <p className="font-bold text-red-500">{t('home.coordinator.loadFailed', "Couldn't load pending leave requests")}</p>
+                            </div>
+                        )}
+
+                        {!leavesLoading && !leavesError && pending.length === 0 && (
                             <div className="py-14 text-center">
                                 <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
                                 <p className="font-bold text-slate-400">{t('home.coordinator.allClear')}</p>
@@ -380,7 +396,7 @@ const CoordinatorHome: React.FC = () => {
                                                 <p className="text-xs font-semibold text-slate-700">
                                                     {entry.subject_name}
                                                     <span className="ml-2 text-slate-400 font-medium">
-                                                        Class {entry.class_id} · Sec {entry.section_id}
+                                                        {entry.class_name} · {entry.section_name}
                                                     </span>
                                                 </p>
                                                 <p className="text-xs font-black text-slate-900">

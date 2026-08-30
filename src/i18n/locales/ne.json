@@ -7,11 +7,13 @@
   "nav": {
     "dashboard": "ड्यासबोर्ड",
     "academics": "शैक्षिक",
+    "timetable": "समय तालिका",
     "people": "व्यक्ति व्यवस्थापन",
     "finances": "वित्त",
     "attendance": "उपस्थिति",
     "marks": "अंक",
     "assignments": "गृहकार्य",
+    "leave": "विदा",
     "communication": "सञ्चार",
     "reports": "प्रतिवेदन",
     "settings": "सेटिङ",
@@ -236,7 +238,7 @@
     "priority": "प्राथमिकता",
     "validThru": "मान्य मिति:",
     "noExpiry": "म्याद छैन",
-    "postedBy": "पोस्ट गर्ने: कर्मचारी आईडी #",
+    "postedBy": "पोस्ट गर्ने: ",
     "createTitle": "सूचना पोस्ट गर्नुहोस्",
     "noticeTitle": "शीर्षक",
     "noticeTitlePlaceholder": "सूचनाको शीर्षक...",
@@ -295,6 +297,12 @@
     "goodMorning": "शुभ प्रभात",
     "goodAfternoon": "शुभ अपरान्ह",
     "goodEvening": "शुभ सन्ध्या",
+    "absentToday": {
+      "title": "आज अनुपस्थित",
+      "allPresent": "आज सबै उपस्थित छन्।",
+      "notMarkedYet": "आज अझै हाजिरी लिइएको छैन।",
+      "noSection": "सेक्शन छैन"
+    },
     "teacher": {
       "attendanceMarked": "आजको उपस्थिति चिन्ह लगाइएको छ।",
       "attendanceNotMarked": "आजको उपस्थिति अझै चिन्ह लगाइएको छैन।",
