@@ -33,6 +33,7 @@ import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage
 import ReportsPage from '../pages/Reports/ReportsPage';
 import PromotionPage from '../pages/Promotion/PromotionPage';
 import TimetablePage from '../pages/Timetable/TimetablePage';
+import LeaveApprovalsPage from '../pages/Leaves/LeaveApprovalsPage';
 
 /** Role-aware landing: send each user to their own home screen. */
 const HomeRedirect = () => {
@@ -133,6 +134,13 @@ export const router = createBrowserRouter([
                 element: <RoleRoute roles={['teacher', 'staff', 'coordinator', 'principal', 'accountant']} />,
                 children: [
                     { path: '/leave', element: <TeacherLeavePage /> },
+                ],
+            },
+            // Deciding OTHER people's leave requests — admin/principal only.
+            {
+                element: <RoleRoute roles={['principal']} />,
+                children: [
+                    { path: '/leave-approvals', element: <LeaveApprovalsPage /> },
                 ],
             },
 
