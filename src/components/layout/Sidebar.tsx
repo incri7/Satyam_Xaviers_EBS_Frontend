@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     GraduationCap,
@@ -12,7 +12,8 @@ import {
     BookMarked,
     ClipboardList,
     Umbrella,
-    CalendarClock
+    CalendarClock,
+    ArrowLeft
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useQuery } from '@tanstack/react-query';
@@ -21,6 +22,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
 import { homeForRole } from '../../utils/roleHome';
 import { academicCalendarService } from '../../api/services/academicCalendar.service';
+import { parentService } from '../../api/services/parent.service';
 import { useTranslation } from 'react-i18next';
 
 import type { PermissionAction } from '../../types/auth';
@@ -91,14 +93,20 @@ const menuItems: MenuItem[] = [
         icon: Umbrella,
         labelKey: 'nav.leave',
         href: '/leave',
-        roles: ['teacher', 'staff', 'coordinator', 'principal', 'accountant'],
+        roles: ['admin', 'teacher', 'staff', 'coordinator', 'principal', 'accountant'],
+    },
+    {
+        icon: ClipboardCheck,
+        labelKey: 'nav.leaveApprovals',
+        href: '/leave-approvals',
+        roles: ['admin', 'principal'],
     },
     {
         icon: MessageSquare,
         labelKey: 'nav.communication',
         href: '/communication',
         permission: { resource: 'staff', action: 'read' },
-        roles: ['admin', 'principal', 'coordinator', 'teacher', 'accountant', 'staff'],
+        roles: ['admin', 'principal', 'coordinator', 'teacher', 'accountant', 'staff', 'student'],
     },
     {
         icon: BarChart3,
@@ -122,8 +130,29 @@ export const Sidebar: React.FC = () => {
     const { isSidebarOpen, closeSidebar } = useUiStore();
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
     const role = user?.role ?? '';
     const canOpenCalendar = role === 'admin' || role === 'principal';
+
+    // Parents get a two-level sidebar: a near-empty top level (there's nothing
+    // global to navigate to besides Dashboard — Communication lives on the bell
+    // icon instead), and a child-scoped level once they drill into a specific
+    // student, since Attendance/Marks/Fees/Leave only make sense per-child.
+    const childRouteMatch = role === 'parent' ? location.pathname.match(/^\/parent\/child\/(\d+)/) : null;
+    const activeChildId = childRouteMatch ? childRouteMatch[1] : null;
+
+    const { data: childrenData } = useQuery({
+        queryKey: ['parent', 'my-children'],
+        queryFn: parentService.getMyChildren,
+        enabled: role === 'parent',
+        staleTime: 5 * 60 * 1000,
+    });
+    const activeChild = activeChildId
+        ? childrenData?.children.find(c => String(c.student_id) === activeChildId)
+        : undefined;
+    const activeChildName = activeChild
+        ? [activeChild.first_name, activeChild.last_name].filter(Boolean).join(' ')
+        : undefined;
 
     // Source of truth = the configured academic calendar; date-rule fallback
     // only when no calendar exists yet (FE-AD-06)
@@ -151,6 +180,20 @@ export const Sidebar: React.FC = () => {
                 ? { ...item, href: homeForRole(role) }
                 : item
         );
+
+    const childNavItems = activeChildId ? [
+        { icon: ClipboardCheck, label: t('home.parent.attendance'), href: `/parent/child/${activeChildId}/attendance` },
+        { icon: BookMarked, label: t('home.parent.marks'), href: `/parent/child/${activeChildId}/marks` },
+        { icon: Wallet, label: t('home.parent.fees'), href: `/parent/child/${activeChildId}/fees` },
+        { icon: Umbrella, label: t('home.parent.leave'), href: `/parent/child/${activeChildId}/leave` },
+    ] : [];
+
+    // Outside a specific child's pages, a parent has nothing global to
+    // navigate to (Communication lives on the bell icon) — no sidebar at all,
+    // rather than a rail with a single "Dashboard" item.
+    if (role === 'parent' && !activeChildId) {
+        return null;
+    }
 
     return (
         <>
@@ -186,7 +229,47 @@ export const Sidebar: React.FC = () => {
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-                {filteredMenuItems.map((item) => (
+                {activeChildId ? (
+                    <>
+                        <NavLink
+                            to="/home/parent"
+                            onClick={closeSidebar}
+                            className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all duration-200 group"
+                        >
+                            <ArrowLeft className="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                            <div className="min-w-0">
+                                <span className="block font-semibold text-sm text-slate-500 group-hover:text-slate-900">{t('home.parent.myChildren')}</span>
+                                {activeChildName && (
+                                    <span className="block text-[11px] font-bold text-brand truncate">{activeChildName}</span>
+                                )}
+                            </div>
+                        </NavLink>
+                        <div className="h-px bg-slate-100 mx-2 mb-2" />
+                        {childNavItems.map((item) => (
+                            <NavLink
+                                key={item.href}
+                                to={item.href}
+                                onClick={closeSidebar}
+                                className={({ isActive }) => cn(
+                                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                                    isActive
+                                        ? "bg-brand text-white shadow-lg shadow-brand/20"
+                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                            >
+                                {({ isActive }) => (
+                                    <>
+                                        <item.icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={isActive ? 2.5 : 2} />
+                                        <span className={cn(
+                                            "font-semibold text-sm",
+                                            isActive ? "text-white" : "text-slate-500 group-hover:text-slate-900"
+                                        )}>{item.label}</span>
+                                    </>
+                                )}
+                            </NavLink>
+                        ))}
+                    </>
+                ) : filteredMenuItems.map((item) => (
                     <NavLink
                         key={item.labelKey}
                         to={item.href}

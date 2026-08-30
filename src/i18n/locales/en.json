@@ -14,6 +14,7 @@
     "marks": "Marks",
     "assignments": "Assignments",
     "leave": "Leave",
+    "leaveApprovals": "Leave Approvals",
     "communication": "Communication",
     "reports": "Reports",
     "settings": "Settings",
@@ -118,6 +119,7 @@
     "assignStudent": "Assign Student",
     "registerGuardian": "Register New Guardian",
     "registerUser": "Register New User",
+    "addTeacher": "Add Teacher",
     "system": "System",
     "schoolPersonnel": "School Personnel",
     "schoolFamily": "School Family",
@@ -349,7 +351,8 @@
       "absent": "Absent",
       "late": "Late",
       "halfDay": "Half Day",
-      "notMarked": "Not Marked"
+      "notMarked": "Not Marked",
+      "myChildren": "My Children"
     },
     "student": {
       "presentToday": "Present Today",
@@ -394,7 +397,7 @@
       "summary": "Summary"
     },
     "coordinator": {
-      "pendingApprovals": "Pending Approvals",
+      "pendingApprovals": "Pending Requests",
       "staffLeaves": "Staff Leaves",
       "studentLeaves": "Student Leaves",
       "pendingLeaveRequests": "Pending Leave Requests",
@@ -407,12 +410,13 @@
       "selectExam": "Select exam…",
       "selectExamPrompt": "Select an exam above to see marks entry status.",
       "noSchedules": "No schedules found for this exam.",
-      "assignSubstitute": "Assign Substitute",
+      "assignSubstitute": "Suggested Substitutes",
       "substituteOnApproval": "Substitute will be assigned on approval.",
       "noSubstitutes": "No available substitutes found.",
       "loadingSuggestions": "Loading suggestions…",
       "approve": "Approve",
-      "reject": "Reject"
+      "reject": "Reject",
+      "awaitingDecision": "Awaiting principal/admin decision"
     }
   },
   "parent": {

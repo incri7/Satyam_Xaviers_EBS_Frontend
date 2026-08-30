@@ -14,6 +14,7 @@
     "marks": "अंक",
     "assignments": "गृहकार्य",
     "leave": "विदा",
+    "leaveApprovals": "विदा स्वीकृतिहरू",
     "communication": "सञ्चार",
     "reports": "प्रतिवेदन",
     "settings": "सेटिङ",
@@ -118,6 +119,7 @@
     "assignStudent": "विद्यार्थी तोक्नुहोस्",
     "registerGuardian": "नयाँ अभिभावक दर्ता गर्नुहोस्",
     "registerUser": "नयाँ प्रयोगकर्ता दर्ता गर्नुहोस्",
+    "addTeacher": "शिक्षक थप्नुहोस्",
     "system": "प्रणाली",
     "schoolPersonnel": "विद्यालय कर्मचारी",
     "schoolFamily": "विद्यालय परिवार",
@@ -349,7 +351,8 @@
       "absent": "अनुपस्थित",
       "late": "ढिलो",
       "halfDay": "आधा दिन",
-      "notMarked": "चिन्ह लगाइएको छैन"
+      "notMarked": "चिन्ह लगाइएको छैन",
+      "myChildren": "मेरा बच्चाहरू"
     },
     "student": {
       "presentToday": "आज उपस्थित",
@@ -394,7 +397,7 @@
       "summary": "सारांश"
     },
     "coordinator": {
-      "pendingApprovals": "बाँकी स्वीकृतिहरू",
+      "pendingApprovals": "बाँकी अनुरोधहरू",
       "staffLeaves": "कर्मचारी विदाहरू",
       "studentLeaves": "विद्यार्थी विदाहरू",
       "pendingLeaveRequests": "बाँकी विदा अनुरोधहरू",
@@ -407,12 +410,13 @@
       "selectExam": "परीक्षा छान्नुहोस्…",
       "selectExamPrompt": "अंक प्रविष्टि स्थिति हेर्न माथिबाट परीक्षा छान्नुहोस्।",
       "noSchedules": "यस परीक्षाको लागि कुनै तालिका फेला परेन।",
-      "assignSubstitute": "प्रतिस्थापन तोक्नुहोस्",
+      "assignSubstitute": "सुझाव गरिएका प्रतिस्थापनहरू",
       "substituteOnApproval": "स्वीकृतिमा प्रतिस्थापन तोकिनेछ।",
       "noSubstitutes": "कुनै उपलब्ध प्रतिस्थापन फेला परेन।",
       "loadingSuggestions": "सुझावहरू लोड हुँदैछ…",
       "approve": "स्वीकृत गर्नुहोस्",
-      "reject": "अस्वीकार गर्नुहोस्"
+      "reject": "अस्वीकार गर्नुहोस्",
+      "awaitingDecision": "प्राचार्य/प्रशासकको निर्णयको प्रतीक्षामा"
     }
   },
   "parent": {

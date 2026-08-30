@@ -7,10 +7,14 @@ import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { User, Briefcase } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '../../store/useAuthStore';
+import { cn } from '../../utils/cn';
 
 const ProfilePage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const sidebarPad = user?.role !== 'parent' && "lg:pl-72";
     const { data: profile, isLoading } = useQuery({
         queryKey: ['me'],
         queryFn: peopleService.getMe,
@@ -20,7 +24,7 @@ const ProfilePage: React.FC = () => {
         return (
             <div className="flex h-screen bg-slate-50 overflow-hidden">
                 <Sidebar />
-                <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72 focus:outline-none">
+                <main className={cn("flex-1 flex flex-col min-w-0 overflow-hidden focus:outline-none", sidebarPad)}>
                     <DashboardHeader />
                     <div className="flex-1 flex items-center justify-center">
                         <div className="w-12 h-12 border-4 border-brand border-t-transparent rounded-full animate-spin" />
@@ -35,7 +39,7 @@ const ProfilePage: React.FC = () => {
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
+            <main className={cn("flex-1 flex flex-col min-w-0 overflow-hidden", sidebarPad)}>
                 <DashboardHeader />
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
