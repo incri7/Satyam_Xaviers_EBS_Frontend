@@ -1,20 +1,24 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { peopleService } from '../../api/services/people.service';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { User, Briefcase } from 'lucide-react';
+import { User, Briefcase, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
 import { cn } from '../../utils/cn';
+import { homeForRole } from '../../utils/roleHome';
 
 const ProfilePage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const sidebarPad = user?.role !== 'parent' && "lg:pl-72";
+    // Parents get no sidebar outside a child's pages (see Sidebar.tsx) — this
+    // page needs its own way back to the dashboard in that case.
+    const hasSidebar = user?.role !== 'parent';
+    const sidebarPad = hasSidebar && "lg:pl-72";
     const { data: profile, isLoading } = useQuery({
         queryKey: ['me'],
         queryFn: peopleService.getMe,
@@ -43,6 +47,12 @@ const ProfilePage: React.FC = () => {
                 <DashboardHeader />
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+                    {!hasSidebar && (
+                        <Link to={homeForRole(user?.role || '')} className="inline-flex items-center gap-2 px-2 py-2 -ml-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-600 font-semibold text-sm">
+                            <ArrowLeft className="w-5 h-5" />
+                            {t('nav.dashboard')}
+                        </Link>
+                    )}
                     <div className="relative">
                         <div className="h-48 w-full bg-gradient-to-r from-brand to-rose-400 rounded-3xl" />
                         <div className="absolute -bottom-16 left-8 flex items-end gap-6">

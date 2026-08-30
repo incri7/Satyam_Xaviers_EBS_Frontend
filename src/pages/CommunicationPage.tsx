@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Bell, Search, Plus, Calendar, User,
-    Trash2, Edit2, X, Save,
+    Trash2, Edit2, X, Save, ArrowLeft,
     Megaphone, Users, GraduationCap, UserCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
@@ -14,6 +15,7 @@ import { requestFCMToken, deviceService } from '../api/services/device.service';
 import { CreateNoticeModal } from '../components/communication/CreateNoticeModal';
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
+import { homeForRole } from '../utils/roleHome';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 import type { Class, Section } from '../types/academic';
 
@@ -26,6 +28,9 @@ const CommunicationPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'all' | 'my_role'>('all');
 
     const canCreate = user?.role === 'admin' || user?.role === 'principal';
+    // Parents get no sidebar outside a child's pages (see Sidebar.tsx) — this
+    // page needs its own way back to the dashboard in that case.
+    const hasSidebar = user?.role !== 'parent';
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
     const [notifStatus, setNotifStatus] = useState<'idle' | 'enabling' | 'enabled' | 'unavailable'>('idle');
@@ -112,7 +117,7 @@ const CommunicationPage: React.FC = () => {
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
-            <main className={cn("flex-1 flex flex-col min-w-0 overflow-hidden", user?.role !== 'parent' && "lg:pl-72")}>
+            <main className={cn("flex-1 flex flex-col min-w-0 overflow-hidden", hasSidebar && "lg:pl-72")}>
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto">
         <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
@@ -132,6 +137,11 @@ const CommunicationPage: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-white p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="flex items-center gap-4 md:gap-6">
+                    {!hasSidebar && (
+                        <Link to={homeForRole(user?.role || '')} className="p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0">
+                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                        </Link>
+                    )}
                     <div className="w-12 h-12 md:w-16 md:h-16 bg-brand/10 rounded-2xl md:rounded-3xl flex items-center justify-center text-brand flex-shrink-0">
                         <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
                     </div>
