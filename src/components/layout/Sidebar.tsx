@@ -21,6 +21,7 @@ import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
 import { homeForRole } from '../../utils/roleHome';
+import { hasSidebar } from '../../utils/sidebarVisibility';
 import { academicCalendarService } from '../../api/services/academicCalendar.service';
 import { parentService } from '../../api/services/parent.service';
 import { useTranslation } from 'react-i18next';
@@ -191,7 +192,7 @@ export const Sidebar: React.FC = () => {
     // Outside a specific child's pages, a parent has nothing global to
     // navigate to (Communication lives on the bell icon) — no sidebar at all,
     // rather than a rail with a single "Dashboard" item.
-    if (role === 'parent' && !activeChildId) {
+    if (!hasSidebar(role, location.pathname)) {
         return null;
     }
 

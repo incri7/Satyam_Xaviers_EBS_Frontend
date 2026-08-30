@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Bell, ChevronDown, Languages, Menu, UserCircle, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SchoolLogo } from '../icons/SchoolLogo';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -8,12 +8,15 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
+import { hasSidebar } from '../../utils/sidebarVisibility';
 
 export const DashboardHeader: React.FC = () => {
     const { user } = useAuthStore();
     const { logout } = useAuth();
     const { toggleSidebar } = useUiStore();
     const navigate = useNavigate();
+    const location = useLocation();
+    const showMenuToggle = hasSidebar(user?.role, location.pathname);
     const { t, i18n } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
@@ -32,13 +35,15 @@ export const DashboardHeader: React.FC = () => {
             className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30"
         >
             <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                <button
-                    onClick={toggleSidebar}
-                    className="lg:hidden p-2.5 -ml-1 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all shrink-0"
-                    aria-label="Open menu"
-                >
-                    <Menu className="w-5 h-5" />
-                </button>
+                {showMenuToggle && (
+                    <button
+                        onClick={toggleSidebar}
+                        className="lg:hidden p-2.5 -ml-1 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all shrink-0"
+                        aria-label="Open menu"
+                    >
+                        <Menu className="w-5 h-5" />
+                    </button>
+                )}
                 <motion.div
                     whileHover={{ scale: 1.05, rotate: 5 }}
                     className="cursor-pointer hidden sm:block shrink-0"
