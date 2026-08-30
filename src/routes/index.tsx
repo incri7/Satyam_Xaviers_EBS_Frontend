@@ -24,10 +24,7 @@ import CoordinatorHome from '../pages/Home/CoordinatorHome';
 import TeacherLeavePage from '../pages/Leaves/TeacherLeavePage';
 import StudentHome from '../pages/Home/StudentHome';
 import PrincipalHome from '../pages/Home/PrincipalHome';
-import ChildAttendancePage from '../pages/Parent/ChildAttendancePage';
-import ChildMarksPage from '../pages/Parent/ChildMarksPage';
-import ChildFeesPage from '../pages/Parent/ChildFeesPage';
-import ChildLeavePage from '../pages/Parent/ChildLeavePage';
+import ChildDashboardPage from '../pages/Parent/ChildDashboardPage';
 import RegisterPage from '../pages/Registration/RegisterPage';
 import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage';
 import ReportsPage from '../pages/Reports/ReportsPage';
@@ -148,10 +145,7 @@ export const router = createBrowserRouter([
             {
                 element: <RoleRoute roles={['parent']} />,
                 children: [
-                    { path: '/parent/child/:studentId/attendance', element: <ChildAttendancePage /> },
-                    { path: '/parent/child/:studentId/marks', element: <ChildMarksPage /> },
-                    { path: '/parent/child/:studentId/fees', element: <ChildFeesPage /> },
-                    { path: '/parent/child/:studentId/leave', element: <ChildLeavePage /> },
+                    { path: '/parent/child/:studentId', element: <ChildDashboardPage /> },
                 ],
             },
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
     LayoutDashboard,
     GraduationCap,
@@ -132,6 +132,7 @@ export const Sidebar: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const role = user?.role ?? '';
     const canOpenCalendar = role === 'admin' || role === 'principal';
 
@@ -182,11 +183,15 @@ export const Sidebar: React.FC = () => {
                 : item
         );
 
+    // The four child sections are tabs on one route (?tab=...), not separate
+    // paths, so active-state is read from the query string, not NavLink's
+    // pathname-only matching.
+    const activeTab = searchParams.get('tab') || 'attendance';
     const childNavItems = activeChildId ? [
-        { icon: ClipboardCheck, label: t('home.parent.attendance'), href: `/parent/child/${activeChildId}/attendance` },
-        { icon: BookMarked, label: t('home.parent.marks'), href: `/parent/child/${activeChildId}/marks` },
-        { icon: Wallet, label: t('home.parent.fees'), href: `/parent/child/${activeChildId}/fees` },
-        { icon: Umbrella, label: t('home.parent.leave'), href: `/parent/child/${activeChildId}/leave` },
+        { id: 'attendance', icon: ClipboardCheck, label: t('home.parent.attendance') },
+        { id: 'marks', icon: BookMarked, label: t('home.parent.marks') },
+        { id: 'fees', icon: Wallet, label: t('home.parent.fees') },
+        { id: 'leave', icon: Umbrella, label: t('home.parent.leave') },
     ] : [];
 
     // Outside a specific child's pages, a parent has nothing global to
@@ -246,29 +251,28 @@ export const Sidebar: React.FC = () => {
                             </div>
                         </NavLink>
                         <div className="h-px bg-slate-100 mx-2 mb-2" />
-                        {childNavItems.map((item) => (
-                            <NavLink
-                                key={item.href}
-                                to={item.href}
-                                onClick={closeSidebar}
-                                className={({ isActive }) => cn(
-                                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                                    isActive
-                                        ? "bg-brand text-white shadow-lg shadow-brand/20"
-                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                                )}
-                            >
-                                {({ isActive }) => (
-                                    <>
-                                        <item.icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={isActive ? 2.5 : 2} />
-                                        <span className={cn(
-                                            "font-semibold text-sm",
-                                            isActive ? "text-white" : "text-slate-500 group-hover:text-slate-900"
-                                        )}>{item.label}</span>
-                                    </>
-                                )}
-                            </NavLink>
-                        ))}
+                        {childNavItems.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                                <Link
+                                    key={item.id}
+                                    to={`/parent/child/${activeChildId}?tab=${item.id}`}
+                                    onClick={closeSidebar}
+                                    className={cn(
+                                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                                        isActive
+                                            ? "bg-brand text-white shadow-lg shadow-brand/20"
+                                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                    )}
+                                >
+                                    <item.icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={isActive ? 2.5 : 2} />
+                                    <span className={cn(
+                                        "font-semibold text-sm",
+                                        isActive ? "text-white" : "text-slate-500 group-hover:text-slate-900"
+                                    )}>{item.label}</span>
+                                </Link>
+                            );
+                        })}
                     </>
                 ) : filteredMenuItems.map((item) => (
                     <NavLink

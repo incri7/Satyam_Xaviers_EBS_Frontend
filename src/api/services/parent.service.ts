@@ -44,10 +44,20 @@ export interface FeeRecord {
     balance: number;
 }
 
+export interface PaymentHistoryEntry {
+    id: number;
+    fee_name: string | null;
+    amount: number;
+    method: string;
+    receipt_no: string;
+    paid_at: string;
+}
+
 export interface FeeBalanceResponse {
     student_id: number;
     fees: FeeRecord[];
     total_due: number;
+    payment_history: PaymentHistoryEntry[];
 }
 
 export const parentService = {

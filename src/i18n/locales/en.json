@@ -446,7 +446,13 @@
     "noLeaves": "No leave requests yet.",
     "leaveLabel": "Leave",
     "failedSubmit": "Failed to submit leave request.",
-    "dateRequired": "Please fill in start and end dates."
+    "dateRequired": "Please fill in start and end dates.",
+    "marksTrend": "Marks Trend",
+    "attendanceTrend": "Attendance Trend",
+    "paymentHistory": "Payment History",
+    "noPaymentHistory": "No payments recorded yet.",
+    "notEnoughExams": "Needs at least 2 exams to show a trend.",
+    "payment": "Payment"
   },
   "academicCalendar": {
     "title": "Academic Calendar Setup",
