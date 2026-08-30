@@ -183,11 +183,12 @@ export const Sidebar: React.FC = () => {
                 : item
         );
 
-    // The four child sections are tabs on one route (?tab=...), not separate
+    // The five child sections are tabs on one route (?tab=...), not separate
     // paths, so active-state is read from the query string, not NavLink's
     // pathname-only matching.
-    const activeTab = searchParams.get('tab') || 'attendance';
+    const activeTab = searchParams.get('tab') || 'overview';
     const childNavItems = activeChildId ? [
+        { id: 'overview', icon: LayoutDashboard, label: t('nav.dashboard') },
         { id: 'attendance', icon: ClipboardCheck, label: t('home.parent.attendance') },
         { id: 'marks', icon: BookMarked, label: t('home.parent.marks') },
         { id: 'fees', icon: Wallet, label: t('home.parent.fees') },

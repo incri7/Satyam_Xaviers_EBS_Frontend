@@ -10,13 +10,14 @@ import { getMarksComparison } from '../../api/services/exams.service';
 import { leavesService, type LeaveType } from '../../api/services/leaves.service';
 import {
     ArrowLeft, AlertCircle, Loader2, TrendingUp, Plus, CheckCircle2, Clock, XCircle,
-    Calendar, BookOpen, CreditCard, FileText,
+    Calendar, BookOpen, CreditCard, FileText, LayoutDashboard,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-type Tab = 'attendance' | 'marks' | 'fees' | 'leave';
+type Tab = 'overview' | 'attendance' | 'marks' | 'fees' | 'leave';
 
 const TABS: { id: Tab; icon: React.ElementType; labelKey: string }[] = [
+    { id: 'overview', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
     { id: 'attendance', icon: Calendar, labelKey: 'home.parent.attendance' },
     { id: 'marks', icon: BookOpen, labelKey: 'home.parent.marks' },
     { id: 'fees', icon: CreditCard, labelKey: 'home.parent.fees' },
@@ -55,9 +56,9 @@ const ChildDashboardPage: React.FC = () => {
     const id = Number(studentId);
     const queryClient = useQueryClient();
 
-    const activeTab: Tab = (['attendance', 'marks', 'fees', 'leave'].includes(searchParams.get('tab') || '')
+    const activeTab: Tab = (['overview', 'attendance', 'marks', 'fees', 'leave'].includes(searchParams.get('tab') || '')
         ? (searchParams.get('tab') as Tab)
-        : 'attendance');
+        : 'overview');
     const setTab = (tab: Tab) => {
         const next = new URLSearchParams(searchParams);
         next.set('tab', tab);
