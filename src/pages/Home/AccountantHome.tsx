@@ -122,7 +122,7 @@ const AccountantHome: React.FC = () => {
                             <button
                                 onClick={() => reminderMutation.mutate()}
                                 disabled={reminderMutation.isPending || entries.length === 0}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:opacity-95 transition-all disabled:opacity-50"
+                                className="inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-sm font-semibold whitespace-nowrap rounded-lg shadow-sm hover:opacity-95 transition-all disabled:opacity-50"
                             >
                                 {reminderMutation.isPending ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
