@@ -376,7 +376,6 @@
       "loadError": "Unable to load your dashboard."
     },
     "accountant": {
-      "manageFees": "Manage Fees",
       "totalOutstanding": "Total Outstanding",
       "familiesDue": "Families Due",
       "highRisk": "High Risk",

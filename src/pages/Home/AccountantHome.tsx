@@ -6,12 +6,9 @@ import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
-    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown,
-    CreditCard, FileBarChart2, ChevronRight
+    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown, FileBarChart2
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { Link } from 'react-router-dom';
-import NLQBar from '../../components/NLQBar';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 
 const RISK_STYLE: Record<string, string> = {
@@ -71,21 +68,11 @@ const AccountantHome: React.FC = () => {
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     {/* Greeting */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">
-                                {t('home.goodMorning')}, {firstName}
-                            </h1>
-                            <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
-                        </div>
-                        <Link
-                            to="/finances"
-                            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-                        >
-                            <CreditCard className="w-4 h-4" />
-                            {t('home.accountant.manageFees')}
-                            <ChevronRight className="w-4 h-4 text-slate-400" />
-                        </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            {t('home.goodMorning')}, {firstName}
+                        </h1>
+                        <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
                     </div>
 
                     {/* Summary cards */}
@@ -204,8 +191,6 @@ const AccountantHome: React.FC = () => {
                     </div>
 
                     <LeaveBalanceCard />
-
-                    <NLQBar />
 
                     {/* Monthly report */}
                     {monthlyReport && (
