@@ -2,7 +2,7 @@ import { CalendarClock, BellRing, FileBarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
-import { AccessControl } from '../AccessControl';
+import { PermissionGate } from '../PermissionGate';
 import { useTranslation } from 'react-i18next';
 import type { PermissionAction } from '../../types/auth';
 
@@ -41,6 +41,7 @@ export const QuickActions: React.FC = () => {
     const navigate = useNavigate();
 
     const actions: Array<{
+        route: string;
         title: string;
         description: string;
         icon: React.ElementType;
@@ -49,6 +50,7 @@ export const QuickActions: React.FC = () => {
         permissions: Array<{ resource: string; action: PermissionAction }>;
     }> = [
             {
+                route: '/leave',
                 title: t('dashboard.leaveRequests'),
                 description: t('dashboard.reviewApprove', 'Review & approve'),
                 icon: CalendarClock,
@@ -56,6 +58,7 @@ export const QuickActions: React.FC = () => {
                 permissions: [{ resource: 'staff', action: 'read' }],
             },
             {
+                route: '/communication',
                 title: t('dashboard.reviewNotices'),
                 description: t('dashboard.manageNotices', 'Manage notices'),
                 icon: BellRing,
@@ -63,24 +66,25 @@ export const QuickActions: React.FC = () => {
                 permissions: [{ resource: 'staff', action: 'create' }],
             },
             {
+                route: '/finances/outstanding',
                 title: t('dashboard.generateReports'),
                 description: t('dashboard.monthly'),
                 icon: FileBarChart2,
-                onClick: () => navigate('/reports'),
+                onClick: () => navigate('/finances/outstanding'),
                 permissions: [{ resource: 'finances', action: 'read' }],
             },
         ];
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {actions.map((action, index) => {
-                const id = `action_${action.title.toLowerCase().replace(/\s+/g, '_')}`;
-                return (
-                    <AccessControl key={action.title} id={id as any}>
-                        <QuickAction {...action} index={index} />
-                    </AccessControl>
-                );
-            })}
+            {actions.map((action, index) => (
+                // Gate on the action's own permissions, never on an id derived from
+                // its title — the title is translated, so a derived id breaks
+                // gating in any non-English locale (regression of FE-AD-03).
+                <PermissionGate key={action.route} permissions={action.permissions}>
+                    <QuickAction {...action} index={index} />
+                </PermissionGate>
+            ))}
         </div>
     );
 };

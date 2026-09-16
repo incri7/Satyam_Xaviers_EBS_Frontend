@@ -11,8 +11,11 @@ import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 import AcademicsPage from '../pages/Academics/AcademicsPage';
 import PeoplePage from '../pages/People/PeoplePage';
 import StudentDetailPage from '../pages/People/StudentDetailPage';
+import TeacherDetailPage from '../pages/People/TeacherDetailPage';
 import ProfilePage from '../pages/Profile/ProfilePage';
 import FinancesPage from '../pages/Finances/FinancesPage';
+import OutstandingFeesPage from '../pages/Finances/OutstandingFeesPage';
+import LedgerPage from '../pages/Finances/LedgerPage';
 import CommunicationPage from '../pages/CommunicationPage';
 import AttendancePage from '../pages/Attendance/AttendancePage';
 import MarksPage from '../pages/Marks/MarksPage';
@@ -31,7 +34,6 @@ import ChildFeesPage from '../pages/Parent/ChildFeesPage';
 import ChildLeavePage from '../pages/Parent/ChildLeavePage';
 import RegisterPage from '../pages/Registration/RegisterPage';
 import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage';
-import ReportsPage from '../pages/Reports/ReportsPage';
 import PromotionPage from '../pages/Promotion/PromotionPage';
 import TimetablePage from '../pages/Timetable/TimetablePage';
 import LeaveApprovalsPage from '../pages/Leaves/LeaveApprovalsPage';
@@ -99,6 +101,7 @@ export const router = createBrowserRouter([
                 children: [
                     { path: '/people', element: <PeoplePage /> },
                     { path: '/people/students/:studentId', element: <StudentDetailPage /> },
+                    { path: '/people/teachers/:teacherId', element: <TeacherDetailPage /> },
                     { path: '/staff', element: <Navigate to="/people" replace /> },
                     { path: '/academics', element: <AcademicsPage /> },
                     { path: '/timetable', element: <TimetablePage /> },
@@ -107,7 +110,6 @@ export const router = createBrowserRouter([
             {
                 element: <RoleRoute roles={['principal', 'coordinator', 'accountant']} />,
                 children: [
-                    { path: '/reports', element: <ReportsPage /> },
                 ],
             },
 
@@ -116,7 +118,14 @@ export const router = createBrowserRouter([
                 element: <RoleRoute roles={['principal', 'accountant']} />,
                 children: [
                     { path: '/finances', element: <FinancesPage /> },
+                    { path: '/finances/outstanding', element: <OutstandingFeesPage /> },
+                    { path: '/finances/ledger', element: <LedgerPage /> },
                     { path: '/financials', element: <Navigate to="/finances" replace /> },
+                    // Reports is retired: attendance lives on the Attendance page
+                    // and the fee figures moved onto Outstanding Fees. Without
+                    // this a saved link falls to the catch-all and bounces the
+                    // user to /login, which reads as being signed out.
+                    { path: '/reports', element: <Navigate to="/finances/outstanding" replace /> },
                 ],
             },
 

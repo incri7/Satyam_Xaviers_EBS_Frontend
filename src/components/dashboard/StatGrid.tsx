@@ -7,6 +7,7 @@ import { peopleService } from '../../api/services/people.service';
 import { attendanceService } from '../../api/services/attendance.service';
 import { financesService } from '../../api/services/finances.service';
 import { useTranslation } from 'react-i18next';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 interface StatCardProps {
     title: string;
@@ -55,7 +56,8 @@ export const StatCard: React.FC<StatCardProps & { index: number }> = ({ title, v
 };
 
 export const StatGrid: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const navigate = useNavigate();
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
@@ -104,8 +106,7 @@ export const StatGrid: React.FC = () => {
         ? `Rs ${Number(monthlyReport.total_collected).toLocaleString()}`
         : '—';
 
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const monthYearLabel = now.toLocaleString(locale, { month: 'long', year: 'numeric' });
+    const monthYearLabel = df.date(now, 'monthYear');
 
     const goToPeopleTab = (tab: string) => {
         localStorage.setItem('people_active_tab', tab);
@@ -115,10 +116,7 @@ export const StatGrid: React.FC = () => {
         localStorage.setItem('finances_active_tab', tab);
         navigate('/finances');
     };
-    const goToFeesReport = () => {
-        localStorage.setItem('reports_active_tab', 'fees');
-        navigate('/reports');
-    };
+    const goToFeesReport = () => navigate('/finances/outstanding');
 
     const stats: StatCardProps[] = [
         {

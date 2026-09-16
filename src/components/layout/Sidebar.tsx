@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -6,13 +6,13 @@ import {
     Users,
     Wallet,
     MessageSquare,
-    BarChart3,
     Shield,
     ClipboardCheck,
     BookMarked,
     ClipboardList,
     Umbrella,
     CalendarClock,
+    TrendingDown,
     ArrowLeft
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -27,6 +27,7 @@ import { parentService } from '../../api/services/parent.service';
 import { useTranslation } from 'react-i18next';
 
 import type { PermissionAction } from '../../types/auth';
+import { currentAcademicYear } from '../../utils/academicYear';
 
 interface MenuItem {
     icon: React.ElementType;
@@ -66,6 +67,13 @@ const menuItems: MenuItem[] = [
         icon: Wallet,
         labelKey: 'nav.finances',
         href: '/finances',
+        permission: { resource: 'finances', action: 'read' },
+        roles: ['admin', 'principal', 'accountant'],
+    },
+    {
+        icon: TrendingDown,
+        labelKey: 'nav.outstandingFees',
+        href: '/finances/outstanding',
         permission: { resource: 'finances', action: 'read' },
         roles: ['admin', 'principal', 'accountant'],
     },
@@ -110,13 +118,6 @@ const menuItems: MenuItem[] = [
         roles: ['admin', 'principal', 'coordinator', 'teacher', 'accountant', 'staff', 'student'],
     },
     {
-        icon: BarChart3,
-        labelKey: 'nav.reports',
-        href: '/reports',
-        permission: { resource: 'finances', action: 'read' },
-        roles: ['admin', 'principal', 'coordinator', 'accountant'],
-    },
-    {
         icon: Shield,
         labelKey: 'nav.accessControl',
         href: '/settings/permissions',
@@ -124,6 +125,8 @@ const menuItems: MenuItem[] = [
         roles: ['admin'],
     },
 ];
+
+const SCROLL_KEY = 'sidebar_scroll_top';
 
 export const Sidebar: React.FC = () => {
     const { hasPermission } = usePermissionsStore();
@@ -163,9 +166,7 @@ export const Sidebar: React.FC = () => {
         retry: false,
         staleTime: 60 * 60 * 1000,
     });
-    const now = new Date();
-    const startYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    const academicYear = currentYearData?.name ?? `${startYear}-${startYear + 1}`;
+    const academicYear = currentYearData?.name ?? currentAcademicYear();
 
     const filteredMenuItems = menuItems
         .filter(item => {
@@ -181,6 +182,57 @@ export const Sidebar: React.FC = () => {
                 ? { ...item, href: homeForRole(role) }
                 : item
         );
+
+    /**
+     * The one menu item to highlight for the current route.
+     *
+     * A route can sit under several items — /finances/outstanding is inside
+     * both "Finances" and "Outstanding Fees" — so the most specific match
+     * wins and the others stay quiet. Comparing on a "/" boundary keeps
+     * /leave-approvals from counting as a child of /leave.
+     */
+    /**
+     * Keep the nav where the user left it.
+     *
+     * Thirty-one pages each render their own <Sidebar />, so navigating
+     * unmounts one and mounts a new one — the scroll position is lost by
+     * construction, and someone picking "Leave Approvals" from the bottom of
+     * the list gets thrown back to the top. Remembering the offset restores it
+     * before the browser paints, so there is no visible jump.
+     *
+     * sessionStorage rather than a module variable: it also survives a full
+     * reload, and it is per-tab, so two tabs do not fight over it.
+     */
+    const navRef = useRef<HTMLElement>(null);
+
+    const rememberScroll = useCallback(() => {
+        try {
+            if (navRef.current) {
+                sessionStorage.setItem(SCROLL_KEY, String(navRef.current.scrollTop));
+            }
+        } catch {
+            /* private mode — the position just will not persist */
+        }
+    }, []);
+
+    useLayoutEffect(() => {
+        try {
+            const saved = Number(sessionStorage.getItem(SCROLL_KEY) ?? 0);
+            if (saved > 0 && navRef.current) {
+                navRef.current.scrollTop = saved;
+            }
+        } catch {
+            /* nothing saved, or storage is blocked */
+        }
+    }, []);
+
+    const activeHref = useMemo(() => {
+        const path = location.pathname;
+        return filteredMenuItems.reduce((best, item) => {
+            const matches = path === item.href || path.startsWith(item.href + '/');
+            return matches && item.href.length > best.length ? item.href : best;
+        }, '');
+    }, [filteredMenuItems, location.pathname]);
 
     const childNavItems = activeChildId ? [
         { icon: LayoutDashboard, label: t('nav.dashboard'), href: `/parent/child/${activeChildId}/dashboard` },
@@ -230,7 +282,7 @@ export const Sidebar: React.FC = () => {
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+            <nav ref={navRef} onScroll={rememberScroll} className="flex-1 px-4 space-y-1 overflow-y-auto">
                 {activeChildId ? (
                     <>
                         <NavLink
@@ -275,27 +327,25 @@ export const Sidebar: React.FC = () => {
                     <NavLink
                         key={item.labelKey}
                         to={item.href}
-                        end={item.href === '/settings'}
                         onClick={closeSidebar}
-                        className={({ isActive }) => cn(
+                        aria-current={item.href === activeHref ? 'page' : undefined}
+                        className={cn(
                             "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                            isActive
+                            item.href === activeHref
                                 ? "bg-brand text-white shadow-lg shadow-brand/20"
                                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                         )}
                     >
-                        {({ isActive }) => (
-                            <>
-                                <item.icon className={cn(
-                                    "w-5 h-5 transition-transform duration-200",
-                                    "group-hover:scale-110"
-                                )} strokeWidth={isActive ? 2.5 : 2} />
-                                <span className={cn(
-                                    "font-semibold text-sm",
-                                    isActive ? "text-white" : "text-slate-500 group-hover:text-slate-900"
-                                )}>{t(item.labelKey)}</span>
-                            </>
-                        )}
+                        <item.icon
+                            className="w-5 h-5 transition-transform duration-200 group-hover:scale-110"
+                            strokeWidth={item.href === activeHref ? 2.5 : 2}
+                        />
+                        <span className={cn(
+                            "font-semibold text-sm",
+                            item.href === activeHref
+                                ? "text-white"
+                                : "text-slate-500 group-hover:text-slate-900"
+                        )}>{t(item.labelKey)}</span>
                     </NavLink>
                 ))}
             </nav>
