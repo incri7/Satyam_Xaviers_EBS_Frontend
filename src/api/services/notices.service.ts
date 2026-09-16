@@ -2,6 +2,10 @@ import { api } from '../axios';
 import type { Notice, NoticeCreate, NoticeUpdate, NoticeAudienceScope } from '../../types/notice';
 
 export interface NoticeQueryParams {
+    /** current | expired | all. Only honoured for the roles that manage
+     *  notices — an expired notice is never shown to a parent or a student,
+     *  whatever the query string asks for. */
+    status?: 'current' | 'expired' | 'all';
     scope?: NoticeAudienceScope;
     role?: string;
     class_id?: number;

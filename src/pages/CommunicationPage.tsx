@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
     Bell, Search, Plus, Calendar, User,
     Trash2, Edit2, X, Save, ArrowLeft,
-    Megaphone, Users, GraduationCap, UserCircle
+    Users, GraduationCap, UserCircle
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../store/useAuthStore';
@@ -17,23 +17,33 @@ import { CreateNoticeModal } from '../components/communication/CreateNoticeModal
 import { Sidebar } from '../components/layout/Sidebar';
 import { DashboardHeader } from '../components/layout/DashboardHeader';
 import { homeForRole } from '../utils/roleHome';
+import { NoticeTable } from './Communication/NoticeTable';
+import { ViewToggle, useViewMode } from '../components/common/ViewToggle';
 import type { Notice, NoticeAudienceScope, NoticePriority } from '../types/notice';
 import type { Class, Section } from '../types/academic';
+import { useDateFormat } from '../hooks/useDateFormat';
+import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
 const CommunicationPage: React.FC = () => {
     const { t } = useTranslation();
+    const [confirmUI, confirm] = useConfirmDialog();
     const { user } = useAuthStore();
     const { hasPermission } = usePermissionsStore();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'all' | 'my_role'>('all');
+    // Validity is a different question from audience, so it gets its own
+    // control rather than more options on the same one. Defaults to current:
+    // nobody should open the page onto a list of dead notices.
+    const [status, setStatus] = useState<'current' | 'expired' | 'all'>('current');
 
     const canCreate = user?.role === 'admin' || user?.role === 'principal';
     // Parents get no sidebar outside a child's pages (see Sidebar.tsx) — this
     // page needs its own way back to the dashboard in that case.
     const hasSidebar = user?.role !== 'parent';
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [view, setView] = useViewMode('notices_view');
     const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
     const [notifStatus, setNotifStatus] = useState<'idle' | 'enabling' | 'enabled' | 'unavailable'>('idle');
     const [classNames, setClassNames] = useState<Record<number, string>>({});
@@ -41,7 +51,15 @@ const CommunicationPage: React.FC = () => {
     const [studentNames, setStudentNames] = useState<Record<number, string>>({});
 
     const handleDelete = async (notice: Notice) => {
-        if (!window.confirm(`Delete notice "${notice.title}"?`)) return;
+        confirm({
+            title: t('confirm.deleteNotice.title'),
+            body: t('confirm.deleteNotice.body', { title: notice.title }),
+            confirmLabel: t('confirm.deleteNotice.action'),
+            onConfirm: () => void doDelete(notice),
+        });
+    };
+
+    const doDelete = async (notice: Notice) => {
         try {
             await noticesService.deleteNotice(notice.id);
             fetchNotices();
@@ -67,13 +85,13 @@ const CommunicationPage: React.FC = () => {
 
     useEffect(() => {
         fetchNotices();
-    }, [activeTab]);
+    }, [activeTab, status]);
 
     const fetchNotices = async () => {
         setIsLoading(true);
         try {
             const data = await noticesService.getNotices(
-                activeTab === 'my_role' ? { role: user?.role } : {}
+                activeTab === 'my_role' ? { role: user?.role, status } : { status }
             );
             setNotices(data);
         } catch (error) {
@@ -122,146 +140,187 @@ const CommunicationPage: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
+            {confirmUI}
             <Sidebar />
             <main className={cn("flex-1 flex flex-col min-w-0 overflow-hidden", hasSidebar && "lg:pl-72")}>
                 <DashboardHeader />
-                <div className="flex-1 overflow-y-auto">
-        <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-            <CreateNoticeModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onCreated={fetchNotices}
-            />
-            {editingNotice && (
-                <EditNoticeModal
-                    notice={editingNotice}
-                    onClose={() => setEditingNotice(null)}
-                    onSaved={() => { setEditingNotice(null); fetchNotices(); }}
-                    initialStudentLabel={editingNotice.student_id ? studentNames[editingNotice.student_id] : undefined}
-                />
-            )}
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 bg-white p-5 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
-                <div className="flex items-center gap-4 md:gap-6">
-                    {!hasSidebar && (
-                        <Link to={homeForRole(user?.role || '')} className="p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0">
-                            <ArrowLeft className="w-5 h-5 text-slate-600" />
-                        </Link>
-                    )}
-                    <div className="w-12 h-12 md:w-16 md:h-16 bg-brand/10 rounded-2xl md:rounded-3xl flex items-center justify-center text-brand flex-shrink-0">
-                        <Megaphone className="w-6 h-6 md:w-8 md:h-8" />
-                    </div>
-                    <div className="space-y-1">
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{t('communication.title')}</h1>
-                        <p className="text-slate-500 font-medium text-sm md:text-base">{t('communication.subtitle')}</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-                    <div className="relative group flex-1 sm:flex-none">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand transition-colors" />
-                        <input
-                            type="text"
-                            placeholder={t('communication.searchNotices')}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-slate-50 border-none rounded-2xl py-3 pl-11 pr-6 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-brand/5 w-full sm:w-[280px] transition-all outline-none"
+                {/* min-h-0 is what lets the list scroll instead of the page:
+                    without it a flex child refuses to shrink below its content
+                    and the whole column grows, taking the toolbar with it. */}
+                <div className="flex-1 flex flex-col min-h-0 p-4 md:p-6 gap-4">
+                    <CreateNoticeModal
+                        isOpen={isCreateModalOpen}
+                        onClose={() => setIsCreateModalOpen(false)}
+                        onCreated={fetchNotices}
+                    />
+                    {editingNotice && (
+                        <EditNoticeModal
+                            notice={editingNotice}
+                            onClose={() => setEditingNotice(null)}
+                            onSaved={() => { setEditingNotice(null); fetchNotices(); }}
+                            initialStudentLabel={editingNotice.student_id ? studentNames[editingNotice.student_id] : undefined}
                         />
-                    </div>
-                    {canCreate && (
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-brand text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shrink-0"
-                        >
-                            <Plus className="w-4 h-4" />
-                            {t('communication.postNotice')}
-                        </button>
                     )}
-                </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Sidebar Filters */}
-                <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm overflow-hidden relative">
-                        <div className="absolute top-0 right-0 -m-4 w-24 h-24 bg-brand/5 rounded-full blur-2xl" />
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 px-2">{t('communication.filters')}</h3>
-                        <div className="space-y-2 relative z-10">
-                            <FilterButton
-                                active={activeTab === 'all'}
-                                onClick={() => setActiveTab('all')}
-                                icon={<Bell className="w-4 h-4" />}
-                                label={t('communication.allNotices')}
-                                count={notices.length}
-                            />
-                            <FilterButton
-                                active={activeTab === 'my_role'}
-                                onClick={() => setActiveTab('my_role')}
-                                icon={<UserCircle className="w-4 h-4" />}
-                                label={t('communication.forMyRole')}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="bg-brand rounded-[2rem] p-8 text-white shadow-xl shadow-brand/20 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 -m-4 w-32 h-32 bg-white/10 rounded-full blur-2xl transition-transform group-hover:scale-125 duration-700" />
-                        <div className="relative z-10 space-y-4">
-                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                <Bell className="w-5 h-5 text-white" />
+                    <div className="flex items-center justify-between gap-3 shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                            {!hasSidebar && (
+                                <Link
+                                    to={homeForRole(user?.role || '')}
+                                    className="p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0"
+                                >
+                                    <ArrowLeft className="w-5 h-5 text-slate-600" />
+                                </Link>
+                            )}
+                            <div className="min-w-0">
+                                <h1 className="text-2xl font-bold text-slate-900">{t('communication.title')}</h1>
+                                <p className="text-slate-500 text-sm font-medium">{t('communication.subtitle')}</p>
                             </div>
-                            <h4 className="font-bold tracking-tight">{t('communication.stayUpdated')}</h4>
-                            <p className="text-xs text-brand-50/80 font-medium leading-relaxed">
-                                {t('communication.enableNotificationsDesc')}
-                            </p>
+                        </div>
+                        {canCreate && (
                             <button
-                                onClick={handleEnableNotifications}
-                                disabled={notifStatus === 'enabling' || notifStatus === 'enabled'}
-                                className="w-full bg-white text-brand py-3 rounded-xl font-bold text-xs hover:bg-brand-50 transition-colors disabled:opacity-70"
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all shrink-0"
                             >
-                                {notifStatus === 'enabling' ? '…' :
-                                 notifStatus === 'enabled' ? '✓ Notifications enabled' :
-                                 notifStatus === 'unavailable' ? 'Not available on this device' :
-                                 t('communication.enableNotifications')}
+                                <Plus className="w-5 h-5 shrink-0" />
+                                <span className="hidden sm:inline">{t('communication.postNotice')}</span>
+                                <span className="sm:hidden">{t('communication.post')}</span>
                             </button>
+                        )}
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col lg:flex-row gap-3 lg:items-center shrink-0">
+                        <div className="relative flex-1 min-w-0">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder={t('communication.searchNotices')}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-11 pr-3 py-2.5 bg-slate-50 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand/20"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Two options, so a segmented control rather than a
+                                dropdown or a whole column of its own. */}
+                            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+                                {([
+                                    ['all', t('communication.allNotices')],
+                                    ['my_role', t('communication.forMyRole')],
+                                ] as const).map(([key, label]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setActiveTab(key)}
+                                        className={cn(
+                                            'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap',
+                                            activeTab === key
+                                                ? 'bg-white shadow-sm text-slate-900'
+                                                : 'text-slate-500 hover:text-slate-700',
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Enabling notifications is a one-off, so it earns a
+                                button until it is done, not a permanent panel. */}
+                            {notifStatus !== 'enabled' && notifStatus !== 'unavailable' && (
+                                <button
+                                    onClick={handleEnableNotifications}
+                                    disabled={notifStatus === 'enabling'}
+                                    title={t('communication.enableNotificationsDesc')}
+                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-brand hover:bg-slate-50 transition-colors disabled:opacity-50 shrink-0"
+                                >
+                                    <Bell className="w-4 h-4" />
+                                    <span className="hidden md:inline">
+                                        {notifStatus === 'enabling' ? '…' : t('communication.enableNotifications')}
+                                    </span>
+                                </button>
+                            )}
+
+                            {/* Only the roles that can manage notices may look at
+                                expired ones, so the control is theirs alone. */}
+                            {canCreate && (
+                                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+                                    {([
+                                        ['current', t('communication.statusCurrent')],
+                                        ['expired', t('communication.statusExpired')],
+                                        ['all', t('communication.statusAll')],
+                                    ] as const).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setStatus(key)}
+                                            className={cn(
+                                                'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap',
+                                                status === key
+                                                    ? 'bg-white shadow-sm text-slate-900'
+                                                    : 'text-slate-500 hover:text-slate-700',
+                                            )}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <ViewToggle value={view} onChange={setView} />
                         </div>
                     </div>
-                </div>
 
-                {/* Main Feed */}
-                <div className="lg:col-span-3 space-y-6">
-                    {isLoading ? (
-                        <div className="grid grid-cols-1 gap-6">
-                            {[1, 2, 3].map(i => <NoticeSkeleton key={i} />)}
-                        </div>
-                    ) : filteredNotices.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-6">
-                            {filteredNotices.map((notice: Notice) => (
-                                <NoticeCard
-                                    key={notice.id}
-                                    notice={notice}
+                    <p className="text-sm font-bold text-slate-400 px-1 shrink-0">
+                        {t('communication.showing', { count: filteredNotices.length })}
+                        {status === 'expired' && ' · ' + t('communication.statusExpired')}
+                        {status === 'all' && ' · ' + t('communication.includesExpired')}
+                    </p>
+
+                    {/* Only this scrolls. */}
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 gap-4">
+                                {[1, 2, 3].map(i => <NoticeSkeleton key={i} />)}
+                            </div>
+                        ) : filteredNotices.length > 0 ? (
+                            view === 'table' ? (
+                                <NoticeTable
+                                    notices={filteredNotices}
                                     canManage={canCreate}
-                                    onEdit={() => setEditingNotice(notice)}
-                                    onDelete={() => handleDelete(notice)}
-                                    targetClassName={notice.class_id ? classNames[notice.class_id] : undefined}
-                                    targetSectionName={notice.section_id ? sectionNames[notice.section_id] : undefined}
-                                    targetStudentName={notice.student_id ? studentNames[notice.student_id] : undefined}
+                                    onEdit={(n) => setEditingNotice(n)}
+                                    onDelete={handleDelete}
+                                    classNames={classNames}
+                                    sectionNames={sectionNames}
+                                    studentNames={studentNames}
                                 />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-[2rem] p-20 flex flex-col items-center justify-center text-center space-y-4 shadow-sm border border-slate-100">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                                <Search className="w-8 h-8" />
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {filteredNotices.map((notice: Notice) => (
+                                        <NoticeCard
+                                            key={notice.id}
+                                            notice={notice}
+                                            canManage={canCreate}
+                                            onEdit={() => setEditingNotice(notice)}
+                                            onDelete={() => handleDelete(notice)}
+                                            targetClassName={notice.class_id ? classNames[notice.class_id] : undefined}
+                                            targetSectionName={notice.section_id ? sectionNames[notice.section_id] : undefined}
+                                            targetStudentName={notice.student_id ? studentNames[notice.student_id] : undefined}
+                                        />
+                                    ))}
+                                </div>
+                            )
+                        ) : (
+                            <div className="bg-white rounded-2xl p-16 flex flex-col items-center justify-center text-center space-y-3 shadow-sm border border-slate-100">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                                    <Search className="w-7 h-7" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-bold text-slate-900">{t('communication.noNoticesFound')}</h3>
+                                    <p className="text-slate-500 font-medium max-w-xs text-sm">{t('communication.noNoticesDesc')}</p>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-900">{t('communication.noNoticesFound')}</h3>
-                                <p className="text-slate-500 font-medium max-w-xs">{t('communication.noNoticesDesc')}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                        )}
+                    </div>
                 </div>
             </main>
         </div>
@@ -549,8 +608,8 @@ const NoticeCard: React.FC<{
     targetSectionName?: string;
     targetStudentName?: string;
 }> = ({ notice, canManage, onEdit, onDelete, targetClassName, targetSectionName, targetStudentName }) => {
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const { t } = useTranslation();
+    const df = useDateFormat();
 
     const priorityColors: Record<NoticePriority, string> = {
         low: 'bg-green-50 text-green-600 border-green-100',
@@ -571,13 +630,10 @@ const NoticeCard: React.FC<{
         student: <User className="w-5 h-5" />
     };
 
-    const formatDate = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
-    };
+    const formatDate = (dateStr: string) => df.date(dateStr);
 
-    const getDay = (dateStr: string) => new Date(dateStr).getDate();
-    const getMonthStr = (dateStr: string) => new Date(dateStr).toLocaleString(locale, { month: 'short' });
+    const getDay = (dateStr: string) => df.day(dateStr);
+    const getMonthStr = (dateStr: string) => df.monthShort(dateStr);
 
     return (
         <div className="group bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 relative overflow-hidden">
@@ -650,31 +706,6 @@ const NoticeCard: React.FC<{
         </div>
     );
 };
-
-const FilterButton: React.FC<{ active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: number }> = ({ active, onClick, icon, label, count }) => (
-    <button
-        onClick={onClick}
-        className={cn(
-            "w-full flex items-center justify-between px-5 py-4 rounded-2xl font-bold transition-all duration-300",
-            active
-                ? "bg-brand text-white shadow-lg shadow-brand/20 translate-x-1"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-        )}
-    >
-        <div className="flex items-center gap-3">
-            <span className={cn(active ? "text-white" : "text-brand")}>{icon}</span>
-            <span className="text-sm">{label}</span>
-        </div>
-        {count !== undefined && (
-            <span className={cn(
-                "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black",
-                active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-            )}>
-                {count}
-            </span>
-        )}
-    </button>
-);
 
 const NoticeSkeleton: React.FC = () => (
     <div className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm animate-pulse flex gap-8">

@@ -9,6 +9,44 @@ export interface Assignment {
     subject_id: number;
     due_date: string;
     teacher_id: number;
+    /** Resolved server-side — the list used to render raw primary keys. */
+    class_name?: string | null;
+    section_name?: string | null;
+    subject_name?: string | null;
+    teacher_name?: string | null;
+    /** Marking progress, so the list answers "what still needs grading?". */
+    submission_count: number;
+    submitted_count: number;
+    graded_count: number;
+}
+
+export interface AssignmentFilterOption {
+    id: number;
+    name: string;
+}
+
+export interface AssignmentFilterOptions {
+    classes: AssignmentFilterOption[];
+    sections: AssignmentFilterOption[];
+    subjects: AssignmentFilterOption[];
+    teachers: AssignmentFilterOption[];
+}
+
+export type AssignmentSort = 'due_date' | 'title' | 'class' | 'subject' | 'teacher';
+
+export interface AssignmentListParams {
+    class_id?: number;
+    section_id?: number;
+    teacher_id?: number;
+    subject_id?: number;
+    due_before?: string;
+    due_after?: string;
+    status?: 'overdue' | 'upcoming';
+    search?: string;
+    sort_by?: AssignmentSort;
+    sort_dir?: 'asc' | 'desc';
+    skip?: number;
+    limit?: number;
 }
 
 export interface AssignmentCreate {
@@ -36,6 +74,9 @@ export interface Submission {
     submitted_at?: string;
     grade?: string;
     remarks?: string;
+    /** A teacher grades people, not row ids. */
+    student_name?: string | null;
+    admission_no?: string | null;
 }
 
 export interface SubmissionUpdate {
@@ -55,13 +96,17 @@ export const assignmentsService = {
         return response.data;
     },
 
-    listAssignments: async (params?: {
-        class_id?: number;
-        section_id?: number;
-        teacher_id?: number;
-        subject_id?: number;
-    }): Promise<AssignmentListResponse> => {
+    listAssignments: async (params?: AssignmentListParams): Promise<AssignmentListResponse> => {
         const response = await api.get<AssignmentListResponse>('assignments/', { params });
+        return response.data;
+    },
+
+    /** Only the classes, subjects and teachers that appear in the caller's
+     *  own assignments — a filter that offers empty results is worse than none. */
+    getFilterOptions: async (classId?: number): Promise<AssignmentFilterOptions> => {
+        const response = await api.get<AssignmentFilterOptions>('assignments/filter-options', {
+            params: classId ? { class_id: classId } : undefined,
+        });
         return response.data;
     },
 

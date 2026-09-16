@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { assignmentsService, type Assignment, type SubmissionStatus } from '../../api/services/assignments.service';
+import {
+    assignmentsService,
+    type Assignment,
+    type AssignmentSort,
+    type SubmissionStatus,
+} from '../../api/services/assignments.service';
 import { academicsService } from '../../api/services/academics.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
     Plus, BookOpen, Calendar, ChevronDown, X, CheckCircle2,
-    AlertCircle, Loader2, Users, ClipboardList
+    AlertCircle, Loader2, Users, ClipboardList, Search, ArrowUpDown
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTranslation } from 'react-i18next';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { ViewToggle, useViewMode } from '../../components/common/ViewToggle';
+import { Pagination } from '../../components/common/Pagination';
+import { SelectMenu } from '../../components/common/SelectMenu';
 
 const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const queryClient = useQueryClient();
@@ -262,17 +271,70 @@ const CreateAssignmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
     );
 };
 
+const PAGE_SIZE = 50;
+
+type SortKey = AssignmentSort;
+
 const AssignmentsPage: React.FC = () => {
     const { user } = useAuthStore();
     const { t } = useTranslation();
+    const df = useDateFormat();
+    const [view, setView] = useViewMode('assignments_view');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
 
     const canCreate = user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'principal';
+    // Teachers only ever get their own assignments back, so a teacher filter
+    // would be a dropdown with one entry.
+    const showTeacherFilter = user?.role !== 'teacher';
 
-    const { data: assignmentsData, isLoading } = useQuery({
-        queryKey: ['assignments'],
-        queryFn: () => assignmentsService.listAssignments(),
+    const [searchInput, setSearchInput] = useState('');
+    const [search, setSearch] = useState('');
+    const [classId, setClassId] = useState('');
+    const [sectionId, setSectionId] = useState('');
+    const [subjectId, setSubjectId] = useState('');
+    const [teacherId, setTeacherId] = useState('');
+    const [dueStatus, setDueStatus] = useState<'' | 'overdue' | 'upcoming'>('');
+    const [sortBy, setSortBy] = useState<SortKey>('due_date');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+    const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const id = setTimeout(() => {
+            setSearch(searchInput.trim());
+            setPage(1);
+        }, 350);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
+    // Any filter change puts you back on page 1 — page 4 of the old result set
+    // is meaningless against the new one.
+    const resetTo = <T,>(setter: (v: T) => void) => (v: T) => {
+        setter(v);
+        setPage(1);
+    };
+
+    const { data: options } = useQuery({
+        queryKey: ['assignments', 'filter-options', classId],
+        queryFn: () => assignmentsService.getFilterOptions(classId ? Number(classId) : undefined),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const { data, isLoading, isFetching } = useQuery({
+        queryKey: ['assignments', { search, classId, sectionId, subjectId, teacherId, dueStatus, sortBy, sortDir, page }],
+        queryFn: () => assignmentsService.listAssignments({
+            sort_by: sortBy,
+            sort_dir: sortDir,
+            skip: (page - 1) * PAGE_SIZE,
+            limit: PAGE_SIZE,
+            ...(search ? { search } : {}),
+            ...(classId ? { class_id: Number(classId) } : {}),
+            ...(sectionId ? { section_id: Number(sectionId) } : {}),
+            ...(subjectId ? { subject_id: Number(subjectId) } : {}),
+            ...(teacherId ? { teacher_id: Number(teacherId) } : {}),
+            ...(dueStatus ? { status: dueStatus } : {}),
+        }),
+        placeholderData: keepPreviousData,
     });
 
     const { data: submissionsData } = useQuery({
@@ -281,7 +343,27 @@ const AssignmentsPage: React.FC = () => {
         enabled: !!selectedAssignment,
     });
 
-    const assignments = assignmentsData?.assignments || [];
+    const assignments = data?.assignments || [];
+    const totalCount = data?.total_count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+    // Every real class currently has a single section, all named "A", so a
+    // section dropdown would be twelve identical options. Show it only once a
+    // class is picked and that class genuinely has more than one.
+    const sectionOptions = options?.sections ?? [];
+    const showSectionFilter = !!classId && sectionOptions.length > 1;
+
+    const hasFilters = !!(search || classId || sectionId || subjectId || teacherId || dueStatus);
+    const clearFilters = () => {
+        setSearchInput('');
+        setSearch('');
+        setClassId('');
+        setSectionId('');
+        setSubjectId('');
+        setTeacherId('');
+        setDueStatus('');
+        setPage(1);
+    };
 
     const STATUS_CONFIG: Record<SubmissionStatus, { labelKey: string; color: string }> = {
         pending: { labelKey: 'assignments.statusPending', color: 'bg-slate-100 text-slate-500' },
@@ -292,6 +374,70 @@ const AssignmentsPage: React.FC = () => {
 
     const isOverdue = (dueDate: string) => new Date(dueDate) < new Date();
 
+    const toggleSort = (key: SortKey) => {
+        if (sortBy === key) {
+            setSortDir(sortDir === 'desc' ? 'asc' : 'desc');
+        } else {
+            setSortBy(key);
+            setSortDir(key === 'due_date' ? 'desc' : 'asc');
+        }
+        setPage(1);
+    };
+
+    const Th: React.FC<{ k?: SortKey; align?: 'right'; children: React.ReactNode }> = ({ k, align, children }) => (
+        <th className={cn(
+            'px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500',
+            align === 'right' ? 'text-right' : 'text-left',
+        )}>
+            {k ? (
+                <button
+                    onClick={() => toggleSort(k)}
+                    className={cn(
+                        'inline-flex items-center gap-1 hover:text-slate-900 transition-colors',
+                        sortBy === k && 'text-slate-900',
+                    )}
+                >
+                    {children}
+                    <ArrowUpDown className={cn('w-3 h-3', sortBy === k ? 'opacity-100' : 'opacity-30')} />
+                </button>
+            ) : children}
+        </th>
+    );
+
+    /** Marking progress as a bar — "17 of 24 handed in, 12 graded". */
+    const Progress: React.FC<{ a: Assignment }> = ({ a }) => {
+        if (!a.submission_count) {
+            return <span className="text-xs font-bold text-slate-300">—</span>;
+        }
+        const inPct = (a.submitted_count / a.submission_count) * 100;
+        const gradedPct = (a.graded_count / a.submission_count) * 100;
+        return (
+            <div className="flex items-center gap-2 justify-end">
+                <span className="text-xs font-bold text-slate-500 tabular-nums whitespace-nowrap">
+                    {a.submitted_count}/{a.submission_count}
+                </span>
+                <div
+                    className="relative w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0"
+                    title={t('assignments.progressHint', {
+                        submitted: a.submitted_count,
+                        graded: a.graded_count,
+                        total: a.submission_count,
+                    })}
+                >
+                    <div className="absolute inset-y-0 left-0 bg-blue-400 rounded-full" style={{ width: inPct + '%' }} />
+                    <div className="absolute inset-y-0 left-0 bg-emerald-500 rounded-full" style={{ width: gradedPct + '%' }} />
+                </div>
+            </div>
+        );
+    };
+
+    const Meta: React.FC<{ a: Assignment }> = ({ a }) => (
+        <span className="text-slate-500">
+            {a.class_name ?? t('assignments.unknownClass')}
+            {a.section_name && sectionOptions.length > 1 ? ' ' + a.section_name : ''}
+        </span>
+    );
+
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
@@ -299,11 +445,11 @@ const AssignmentsPage: React.FC = () => {
                 <DashboardHeader />
                 {isCreateOpen && <CreateAssignmentModal onClose={() => setIsCreateOpen(false)} />}
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
                     <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                             <h1 className="text-2xl font-bold text-slate-900">{t('assignments.title')}</h1>
-                            <p className="text-slate-500 text-sm font-medium">{assignments.length} {t('assignments.total')}</p>
+                            <p className="text-slate-500 text-sm font-medium">{t('assignments.subtitle')}</p>
                         </div>
                         {canCreate && (
                             <button
@@ -312,88 +458,288 @@ const AssignmentsPage: React.FC = () => {
                             >
                                 <Plus className="w-5 h-5 shrink-0" />
                                 <span className="hidden sm:inline">{t('assignments.newAssignment')}</span>
-                                <span className="sm:hidden">{t('assignments.new', 'New')}</span>
+                                <span className="sm:hidden">{t('assignments.new')}</span>
                             </button>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Assignment list */}
-                        <div className="space-y-3">
+                    {/* Toolbar */}
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+                            <div className="relative flex-1 min-w-0">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <input
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    placeholder={t('assignments.searchPlaceholder')}
+                                    className="w-full pl-11 pr-10 py-2.5 bg-slate-50 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-brand/20 outline-none border-none"
+                                />
+                                {searchInput && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearchInput('')}
+                                        aria-label={t('common.clear')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-3">
+                                <SelectMenu
+                                    value={classId}
+                                    onChange={(v) => { setClassId(v); setSectionId(''); setPage(1); }}
+                                    label={t('assignments.class')}
+                                    options={[
+                                        { value: '', label: t('assignments.allClasses') },
+                                        ...(options?.classes ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+                                    ]}
+                                />
+
+                                {showSectionFilter && (
+                                    <SelectMenu
+                                        value={sectionId}
+                                        onChange={resetTo(setSectionId)}
+                                        label={t('assignments.section')}
+                                        options={[
+                                            { value: '', label: t('assignments.allSections') },
+                                            ...sectionOptions.map((sc) => ({ value: String(sc.id), label: sc.name })),
+                                        ]}
+                                    />
+                                )}
+
+                                <SelectMenu
+                                    value={subjectId}
+                                    onChange={resetTo(setSubjectId)}
+                                    label={t('assignments.subject')}
+                                    options={[
+                                        { value: '', label: t('assignments.allSubjects') },
+                                        ...(options?.subjects ?? []).map((sb) => ({ value: String(sb.id), label: sb.name })),
+                                    ]}
+                                />
+
+                                {showTeacherFilter && (
+                                    <SelectMenu
+                                        value={teacherId}
+                                        onChange={resetTo(setTeacherId)}
+                                        label={t('assignments.teacher')}
+                                        options={[
+                                            { value: '', label: t('assignments.allTeachers') },
+                                            ...(options?.teachers ?? []).map((tc) => ({ value: String(tc.id), label: tc.name })),
+                                        ]}
+                                    />
+                                )}
+
+                                <SelectMenu
+                                    value={dueStatus}
+                                    onChange={(v) => resetTo(setDueStatus)(v as '' | 'overdue' | 'upcoming')}
+                                    label={t('assignments.due')}
+                                    options={[
+                                        { value: '', label: t('assignments.allDates') },
+                                        { value: 'upcoming', label: t('assignments.upcoming') },
+                                        { value: 'overdue', label: t('assignments.overdue') },
+                                    ]}
+                                />
+
+                                <ViewToggle value={view} onChange={setView} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 text-sm px-1">
+                        <p className="font-bold text-slate-400">
+                            {t('assignments.total')} <span className="text-slate-900">{totalCount}</span>
+                            {isFetching && <Loader2 className="inline w-3.5 h-3.5 ml-2 animate-spin text-slate-300" />}
+                        </p>
+                        {hasFilters && (
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="inline-flex items-center gap-1.5 font-bold text-slate-500 hover:text-brand transition-colors"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                                {t('common.clearFilters')}
+                            </button>
+                        )}
+                    </div>
+
+                    <div className={cn('grid gap-6', selectedAssignment ? 'xl:grid-cols-[minmax(0,1fr)_380px]' : 'grid-cols-1')}>
+                        <div className="min-w-0 space-y-4">
                             {isLoading ? (
-                                [1,2,3].map(i => <div key={i} className="h-24 bg-white rounded-2xl animate-pulse border border-slate-100" />)
+                                <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                                    ))}
+                                </div>
                             ) : assignments.length === 0 ? (
                                 <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
                                     <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                                    <p className="font-bold text-slate-400">{t('assignments.noAssignments')}</p>
+                                    <p className="font-bold text-slate-400">
+                                        {hasFilters ? t('assignments.noMatches') : t('assignments.noAssignments')}
+                                    </p>
+                                    {hasFilters && (
+                                        <button
+                                            onClick={clearFilters}
+                                            className="mt-3 text-sm font-bold text-brand hover:underline"
+                                        >
+                                            {t('common.clearFilters')}
+                                        </button>
+                                    )}
+                                </div>
+                            ) : view === 'table' ? (
+                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[820px]">
+                                            <thead className="bg-slate-50 border-b border-slate-100">
+                                                <tr>
+                                                    <Th k="title">{t('assignments.assignment')}</Th>
+                                                    <Th k="class">{t('assignments.class')}</Th>
+                                                    <Th k="subject">{t('assignments.subject')}</Th>
+                                                    {showTeacherFilter && <Th k="teacher">{t('assignments.teacher')}</Th>}
+                                                    <Th k="due_date">{t('assignments.dueDate')}</Th>
+                                                    <Th align="right">{t('assignments.progress')}</Th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {assignments.map((a) => (
+                                                    <tr
+                                                        key={a.id}
+                                                        onClick={() => setSelectedAssignment(selectedAssignment?.id === a.id ? null : a)}
+                                                        className={cn(
+                                                            'cursor-pointer transition-colors',
+                                                            selectedAssignment?.id === a.id ? 'bg-brand/5' : 'hover:bg-slate-50/70',
+                                                        )}
+                                                    >
+                                                        <td className="px-4 py-3 max-w-[280px]">
+                                                            <p className="font-bold text-slate-800 truncate">{a.title}</p>
+                                                            {a.description && (
+                                                                <p className="text-xs text-slate-400 font-medium truncate">{a.description}</p>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-medium whitespace-nowrap"><Meta a={a} /></td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-slate-600 whitespace-nowrap">
+                                                            {a.subject_name ?? '—'}
+                                                        </td>
+                                                        {showTeacherFilter && (
+                                                            <td className="px-4 py-3 text-sm font-medium text-slate-600 whitespace-nowrap max-w-[160px] truncate">
+                                                                {a.teacher_name ?? '—'}
+                                                            </td>
+                                                        )}
+                                                        <td className="px-4 py-3 whitespace-nowrap">
+                                                            <span className={cn(
+                                                                'text-sm font-medium',
+                                                                isOverdue(a.due_date) ? 'text-red-500' : 'text-slate-600',
+                                                            )}>
+                                                                {df.date(a.due_date)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3"><Progress a={a} /></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             ) : (
-                                assignments.map(assignment => (
-                                    <button
-                                        key={assignment.id}
-                                        onClick={() => setSelectedAssignment(
-                                            selectedAssignment?.id === assignment.id ? null : assignment
-                                        )}
-                                        className={cn(
-                                            'w-full bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-left hover:shadow-md transition-all',
-                                            selectedAssignment?.id === assignment.id && 'border-brand/30 ring-2 ring-brand/10'
-                                        )}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex items-start gap-3 min-w-0">
-                                                <div className="w-9 h-9 bg-brand/10 rounded-xl flex items-center justify-center text-brand shrink-0">
-                                                    <BookOpen className="w-4 h-4" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {assignments.map((a) => (
+                                        <button
+                                            key={a.id}
+                                            onClick={() => setSelectedAssignment(selectedAssignment?.id === a.id ? null : a)}
+                                            className={cn(
+                                                'w-full bg-white rounded-2xl p-5 border border-slate-100 shadow-sm text-left hover:shadow-md transition-all',
+                                                selectedAssignment?.id === a.id && 'border-brand/30 ring-2 ring-brand/10',
+                                            )}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-start gap-3 min-w-0">
+                                                    <div className="w-9 h-9 bg-brand/10 rounded-xl flex items-center justify-center text-brand shrink-0">
+                                                        <BookOpen className="w-4 h-4" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-slate-900 truncate">{a.title}</p>
+                                                        <p className="text-xs font-bold text-slate-400 mt-0.5">
+                                                            <Meta a={a} />
+                                                            {a.subject_name ? ' · ' + a.subject_name : ''}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-slate-900 truncate">{assignment.title}</p>
-                                                    {assignment.description && (
-                                                        <p className="text-xs text-slate-500 font-medium mt-0.5 line-clamp-1">{assignment.description}</p>
-                                                    )}
+                                                <div className={cn(
+                                                    'text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-lg shrink-0',
+                                                    isOverdue(a.due_date) ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600',
+                                                )}>
+                                                    {isOverdue(a.due_date) ? t('assignments.overdue') : t('assignments.due')}
                                                 </div>
                                             </div>
-                                            <div className={cn(
-                                                'text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-lg shrink-0',
-                                                isOverdue(assignment.due_date) ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'
-                                            )}>
-                                                {isOverdue(assignment.due_date) ? t('assignments.overdue') : t('assignments.due')}
+                                            <div className="mt-3 flex items-center justify-between gap-4 text-xs font-bold text-slate-400">
+                                                <span className="flex items-center gap-1">
+                                                    <Calendar className="w-3.5 h-3.5" />
+                                                    {df.date(a.due_date)}
+                                                </span>
+                                                <Progress a={a} />
                                             </div>
-                                        </div>
-                                        <div className="mt-3 flex items-center gap-4 text-xs font-bold text-slate-400">
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {new Date(assignment.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                            <span>Class {assignment.class_id} · Section {assignment.section_id}</span>
-                                        </div>
-                                    </button>
-                                ))
+                                        </button>
+                                    ))}
+                                </div>
                             )}
+
+                            <Pagination
+                                page={page}
+                                totalPages={totalPages}
+                                totalCount={totalCount}
+                                pageSize={PAGE_SIZE}
+                                onChange={setPage}
+                            />
                         </div>
 
                         {/* Submissions panel */}
                         {selectedAssignment && (
-                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                                <div className="p-5 border-b border-slate-100">
-                                    <h3 className="font-bold text-slate-900">{selectedAssignment.title}</h3>
-                                    <p className="text-sm text-slate-500 font-medium">{t('assignments.submissions')}</p>
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden self-start xl:sticky xl:top-4">
+                                <div className="p-5 border-b border-slate-100 flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <h3 className="font-bold text-slate-900 truncate">{selectedAssignment.title}</h3>
+                                        <p className="text-sm text-slate-500 font-medium">
+                                            {selectedAssignment.class_name}
+                                            {selectedAssignment.subject_name ? ' · ' + selectedAssignment.subject_name : ''}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedAssignment(null)}
+                                        aria-label={t('common.close')}
+                                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
-                                {submissionsData?.submissions.length === 0 ? (
+                                {!submissionsData ? (
+                                    <div className="p-8 text-center">
+                                        <Loader2 className="w-5 h-5 animate-spin text-slate-300 mx-auto" />
+                                    </div>
+                                ) : submissionsData.submissions.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <Users className="w-10 h-10 text-slate-200 mx-auto mb-2" />
                                         <p className="text-sm font-bold text-slate-400">{t('assignments.noSubmissions')}</p>
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-slate-50">
-                                        {(submissionsData?.submissions || []).map(sub => (
-                                            <div key={sub.id} className="flex items-center justify-between px-5 py-3">
-                                                <span className="text-sm font-bold text-slate-700">Student #{sub.student_id}</span>
-                                                <div className="flex items-center gap-2">
+                                    <div className="divide-y divide-slate-50 max-h-[70vh] overflow-y-auto">
+                                        {submissionsData.submissions.map((sub) => (
+                                            <div key={sub.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-slate-700 truncate">
+                                                        {sub.student_name || t('assignments.unnamedStudent')}
+                                                    </p>
+                                                    {sub.admission_no && (
+                                                        <p className="text-[11px] font-mono text-slate-400">{sub.admission_no}</p>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
                                                     {sub.grade && (
                                                         <span className="text-xs font-black text-brand">{sub.grade}</span>
                                                     )}
                                                     <span className={cn(
                                                         'text-xs font-bold px-2.5 py-1 rounded-lg',
-                                                        STATUS_CONFIG[sub.status].color
+                                                        STATUS_CONFIG[sub.status].color,
                                                     )}>
                                                         {t(STATUS_CONFIG[sub.status].labelKey)}
                                                     </span>
