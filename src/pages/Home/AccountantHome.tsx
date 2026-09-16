@@ -5,11 +5,13 @@ import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
 import { useAuthStore } from '../../store/useAuthStore';
+import { Link } from 'react-router-dom';
 import {
-    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown, FileBarChart2
+    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown, FileBarChart2, ChevronRight
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const RISK_STYLE: Record<string, string> = {
     High: 'bg-red-100 text-red-700',
@@ -17,19 +19,33 @@ const RISK_STYLE: Record<string, string> = {
     Low: 'bg-slate-100 text-slate-600',
 };
 
+/** Rows shown on the home preview — the full list lives on /finances/outstanding. */
+const PREVIEW_SIZE = 10;
+
 const AccountantHome: React.FC = () => {
     const { t, i18n } = useTranslation();
+    const df = useDateFormat();
     const { user } = useAuthStore();
     const [reminderSuccess, setReminderSuccess] = useState('');
     const [reminderError, setReminderError] = useState('');
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [sendingId, setSendingId] = useState<number | null>(null);
 
     const today = new Date();
     const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = today.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayLabel = df.date(today, 'long');
 
+    // Home shows a short preview; the full, searchable list lives on
+    // /finances/outstanding. Counts come from the server's total_count so they
+    // stay correct regardless of how many rows this preview renders.
     const { data: outstanding, isLoading } = useQuery({
-        queryKey: ['finances', 'outstanding'],
-        queryFn: () => financesService.getOutstanding(200),
+        queryKey: ['finances', 'outstanding', 'preview'],
+        queryFn: () => financesService.getOutstanding({ limit: PREVIEW_SIZE }),
+    });
+
+    const { data: highRisk } = useQuery({
+        queryKey: ['finances', 'outstanding', 'high-risk-count'],
+        queryFn: () => financesService.getOutstanding({ limit: 1, risk: 'High' }),
     });
 
     const { data: monthlyReport } = useQuery({
@@ -38,21 +54,41 @@ const AccountantHome: React.FC = () => {
     });
 
     const reminderMutation = useMutation({
-        mutationFn: financesService.sendBulkReminders,
+        mutationFn: (studentIds?: number[]) => financesService.sendBulkReminders(studentIds),
         onSuccess: (data) => {
             setReminderSuccess(data.message);
             setReminderError('');
+            setSelectedIds([]);
+            setSendingId(null);
             setTimeout(() => setReminderSuccess(''), 5000);
         },
         onError: (err: any) => {
             setReminderError(err.response?.data?.detail || t('common.error'));
+            setSendingId(null);
         },
     });
 
     const entries = outstanding?.entries ?? [];
     const totalOutstanding = outstanding?.total_outstanding ?? 0;
-    const highRiskCount = entries.filter(e => e.risk === 'High').length;
+    const familiesDue = outstanding?.total_count ?? 0;
+    const highRiskCount = highRisk?.total_count ?? 0;
     const firstName = user?.firstName || 'Accountant';
+    const allSelected = entries.length > 0 && selectedIds.length === entries.length;
+
+    const toggleSelected = (studentId: number) => {
+        setSelectedIds((prev) =>
+            prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        setSelectedIds(allSelected ? [] : entries.map((e) => e.student_id));
+    };
+
+    const sendToOne = (studentId: number) => {
+        setSendingId(studentId);
+        reminderMutation.mutate([studentId]);
+    };
 
     const riskLabel = (risk: string) => {
         if (risk === 'High') return t('home.accountant.riskHigh');
@@ -85,7 +121,7 @@ const AccountantHome: React.FC = () => {
                         </div>
                         <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.accountant.familiesDue')}</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-1">{entries.length}</p>
+                            <p className="text-2xl font-bold text-slate-900 mt-1">{familiesDue}</p>
                         </div>
                         <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
                             <p className="text-xs font-bold text-red-500 uppercase tracking-wide">{t('home.accountant.highRisk')}</p>
@@ -118,18 +154,27 @@ const AccountantHome: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <TrendingDown className="w-5 h-5 text-red-500" />
                                 <h2 className="font-bold text-slate-800">{t('home.accountant.outstandingBalances')}</h2>
+                                <Link
+                                    to="/finances/outstanding"
+                                    className="inline-flex items-center gap-0.5 text-sm font-semibold text-brand hover:underline ml-1"
+                                >
+                                    {t('outstanding.viewAll')}
+                                    <ChevronRight className="w-4 h-4" />
+                                </Link>
                             </div>
                             <button
-                                onClick={() => reminderMutation.mutate()}
+                                onClick={() => reminderMutation.mutate(selectedIds.length > 0 ? selectedIds : undefined)}
                                 disabled={reminderMutation.isPending || entries.length === 0}
                                 className="inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-sm font-semibold whitespace-nowrap rounded-lg shadow-sm hover:opacity-95 transition-all disabled:opacity-50"
                             >
-                                {reminderMutation.isPending ? (
+                                {reminderMutation.isPending && sendingId === null ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                     <Send className="w-4 h-4" />
                                 )}
-                                {t('home.accountant.sendReminders')}
+                                {selectedIds.length > 0
+                                    ? `${t('home.accountant.sendSelected')} (${selectedIds.length})`
+                                    : `${t('home.accountant.sendReminders')}${familiesDue ? ` (${familiesDue})` : ''}`}
                             </button>
                         </div>
 
@@ -148,42 +193,73 @@ const AccountantHome: React.FC = () => {
 
                         {entries.length > 0 && (
                             <div className="divide-y divide-slate-50">
-                                <div className="hidden md:grid grid-cols-12 gap-2 px-5 py-2 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
-                                    <span className="col-span-4">{t('home.accountant.student')}</span>
-                                    <span className="col-span-2 text-right">{t('home.accountant.assigned')}</span>
-                                    <span className="col-span-2 text-right">{t('home.accountant.paid')}</span>
-                                    <span className="col-span-2 text-right">{t('home.accountant.balance')}</span>
-                                    <span className="col-span-2 text-center">{t('home.accountant.risk')}</span>
+                                <div className="hidden md:flex items-center gap-2 px-5 py-2 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={allSelected}
+                                        onChange={toggleSelectAll}
+                                        className="w-4 h-4 rounded border-slate-300 shrink-0"
+                                        aria-label={t('home.accountant.selectAll')}
+                                    />
+                                    <div className="grid grid-cols-12 gap-2 flex-1">
+                                        <span className="col-span-4">{t('home.accountant.student')}</span>
+                                        <span className="col-span-2 text-right">{t('home.accountant.assigned')}</span>
+                                        <span className="col-span-2 text-right">{t('home.accountant.paid')}</span>
+                                        <span className="col-span-2 text-right">{t('home.accountant.balance')}</span>
+                                        <span className="col-span-2 text-center">{t('home.accountant.risk')}</span>
+                                    </div>
+                                    <span className="w-8 shrink-0" />
                                 </div>
                                 {entries.map((entry: OutstandingEntry) => (
-                                    <div key={entry.student_id} className="grid grid-cols-12 gap-2 px-5 py-3.5 items-center">
-                                        <div className="col-span-12 md:col-span-4">
-                                            <p className="font-bold text-slate-800 text-sm">{entry.student_name}</p>
-                                            <p className="text-xs text-slate-500 font-medium">{entry.admission_no}</p>
+                                    <div key={entry.student_id} className="flex items-center gap-2 px-5 py-3.5">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(entry.student_id)}
+                                            onChange={() => toggleSelected(entry.student_id)}
+                                            className="w-4 h-4 rounded border-slate-300 shrink-0"
+                                            aria-label={`${t('home.accountant.select')} ${entry.student_name}`}
+                                        />
+                                        <div className="grid grid-cols-12 gap-2 items-center flex-1 min-w-0">
+                                            <div className="col-span-12 md:col-span-4">
+                                                <p className="font-bold text-slate-800 text-sm">{entry.student_name}</p>
+                                                <p className="text-xs text-slate-500 font-medium">{entry.admission_no}</p>
+                                            </div>
+                                            <div className="col-span-4 md:col-span-2 text-right">
+                                                <p className="text-sm font-semibold text-slate-600">
+                                                    Rs {Number(entry.total_assigned).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="col-span-4 md:col-span-2 text-right">
+                                                <p className="text-sm font-semibold text-emerald-600">
+                                                    Rs {Number(entry.total_paid).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="col-span-4 md:col-span-2 text-right">
+                                                <p className="text-sm font-bold text-red-700">
+                                                    Rs {Number(entry.balance).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="col-span-12 md:col-span-2 flex md:justify-center">
+                                                <span className={cn(
+                                                    'text-xs font-bold px-2.5 py-1 rounded-lg',
+                                                    RISK_STYLE[entry.risk] ?? 'bg-slate-100 text-slate-600'
+                                                )}>
+                                                    {riskLabel(entry.risk)}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="col-span-4 md:col-span-2 text-right">
-                                            <p className="text-sm font-semibold text-slate-600">
-                                                Rs {Number(entry.total_assigned).toLocaleString()}
-                                            </p>
-                                        </div>
-                                        <div className="col-span-4 md:col-span-2 text-right">
-                                            <p className="text-sm font-semibold text-emerald-600">
-                                                Rs {Number(entry.total_paid).toLocaleString()}
-                                            </p>
-                                        </div>
-                                        <div className="col-span-4 md:col-span-2 text-right">
-                                            <p className="text-sm font-bold text-red-700">
-                                                Rs {Number(entry.balance).toLocaleString()}
-                                            </p>
-                                        </div>
-                                        <div className="col-span-12 md:col-span-2 flex md:justify-center">
-                                            <span className={cn(
-                                                'text-xs font-bold px-2.5 py-1 rounded-lg',
-                                                RISK_STYLE[entry.risk] ?? 'bg-slate-100 text-slate-600'
-                                            )}>
-                                                {riskLabel(entry.risk)}
-                                            </span>
-                                        </div>
+                                        <button
+                                            onClick={() => sendToOne(entry.student_id)}
+                                            disabled={reminderMutation.isPending}
+                                            className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-lg text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
+                                            title={t('home.accountant.sendReminderTo', { name: entry.student_name })}
+                                        >
+                                            {reminderMutation.isPending && sendingId === entry.student_id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Send className="w-4 h-4" />
+                                            )}
+                                        </button>
                                     </div>
                                 ))}
                             </div>

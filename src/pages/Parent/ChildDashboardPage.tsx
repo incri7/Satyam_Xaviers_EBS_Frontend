@@ -9,12 +9,14 @@ import { ChildPageHeader } from '../../components/parent/ChildPageHeader';
 import { parentService } from '../../api/services/parent.service';
 import { getMarksComparison } from '../../api/services/exams.service';
 import { TrendingUp, Calendar, CreditCard } from 'lucide-react';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const CHART_COLORS = ['#B4213A', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 const ChildDashboardPage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
     const { t, i18n } = useTranslation();
+    const df = useDateFormat();
     const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
     const id = Number(studentId);
 
@@ -64,7 +66,7 @@ const ChildDashboardPage: React.FC = () => {
         return Array.from(buckets.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([weekStart, { present, total }]) => ({
-                week: new Date(weekStart).toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
+                week: df.date(weekStart),
                 attendance: total > 0 ? Math.round((present / total) * 100) : 0,
             }));
     }, [attendance, locale]);
@@ -81,7 +83,7 @@ const ChildDashboardPage: React.FC = () => {
         return Array.from(buckets.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([month, amount]) => ({
-                month: new Date(`${month}-01`).toLocaleDateString(locale, { month: 'short', year: '2-digit' }),
+                month: df.date(`${month}-01`, 'monthYear'),
                 amount,
             }));
     }, [fees, locale]);

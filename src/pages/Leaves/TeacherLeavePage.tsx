@@ -12,6 +12,7 @@ import {
 import { Loader2, PlusCircle, CheckCircle2, XCircle, Clock, CalendarDays } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const STATUS_STYLE: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
@@ -27,6 +28,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 
 const TeacherLeavePage: React.FC = () => {
     const { t } = useTranslation();
+    const df = useDateFormat();
     const queryClient = useQueryClient();
     const { user } = useAuthStore();
     // Only an actual Teacher profile can file as applicant_type 'teacher'
@@ -256,7 +258,7 @@ const TeacherLeavePage: React.FC = () => {
                                                 {leave.leave_type}
                                             </p>
                                             <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                                {leave.start_date} → {leave.end_date}
+                                                {df.date(leave.start_date)} → {df.date(leave.end_date)}
                                                 {leave.reason && ` · ${leave.reason}`}
                                             </p>
                                         </div>

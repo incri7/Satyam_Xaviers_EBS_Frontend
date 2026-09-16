@@ -11,6 +11,7 @@ import {
     BookOpen, CreditCard, FileText, Calendar, Loader2, BellRing
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const ChildCard: React.FC<{ child: ChildSummary; feeDue?: number }> = ({ child, feeDue }) => {
     const { t } = useTranslation();
@@ -111,10 +112,10 @@ const ChildCard: React.FC<{ child: ChildSummary; feeDue?: number }> = ({ child, 
 };
 
 const ParentHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const { user } = useAuthStore();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayLabel = df.date(new Date(), 'long');
 
     const { data, isLoading, error } = useQuery({
         queryKey: ['parent', 'my-children'],

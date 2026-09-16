@@ -8,6 +8,7 @@ import { ChildPageHeader } from '../../components/parent/ChildPageHeader';
 import { parentService } from '../../api/services/parent.service';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const STATUS_STYLE: Record<string, string> = {
     P: 'bg-emerald-100 text-emerald-700',
@@ -19,8 +20,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 const ChildAttendancePage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const id = Number(studentId);
 
     const STATUS_LABEL: Record<string, string> = {
@@ -80,9 +81,7 @@ const ChildAttendancePage: React.FC = () => {
                                         {data.records.map(r => (
                                             <div key={r.date} className="flex items-center justify-between px-5 py-3">
                                                 <span className="text-sm font-semibold text-slate-700">
-                                                    {new Date(r.date).toLocaleDateString(locale, {
-                                                        weekday: 'short', month: 'short', day: 'numeric',
-                                                    })}
+                                                    {df.date(r.date)}
                                                 </span>
                                                 <span className={cn(
                                                     "text-xs font-bold px-3 py-1 rounded-lg",

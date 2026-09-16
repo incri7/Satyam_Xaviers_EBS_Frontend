@@ -9,6 +9,7 @@ import { useUiStore } from '../../store/useUiStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { hasSidebar } from '../../utils/sidebarVisibility';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 export const DashboardHeader: React.FC = () => {
     const { user } = useAuthStore();
@@ -18,6 +19,7 @@ export const DashboardHeader: React.FC = () => {
     const location = useLocation();
     const showMenuToggle = hasSidebar(user?.role, location.pathname);
     const { t, i18n } = useTranslation();
+    const df = useDateFormat();
     const [menuOpen, setMenuOpen] = useState(false);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
     const firstLetter = displayName.charAt(0).toUpperCase();
@@ -53,7 +55,7 @@ export const DashboardHeader: React.FC = () => {
                 <div className="min-w-0">
                     <h1 className="text-base md:text-xl font-bold text-slate-900 leading-tight truncate">{t('app.name')}</h1>
                     <p className="text-[11px] font-bold text-slate-400 truncate">
-                        {new Date().toLocaleDateString(isNepali ? 'ne-NP' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                        {df.date(new Date(), 'long')}
                     </p>
                 </div>
             </div>

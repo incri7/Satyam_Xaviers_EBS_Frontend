@@ -7,7 +7,20 @@ import { timetableService, type TimetableSlot } from '../../api/services/timetab
 import { CalendarClock, ChevronDown, Plus, X, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
+/**
+ * All seven days, Sunday first as Nepali calendars run.
+ *
+ * `value` follows the stored convention (Python's date.weekday(): Monday=0 …
+ * Sunday=6), so the display order is independent of the numbering — Sunday is
+ * 6 but shown first. Saturday was previously the last column and Sunday was
+ * absent altogether, which made it look as though the week simply ended.
+ *
+ * Days the school does not currently teach stay in the grid and just come up
+ * empty, rather than being dropped: a missing column reads as a bug, and a
+ * period can still be scheduled there if the timetable changes.
+ */
 const DAYS = [
+    { value: 6, label: 'Sun' },
     { value: 0, label: 'Mon' },
     { value: 1, label: 'Tue' },
     { value: 2, label: 'Wed' },

@@ -13,19 +13,17 @@ import { peopleService } from '../../api/services/people.service';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import { Users, TrendingDown, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const PrincipalHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const navigate = useNavigate();
     const { user } = useAuthStore();
 
-    const goToFeesReport = () => {
-        localStorage.setItem('reports_active_tab', 'fees');
-        navigate('/reports');
-    };
+    const goToFeesReport = () => navigate('/finances/outstanding');
     const today = new Date();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = today.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayLabel = df.date(today, 'long');
     const firstName = user?.firstName || 'Principal';
 
     const [presentCount, setPresentCount] = useState<number | null>(null);
@@ -93,7 +91,7 @@ const PrincipalHome: React.FC = () => {
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <button
-                            onClick={() => navigate('/reports')}
+                            onClick={() => navigate('/attendance')}
                             className={`text-left bg-white rounded-2xl border-2 p-4 transition-all group hover:shadow-md hover:border-emerald-300 ${lateFlash ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100'}`}
                         >
                             <div className="flex items-center gap-2 mb-1">

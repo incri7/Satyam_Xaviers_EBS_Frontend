@@ -9,6 +9,7 @@ import {
     TrendingUp, TrendingDown, Minus, Calendar, ChevronRight
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const STATUS_STYLE: Record<string, string> = {
     P: 'bg-emerald-100 text-emerald-700',
@@ -33,9 +34,9 @@ const TrendIcon: React.FC<{ trend: string }> = ({ trend }) => {
 };
 
 const StudentHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const queryClient = useQueryClient();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
 
     const STATUS_LABEL: Record<string, string> = {
         P: t('home.student.presentToday'),
@@ -96,7 +97,7 @@ const StudentHome: React.FC = () => {
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                                    {new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                    {df.date(new Date(), 'long')}
                                 </p>
                                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
                                     {data.student_name}
@@ -164,7 +165,7 @@ const StudentHome: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-slate-900 text-sm truncate">{a.title}</p>
                                             <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                {a.subject_name} · {t('home.student.due')} {a.due_date}
+                                                {a.subject_name} · {t('home.student.due')} {df.date(a.due_date)}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">

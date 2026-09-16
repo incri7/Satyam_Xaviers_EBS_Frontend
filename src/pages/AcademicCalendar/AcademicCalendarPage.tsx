@@ -10,6 +10,7 @@ import {
     type TermSetup,
 } from '../../api/services/academicCalendar.service';
 import { Calendar, Plus, CheckCircle2, AlertTriangle, Loader2, ChevronRight, Trash2 } from 'lucide-react';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const NEPAL_HOLIDAYS_2026_27: HolidayEntry[] = [
     { date: '2026-10-02', label: 'Dashain (Day 1)' },
@@ -37,6 +38,7 @@ const NEPAL_HOLIDAYS_2026_27: HolidayEntry[] = [
 type Step = 1 | 2 | 3 | 4 | 5;
 
 const AcademicCalendarPage: React.FC = () => {
+    const df = useDateFormat();
     const queryClient = useQueryClient();
     const { t } = useTranslation();
     const [step, setStep] = useState<Step>(1);
@@ -269,7 +271,7 @@ const AcademicCalendarPage: React.FC = () => {
                                     <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-slate-50 rounded-lg">
                                         <span className="text-sm font-medium text-slate-700">{h.label}</span>
                                         <div className="flex items-center gap-3">
-                                            <span className="text-xs text-slate-400">{h.date}</span>
+                                            <span className="text-xs text-slate-400">{df.date(h.date)}</span>
                                             <button onClick={() => setHolidays(prev => prev.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500 transition-colors">
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </button>

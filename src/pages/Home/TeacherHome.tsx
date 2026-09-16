@@ -14,14 +14,15 @@ import {
     Calendar, Clock, CheckCircle2, AlertTriangle, ShieldAlert, X
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const TeacherHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
     const today = new Date().toISOString().split('T')[0];
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayLabel = df.date(new Date(), 'long');
     const greeting = new Date().getHours() < 12 ? t('home.goodMorning') : t('home.goodAfternoon');
 
     const { data: myAssignments } = useQuery({
@@ -155,7 +156,7 @@ const TeacherHome: React.FC = () => {
                                         <span className="text-sm font-bold text-slate-900">{a.title}</span>
                                         <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
-                                            {new Date(a.due_date).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
+                                            {df.date(a.due_date)}
                                         </span>
                                     </div>
                                 ))}

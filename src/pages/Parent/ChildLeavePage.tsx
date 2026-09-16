@@ -8,6 +8,7 @@ import { ChildPageHeader } from '../../components/parent/ChildPageHeader';
 import { leavesService, type LeaveType } from '../../api/services/leaves.service';
 import { AlertCircle, Loader2, Plus, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const STATUS_STYLE: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
@@ -26,6 +27,7 @@ const LEAVE_TYPE_VALUES: LeaveType[] = ['casual', 'sick', 'earned', 'maternity',
 const ChildLeavePage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
     const { t } = useTranslation();
+    const df = useDateFormat();
     const id = Number(studentId);
     const queryClient = useQueryClient();
 
@@ -209,7 +211,7 @@ const ChildLeavePage: React.FC = () => {
                                                     {LEAVE_TYPE_LABEL[leave.leave_type] ?? leave.leave_type} {t('parent.leaveLabel')}
                                                 </p>
                                                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                                    {leave.start_date} → {leave.end_date}
+                                                    {df.date(leave.start_date)} → {df.date(leave.end_date)}
                                                 </p>
                                                 {leave.reason && (
                                                     <p className="text-xs text-slate-500 mt-0.5">{leave.reason}</p>

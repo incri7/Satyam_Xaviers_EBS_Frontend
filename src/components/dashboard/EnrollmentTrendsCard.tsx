@@ -3,13 +3,9 @@ import { motion } from 'framer-motion';
 import { useQueries } from '@tanstack/react-query';
 import { academicsService } from '../../api/services/academics.service';
 import { useTranslation } from 'react-i18next';
+import { academicYearRange } from '../../utils/academicYear';
 
-const now = new Date();
-const currentStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-const YEARS = Array.from({ length: 5 }, (_, i) => {
-    const start = currentStartYear - (4 - i);
-    return `${start}-${start + 1}`;
-});
+const YEARS = academicYearRange(5);
 
 export const EnrollmentTrendsCard: React.FC = () => {
     const { t } = useTranslation();

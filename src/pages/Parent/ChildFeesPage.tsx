@@ -8,11 +8,12 @@ import { ChildPageHeader } from '../../components/parent/ChildPageHeader';
 import { parentService } from '../../api/services/parent.service';
 import { AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const ChildFeesPage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
-    const { t, i18n } = useTranslation();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const id = Number(studentId);
 
     const { data, isLoading, error } = useQuery({
@@ -106,7 +107,7 @@ const ChildFeesPage: React.FC = () => {
                                                 <div>
                                                     <p className="text-sm font-semibold text-slate-700">{p.fee_name || t('parent.payment')}</p>
                                                     <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                        {new Date(p.paid_at).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })} · {p.receipt_no}
+                                                        {df.date(p.paid_at)} · {p.receipt_no}
                                                     </p>
                                                 </div>
                                                 <span className="text-sm font-bold text-slate-900">Rs {Number(p.amount).toLocaleString()}</span>

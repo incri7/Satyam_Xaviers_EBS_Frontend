@@ -9,14 +9,15 @@ import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import { Loader2, Users, BookOpen, BarChart2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const CoordinatorHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const { user } = useAuthStore();
     const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = new Date().toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayLabel = df.date(new Date(), 'long');
     const firstName = user?.firstName || 'Coordinator';
 
     const { data: examsData } = useQuery({
