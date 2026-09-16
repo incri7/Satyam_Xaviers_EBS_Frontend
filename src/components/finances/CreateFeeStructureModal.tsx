@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { X, Landmark, CheckCircle2, ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { financesService } from '../../api/services/finances.service';
+import { academicsService } from '../../api/services/academics.service';
 import type { FeeStructureCreate } from '../../types/finance';
 
 interface Props {
@@ -28,8 +29,15 @@ export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) =>
         frequency: 'monthly',
         amount: '',
         fee_type: '',
+        class_id: '',
         valid_from: '',
         valid_to: '',
+    });
+
+    const { data: classesData } = useQuery({
+        queryKey: ['classes'],
+        queryFn: () => academicsService.getClasses({ limit: 100 }),
+        enabled: isOpen,
     });
 
     const mutation = useMutation({
@@ -47,7 +55,7 @@ export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) =>
     });
 
     const resetForm = () => {
-        setForm({ name: '', frequency: 'monthly', amount: '', fee_type: '', valid_from: '', valid_to: '' });
+        setForm({ name: '', frequency: 'monthly', amount: '', fee_type: '', class_id: '', valid_from: '', valid_to: '' });
         setFieldErrors({});
         setError(null);
     };
@@ -72,6 +80,7 @@ export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) =>
             frequency: form.frequency as any,
             amount: parseFloat(form.amount),
             fee_type: form.fee_type || undefined,
+            class_id: form.class_id ? Number(form.class_id) : undefined,
             is_active: true,
             valid_from: form.valid_from || undefined,
             valid_to: form.valid_to || undefined,
@@ -151,14 +160,32 @@ export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) =>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Fee Type</label>
-                                <input
-                                    placeholder="e.g. Tuition, Lab, Library"
-                                    value={form.fee_type}
-                                    onChange={(e) => setForm({ ...form, fee_type: e.target.value })}
-                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all placeholder:text-slate-300"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700">Fee Type</label>
+                                    <input
+                                        placeholder="e.g. Tuition, Lab, Library"
+                                        value={form.fee_type}
+                                        onChange={(e) => setForm({ ...form, fee_type: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all placeholder:text-slate-300"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-slate-700">Class</label>
+                                    <div className="relative">
+                                        <select
+                                            value={form.class_id}
+                                            onChange={(e) => setForm({ ...form, class_id: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold appearance-none outline-none transition-all"
+                                        >
+                                            <option value="">All classes</option>
+                                            {classesData?.classes.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

@@ -6,8 +6,10 @@ import { Wallet, Search, Ban, Calendar, User, ShoppingBag, Hash, Paperclip, Imag
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 export const ExpenseManagement: React.FC = () => {
+    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const attachInputRef = useRef<HTMLInputElement>(null);
@@ -61,13 +63,7 @@ export const ExpenseManagement: React.FC = () => {
         }).format(amt);
     };
 
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    };
+    const formatDate = (dateStr: string) => df.date(dateStr);
 
     const filteredExpenses = expenses?.filter(e => 
         e.category.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -19,10 +19,15 @@ import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStru
 import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
 import { RecordExpenseModal } from '../../components/finances/RecordExpenseModal';
 
+const FINANCE_TABS = ['summary', 'fees', 'payments', 'expenses', 'discounts'] as const;
+type FinanceTab = (typeof FINANCE_TABS)[number];
+
 export const FinancesPage: React.FC = () => {
     const { t } = useTranslation();
-    const [activeTab, setActiveTabState] = useState(() => {
-        return localStorage.getItem('finances_active_tab') || 'summary';
+    const [activeTab, setActiveTabState] = useState<FinanceTab>(() => {
+        const saved = localStorage.getItem('finances_active_tab');
+        // Validate: a stale/garbage stored value must not become the active tab.
+        return FINANCE_TABS.includes(saved as FinanceTab) ? (saved as FinanceTab) : 'summary';
     });
 
     const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
@@ -35,9 +40,9 @@ export const FinancesPage: React.FC = () => {
         { id: 'payments', labelKey: 'finances.payments', icon: Receipt, resource: 'payments' },
         { id: 'expenses', labelKey: 'finances.expenses', icon: Wallet, resource: 'expenses' },
         { id: 'discounts', labelKey: 'finances.discounts', icon: Tag, resource: 'finances' },
-    ];
+    ] satisfies ReadonlyArray<{ id: FinanceTab; labelKey: string; icon: React.ElementType; resource: string }>;
 
-    const setActiveTab = (tab: string) => {
+    const setActiveTab = (tab: FinanceTab) => {
         setActiveTabState(tab);
         localStorage.setItem('finances_active_tab', tab);
     };

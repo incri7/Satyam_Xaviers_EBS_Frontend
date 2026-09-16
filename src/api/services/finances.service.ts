@@ -17,11 +17,73 @@ export interface OutstandingEntry {
     balance: number;
     days_overdue: number;
     risk: 'High' | 'Medium' | 'Low';
+    class_name: string | null;
 }
 
 export interface OutstandingResponse {
     entries: OutstandingEntry[];
     total_outstanding: number;
+    total_count: number;
+    /** Every payment taken, net of reversals. Unaffected by the filters — the
+     *  arrears list narrows, the school's takings do not. */
+    total_collected: number;
+    /** total_collected + total_outstanding: fees raised so far, settled and
+     *  unsettled. Summed server-side so the figures cannot drift apart. */
+    total_raised: number;
+}
+
+export interface OutstandingParams {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    risk?: 'High' | 'Medium' | 'Low';
+    class_id?: number;
+}
+
+export type LedgerKind = 'income' | 'expense';
+
+export interface LedgerEntry {
+    kind: LedgerKind;
+    id: number;
+    date: string;
+    /** Fee head for income, expense category for spending. */
+    label: string;
+    /** Who paid, or who was paid. */
+    party: string;
+    /** Receipt number for income, invoice number for spending. */
+    reference: string;
+    method: string;
+    amount: number;
+}
+
+export interface LedgerBucket {
+    label: string;
+    amount: number;
+    count: number;
+}
+
+export interface LedgerResponse {
+    start_date: string;
+    end_date: string;
+    total_income: number;
+    total_expense: number;
+    net_balance: number;
+    income_by_head: LedgerBucket[];
+    expense_by_head: LedgerBucket[];
+    entries: LedgerEntry[];
+    total_count: number;
+}
+
+export interface LedgerParams {
+    start_date?: string;
+    end_date?: string;
+    kind?: 'all' | LedgerKind;
+    search?: string;
+    label?: string;
+    sort_by?: 'date' | 'amount' | 'label' | 'party';
+    sort_dir?: 'asc' | 'desc';
+    skip?: number;
+    limit?: number;
 }
 
 export interface MonthlyReport {
@@ -120,6 +182,12 @@ export const financesService = {
     },
 
     // Reporting
+    /** Every rupee in and out over a period — what the summary cards drill into. */
+    getLedger: async (params: LedgerParams = {}): Promise<LedgerResponse> => {
+        const response = await api.get('finances/ledger', { params });
+        return response.data;
+    },
+
     getFinancialSummary: async (startDate?: string, endDate?: string): Promise<FinancialSummary> => {
         const response = await api.get('finances/summary', {
             params: { start_date: startDate, end_date: endDate }
@@ -128,13 +196,16 @@ export const financesService = {
     },
 
     // Block 4 — Compliance additions
-    getOutstanding: async (limit = 100): Promise<OutstandingResponse> => {
-        const response = await api.get('finances/outstanding', { params: { limit } });
+    getOutstanding: async (params: number | OutstandingParams = 100): Promise<OutstandingResponse> => {
+        const query = typeof params === 'number' ? { limit: params } : params;
+        const response = await api.get('finances/outstanding', { params: query });
         return response.data;
     },
 
-    sendBulkReminders: async (): Promise<{ message: string }> => {
-        const response = await api.post('finances/reminders/send');
+    sendBulkReminders: async (studentIds?: number[]): Promise<{ message: string }> => {
+        const response = await api.post('finances/reminders/send', {
+            student_ids: studentIds && studentIds.length > 0 ? studentIds : null,
+        });
         return response.data;
     },
 

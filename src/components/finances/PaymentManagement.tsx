@@ -4,8 +4,10 @@ import { financesService } from '../../api/services/finances.service';
 import { Receipt, Search, Filter, RotateCcw, Download, Calendar, CreditCard } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { AccessControl } from '../AccessControl';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 export const PaymentManagement: React.FC = () => {
+    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
@@ -48,13 +50,7 @@ export const PaymentManagement: React.FC = () => {
         }).format(amt);
     };
 
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
-    };
+    const formatDate = (dateStr: string) => df.date(dateStr);
 
     const filteredPayments = payments?.filter(p => {
         const matchesSearch =
