@@ -83,6 +83,16 @@ export interface PromotionConfirmEntry {
     to_section_id?: number;
 }
 
+export interface AcademicTerm {
+    id: number;
+    term_number: number;
+    name: string | null;
+    start_date: string;
+    end_date: string;
+    /** True for the term containing today. */
+    is_current: boolean;
+}
+
 export const academicCalendarService = {
     createYear: async (data: {
         name: string;
@@ -97,6 +107,16 @@ export const academicCalendarService = {
 
     listYears: async (): Promise<AcademicYear[]> => {
         const res = await api.get('academic-calendar/years');
+        return res.data;
+    },
+
+    /** Term boundaries. A "terminal" is roughly three months but not exactly —
+     *  Term 2 runs Shrawan to Kartik, four months — so reporting on a naive
+     *  90-day window would straddle two terms and match no report card. */
+    getTerms: async (yearId?: number): Promise<AcademicTerm[]> => {
+        const res = await api.get('academic-calendar/terms', {
+            params: yearId ? { year_id: yearId } : undefined,
+        });
         return res.data;
     },
 

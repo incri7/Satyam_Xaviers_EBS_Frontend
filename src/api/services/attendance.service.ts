@@ -40,6 +40,35 @@ export interface AttendanceFilters {
     limit?: number;
 }
 
+export interface DailyAttendanceSummary {
+    date: string;
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    half_day: number;
+    /** Present + late + half day over total — a late student was in the room. */
+    attendance_pct: number | null;
+}
+
+export interface AttendanceTotals {
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+    half_day: number;
+    attendance_pct: number | null;
+    days_counted: number;
+}
+
+export interface DailyAttendanceSummaryResponse {
+    days: DailyAttendanceSummary[];
+    total_days: number;
+    /** The whole period, totalled server-side — the browser only ever sees a
+     *  page of rows and cannot be trusted to add them up. */
+    totals: AttendanceTotals;
+}
+
 export const attendanceService = {
     createAttendance: async (record: AttendanceRecord): Promise<AttendanceEntry> => {
         const response = await api.post<AttendanceEntry>('attendance/student-attendance', record);
@@ -50,6 +79,28 @@ export const attendanceService = {
         const response = await api.post<{ message: string }>('attendance/student-attendance/bulk', {
             attendances,
         });
+        return response.data;
+    },
+
+    /**
+     * One row per day rather than one per student per day.
+     *
+     * The history view used to fetch every record in the range and count them
+     * in the browser; a week of a 30-student class is 210 rows against a
+     * 100-row page cap, so older days silently vanished and their totals were
+     * wrong. Detail for a single day is fetched only when that day is opened.
+     */
+    getDailySummary: async (params: {
+        class_id?: number;
+        section_id?: number;
+        /** Narrow to one child; each day then holds a single mark. */
+        student_id?: number;
+        start_date: string;
+        end_date: string;
+    }): Promise<DailyAttendanceSummaryResponse> => {
+        const response = await api.get<DailyAttendanceSummaryResponse>(
+            'attendance/student-attendance/daily-summary', { params },
+        );
         return response.data;
     },
 
