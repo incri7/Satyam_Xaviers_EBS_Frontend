@@ -86,11 +86,86 @@ export const examsService = {
         return response.data;
     },
 
+    /**
+     * One student's whole result for one exam — every subject, with the letter
+     * grade and grade point derived from grade_bands at read time, plus the
+     * school letterhead to print it under.
+     *
+     * Grades are never stored on the mark, so correcting a band re-grades
+     * history instead of leaving stale letters behind.
+     */
+    getReportCard: async (examId: number, studentId: number): Promise<ReportCard> => {
+        const response = await api.get<ReportCard>(`exams/${examId}/report-card/${studentId}`);
+        return response.data;
+    },
+
+    /** Every marksheet in a class, in one request — one query for the class
+     *  instead of one round trip per child, with the bands and letterhead
+     *  loaded once rather than thirty times. */
+    getClassReportCards: async (
+        examId: number,
+        params: { class_id: number; section_id?: number },
+    ): Promise<ClassReportCards> => {
+        const response = await api.get<ClassReportCards>(`exams/${examId}/report-cards`, { params });
+        return response.data;
+    },
+
     getMarksProgress: async (examId: number): Promise<MarksProgressResponse> => {
         const response = await api.get<MarksProgressResponse>(`exams/${examId}/marks/progress`);
         return response.data;
     },
 };
+
+export interface ReportCardSubject {
+    subject_id: number;
+    subject_name: string;
+    max_marks: string;
+    obtained: string | null;
+    percent: string | null;
+    grade: string | null;
+    grade_point: string | null;
+    is_absent: boolean;
+    is_pass: boolean | null;
+}
+
+export interface ReportCard {
+    school: {
+        name: string;
+        name_nepali: string | null;
+        motto: string | null;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        logo_url: string | null;
+        principal_name: string | null;
+    };
+    exam: { id: number; name: string; academic_year: string; term: string | null; exam_type: string | null };
+    student_id: number;
+    student_name: string;
+    admission_no: string | null;
+    class_name: string | null;
+    section_name: string | null;
+    subjects: ReportCardSubject[];
+    total_max: string;
+    total_obtained: string;
+    percent: string;
+    gpa: string;
+    grade: string | null;
+    subjects_passed: number;
+    subjects_failed: number;
+    result: 'PASS' | 'FAIL' | 'PENDING';
+}
+
+export interface ClassReportCards {
+    exam: ReportCard['exam'];
+    school: ReportCard['school'] | null;
+    class_name: string | null;
+    section_name: string | null;
+    cards: ReportCard[];
+    total_students: number;
+    /** Enrolled but with nothing entered — they would print as blank paper. */
+    without_marks: number;
+}
 
 export interface MarksComparison {
     student_id: number;

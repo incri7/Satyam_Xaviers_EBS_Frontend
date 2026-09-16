@@ -6,8 +6,11 @@ import { academicsService } from '../../api/services/academics.service';
 import { peopleService } from '../../api/services/people.service';
 import { examsService, type MarkEntry } from '../../api/services/exams.service';
 import { useAuthStore } from '../../store/useAuthStore';
-import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ChevronDown, Save, Loader2, GraduationCap, FileSpreadsheet, BookMarked} from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { Marksheet } from './Marksheet';
+import { ClassMarksheets } from './ClassMarksheets';
+import { useUrlState, useUrlStateBatch } from '../../hooks/useUrlState';
 import { useTranslation } from 'react-i18next';
 
 const MarksPage: React.FC = () => {
@@ -17,6 +20,14 @@ const MarksPage: React.FC = () => {
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedSectionId, setSelectedSectionId] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState('');
+    // A marksheet is a document someone will want to send or come back to, so
+    // the selection lives in the URL rather than in component state.
+    const [mode] = useUrlState<'entry' | 'sheet'>(
+        'mode', 'entry', { allowed: ['entry', 'sheet'] },
+    );
+    const [sheetStudentId] = useUrlState('student', '');
+    const setUrlState = useUrlStateBatch();
+    const isSheet = mode === 'sheet';
     const [marksMap, setMarksMap] = useState<Record<number, { obtained: string; is_absent: boolean }>>({});
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -98,6 +109,14 @@ const MarksPage: React.FC = () => {
 
     const students = studentsData?.students || [];
 
+    // A student id left in the URL from a previously chosen class would still
+    // render that child's marksheet while the dropdown — finding no matching
+    // option — displayed "Select student…". The screen contradicted itself.
+    // Only honour the id once the roster it must belong to has loaded.
+    const sheetStudentOnRoster =
+        !!sheetStudentId && students.some((st: any) => String(st.id) === sheetStudentId);
+    const activeSheetStudentId = studentsData && !sheetStudentOnRoster ? '' : sheetStudentId;
+
     const { data: existingMarks } = useQuery({
         queryKey: ['marks', selectedExamId, selectedClassId, selectedSectionId, selectedSubjectId],
         queryFn: () => examsService.getMarksForClass(
@@ -105,10 +124,12 @@ const MarksPage: React.FC = () => {
             Number(selectedClassId),
             {
                 section_id: selectedSectionId ? Number(selectedSectionId) : undefined,
-                subject_id: selectedSubjectId ? Number(selectedSubjectId) : undefined,
+                subject_id: Number(selectedSubjectId),
             }
         ),
-        enabled: !!(selectedExamId && selectedClassId),
+        // A grid is one subject's paper. Asking without a subject used to
+        // return an arbitrary one and quietly bind Save to it.
+        enabled: !!(selectedExamId && selectedClassId && selectedSubjectId),
         onSuccess: (data: any) => {
             const map: Record<number, { obtained: string; is_absent: boolean }> = {};
             data.marks.forEach((m: any) => {
@@ -208,7 +229,36 @@ const MarksPage: React.FC = () => {
         },
     });
 
+    const {
+        data: reportCard,
+        isLoading: loadingSheet,
+        isError: sheetError,
+    } = useQuery({
+        queryKey: ['report-card', selectedExamId, activeSheetStudentId],
+        queryFn: () => examsService.getReportCard(Number(selectedExamId), Number(activeSheetStudentId)),
+        enabled: isSheet && !!selectedExamId && !!activeSheetStudentId,
+    });
+
+    // No student chosen means the whole class — the natural bulk-print unit.
+    const {
+        data: classCards,
+        isLoading: loadingClassCards,
+        isError: classCardsError,
+    } = useQuery({
+        queryKey: ['report-cards', selectedExamId, selectedClassId, selectedSectionId],
+        queryFn: () => examsService.getClassReportCards(Number(selectedExamId), {
+            class_id: Number(selectedClassId),
+            section_id: selectedSectionId ? Number(selectedSectionId) : undefined,
+        }),
+        enabled: isSheet && !activeSheetStudentId && !!selectedExamId && !!selectedClassId,
+    });
+
     const scheduleId = (existingMarks as any)?.schedule_id;
+    // Echoed back by the server rather than inferred here, so the ceiling the
+    // inputs enforce is the one the save will be checked against.
+    const paperMax = Number((existingMarks as any)?.max_marks ?? 100);
+    const paperSubject = (existingMarks as any)?.subject_name as string | undefined;
+    const needsSubject = !isSheet && !!selectedExamId && !!selectedClassId && !selectedSubjectId;
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -219,9 +269,33 @@ const MarksPage: React.FC = () => {
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <div>
                             <h1 className="text-2xl font-bold text-slate-900">{t('marks.title')}</h1>
-                            <p className="text-slate-500 text-sm font-medium">{students.length} {t('marks.students')}</p>
+                            <p className="text-slate-500 text-sm font-medium">
+                                {paperSubject
+                                    ? `${paperSubject} · ${students.length} ${t('marks.students')}`
+                                    : `${students.length} ${t('marks.students')}`}
+                            </p>
                         </div>
                         <div className="flex items-center gap-3">
+                            <div className="flex p-1 bg-slate-100 rounded-2xl">
+                                <button
+                                    onClick={() => setUrlState({ mode: null, student: null })}
+                                    className={cn(
+                                        'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                        !isSheet ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700',
+                                    )}
+                                >
+                                    {t('marks.modeEntry')}
+                                </button>
+                                <button
+                                    onClick={() => setUrlState({ mode: 'sheet' })}
+                                    className={cn(
+                                        'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                        isSheet ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700',
+                                    )}
+                                >
+                                    {t('marks.modeSheet')}
+                                </button>
+                            </div>
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -233,6 +307,7 @@ const MarksPage: React.FC = () => {
                                     e.target.value = '';
                                 }}
                             />
+                            {!isSheet && (
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={students.length === 0}
@@ -242,14 +317,17 @@ const MarksPage: React.FC = () => {
                                 <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
                                 {t('marks.importExcel', 'Import Excel')}
                             </button>
+                            )}
+                            {!isSheet && (
                             <button
                                 onClick={() => selectedExamId && scheduleId && saveMutation.mutate({ examId: Number(selectedExamId), scheduleId })}
-                                disabled={saveMutation.isPending || !selectedExamId || !selectedClassId || !scheduleId}
+                                disabled={saveMutation.isPending || !selectedExamId || !selectedClassId || !selectedSubjectId || !scheduleId}
                                 className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:opacity-95 transition-all disabled:opacity-50"
                             >
                                 {saveMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                                 {t('marks.saveMarks')}
                             </button>
+                            )}
                         </div>
                     </div>
 
@@ -271,7 +349,10 @@ const MarksPage: React.FC = () => {
                     )}
 
                     {/* Filters */}
-                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className={cn(
+                        "bg-white rounded-2xl p-5 border border-slate-100 shadow-sm grid grid-cols-2 gap-4",
+                        isSheet ? "md:grid-cols-3" : "md:grid-cols-4",
+                    )}>
                         {/* Exam dropdown */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.exam')}</label>
@@ -300,7 +381,7 @@ const MarksPage: React.FC = () => {
                                 <div className="relative">
                                     <select
                                         value={selectedClassId}
-                                        onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setSelectedSubjectId(''); setMarksMap({}); }}
+                                        onChange={e => { setSelectedClassId(e.target.value); setSelectedSectionId(''); setSelectedSubjectId(''); setMarksMap({}); setUrlState({ student: null }); }}
                                         disabled={isTeacher && classes.length === 0}
                                         className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
                                     >
@@ -320,7 +401,7 @@ const MarksPage: React.FC = () => {
                             <div className="relative">
                                 <select
                                     value={selectedSectionId}
-                                    onChange={e => setSelectedSectionId(e.target.value)}
+                                    onChange={e => { setSelectedSectionId(e.target.value); setUrlState({ student: null }); }}
                                     disabled={!selectedClassId}
                                     className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
                                 >
@@ -330,9 +411,11 @@ const MarksPage: React.FC = () => {
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
-                        {/* Subject: teachers only pick among subjects they're assigned
-                            to teach in the selected class; auto-selected and locked
-                            when there's just one. Staff/admin see every subject. */}
+                        {/* Entry fills one subject across a class; a marksheet is one
+                            student across every subject. The fourth filter is whichever
+                            of those the current mode needs — showing both would leave
+                            one of them doing nothing. */}
+                        {!isSheet && (
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('marks.subject', 'Subject')}</label>
                             {isTeacher && !selectedClassId ? (
@@ -361,6 +444,7 @@ const MarksPage: React.FC = () => {
                                 <p className="text-[11px] text-amber-600 font-medium">{t('marks.noSubjectsAssigned', 'No subjects assigned to you in this class — ask the coordinator.')}</p>
                             )}
                         </div>
+                        )}
                     </div>
 
                     {/* Marks Grid */}
@@ -368,6 +452,30 @@ const MarksPage: React.FC = () => {
                         <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
                             <GraduationCap className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                             <p className="font-bold text-slate-400">{t('marks.selectPrompt')}</p>
+                        </div>
+                    ) : isSheet ? (
+                        !activeSheetStudentId ? (
+                            <ClassMarksheets
+                                data={classCards}
+                                isLoading={loadingClassCards}
+                                isError={classCardsError}
+                                onOpenStudent={(id) => setUrlState({ student: String(id) })}
+                            />
+                        ) : (
+                            <Marksheet
+                                data={reportCard}
+                                isLoading={loadingSheet}
+                                isError={sheetError}
+                                onBack={() => setUrlState({ student: null })}
+                            />
+                        )
+                    ) : needsSubject ? (
+                        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
+                            <BookMarked className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                            <p className="font-bold text-slate-500">{t('marks.chooseSubject')}</p>
+                            <p className="text-sm font-medium text-slate-400 mt-1">
+                                {t('marks.chooseSubjectWhy')}
+                            </p>
                         </div>
                     ) : loadingStudents ? (
                         <div className="grid gap-2">
@@ -379,7 +487,10 @@ const MarksPage: React.FC = () => {
                                 <span>#</span>
                                 <span>{t('marks.student')}</span>
                                 <span className="hidden sm:block text-right">{t('marks.admissionNo')}</span>
-                                <span className="text-right">{t('marks.marksLabel')}</span>
+                                <span className="text-right">
+                                    {t('marks.marksLabel')}
+                                    <span className="text-slate-300 normal-case"> / {paperMax}</span>
+                                </span>
                                 <span className="text-center">{t('marks.absent')}</span>
                             </div>
                             {students.map((student: any, index: number) => {
@@ -400,7 +511,7 @@ const MarksPage: React.FC = () => {
                                         <input
                                             type="number"
                                             min={0}
-                                            max={100}
+                                            max={paperMax}
                                             step={0.5}
                                             value={entry.obtained}
                                             onChange={e => setMarksMap(prev => ({
