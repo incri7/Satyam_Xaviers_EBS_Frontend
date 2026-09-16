@@ -27,6 +27,16 @@ export interface Enrollment {
   updated_at: string;
   class_?: Class;
   section?: Section;
+  student?: EnrollmentStudent;
+}
+
+/** Just enough of the student to identify them in a list. */
+export interface EnrollmentStudent {
+  id: number;
+  admission_no: string;
+  first_name: string;
+  middle_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface ClassCreate {

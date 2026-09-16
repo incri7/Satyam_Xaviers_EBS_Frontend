@@ -7,10 +7,14 @@ import { AccessControl } from '../AccessControl';
 import { EditClassModal } from './EditClassModal';
 import { useTranslation } from 'react-i18next';
 import type { Class } from '../../types/academic';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { useConfirmDialog } from '../common/ConfirmDialog';
 
 export const ClassManagement: React.FC<{ onViewSections?: (classId: number) => void }> = ({ onViewSections }) => {
     const queryClient = useQueryClient();
     const { t } = useTranslation();
+    const [confirmUI, confirm] = useConfirmDialog();
+    const df = useDateFormat();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClass, setSelectedClass] = useState<Class | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -47,6 +51,7 @@ export const ClassManagement: React.FC<{ onViewSections?: (classId: number) => v
 
     return (
         <div className="space-y-6">
+            {confirmUI}
             <EditClassModal
                 isOpen={isEditModalOpen}
                 onClose={() => {
@@ -104,9 +109,12 @@ export const ClassManagement: React.FC<{ onViewSections?: (classId: number) => v
                                     <AccessControl id="classes_delete">
                                         <button
                                             onClick={() => {
-                                                if (window.confirm(t('common.confirm') + '?')) {
-                                                    deleteMutation.mutate(cls.id);
-                                                }
+                                                confirm({
+                                                    title: t('confirm.deleteClass.title'),
+                                                    body: t('confirm.deleteClass.body', { name: cls.name }),
+                                                    confirmLabel: t('confirm.deleteClass.action'),
+                                                    onConfirm: () => deleteMutation.mutate(cls.id),
+                                                });
                                             }}
                                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                         >
@@ -121,11 +129,11 @@ export const ClassManagement: React.FC<{ onViewSections?: (classId: number) => v
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
                                     <Clock className="w-4 h-4" />
-                                    <span>{t('academics.created')} {new Date(cls.created_at).toLocaleDateString()}</span>
+                                    <span>{t('academics.created')} {df.date(cls.created_at)}</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
                                     <Calendar className="w-4 h-4" />
-                                    <span>{t('academics.lastUpdated')} {new Date(cls.updated_at).toLocaleDateString()}</span>
+                                    <span>{t('academics.lastUpdated')} {df.date(cls.updated_at)}</span>
                                 </div>
                             </div>
                         </div>

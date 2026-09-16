@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Briefcase, MapPin, Mail, Phone, Calendar, Loader2 } from 'lucide-react';
 import { peopleService } from '../../api/services/people.service';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 interface Props {
     staffId: number | null;
@@ -20,6 +21,7 @@ const Row: React.FC<{ icon: React.ReactNode; label: string; value?: string | nul
 );
 
 export const StaffProfileDrawer: React.FC<Props> = ({ staffId, onClose }) => {
+    const df = useDateFormat();
     const { data, isLoading } = useQuery({
         queryKey: ['staff-profile', staffId],
         queryFn: () => peopleService.getStaffProfile(staffId as number),
@@ -77,7 +79,7 @@ export const StaffProfileDrawer: React.FC<Props> = ({ staffId, onClose }) => {
                                     <Row
                                         icon={<Calendar className="w-4 h-4" />}
                                         label="Joined"
-                                        value={data.join_date ? new Date(data.join_date).toLocaleDateString() : null}
+                                        value={data.join_date ? df.date(data.join_date) : null}
                                     />
                                     <Row
                                         icon={<MapPin className="w-4 h-4" />}

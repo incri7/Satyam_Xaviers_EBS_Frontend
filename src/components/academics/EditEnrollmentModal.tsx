@@ -2,10 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, CheckCircle2, UserPlus, AlertCircle, ChevronDown, Search, User, Loader2 } from 'lucide-react';
 import { academicsService } from '../../api/services/academics.service';
-import { academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
+import { academicYearOptions, currentAcademicYear, academicYearLabel } from '../../utils/academicYear';
+import { useDateFormat } from '../../hooks/useDateFormat';
 import { peopleService } from '../../api/services/people.service';
 import type { Student } from '../../types/people';
 import type { Enrollment } from '../../types/academic';
+
+/** Enough of a student to show who is enrolled, from either source. */
+type PickedStudent = {
+    id: number;
+    first_name: string;
+    middle_name?: string | null;
+    last_name?: string | null;
+    // optional because the Student type from search has it optional
+    admission_no?: string;
+};
 
 interface EditEnrollmentModalProps {
     isOpen: boolean;
@@ -15,6 +26,7 @@ interface EditEnrollmentModalProps {
 
 export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen, onClose, enrollmentData }) => {
     const queryClient = useQueryClient();
+    const df = useDateFormat();
     const [formData, setFormData] = useState({
         student_id: '',
         class_id: '',
@@ -25,7 +37,9 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<PickedStudent | null>(null);
+    // Editing starts from the enrolled student; searching is the exception.
+    const [isChanging, setIsChanging] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<Student[]>([]);
     const [showResults, setShowResults] = useState(false);
@@ -42,11 +56,12 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                 is_active: enrollmentData.is_active,
             });
 
-            // Fetch student name for UI
-            peopleService.getStudents({ limit: 100 }).then(res => {
-                const student = res.students.find((s: Student) => s.id === enrollmentData.student_id);
-                if (student) setSelectedStudent(student);
-            });
+            // The enrolment carries its student, so there is nothing to look
+            // up. The old code fetched the first 100 students and searched
+            // them, which silently failed for everyone past that page.
+            setSelectedStudent(enrollmentData.student ?? null);
+            setIsChanging(false);
+            setSearchQuery('');
         }
     }, [enrollmentData, isOpen]);
 
@@ -162,10 +177,28 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
 
                     <div className="space-y-2 relative">
                         <label className="text-sm font-bold text-slate-700 ml-1">Student</label>
+                        {selectedStudent && !isChanging ? (
+                            <div className="p-3 bg-slate-50 rounded-2xl flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-slate-400 shrink-0">
+                                        <User className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-slate-900 truncate">
+                                            {[selectedStudent.first_name, selectedStudent.middle_name, selectedStudent.last_name]
+                                                .filter(Boolean)
+                                                .join(' ')}
+                                        </p>
+                                        <p className="text-xs font-medium text-slate-400">{selectedStudent.admission_no}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
+                                autoFocus
                                 placeholder="Search by name or admission no..."
                                 value={searchQuery}
                                 onChange={(e) => {
@@ -179,6 +212,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                                 <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand animate-spin" />
                             )}
                         </div>
+                        )}
 
                         {showResults && searchResults.length > 0 && (
                             <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl max-h-48 overflow-y-auto">
@@ -201,30 +235,7 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                             </div>
                         )}
 
-                        {selectedStudent && (
-                            <div className="mt-3 p-3 bg-emerald-50 rounded-2xl flex items-center justify-between border border-emerald-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold text-emerald-900">{selectedStudent.first_name} {selectedStudent.last_name}</p>
-                                        <p className="text-[10px] font-medium text-emerald-600 uppercase tracking-tight">Active Selection</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedStudent(null);
-                                        setSearchQuery('');
-                                        setFormData({ ...formData, student_id: '' });
-                                    }}
-                                    className="text-xs font-bold text-emerald-600 hover:underline"
-                                >
-                                    Change
-                                </button>
-                            </div>
-                        )}
+
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -273,7 +284,9 @@ export const EditEnrollmentModal: React.FC<EditEnrollmentModalProps> = ({ isOpen
                                     onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
                                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
                                 >
-                                    {academicYearOptions(3).map(y => <option key={y} value={y}>{y}</option>)}
+                                    {academicYearOptions(3).map(y => (
+                                        <option key={y} value={y}>{academicYearLabel(y, df.lang)}</option>
+                                    ))}
                                 </select>
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>

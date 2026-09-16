@@ -4,17 +4,62 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { peopleService } from '../../api/services/people.service';
 import { registrationService } from '../../api/services/registration.service';
 import { academicsService } from '../../api/services/academics.service';
-import { Search, Edit2, Trash2, GraduationCap, MapPin, Link2, Check, ChevronDown } from 'lucide-react';
+import { Search, Edit2, Trash2, GraduationCap, MapPin, Link2, Check, ChevronDown, ChevronUp, ChevronsUpDown, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AccessControl } from '../AccessControl';
 import { cn } from '../../utils/cn';
 import { EditStudentModal } from './EditStudentModal';
 import type { Student } from '../../types/people';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { useTranslation } from 'react-i18next';
+import { useConfirmDialog } from '../common/ConfirmDialog';
+import { ViewToggle, useViewMode } from '../common/ViewToggle';
+import { SelectMenu } from '../common/SelectMenu';
+import { Pagination } from '../common/Pagination';
+
+type StudentSortKey = 'name' | 'admission_no' | 'dob' | 'gender' | 'status' | 'admission_date';
+
+/** Sortable column header: ascending -> descending -> unsorted. */
+const StudentSortTh: React.FC<{
+    k: StudentSortKey;
+    sort: { by: StudentSortKey | null; dir: 'asc' | 'desc' };
+    onSort: (k: StudentSortKey) => void;
+    children: React.ReactNode;
+}> = ({ k, sort, onSort, children }) => {
+    const active = sort.by === k;
+    const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ChevronUp : ChevronDown;
+    return (
+        <th scope="col" className="px-6 py-4 whitespace-nowrap">
+            <button
+                type="button"
+                onClick={() => onSort(k)}
+                className={cn(
+                    'group inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors rounded',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
+                    active ? 'text-slate-700' : 'text-slate-400 hover:text-slate-600',
+                )}
+            >
+                {children}
+                <Icon className={cn('w-3.5 h-3.5 transition-opacity', active ? 'opacity-100' : 'opacity-0 group-hover:opacity-60')} />
+            </button>
+        </th>
+    );
+};
 
 export const StudentManagement: React.FC = () => {
+    const { t } = useTranslation();
+    const [confirmUI, confirm] = useConfirmDialog();
+    const df = useDateFormat();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const [view, setView] = useViewMode('people_students_view');
+    const [searchInput, setSearchInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterGender, setFilterGender] = useState('');
+    const [sort, setSort] = useState<{ by: StudentSortKey | null; dir: 'asc' | 'desc' }>({
+        by: null,
+        dir: 'asc',
+    });
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -22,6 +67,35 @@ export const StudentManagement: React.FC = () => {
     const [filterClassId, setFilterClassId] = useState('');
     const [filterSectionId, setFilterSectionId] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+
+    React.useEffect(() => {
+        const id = setTimeout(() => {
+            setSearchQuery(searchInput.trim());
+            setPage(1);
+        }, 300);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
+    const toggleSort = (key: StudentSortKey) =>
+        setSort((prev) => {
+            setPage(1);
+            if (prev.by !== key) return { by: key, dir: 'asc' };
+            return prev.dir === 'asc' ? { by: key, dir: 'desc' } : { by: null, dir: 'asc' };
+        });
+
+    const hasFilters = Boolean(searchQuery || filterClassId || filterSectionId || filterStatus || filterGender);
+    const clearFilters = () => {
+        setSearchInput('');
+        setSearchQuery('');
+        setFilterClassId('');
+        setFilterSectionId('');
+        setFilterStatus('');
+        setFilterGender('');
+        setPage(1);
+    };
+
+    const studentName = (st: Student) =>
+        [st.first_name, st.middle_name, st.last_name].filter(Boolean).join(' ');
 
     const { data: classesData } = useQuery({
         queryKey: ['classes'],
@@ -52,7 +126,7 @@ export const StudentManagement: React.FC = () => {
     });
 
     const { data: studentData, isLoading } = useQuery({
-        queryKey: ['students', searchQuery, page, limit, filterClassId, filterSectionId, filterStatus],
+        queryKey: ['students', searchQuery, page, limit, filterClassId, filterSectionId, filterStatus, filterGender, sort.by, sort.dir],
         queryFn: () => peopleService.getStudents({
             search: searchQuery,
             page,
@@ -60,7 +134,11 @@ export const StudentManagement: React.FC = () => {
             class_id: filterClassId ? Number(filterClassId) : undefined,
             section_id: filterSectionId ? Number(filterSectionId) : undefined,
             filter_by_status: filterStatus || undefined,
+            gender: filterGender || undefined,
+            sort_by: sort.by ?? undefined,
+            sort_dir: sort.dir,
         }),
+        placeholderData: (prev: any) => prev,
     });
 
     const deleteMutation = useMutation({
@@ -77,6 +155,7 @@ export const StudentManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {confirmUI}
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="relative w-full md:w-96">
@@ -84,58 +163,152 @@ export const StudentManagement: React.FC = () => {
                     <input
                         type="text"
                         placeholder="Search by name, admission ID..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
                     />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
-                        <select
-                            value={filterClassId}
-                            onChange={(e) => { setFilterClassId(e.target.value); setFilterSectionId(''); setPage(1); }}
-                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                        >
-                            <option value="">All classes</option>
-                            {classesData?.classes?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                    </div>
-                    <div className="relative">
-                        <select
-                            value={filterSectionId}
-                            onChange={(e) => { setFilterSectionId(e.target.value); setPage(1); }}
-                            disabled={!filterClassId}
-                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-                        >
-                            <option value="">All sections</option>
-                            {sectionsData?.sections?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                    </div>
-                    <div className="relative">
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-                            className="pl-3 pr-8 py-2 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                        >
-                            <option value="">All statuses</option>
-                            <option value="active">Active</option>
-                            <option value="passed_out">Passed out</option>
-                            <option value="transferred">Transferred</option>
-                            <option value="discontinued">Discontinued</option>
-                        </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 pl-2">
-                        <span>Total:</span>
-                        <span className="text-slate-900">{studentData?.total_count || 0}</span>
-                    </div>
+                    <SelectMenu
+                        value={filterClassId}
+                        onChange={(v) => { setFilterClassId(v); setFilterSectionId(''); setPage(1); }}
+                        label="Class"
+                        options={[
+                            { value: '', label: 'All classes' },
+                            ...((classesData?.classes || []) as any[]).map((c) => ({ value: String(c.id), label: c.name })),
+                        ]}
+                    />
+                    <SelectMenu
+                        value={filterSectionId}
+                        onChange={(v) => { setFilterSectionId(v); setPage(1); }}
+                        label="Section"
+                        options={[
+                            { value: '', label: 'All sections' },
+                            ...((sectionsData?.sections || []) as any[]).map((sec) => ({ value: String(sec.id), label: sec.name })),
+                        ]}
+                    />
+                    <SelectMenu
+                        value={filterStatus}
+                        onChange={(v) => { setFilterStatus(v); setPage(1); }}
+                        label="Status"
+                        options={[
+                            { value: '', label: 'All statuses' },
+                            { value: 'active', label: 'Active' },
+                            { value: 'passed_out', label: 'Passed out' },
+                            { value: 'transferred', label: 'Transferred' },
+                            { value: 'discontinued', label: 'Discontinued' },
+                        ]}
+                    />
+                    <SelectMenu
+                        value={filterGender}
+                        onChange={(v) => { setFilterGender(v); setPage(1); }}
+                        label="Gender"
+                        options={[
+                            { value: '', label: 'All genders' },
+                            { value: 'M', label: 'Male' },
+                            { value: 'F', label: 'Female' },
+                            { value: 'O', label: 'Other' },
+                        ]}
+                    />
+                    <ViewToggle value={view} onChange={setView} />
                 </div>
             </div>
 
+            <div className="flex items-center justify-between gap-3 text-sm px-1">
+                <p className="font-bold text-slate-400">
+                    Students <span className="text-slate-900">{studentData?.total_count ?? 0}</span>
+                </p>
+                {hasFilters && (
+                    <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="inline-flex items-center gap-1.5 font-bold text-slate-500 hover:text-brand transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                        Clear filters
+                    </button>
+                )}
+            </div>
+
+            {view === 'table' && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                    <StudentSortTh k="name" sort={sort} onSort={toggleSort}>Student</StudentSortTh>
+                                    <StudentSortTh k="admission_no" sort={sort} onSort={toggleSort}>Admission No</StudentSortTh>
+                                    <StudentSortTh k="dob" sort={sort} onSort={toggleSort}>Date of Birth</StudentSortTh>
+                                    <StudentSortTh k="gender" sort={sort} onSort={toggleSort}>Gender</StudentSortTh>
+                                    <StudentSortTh k="admission_date" sort={sort} onSort={toggleSort}>Admitted</StudentSortTh>
+                                    <StudentSortTh k="status" sort={sort} onSort={toggleSort}>Status</StudentSortTh>
+                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {isLoading
+                                    ? [1, 2, 3, 4, 5].map(i => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td colSpan={7} className="px-6 py-6 bg-slate-50/20" />
+                                        </tr>
+                                    ))
+                                    : students.map((st: Student) => (
+                                        <tr key={st.id} className="group hover:bg-slate-50/60 focus-within:bg-slate-50/60 transition-colors">
+                                            <td className="px-6 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                                                        <GraduationCap className="w-4 h-4" />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/people/students/${st.id}`)}
+                                                        className="font-bold text-slate-900 hover:text-brand transition-colors text-left whitespace-nowrap"
+                                                    >
+                                                        {studentName(st)}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-500 whitespace-nowrap">{st.admission_no || '—'}</td>
+                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-500 whitespace-nowrap">{df.date(st.dob)}</td>
+                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-600">{st.gender || <span className="text-slate-300">—</span>}</td>
+                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-500 whitespace-nowrap">{df.date(st.admission_date)}</td>
+                                            <td className="px-6 py-3.5">
+                                                <span className={cn(
+                                                    'inline-flex text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider whitespace-nowrap',
+                                                    st.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500',
+                                                )}>
+                                                    {st.status || '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3.5">
+                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                    <AccessControl id="students_update">
+                                                        <button
+                                                            onClick={() => setEditingStudent(st)}
+                                                            aria-label="Edit student"
+                                                            className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                    </AccessControl>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {students.length === 0 && !isLoading && (
+                        <div className="py-16 text-center space-y-2">
+                            <p className="font-bold text-slate-900">No students found</p>
+                            <p className="text-slate-500 text-sm">Try a different search, or clear the filters.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6', view !== 'cards' && 'hidden')}>
                 {isLoading ? (
                     [1, 2, 3, 4].map(i => (
                         <div key={i} className="h-64 bg-white rounded-3xl animate-pulse border border-slate-100 shadow-sm" />
@@ -176,9 +349,14 @@ export const StudentManagement: React.FC = () => {
                                     <AccessControl id="students_delete">
                                         <button
                                             onClick={() => {
-                                                if (window.confirm('Are you sure you want to delete this student profile?')) {
-                                                    deleteMutation.mutate(student.id);
-                                                }
+                                                confirm({
+                                                    title: t('confirm.deleteStudent.title'),
+                                                    body: t('confirm.deleteStudent.body', {
+                                                        name: `${student.first_name} ${student.last_name || ''}`.trim(),
+                                                    }),
+                                                    confirmLabel: t('confirm.deleteStudent.action'),
+                                                    onConfirm: () => deleteMutation.mutate(student.id),
+                                                });
                                             }}
                                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                         >
@@ -209,7 +387,7 @@ export const StudentManagement: React.FC = () => {
                         </div>
 
                         <div className="px-5 py-3 bg-slate-50 border-t border-slate-50 group-hover:bg-brand/5 transition-colors flex justify-between items-center">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">DOB: {new Date(student.dob).toLocaleDateString()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">DOB: {df.date(student.dob)}</span>
                             <button
                                 onClick={() => navigate(`/people/students/${student.id}`)}
                                 className="text-xs font-bold text-brand hover:underline"
@@ -232,24 +410,14 @@ export const StudentManagement: React.FC = () => {
             </div>
 
             {/* Pagination Controls (Simple) */}
-            {studentData && studentData.total_pages > 1 && (
-                <div className="flex justify-center gap-2">
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
-                        className="px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold text-slate-600 disabled:opacity-50"
-                    >
-                        Previous
-                    </button>
-                    <span className="px-4 py-2 text-sm font-bold text-slate-400">Page {page} of {studentData.total_pages}</span>
-                    <button
-                        disabled={page === studentData.total_pages}
-                        onClick={() => setPage(p => p + 1)}
-                        className="px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold text-slate-600 disabled:opacity-50"
-                    >
-                        Next
-                    </button>
-                </div>
+            {studentData && (
+                <Pagination
+                    page={studentData.page}
+                    totalPages={studentData.total_pages}
+                    totalCount={studentData.total_count}
+                    pageSize={studentData.limit}
+                    onChange={setPage}
+                />
             )}
 
             {editingStudent && (

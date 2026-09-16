@@ -17,7 +17,19 @@ export const peopleService = {
     },
 
     // Parents
-    getParents: async (params?: { search?: string; page?: number; limit?: number }) => {
+    getParentOccupations: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('people/parents/occupations');
+        return response.data;
+    },
+    getParents: async (params?: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        is_active?: boolean;
+        occupation?: string;
+        sort_by?: 'name' | 'occupation' | 'city';
+        sort_dir?: 'asc' | 'desc';
+    }) => {
         try {
             const response = await api.get('people/parents', { params });
             return response.data;
@@ -35,7 +47,17 @@ export const peopleService = {
     },
 
     // Students
-    getStudents: async (params?: { search?: string; page?: number; limit?: number; filter_by_status?: string; class_id?: number; section_id?: number }) => {
+    getStudents: async (params?: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        filter_by_status?: string;
+        class_id?: number;
+        section_id?: number;
+        gender?: string;
+        sort_by?: 'name' | 'admission_no' | 'dob' | 'gender' | 'status' | 'admission_date';
+        sort_dir?: 'asc' | 'desc';
+    }) => {
         try {
             const response = await api.get('people/students', { params });
             return response.data;
@@ -65,7 +87,19 @@ export const peopleService = {
     },
 
     // Teachers
-    getTeachers: async (params?: { search?: string; page?: number; limit?: number; is_active?: boolean }) => {
+    getTeacherDesignations: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('people/teachers/designations');
+        return response.data;
+    },
+    getTeachers: async (params?: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        is_active?: boolean;
+        designation?: string;
+        sort_by?: 'name' | 'code' | 'designation' | 'qualification' | 'experience' | 'join_date';
+        sort_dir?: 'asc' | 'desc';
+    }) => {
         try {
             const response = await api.get('people/teachers', { params });
             return response.data;
@@ -83,7 +117,19 @@ export const peopleService = {
     },
 
     // Staff
-    getStaffList: async (params?: { search?: string; page?: number; limit?: number; is_active?: boolean }) => {
+    getStaffDesignations: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('people/staff/designations');
+        return response.data;
+    },
+    getStaffList: async (params?: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        is_active?: boolean;
+        designation?: string;
+        sort_by?: 'name' | 'code' | 'designation' | 'phone' | 'join_date' | 'status';
+        sort_dir?: 'asc' | 'desc';
+    }) => {
         const response = await api.get('people/staff', { params });
         return response.data;
     },
@@ -109,7 +155,15 @@ export const peopleService = {
     },
 
     // Users
-    getUsers: async (params?: { search?: string; page?: number; limit?: number; is_active?: boolean }) => {
+    getUsers: async (params?: {
+        search?: string;
+        page?: number;
+        limit?: number;
+        is_active?: boolean;
+        role?: string;
+        sort_by?: 'email' | 'role' | 'status' | 'last_login';
+        sort_dir?: 'asc' | 'desc';
+    }) => {
         const response = await api.get('people/users', { params });
         return response.data;
     },

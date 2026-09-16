@@ -6,10 +6,12 @@ import { AccessControl } from '../AccessControl';
 import { EditSectionModal } from './EditSectionModal';
 import { useTranslation } from 'react-i18next';
 import type { Section } from '../../types/academic';
+import { useConfirmDialog } from '../common/ConfirmDialog';
 
 export const SectionManagement: React.FC = () => {
     const queryClient = useQueryClient();
     const { t } = useTranslation();
+    const [confirmUI, confirm] = useConfirmDialog();
     const [searchQuery, setSearchQuery] = useState('');
     const [classFilter, setClassFilterState] = useState<number | null>(() => {
         const saved = localStorage.getItem('academics_section_class_filter');
@@ -50,6 +52,7 @@ export const SectionManagement: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {confirmUI}
             <EditSectionModal
                 isOpen={isEditModalOpen}
                 onClose={() => {
@@ -188,9 +191,12 @@ export const SectionManagement: React.FC = () => {
                                             <AccessControl id="sections_delete">
                                                 <button
                                                     onClick={() => {
-                                                        if (window.confirm(t('common.confirm') + '?')) {
-                                                            deleteMutation.mutate(section.id);
-                                                        }
+                                                        confirm({
+                                                            title: t('confirm.deleteSection.title'),
+                                                            body: t('confirm.deleteSection.body', { name: section.name }),
+                                                            confirmLabel: t('confirm.deleteSection.action'),
+                                                            onConfirm: () => deleteMutation.mutate(section.id),
+                                                        });
                                                     }}
                                                     className="p-2 bg-slate-50 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                                                     title={t('common.delete', 'Delete')}

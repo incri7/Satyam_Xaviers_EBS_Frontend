@@ -6,7 +6,11 @@ import {
     Search, Loader2, Microscope, Pencil, X, Check,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { AccessControl } from '../AccessControl';
+import { ViewToggle, useViewMode } from '../common/ViewToggle';
+import { SelectMenu } from '../common/SelectMenu';
+import { useDateFormat } from '../../hooks/useDateFormat';
 import { cn } from '../../utils/cn';
 import type { Class } from '../../types/academic';
 
@@ -41,8 +45,12 @@ export const AcademicsExplorer: React.FC = () => {
                 <SectionView
                     classId={view.classId}
                     className={view.className}
+                    sectionId={view.sectionId}
                     sectionName={view.sectionName}
                     onBack={() => setView({ level: 'class', classId: view.classId, className: view.className })}
+                    onSwitch={(classId, className, sectionId, sectionName) =>
+                        setView({ level: 'section', classId, className, sectionId, sectionName })
+                    }
                 />
             )}
         </div>
@@ -59,6 +67,9 @@ const Crumb: React.FC<{ onBack: () => void; trail: string[] }> = ({ onBack, trai
 
 // ── Level 1: classes ────────────────────────────────────────────────────────
 const ClassList: React.FC<{ onOpen: (c: Class) => void }> = ({ onOpen }) => {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const [view, setView] = useViewMode('academics_classes_view');
     const [search, setSearch] = useState('');
     const { data, isLoading } = useQuery({
         queryKey: ['classes', search],
@@ -68,21 +79,95 @@ const ClassList: React.FC<{ onOpen: (c: Class) => void }> = ({ onOpen }) => {
 
     return (
         <div className="space-y-4">
-            <div className="relative w-full md:w-96">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search classes..."
-                    className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                />
+            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                <div className="relative w-full md:w-96">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder={t('academics.searchClasses')}
+                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
+                    />
+                </div>
+                <ViewToggle value={view} onChange={setView} />
             </div>
-            {isLoading ? (
+
+            {classes.length === 0 && !isLoading ? (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center space-y-2">
+                    <p className="font-bold text-slate-900">
+                        {search ? t('academics.noClassesMatch') : t('academics.noClassesYet')}
+                    </p>
+                    <p className="text-slate-500 text-sm">
+                        {search ? t('academics.noClassesMatchHint') : t('academics.noClassesYetHint')}
+                    </p>
+                </div>
+            ) : view === 'table' ? (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {t('academics.class')}
+                                    </th>
+                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        {t('academics.created')}
+                                    </th>
+                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
+                                        {t('common.actions')}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {isLoading
+                                    ? [1, 2, 3, 4, 5].map(i => (
+                                        <tr key={i} className="animate-pulse">
+                                            <td colSpan={3} className="px-6 py-6 bg-slate-50/20" />
+                                        </tr>
+                                    ))
+                                    : classes.map(c => (
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => onOpen(c)}
+                                            tabIndex={0}
+                                            role="button"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    onOpen(c);
+                                                }
+                                            }}
+                                            className="group cursor-pointer hover:bg-slate-50/60 focus:bg-slate-50/60 focus:outline-none transition-colors"
+                                        >
+                                            <td className="px-6 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    {/* Same brand glyph the cards use, so switching
+                                                        views doesn't feel like a different product. */}
+                                                    <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand shrink-0">
+                                                        <BookOpen className="w-4 h-4" />
+                                                    </div>
+                                                    <span className="font-bold text-slate-900 whitespace-nowrap">{c.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-500 whitespace-nowrap">
+                                                {df.date(c.created_at)}
+                                            </td>
+                                            <td className="px-6 py-3.5">
+                                                <span className="flex items-center justify-end gap-1.5 text-xs font-bold text-slate-400 group-hover:text-brand transition-colors whitespace-nowrap">
+                                                    {t('academics.openClass')}
+                                                    <ChevronRight className="w-4 h-4" />
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : isLoading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-20 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
                 </div>
-            ) : classes.length === 0 ? (
-                <div className="py-16 text-center text-slate-400 font-medium">No classes yet.</div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {classes.map((c, i) => (
@@ -254,9 +339,12 @@ const ClassView: React.FC<{
 
 // ── Level 3: one section → subjects (of its class) + teacher each ──────────────
 const SectionView: React.FC<{
-    classId: number; className: string; sectionName: string; onBack: () => void;
-}> = ({ classId, className, sectionName, onBack }) => {
+    classId: number; className: string; sectionId: number; sectionName: string;
+    onBack: () => void;
+    onSwitch: (classId: number, className: string, sectionId: number, sectionName: string) => void;
+}> = ({ classId, className, sectionId, sectionName, onBack, onSwitch }) => {
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [managing, setManaging] = useState(false);
     const [assigningFor, setAssigningFor] = useState<ClassSubjectRow | null>(null);
 
@@ -264,6 +352,32 @@ const SectionView: React.FC<{
         queryKey: ['class-subjects', classId],
         queryFn: () => academicsService.getClassSubjects(classId),
     });
+    const { data: allClasses } = useQuery({
+        queryKey: ['classes', 'all'],
+        queryFn: () => academicsService.getClasses({ limit: 100 }),
+        staleTime: 5 * 60 * 1000,
+    });
+    const { data: classDetail } = useQuery({
+        queryKey: ['class-detail', classId],
+        queryFn: () => academicsService.getClassDetail(classId),
+    });
+    const sections = classDetail?.sections || [];
+
+    // Switching class lands on that class's first section, so the page is
+    // never left pointing at a section that belongs to a different class.
+    const switchClass = (id: string) => {
+        const target = (allClasses?.classes || []).find((c) => String(c.id) === id);
+        if (!target || target.id === classId) return;
+        academicsService.getClassDetail(target.id).then((d) => {
+            const first = d.sections?.[0];
+            onSwitch(target.id, target.name, first?.id ?? 0, first?.name ?? '—');
+        });
+    };
+
+    const switchSection = (id: string) => {
+        const target = sections.find((sec) => String(sec.id) === id);
+        if (target) onSwitch(classId, className, target.id, target.name);
+    };
     const { data: allSubjects } = useQuery({
         queryKey: ['subjects', 'all'],
         queryFn: () => academicsService.getSubjects(),
@@ -289,8 +403,29 @@ const SectionView: React.FC<{
     return (
         <div className="space-y-4">
             <Crumb onBack={onBack} trail={['Classes', className, `Section ${sectionName}`]} />
-            <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-bold text-slate-900">{className} — {sectionName}</h2>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <SelectMenu
+                        value={String(classId)}
+                        onChange={switchClass}
+                        label={t('academics.class')}
+                        icon={<BookOpen className="w-4 h-4 text-slate-400 shrink-0" />}
+                        options={(allClasses?.classes || []).map((c) => ({
+                            value: String(c.id),
+                            label: c.name,
+                        }))}
+                    />
+                    <SelectMenu
+                        value={String(sectionId)}
+                        onChange={switchSection}
+                        label={t('academics.section')}
+                        icon={<Layers className="w-4 h-4 text-slate-400 shrink-0" />}
+                        options={sections.map((sec) => ({
+                            value: String(sec.id),
+                            label: sec.name,
+                        }))}
+                    />
+                </div>
                 <AccessControl id="classes_update">
                     <button
                         onClick={() => setManaging(v => !v)}

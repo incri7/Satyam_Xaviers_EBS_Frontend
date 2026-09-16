@@ -74,7 +74,10 @@ export const academicsService = {
         class_id?: number;
         section_id?: number;
         academic_year?: string;
-        include_inactive?: boolean
+        include_inactive?: boolean;
+        search?: string;
+        sort_by?: 'student' | 'class' | 'section' | 'year' | 'status';
+        sort_dir?: 'asc' | 'desc';
     }): Promise<EnrollmentListResponse> => {
         const response = await api.get<EnrollmentListResponse>('academics/enrollments', { params });
         return response.data;

@@ -16,8 +16,16 @@ export const AccessControl: React.FC<AccessControlProps> = ({ id, children, fall
     const permissions = PERMISSION_REGISTRY[id];
 
     if (!permissions) {
-        console.warn(`AccessControl: Component ID "${id}" not found in permission registry.`);
-        return <>{children}</>; // Default to showing if not registered
+        // Fail CLOSED. An unregistered id previously rendered its children to
+        // everyone, so forgetting a registry entry silently published a
+        // privileged control to every role. Denying is the safe default: the
+        // damage from a hidden button is a missing feature, from a shown one a
+        // privilege leak.
+        console.error(
+            `AccessControl: component ID "${id}" is not in PERMISSION_REGISTRY — ` +
+            `denying access. Register it in config/permissionRegistry.ts.`
+        );
+        return <>{fallback ?? null}</>;
     }
 
     return (

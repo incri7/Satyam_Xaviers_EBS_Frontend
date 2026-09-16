@@ -4,6 +4,8 @@ export interface Parent {
     middle_name?: string;
     last_name: string;
     occupation?: string;
+    phone?: string | null;
+    email?: string | null;
     address_line?: string;
     city?: string;
     state?: string;
