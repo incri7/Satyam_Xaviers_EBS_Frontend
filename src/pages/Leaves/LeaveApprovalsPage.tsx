@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
+import { LeaveBalances } from './LeaveBalances';
+import { useUrlState } from '../../hooks/useUrlState';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import {
     leavesService,
@@ -15,6 +17,7 @@ import {
     UserCheck, AlertCircle, ClipboardCheck
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
 
 const LeaveCard: React.FC<{
     leave: PendingLeaveRead;
@@ -23,6 +26,7 @@ const LeaveCard: React.FC<{
     isPending: boolean;
 }> = ({ leave, onApprove, onReject, isPending }) => {
     const { t } = useTranslation();
+    const df = useDateFormat();
     const [expanded, setExpanded] = useState(false);
     const [selectedSubstitute, setSelectedSubstitute] = useState<number | null>(null);
 
@@ -54,7 +58,7 @@ const LeaveCard: React.FC<{
                             {LEAVE_TYPE_LABEL[leave.leave_type] ?? leave.leave_type}
                         </span>
                         <span className="text-xs font-medium text-slate-400">
-                            {leave.start_date} → {leave.end_date} ({dayCount}d)
+                            {df.date(leave.start_date)} → {df.date(leave.end_date)} ({dayCount}d)
                         </span>
                     </div>
                     {leave.reason && (
@@ -140,6 +144,12 @@ const LeaveApprovalsPage: React.FC = () => {
     const { t } = useTranslation();
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
+    const [tab, setTab] = useUrlState<'pending' | 'balances'>(
+        'tab', 'pending', { allowed: ['pending', 'balances'] },
+    );
+    // Coordinators approve leave; setting what leave exists is a contract
+    // decision, so it stops with the admin and the principal.
+    const canSetEntitlements = user?.role === 'admin' || user?.role === 'principal';
     const [actionError, setActionError] = useState('');
     const [processingId, setProcessingId] = useState<number | null>(null);
 
@@ -187,15 +197,47 @@ const LeaveApprovalsPage: React.FC = () => {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                            <ClipboardCheck className="w-6 h-6 text-brand" />
-                            {t('leaveApprovals.title', 'Leave Approvals')}
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">
-                            {t('leaveApprovals.subtitle', 'Every pending leave request across the school')}
-                        </p>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                                <ClipboardCheck className="w-6 h-6 text-brand" />
+                                {t('leaveApprovals.title', 'Leave Approvals')}
+                            </h1>
+                            <p className="text-slate-500 text-sm font-medium mt-0.5">
+                                {tab === 'balances'
+                                    ? t('leaveBalances.subtitle')
+                                    : t('leaveApprovals.subtitle', 'Every pending leave request across the school')}
+                            </p>
+                        </div>
+
+                        {/* Approving leave and deciding how much leave exists are the
+                            same person's job, so they live on the same screen. */}
+                        <div className="flex p-1 bg-slate-100 rounded-2xl shrink-0">
+                            <button
+                                onClick={() => setTab('pending')}
+                                className={cn(
+                                    'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                    tab !== 'balances' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700',
+                                )}
+                            >
+                                {t('leaveApprovals.tabPending')}
+                            </button>
+                            <button
+                                onClick={() => setTab('balances')}
+                                className={cn(
+                                    'px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                                    tab === 'balances' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700',
+                                )}
+                            >
+                                {t('leaveBalances.tab')}
+                            </button>
+                        </div>
                     </div>
+
+                    {tab === 'balances' ? (
+                        <LeaveBalances canEdit={canSetEntitlements} />
+                    ) : (
+                    <>
 
                     {/* Summary strip */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -283,6 +325,8 @@ const LeaveApprovalsPage: React.FC = () => {
                             </div>
                         )}
                     </div>
+                    </>
+                    )}
                 </div>
             </main>
         </div>
