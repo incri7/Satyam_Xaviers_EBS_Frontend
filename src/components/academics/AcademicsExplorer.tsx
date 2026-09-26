@@ -12,7 +12,8 @@ import {
 } from '../../design-system';
 import { Toolbar } from '../layout/AppPage';
 import { AccessControl } from '../AccessControl';
-import { ViewToggle, useViewMode } from '../common/ViewToggle';
+import { ViewToggle } from '../common/ViewToggle';
+import { useViewMode } from '../common/useViewMode';
 import { SelectMenu } from '../common/SelectMenu';
 import { academicsService, type ClassDetail, type ClassSubjectRow } from '../../api/services/academics.service';
 import { STAGES, seatTone, useClassOverview, type ClassOverview, type Stage } from '../../features/academics/queries';

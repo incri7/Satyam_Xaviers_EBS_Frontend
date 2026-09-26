@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Ban, ChevronRight, Landmark, Pencil, Plus, RotateCw } from 'lucide-react';
 
 import { ActionMenu, Badge, Button, Card, CardHeader, EmptyState, FilterChips, Skeleton } from '../../design-system';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../common/useConfirmDialog';
 import { academicsService } from '../../api/services/academics.service';
 import { financesService } from '../../api/services/finances.service';
 import { useFeeStructures } from '../../features/finance/queries';

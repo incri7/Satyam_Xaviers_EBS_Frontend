@@ -33,7 +33,17 @@ export interface Student {
     admission_date: string;
     created_at: string;
     updated_at: string;
-    parent_links?: any[]; // Simplified for now
+    parent_links?: StudentParentLink[] | null;
+}
+
+/** A guardian linked to a student, as the student endpoints return it. */
+export interface StudentParentLink {
+    id: number;
+    student_id: number | null;
+    parent_id: number | null;
+    relationship_type: string | null;
+    is_primary_contact: boolean;
+    parent?: Parent | null;
 }
 
 export interface Teacher {
@@ -264,6 +274,7 @@ export interface StudentCreate {
     admission_no?: string;
     admission_date: string;
     class_id?: number;
+    parent_id?: number;
     relationship_type?: string;
     is_primary_contact?: boolean;
     city?: string;

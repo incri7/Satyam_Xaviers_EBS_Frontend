@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { usePermissionsStore } from '../store/usePermissionsStore';
 import { authService } from '../api/services/auth.service';
 import { permissionsService } from '../api/services/permissions.service';
+import type { LoginCredentials } from '../types/auth';
 
 export const useAuth = () => {
     const navigate = useNavigate();
@@ -17,25 +18,21 @@ export const useAuth = () => {
 
     const { setPermissions, clearPermissions } = usePermissionsStore();
 
-    const login = async (credentials: any) => {
+    const login = async (credentials: LoginCredentials) => {
+        const data = await authService.login(credentials);
+        setAuth(data.user, data.access_token, data.refresh_token || '');
+
+        // Fetch permissions after successful login
         try {
-            const data = await authService.login(credentials);
-            setAuth(data.user, data.access_token, data.refresh_token || '');
-
-            // Fetch permissions after successful login
-            try {
-                const permissionsData = await permissionsService.getMyPermissions();
-                // Backend returns array directly, not wrapped in object
-                setPermissions(permissionsData);
-            } catch (permError) {
-                console.error('Failed to fetch permissions:', permError);
-                // Continue even if permissions fail - user is still logged in
-            }
-
-            return data;
-        } catch (error) {
-            throw error;
+            const permissionsData = await permissionsService.getMyPermissions();
+            // Backend returns array directly, not wrapped in object
+            setPermissions(permissionsData);
+        } catch (permError) {
+            console.error('Failed to fetch permissions:', permError);
+            // Continue even if permissions fail - user is still logged in
         }
+
+        return data;
     };
 
     const logout = async () => {

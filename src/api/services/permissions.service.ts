@@ -1,4 +1,4 @@
-import { api } from '../axios';
+import { api, errorDetail } from '../axios';
 import type { PermissionsResponse, Permission, PermissionCreatePayload, PermissionUpdatePayload } from '../../types/auth';
 
 export interface PermissionOptions {
@@ -12,9 +12,9 @@ export const permissionsService = {
             const response = await api.get<PermissionsResponse>('permissions/me');
             // Backend returns array directly, not wrapped in object
             return response.data;
-        } catch (error: any) {
-            console.error('Failed to fetch permissions:', error.response?.data || error.message);
-            throw error.response?.data?.detail || 'Failed to fetch permissions';
+        } catch (error) {
+            console.error('Failed to fetch permissions:', error);
+            throw errorDetail(error) || 'Failed to fetch permissions';
         }
     },
 

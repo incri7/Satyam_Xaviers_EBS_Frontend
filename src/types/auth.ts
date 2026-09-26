@@ -19,6 +19,17 @@ export interface AuthResponse {
     user: User;
 }
 
+export interface LoginCredentials {
+    email: string;
+    password: string;
+}
+
+export interface PasswordChangePayload {
+    /** Null on the first sign-in, when the temporary password was just used. */
+    current_password: string | null;
+    new_password: string;
+}
+
 export interface RefreshResponse {
     access_token: string;
     token_type: string;

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Award, Plus, RotateCw, Trash2 } from 'lucide-react';
 
 import { ActionMenu, Badge, Button, Card, CardHeader, EmptyState, Skeleton, type BadgeTone } from '../../design-system';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../common/useConfirmDialog';
 import { financesService } from '../../api/services/finances.service';
 import { StudentPicker } from '../../features/people/StudentPicker';
 import { ApplyScholarshipDialog } from '../../features/finance/ApplyScholarshipDialog';

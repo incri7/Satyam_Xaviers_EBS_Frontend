@@ -1,8 +1,8 @@
-import { api } from '../axios';
+import { api, errorDetail } from '../axios';
 import type {
     ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, StaffCreate, UserUpdate,
     UnifiedRegistrationCreate, UnifiedRegistrationResponse,
-    UserRegistrationCreate, UserRegistrationResponse
+    UserRegistrationCreate, UserRegistrationResponse, StudentCreate
 } from '../../types/people';
  
 export const peopleService = {
@@ -11,8 +11,8 @@ export const peopleService = {
         try {
             const response = await api.post<UnifiedRegistrationResponse>('people/register/parent-student', data);
             return response.data;
-        } catch (error: any) {
-            throw error.response?.data?.detail || 'Registration failed';
+        } catch (error) {
+            throw errorDetail(error) || 'Registration failed';
         }
     },
 
@@ -33,8 +33,8 @@ export const peopleService = {
         try {
             const response = await api.get('people/parents', { params });
             return response.data;
-        } catch (error: any) {
-            throw error.response?.data?.detail || 'Failed to fetch parents';
+        } catch (error) {
+            throw errorDetail(error) || 'Failed to fetch parents';
         }
     },
     getParent: async (id: number) => {
@@ -61,8 +61,8 @@ export const peopleService = {
         try {
             const response = await api.get('people/students', { params });
             return response.data;
-        } catch (error: any) {
-            throw error.response?.data?.detail || 'Failed to fetch students';
+        } catch (error) {
+            throw errorDetail(error) || 'Failed to fetch students';
         }
     },
     getStudent: async (id: number) => {
@@ -73,7 +73,7 @@ export const peopleService = {
         const response = await api.get(`people/students/${id}/summary`);
         return response.data;
     },
-    createStudent: async (data: any) => {
+    createStudent: async (data: StudentCreate) => {
         const response = await api.post('people/students', data);
         return response.data;
     },
@@ -103,8 +103,8 @@ export const peopleService = {
         try {
             const response = await api.get('people/teachers', { params });
             return response.data;
-        } catch (error: any) {
-            throw error.response?.data?.detail || 'Failed to fetch teachers';
+        } catch (error) {
+            throw errorDetail(error) || 'Failed to fetch teachers';
         }
     },
     getTeacher: async (id: number) => {
@@ -191,8 +191,8 @@ export const peopleService = {
         try {
             const response = await api.post<UserRegistrationResponse>('people/register/user', data);
             return response.data;
-        } catch (error: any) {
-            throw error.response?.data?.detail || 'User registration failed';
+        } catch (error) {
+            throw errorDetail(error) || 'User registration failed';
         }
     },
 };

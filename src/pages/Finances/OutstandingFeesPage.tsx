@@ -12,7 +12,7 @@ import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
 import { AccessControl } from '../../components/AccessControl';
 import { Pagination } from '../../components/common/Pagination';
 import { SelectMenu } from '../../components/common/SelectMenu';
-import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../../components/common/useConfirmDialog';
 import { KpiCard } from '../../features/dashboard/KpiCard';
 import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
 import { academicsService } from '../../api/services/academics.service';

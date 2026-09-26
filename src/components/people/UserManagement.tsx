@@ -9,7 +9,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { AccessControl } from '../AccessControl';
 import type { User } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../common/useConfirmDialog';
 import { SelectMenu } from '../common/SelectMenu';
 import { RegisterView } from '../../features/people/RegisterView';
 import { useListControls } from '../../features/people/useListControls';

@@ -9,6 +9,7 @@ import { leavesService, type LeaveType } from '../../api/services/leaves.service
 import { AlertCircle, Loader2, Plus, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { errorText } from '../../features/people/format';
 
 const STATUS_STYLE: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
@@ -78,8 +79,8 @@ const ChildLeavePage: React.FC = () => {
             setFormData({ leave_type: 'casual', start_date: '', end_date: '', reason: '' });
             setTimeout(() => setFormSuccess(''), 4000);
         },
-        onError: (err: any) => {
-            setFormError(err.response?.data?.detail || t('parent.failedSubmit'));
+        onError: (err) => {
+            setFormError(errorText(err, t('parent.failedSubmit')));
         },
     });
 

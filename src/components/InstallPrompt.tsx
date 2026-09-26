@@ -4,6 +4,12 @@ import { useAuthStore } from '../store/useAuthStore';
 
 const DISMISS_KEY = 'sx_install_prompt_dismissed';
 
+/** Chrome's install event; not in the DOM typings. */
+interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 /**
  * "Install the app" banner shown after login (client ask 2026-07-10:
  * install on first login for easy access to the browser-based app).
@@ -13,30 +19,28 @@ const DISMISS_KEY = 'sx_install_prompt_dismissed';
  */
 export const InstallPrompt: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-    const [showIosHint, setShowIosHint] = useState(false);
-    const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === '1');
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+    const [dismissed, setDismissed] = useState(() => {
+        try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
+    });
 
     const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        (navigator as any).standalone === true;
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    // iOS Safari: no beforeinstallprompt — show a manual hint
+    const showIosHint = /iphone|ipad|ipod/i.test(navigator.userAgent) && !isStandalone;
 
     useEffect(() => {
         const handler = (e: Event) => {
             e.preventDefault();
-            setDeferredPrompt(e);
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
         };
         window.addEventListener('beforeinstallprompt', handler);
-
-        // iOS Safari: no beforeinstallprompt — show a manual hint
-        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        if (isIos && !isStandalone) setShowIosHint(true);
-
         return () => window.removeEventListener('beforeinstallprompt', handler);
-    }, [isStandalone]);
+    }, []);
 
     const dismiss = () => {
-        localStorage.setItem(DISMISS_KEY, '1');
+        try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* not remembered */ }
         setDismissed(true);
     };
 

@@ -2,6 +2,7 @@
  * IndexedDB-backed offline queue for attendance records.
  * Teacher marks attendance offline → records stored here → synced when back online.
  */
+import type { AttendanceStatus } from '../api/services/attendance.service';
 
 const DB_NAME = 'sx_ebs_offline';
 const DB_VERSION = 1;
@@ -11,7 +12,7 @@ export interface QueuedAttendanceRecord {
     id?: number;
     student_id: number;
     date: string;
-    status: string;
+    status: AttendanceStatus;
     class_id: number;
     section_id?: number;
     queued_at: number;

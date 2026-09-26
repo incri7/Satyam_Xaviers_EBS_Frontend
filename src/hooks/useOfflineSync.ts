@@ -25,7 +25,7 @@ export function useOfflineSync() {
             const records = queued.map(r => ({
                 student_id: r.student_id,
                 date: r.date,
-                status: r.status as any,
+                status: r.status,
                 class_id: r.class_id,
                 section_id: r.section_id,
             }));

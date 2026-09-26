@@ -1,5 +1,5 @@
 import { api } from '../axios';
-import type { AuthResponse, RefreshResponse } from '../../types/auth';
+import type { AuthResponse, LoginCredentials, PasswordChangePayload, RefreshResponse, User, UserCreatePayload } from '../../types/auth';
 
 export interface NotificationPreferences {
     sms_absence: boolean;
@@ -11,7 +11,7 @@ export interface NotificationPreferences {
 
 
 export const authService = {
-    login: async (credentials: any): Promise<AuthResponse> => {
+    login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
         const response = await api.post<AuthResponse>('auth/login', credentials);
         return response.data;
     },
@@ -33,7 +33,7 @@ export const authService = {
         await api.post('auth/password-reset/confirm', data);
     },
 
-    changePassword: async (data: any): Promise<void> => {
+    changePassword: async (data: PasswordChangePayload): Promise<void> => {
         await api.post('auth/password-change', data);
     },
  
@@ -47,8 +47,8 @@ export const authService = {
         return response.data;
     },
 
-    register: async (data: any): Promise<any> => {
-        const response = await api.post('auth/register', data);
+    register: async (data: UserCreatePayload): Promise<User> => {
+        const response = await api.post<User>('auth/register', data);
         return response.data;
     }
 };

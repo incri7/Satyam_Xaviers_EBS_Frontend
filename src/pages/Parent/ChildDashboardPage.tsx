@@ -15,9 +15,8 @@ const CHART_COLORS = ['#B4213A', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#E
 
 const ChildDashboardPage: React.FC = () => {
     const { studentId } = useParams<{ studentId: string }>();
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const df = useDateFormat();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
     const id = Number(studentId);
 
     const { data: attendance } = useQuery({
@@ -69,7 +68,7 @@ const ChildDashboardPage: React.FC = () => {
                 week: df.date(weekStart),
                 attendance: total > 0 ? Math.round((present / total) * 100) : 0,
             }));
-    }, [attendance, locale]);
+    }, [attendance, df]);
 
     // ── Fee payments by month ───────────────────────────────────────────────
     const feeChartData = useMemo(() => {
@@ -86,7 +85,7 @@ const ChildDashboardPage: React.FC = () => {
                 month: df.date(`${month}-01`, 'monthYear'),
                 amount,
             }));
-    }, [fees, locale]);
+    }, [fees, df]);
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">

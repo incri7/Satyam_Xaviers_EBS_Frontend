@@ -28,6 +28,9 @@ export function useWebSocket(handlers: Record<string, EventHandler>) {
     const handlersRef = useRef(handlers);
     const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const unmountedRef = useRef(false);
+    // The latest connect, so a reconnect scheduled by an old socket uses the
+    // current token rather than the one it was opened with.
+    const connectRef = useRef<() => void>(() => {});
 
     // Keep handlers up to date without reconnecting
     useEffect(() => {
@@ -58,10 +61,12 @@ export function useWebSocket(handlers: Record<string, EventHandler>) {
         };
 
         ws.onclose = () => {
-            if (unmountedRef.current) return;
+            // A socket replaced after a token refresh closes late; only the
+            // current one may schedule a reconnect.
+            if (unmountedRef.current || wsRef.current !== ws) return;
             if (attemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
                 attemptsRef.current += 1;
-                reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+                reconnectTimer.current = setTimeout(() => connectRef.current(), RECONNECT_DELAY_MS);
             }
         };
 
@@ -71,12 +76,15 @@ export function useWebSocket(handlers: Record<string, EventHandler>) {
     }, [accessToken, isAuthenticated]);
 
     useEffect(() => {
+        connectRef.current = connect;
         unmountedRef.current = false;
         connect();
         return () => {
             unmountedRef.current = true;
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-            wsRef.current?.close();
+            const ws = wsRef.current;
+            wsRef.current = null;
+            ws?.close();
         };
     }, [connect]);
 }

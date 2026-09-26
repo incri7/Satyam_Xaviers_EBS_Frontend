@@ -9,7 +9,7 @@ import {
 } from '../../design-system';
 import { Toolbar } from '../layout/AppPage';
 import { Pagination } from '../common/Pagination';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../common/useConfirmDialog';
 import { financesService, type LedgerEntry } from '../../api/services/finances.service';
 import { invalidateMoney, useLedger } from '../../features/finance/queries';
 import { monthRange, previousMonthRange, yearRange } from '../../features/finance/period';

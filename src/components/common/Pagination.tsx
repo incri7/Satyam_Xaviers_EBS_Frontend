@@ -120,7 +120,7 @@ const PageButton: React.FC<{
  * Up to seven slots: always the first and last page, the current page with a
  * neighbour either side, and `null` where a run is elided.
  */
-export function pageWindow(page: number, totalPages: number): (number | null)[] {
+function pageWindow(page: number, totalPages: number): (number | null)[] {
     if (totalPages <= 7) {
         return Array.from({ length: totalPages }, (_, i) => i + 1);
     }

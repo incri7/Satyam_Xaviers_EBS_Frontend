@@ -6,7 +6,7 @@ import { AlertTriangle, Award, CheckCircle2, GraduationCap, Layers, RotateCw, Sh
 import { Badge, Banner, Button, Card, EmptyState, FilterChips, Person, SearchField, SegmentedControl, SelectField, Skeleton } from '../../design-system';
 import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
 import { SelectMenu } from '../../components/common/SelectMenu';
-import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../../components/common/useConfirmDialog';
 import { academicCalendarService, type PromotionConfirmEntry, type PromotionDecision } from '../../api/services/academicCalendar.service';
 import { academicsService } from '../../api/services/academics.service';
 import { classRank } from '../../features/dashboard/queries';

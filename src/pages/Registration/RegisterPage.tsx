@@ -7,6 +7,8 @@ import { registrationService } from '../../api/services/registration.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SchoolLogo } from '../../components/icons/SchoolLogo';
 import { CheckCircle2, AlertCircle, Loader2, User } from 'lucide-react';
+import { isAxiosError } from 'axios';
+import { errorText } from '../../features/people/format';
 
 const RegisterPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -56,8 +58,8 @@ const RegisterPage: React.FC = () => {
             );
             navigate('/home/parent');
         },
-        onError: (err: any) => {
-            setFormError(err.response?.data?.detail || t('register.registerFailed'));
+        onError: (err) => {
+            setFormError(errorText(err, t('register.registerFailed')));
         },
     });
 
@@ -72,10 +74,8 @@ const RegisterPage: React.FC = () => {
         registerMutation.mutate();
     };
 
-    const tokenExpiredOrInvalid = tokenError && (
-        (tokenError as any)?.response?.status === 404 ||
-        (tokenError as any)?.response?.status === 410
-    );
+    const tokenStatus = isAxiosError(tokenError) ? tokenError.response?.status : undefined;
+    const tokenExpiredOrInvalid = tokenStatus === 404 || tokenStatus === 410;
 
     return (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
@@ -108,7 +108,7 @@ const RegisterPage: React.FC = () => {
                     <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-center">
                         <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
                         <p className="font-bold text-red-700">
-                            {(tokenError as any)?.response?.status === 410
+                            {tokenStatus === 410
                                 ? t('register.tokenExpired')
                                 : t('register.tokenInvalid')}
                         </p>

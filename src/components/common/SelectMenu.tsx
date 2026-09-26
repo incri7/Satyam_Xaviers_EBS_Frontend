@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 
 import { cn } from '../../utils/cn';
@@ -53,16 +53,18 @@ export const SelectMenu: React.FC<{
         };
     }, [open]);
 
-    // Decide direction from the space actually available, before paint.
-    useLayoutEffect(() => {
-        if (!open || !rootRef.current) return;
-        const rect = rootRef.current.getBoundingClientRect();
-        const below = window.innerHeight - rect.bottom;
-        const above = rect.top;
-        const wanted = Math.min(options.length * 40 + 8, 288);
-        setFlip(below < wanted && above > below);
+    // Decide direction from the space actually available as it opens.
+    const openMenu = () => {
+        if (rootRef.current) {
+            const rect = rootRef.current.getBoundingClientRect();
+            const below = window.innerHeight - rect.bottom;
+            const above = rect.top;
+            const wanted = Math.min(options.length * 40 + 8, 288);
+            setFlip(below < wanted && above > below);
+        }
         setActive(Math.max(0, options.findIndex((o) => o.value === value)));
-    }, [open, options, value]);
+        setOpen(true);
+    };
 
     // Keep the highlighted option in view while arrowing through a long list.
     useEffect(() => {
@@ -78,7 +80,7 @@ export const SelectMenu: React.FC<{
     const onTriggerKey = (e: React.KeyboardEvent) => {
         if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
-            setOpen(true);
+            openMenu();
             return;
         }
         if (!open) return;
@@ -104,7 +106,7 @@ export const SelectMenu: React.FC<{
         <div ref={rootRef} className={cn('relative', className)}>
             <button
                 type="button"
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => (open ? setOpen(false) : openMenu())}
                 onKeyDown={onTriggerKey}
                 aria-haspopup="listbox"
                 aria-expanded={open}

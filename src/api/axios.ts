@@ -66,7 +66,7 @@ api.interceptors.response.use(
             const detail = error.response.data?.detail;
             if (Array.isArray(detail)) {
                 error.response.data.detail = detail
-                    .map((d: any) => {
+                    .map((d: { loc?: unknown; msg: string }) => {
                         const field = Array.isArray(d.loc) ? d.loc.slice(1).join('.') : '';
                         return field ? `${field}: ${d.msg}` : d.msg;
                     })
@@ -77,3 +77,8 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/** The server's `detail` message from a failed request, if it sent one. */
+export function errorDetail(error: unknown): unknown {
+    return axios.isAxiosError<{ detail?: unknown }>(error) ? error.response?.data?.detail : undefined;
+}

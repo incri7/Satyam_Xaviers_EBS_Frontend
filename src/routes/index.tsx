@@ -4,8 +4,7 @@ import ForgotPasswordPage from '../pages/ForgotPassword';
 import ResetPasswordPage from '../pages/ResetPassword';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { RoleRoute } from '../components/RoleRoute';
-import { useAuthStore } from '../store/useAuthStore';
-import { homeForRole } from '../utils/roleHome';
+import { HomeRedirect } from './HomeRedirect';
 import Dashboard from '../pages/Dashboard';
 import PermissionsDashboard from '../pages/Permissions/PermissionsDashboard';
 import AcademicsPage from '../pages/Academics/AcademicsPage';
@@ -37,14 +36,6 @@ import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage
 import PromotionPage from '../pages/Promotion/PromotionPage';
 import TimetablePage from '../pages/Timetable/TimetablePage';
 import LeaveApprovalsPage from '../pages/Leaves/LeaveApprovalsPage';
-
-/** Role-aware landing: send each user to their own home screen. */
-const HomeRedirect = () => {
-    const { user, isAuthenticated, _hasHydrated } = useAuthStore();
-    if (!_hasHydrated) return null;
-    if (!isAuthenticated) return <Navigate to="/login" replace />;
-    return <Navigate to={homeForRole(user?.role)} replace />;
-};
 
 export const router = createBrowserRouter([
     {

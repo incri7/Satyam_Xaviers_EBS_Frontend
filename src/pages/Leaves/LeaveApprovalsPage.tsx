@@ -5,7 +5,7 @@ import { AlertCircle, Check, CheckCircle2, ClipboardCheck, Loader2, RotateCw, Sc
 
 import { Avatar, Badge, Banner, Button, Card, EmptyState, FilterChips, Skeleton, Tabs } from '../../design-system';
 import { AppPage, PageBar } from '../../components/layout/AppPage';
-import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../../components/common/useConfirmDialog';
 import { leavesService, type LeaveApplicantType, type LeaveStatus, type PendingLeaveRead } from '../../api/services/leaves.service';
 import { leaveDays } from '../../features/leave/format';
 import { errorText } from '../../features/people/format';

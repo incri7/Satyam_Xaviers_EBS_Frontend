@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeft, Bell, CalendarX, Copy, Megaphone, Pencil, Plus,
 
 import { Badge, Button, Card, Dialog, EmptyState, FilterChips, SearchField, SegmentedControl, Skeleton } from '../design-system';
 import { AppPage, PageBar, Toolbar } from '../components/layout/AppPage';
-import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { useConfirmDialog } from '../components/common/useConfirmDialog';
 import { noticesService } from '../api/services/notices.service';
 import { academicsService } from '../api/services/academics.service';
 import { peopleService } from '../api/services/people.service';

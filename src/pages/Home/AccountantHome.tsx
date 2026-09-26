@@ -12,6 +12,7 @@ import {
 import { cn } from '../../utils/cn';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { errorText } from '../../features/people/format';
 
 const RISK_STYLE: Record<string, string> = {
     High: 'bg-red-100 text-red-700',
@@ -62,8 +63,8 @@ const AccountantHome: React.FC = () => {
             setSendingId(null);
             setTimeout(() => setReminderSuccess(''), 5000);
         },
-        onError: (err: any) => {
-            setReminderError(err.response?.data?.detail || t('common.error'));
+        onError: (err) => {
+            setReminderError(errorText(err, t('common.error')));
             setSendingId(null);
         },
     });

@@ -8,7 +8,7 @@ import { peopleService } from '../../api/services/people.service';
 import { AccessControl } from '../AccessControl';
 import { EditParentModal } from './EditParentModal';
 import type { Parent } from '../../types/people';
-import { useViewMode } from '../common/ViewToggle';
+import { useViewMode } from '../common/useViewMode';
 import { SelectMenu } from '../common/SelectMenu';
 import { RegisterView } from '../../features/people/RegisterView';
 import { PersonCard } from '../../features/people/PersonCard';

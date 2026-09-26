@@ -10,7 +10,7 @@ import { AccessControl } from '../AccessControl';
 import { EditTeacherModal } from './EditTeacherModal';
 import type { Teacher } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
-import { useViewMode } from '../common/ViewToggle';
+import { useViewMode } from '../common/useViewMode';
 import { SelectMenu } from '../common/SelectMenu';
 import { RegisterView } from '../../features/people/RegisterView';
 import { PersonCard } from '../../features/people/PersonCard';

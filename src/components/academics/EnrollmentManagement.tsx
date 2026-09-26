@@ -11,7 +11,7 @@ import { Toolbar } from '../layout/AppPage';
 import { AccessControl } from '../AccessControl';
 import { Pagination } from '../common/Pagination';
 import { SelectMenu } from '../common/SelectMenu';
-import { useConfirmDialog } from '../common/ConfirmDialog';
+import { useConfirmDialog } from '../common/useConfirmDialog';
 import { EditEnrollmentModal } from './EditEnrollmentModal';
 import { academicsService } from '../../api/services/academics.service';
 import { academicYearLabel, academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
