@@ -13,6 +13,7 @@ import { errorText } from '../../features/people/format';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
+import { bsYearMonth, toNepaliDigits } from '../../utils/nepaliDate';
 
 const ROLES = ['teacher', 'staff', 'coordinator', 'principal', 'accountant', 'admin'] as const;
 const GENDERS = ['F', 'M', 'O'] as const;
@@ -36,7 +37,8 @@ export const LeaveBalances: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
     const { t } = useTranslation();
     const { lang } = useDateFormat();
     const queryClient = useQueryClient();
-    const thisYear = new Date().getFullYear();
+    // Leave years run Baisakh to Chaitra, so these are Nepali years.
+    const thisYear = bsYearMonth().year;
     const [year, setYear] = useState(thisYear);
     const [search, setSearch] = useState('');
     const [show, setShow] = useState<Show>('all');
@@ -107,7 +109,7 @@ export const LeaveBalances: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
         <div className="flex min-w-0 flex-col gap-3.5">
             <div className="flex flex-wrap items-center gap-2.5">
                 <SegmentedControl size="sm" value={String(year)} onChange={(v) => setYear(Number(v))} aria-label={t('leaveBalances.year')}
-                    options={[thisYear - 1, thisYear, thisYear + 1].map((y) => ({ value: String(y), label: String(y) }))} />
+                    options={[thisYear - 1, thisYear, thisYear + 1].map((y) => ({ value: String(y), label: lang === 'ne' ? toNepaliDigits(y) : String(y) }))} />
                 <SearchField value={search} onChange={setSearch} placeholder={t('leavePage.bal.search')} clearLabel={t('common.clear')} containerClassName="md:w-[260px]" />
             </div>
             {notice && <Banner tone={notice.tone} title={notice.title}>{notice.body}</Banner>}

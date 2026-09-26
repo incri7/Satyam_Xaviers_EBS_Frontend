@@ -13,6 +13,7 @@ import { useDateFormat } from '../../hooks/useDateFormat';
 import { academicYearLabel, currentAcademicYear } from '../../utils/academicYear';
 import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
+import { bsYearBounds } from '../../utils/nepaliDate';
 
 const STEPS = ['year', 'terms', 'holidays', 'week', 'review'] as const;
 
@@ -37,8 +38,11 @@ const AcademicCalendarPage: React.FC = () => {
     const thisStart = Number(currentAcademicYear().split('-')[0]);
     const yearChoices = [thisStart, thisStart + 1].map((y) => `${y}-${y + 1}`);
     const [name, setName] = useState(currentAcademicYear());
-    const [start, setStart] = useState('');
-    const [end, setEnd] = useState('');
+    // The school year is Baisakh to Chaitra: the dates start filled in with
+    // 1 Baisakh and the last day of Chaitra of the chosen year.
+    const boundsOf = (stored: string) => bsYearBounds(Number(stored.split('-')[0]) + 57);
+    const [start, setStart] = useState(() => boundsOf(currentAcademicYear())?.start ?? '');
+    const [end, setEnd] = useState(() => boundsOf(currentAcademicYear())?.end ?? '');
     const [isCurrent, setIsCurrent] = useState(true);
     const [terms, setTerms] = useState<TermSetup[]>([
         { term_number: 1, name: 'First term', start_date: '', end_date: '' },
@@ -118,7 +122,7 @@ const AcademicCalendarPage: React.FC = () => {
         // 1. Year dates
         <div key="year" className="flex flex-col gap-4">
             {year ? <Banner tone="info" title={t('calendarPage.yearExists', { name: academicYearLabel(year.name, lang) })}>{t('calendarPage.yearExistsBody')}</Banner> : null}
-            <SelectField label={t('calendarPage.yearName')} value={name} disabled={!!year} onChange={(e) => setName(e.target.value)} hint={t('calendarPage.yearNameHint')}
+            <SelectField label={t('calendarPage.yearName')} value={name} disabled={!!year} onChange={(e) => { const b = boundsOf(e.target.value); setName(e.target.value); if (b) { setStart(b.start); setEnd(b.end); } }} hint={t('calendarPage.yearNameHint')}
                 options={(year && !yearChoices.includes(name) ? [name, ...yearChoices] : yearChoices).map((y) => ({ value: y, label: `${academicYearLabel(y, lang)} (${y})` }))} />
             <FormRow>
                 <TextField label={t('academicCalendar.startDate')} type="date" value={start} disabled={!!year} onChange={(e) => setStart(e.target.value)} hint={start ? df.date(start, 'long') : t('calendarPage.startHint')}

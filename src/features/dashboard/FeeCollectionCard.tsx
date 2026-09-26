@@ -13,8 +13,8 @@ import { useMonthlyReport, useOutstanding } from './queries';
  * Figma B01 "Fee collection": this month's payments against what is still
  * owed, as a ring (collected, ok) on the outstanding track (bad at 75%).
  *
- * Adapted: the monthly report is by Gregorian month, and the outstanding
- * list counts students rather than families.
+ * "This month" is the Nepali month. Adapted: the outstanding list counts
+ * students rather than families.
  */
 export function FeeCollectionCard() {
     const { t } = useTranslation();

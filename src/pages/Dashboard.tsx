@@ -13,6 +13,8 @@ import { AttendanceByClassCard } from '../features/dashboard/AttendanceByClassCa
 import { FeeCollectionCard } from '../features/dashboard/FeeCollectionCard';
 import { RecentNoticesCard } from '../features/dashboard/RecentNoticesCard';
 import { useStudentCount } from '../features/dashboard/queries';
+import { useWelcome } from '../features/shell/identity';
+import { useDateFormat } from '../hooks/useDateFormat';
 
 /**
  * Admin dashboard. Figma B01 "School overview".
@@ -30,6 +32,7 @@ const Dashboard = () => {
                 <DashboardHeader title={t('adminDashboard.title')} />
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     <div className="flex flex-col gap-3.5 px-4 pt-1 pb-8 lg:gap-[18px] lg:px-7 lg:pt-6">
+                        <Welcome />
                         <PageBanner />
 
                         <AccessControl id="dashboard_stats">
@@ -54,6 +57,18 @@ const Dashboard = () => {
         </div>
     );
 };
+
+/** Greeting for the time of day, with the person's name and role. */
+function Welcome() {
+    const welcome = useWelcome();
+    const df = useDateFormat();
+    return (
+        <div className="flex flex-col gap-0.5">
+            <h2 className="type-h2 text-ink">{welcome.greeting}, {welcome.name}</h2>
+            <p className="type-small text-muted">{welcome.role} · {df.date(new Date(), 'long')}</p>
+        </div>
+    );
+}
 
 /**
  * Figma B01 Empty ("Welcome") and Error ("could not load") banners.

@@ -6,7 +6,7 @@ import { financesService } from '../../api/services/finances.service';
 import { noticesService } from '../../api/services/notices.service';
 import { peopleService } from '../../api/services/people.service';
 import { academicYearRange } from '../../utils/academicYear';
-import { formatISODate } from '../../utils/nepaliDate';
+import { bsYearMonth, formatISODate } from '../../utils/nepaliDate';
 
 /**
  * Data for the admin dashboard (Figma B01), from endpoints that already
@@ -46,13 +46,9 @@ export function useOutstanding() {
     });
 }
 
-/** Gregorian month: /finances/reports/monthly takes the AD year and month. */
+/** A Nepali month's collection, `offset` months back from this one. */
 export function useMonthlyReport(offset = 0) {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - offset);
-    const year = d.getFullYear();
-    const month = d.getMonth() + 1;
+    const { year, month } = bsYearMonth(offset);
     return useQuery({
         queryKey: ['finances', 'monthly-report', year, month],
         queryFn: () => financesService.getMonthlyReport(year, month),

@@ -92,6 +92,43 @@ export interface FeeDiscount {
     valid_to?: string;
 }
 
+/** A scholarship in the school-wide list, with who and which fee. */
+export interface FeeDiscountRow extends FeeDiscount {
+    student_name: string;
+    admission_no: string | null;
+    fee_name: string | null;
+    fee_amount: number | string | null;
+    fee_frequency: string | null;
+    created_at: string;
+}
+
+export interface FeeDiscountPage {
+    discounts: FeeDiscountRow[];
+    total_count: number;
+}
+
+export type AuditGroup = 'payments' | 'expenses' | 'fees' | 'scholarships';
+
+/** One entry of the append-only finance audit log. */
+export interface AuditEntry {
+    id: number;
+    event_type: string;
+    entity_table: string;
+    entity_id: number;
+    performed_by: number;
+    performed_by_name: string | null;
+    performed_at: string;
+    snapshot: Record<string, unknown> | null;
+    notes: string | null;
+    student_name: string | null;
+    fee_name: string | null;
+}
+
+export interface AuditPage {
+    entries: AuditEntry[];
+    total_count: number;
+}
+
 export interface FeeDiscountCreate {
     student_id: number;
     fee_structure_id: number;

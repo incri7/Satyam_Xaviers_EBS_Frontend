@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, ArrowLeft, Bell, Briefcase, KeyRound, LogOut, MessageSquare, RotateCw, ShieldCheck, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bell, Briefcase, History, KeyRound, LogOut, MessageSquare, Pencil, RotateCw, ShieldCheck, UserRound } from 'lucide-react';
 
 import { Avatar, Badge, Banner, Button, Card, CardHeader, EmptyState, Skeleton, ToggleRow } from '../../design-system';
 import { AppPage } from '../../components/layout/AppPage';
@@ -13,6 +13,11 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { homeForRole } from '../../utils/roleHome';
 import { errorText } from '../../features/people/format';
+import { SignedInDevices } from '../../features/account/SignedInDevices';
+import { ChangePhoneDialog } from '../../features/account/ChangePhoneDialog';
+import { ChangeNameDialog } from '../../features/account/ChangeNameDialog';
+import { useDisplayName } from '../../features/shell/identity';
+import { useHasActivity } from '../../features/shell/navigation';
 
 type PrefKey = keyof NotificationPreferences;
 /** Only the notifications a role can actually receive. */
@@ -40,12 +45,9 @@ interface MeRecord {
 
 /**
  * Figma A05 My profile: who you are to the school, your security, and your
- * language and notification choices. Details are kept by the office; the
- * language and notification switches save straight away.
- *
- * Adapted: the API has no self-service phone edit for staff and no list of
- * signed-in devices, so "Edit phone" and "Sign out of other devices" are
- * left out.
+ * language and notification choices. Details are kept by the office, except
+ * the phone number, which each person keeps up to date themselves because
+ * the school's SMS go to it. The switches save straight away.
  */
 const ProfilePage: React.FC = () => {
     const { t } = useTranslation();
@@ -56,6 +58,12 @@ const ProfilePage: React.FC = () => {
     const logout = useAuthStore((s) => s.logout);
     const isParent = user?.role === 'parent';
     const role = user?.role ?? '';
+    const [editingPhone, setEditingPhone] = useState(false);
+    const [phoneSaved, setPhoneSaved] = useState(false);
+    const [editingName, setEditingName] = useState(false);
+    const [nameSaved, setNameSaved] = useState(false);
+    const displayName = useDisplayName();
+    const hasActivity = useHasActivity();
 
     const me = useQuery({ queryKey: ['me'], queryFn: peopleService.getMe, retry: 1 });
     const prefs = useQuery({ queryKey: ['notification-preferences'], queryFn: authService.getNotificationPreferences });
@@ -74,7 +82,9 @@ const ProfilePage: React.FC = () => {
     const record = (me.data ?? {}) as MeRecord;
     const first = record.first_name ?? user?.firstName ?? '';
     const last = record.last_name ?? user?.lastName ?? '';
-    const name = [first, record.middle_name, last].filter(Boolean).join(' ') || user?.email || '';
+    // The name the person chose wins; else their record's; the email last.
+    const ownName = user?.full_name || [first, record.middle_name, last].filter(Boolean).join(' ');
+    const name = ownName || displayName;
     const email = record.email ?? record.user?.email ?? user?.email;
     const phone = record.phone ?? record.user?.phone ?? user?.phone;
     const since = record.user?.created_at ?? record.created_at ?? user?.created_at;
@@ -125,11 +135,23 @@ const ProfilePage: React.FC = () => {
                 <div className="flex min-w-0 flex-col gap-4">
                     <Card className="gap-4">
                         <CardHeader title={t('profilePageMe.personal')} subtitle={t('profilePageMe.officeKeeps')} />
+                        {nameSaved && <Banner tone="ok" title={t('profilePageMe.nameEdit.saved')}>{t('profilePageMe.nameEdit.savedBody')}</Banner>}
+                        {phoneSaved && <Banner tone="ok" title={t('profilePageMe.phoneEdit.saved')}>{t('profilePageMe.phoneEdit.savedBody')}</Banner>}
                         {me.isPending ? <Skeleton className="h-24" /> : (
                             <dl className="grid gap-4 sm:grid-cols-2">
-                                {field(t('profilePageMe.fullName'), name)}
+                                <div className="flex min-w-0 items-end gap-2">
+                                    <div className="min-w-0 flex-1">{field(t('profilePageMe.fullName'), ownName)}</div>
+                                    <Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => { setNameSaved(false); setEditingName(true); }}>
+                                        {t('profilePageMe.phoneEdit.change')}
+                                    </Button>
+                                </div>
                                 {field(t('profilePageMe.email'), email)}
-                                {field(t('profilePageMe.phone'), phone)}
+                                <div className="flex min-w-0 items-end gap-2">
+                                    <div className="min-w-0 flex-1">{field(t('profilePageMe.phone'), phone)}</div>
+                                    <Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => { setPhoneSaved(false); setEditingPhone(true); }}>
+                                        {t('profilePageMe.phoneEdit.change')}
+                                    </Button>
+                                </div>
                                 {field(t('profilePageMe.role'), roleName)}
                             </dl>
                         )}
@@ -155,8 +177,11 @@ const ProfilePage: React.FC = () => {
                         <div className="flex flex-wrap gap-2">
                             <Button leftIcon={KeyRound} onClick={() => navigate('/reset-password')}>{t('profilePageMe.changePassword')}</Button>
                             <Button variant="quiet" leftIcon={LogOut} onClick={() => logout()}>{t('shell.account.signOut')}</Button>
+                            {hasActivity && <Button variant="quiet" leftIcon={History} onClick={() => navigate('/activity')}>{t('audit.yourActivity')}</Button>}
                         </div>
                     </Card>
+
+                    <SignedInDevices />
 
                     <Card className="gap-4">
                         <CardHeader title={t('profilePageMe.prefs')} subtitle={t('profilePageMe.prefsSub')} />
@@ -181,6 +206,14 @@ const ProfilePage: React.FC = () => {
                     </Card>
                 </div>
             </div>
+            {editingName && (
+                <ChangeNameDialog current={ownName} onClose={() => setEditingName(false)}
+                    onDone={() => { setEditingName(false); setNameSaved(true); }} />
+            )}
+            {editingPhone && (
+                <ChangePhoneDialog current={phone} onClose={() => setEditingPhone(false)}
+                    onDone={() => { setEditingPhone(false); setPhoneSaved(true); }} />
+            )}
         </AppPage>
     );
 };

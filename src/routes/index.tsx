@@ -36,6 +36,8 @@ import AcademicCalendarPage from '../pages/AcademicCalendar/AcademicCalendarPage
 import PromotionPage from '../pages/Promotion/PromotionPage';
 import TimetablePage from '../pages/Timetable/TimetablePage';
 import LeaveApprovalsPage from '../pages/Leaves/LeaveApprovalsPage';
+import ActivityLogPage from '../pages/Activity/ActivityLogPage';
+import ManageActivityPage from '../pages/Activity/ManageActivityPage';
 
 export const router = createBrowserRouter([
     {
@@ -66,6 +68,11 @@ export const router = createBrowserRouter([
                 path: '/communication',
                 element: <CommunicationPage />,
             },
+            // Everyone may open it; what they see is what admin has granted.
+            {
+                path: '/activity',
+                element: <ActivityLogPage />,
+            },
 
             // ── Admin-only (RoleRoute always allows admin) ──
             {
@@ -74,6 +81,7 @@ export const router = createBrowserRouter([
                     { path: '/dashboard', element: <Dashboard /> },
                     { path: '/settings', element: <Navigate to="/settings/permissions" replace /> },
                     { path: '/settings/permissions', element: <PermissionsDashboard /> },
+                    { path: '/activity/manage', element: <ManageActivityPage /> },
                 ],
             },
 

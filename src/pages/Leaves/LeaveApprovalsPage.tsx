@@ -7,7 +7,7 @@ import { Avatar, Badge, Banner, Button, Card, EmptyState, FilterChips, Skeleton,
 import { AppPage, PageBar } from '../../components/layout/AppPage';
 import { useConfirmDialog } from '../../components/common/useConfirmDialog';
 import { leavesService, type LeaveApplicantType, type LeaveStatus, type PendingLeaveRead } from '../../api/services/leaves.service';
-import { leaveDays } from '../../features/leave/format';
+import { LIMITED, leaveDays } from '../../features/leave/format';
 import { errorText } from '../../features/people/format';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUrlState } from '../../hooks/useUrlState';
@@ -119,7 +119,10 @@ function RequestCard({ leave, busy, onApprove, onDecline }: {
         queryFn: () => leavesService.getSuggestedSubstitutes(leave.id),
         enabled: isTeacher,
     });
-    const days = leaveDays(leave.start_date, leave.end_date);
+    const days = leave.days ?? leaveDays(leave.start_date, leave.end_date);
+    const left = leave.balance?.remaining ?? null;
+    // Casual and sick leave past what is left cannot be approved; the server refuses it.
+    const blocked = left !== null && days > left && LIMITED.includes(leave.leave_type);
     const dates = leave.start_date === leave.end_date ? df.date(leave.start_date) : t('leavePage.range', { from: df.date(leave.start_date), to: df.date(leave.end_date) });
 
     return (
@@ -137,6 +140,15 @@ function RequestCard({ leave, busy, onApprove, onDecline }: {
                 <div className="flex flex-col"><dt className="type-caption text-muted">{t('leavePage.req.days')}</dt><dd className="type-small-semibold tabular-nums text-ink">{formatCount(days, lang)}</dd></div>
                 <div className="flex flex-col"><dt className="type-caption text-muted">{t('leavePage.req.sent')}</dt><dd className="type-small-semibold text-ink">{df.relative(leave.created_at)}</dd></div>
             </dl>
+            {leave.balance && left !== null && (
+                <p className={cn('type-caption', blocked ? 'text-bad' : days > left ? 'text-warn' : 'text-ink-2')}>
+                    {t('leavePage.req.left', { type: t(`leavePage.type.${leave.leave_type}`), left: formatCount(left, lang), total: formatCount(leave.balance.total, lang) })}
+                    {' · '}
+                    {days > left
+                        ? t(blocked ? 'leavePage.req.overLimit' : 'leavePage.req.overLeft', { count: days - left, n: formatCount(days - left, lang) })
+                        : t('leavePage.req.leftAfter', { n: formatCount(left - days, lang) })}
+                </p>
+            )}
             {leave.reason && <p className="type-small text-ink-2">{leave.reason}</p>}
 
             {isTeacher ? (
@@ -172,7 +184,7 @@ function RequestCard({ leave, busy, onApprove, onDecline }: {
 
             <div className="mt-auto flex justify-end gap-2 border-t border-line-subtle pt-3">
                 <Button variant="quiet" leftIcon={X} disabled={busy} onClick={onDecline}>{t('leavePage.req.decline')}</Button>
-                <Button variant="success" leftIcon={Check} loading={busy} onClick={() => onApprove(substitute)}>
+                <Button variant="success" leftIcon={Check} loading={busy} disabled={blocked} onClick={() => onApprove(substitute)}>
                     {substitute ? t('leavePage.req.approveWith') : t('home.coordinator.approve')}
                 </Button>
             </div>

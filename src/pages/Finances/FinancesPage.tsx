@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Award, FileSpreadsheet, Landmark, PieChart, Plus, Receipt, TrendingDown, Wallet } from 'lucide-react';
+import { Award, FileSpreadsheet, History, Landmark, PieChart, Plus, Receipt, TrendingDown, Wallet } from 'lucide-react';
 
 import { Button, Tabs, type TabItem } from '../../design-system';
 import { AppPage, PageBar } from '../../components/layout/AppPage';
@@ -11,11 +11,12 @@ import { FeeStructureManagement } from '../../components/finances/FeeStructureMa
 import { PaymentManagement } from '../../components/finances/PaymentManagement';
 import { ExpenseManagement } from '../../components/finances/ExpenseManagement';
 import { DiscountManagement } from '../../components/finances/DiscountManagement';
+import { AuditTrail } from '../../components/finances/AuditTrail';
 import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStructureModal';
 import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
 import { RecordExpenseModal } from '../../components/finances/RecordExpenseModal';
 
-const FINANCE_TABS = ['summary', 'fees', 'payments', 'expenses', 'discounts'] as const;
+const FINANCE_TABS = ['summary', 'fees', 'payments', 'expenses', 'discounts', 'activity'] as const;
 type FinanceTab = (typeof FINANCE_TABS)[number];
 const TAB_KEY = 'finances_active_tab';
 
@@ -47,6 +48,7 @@ export function FinancesPage() {
         { value: 'payments', label: t('financePage.tabs.payments'), icon: Receipt },
         { value: 'expenses', label: t('financePage.tabs.expenses'), icon: Wallet },
         { value: 'discounts', label: t('financePage.tabs.discounts'), icon: Award },
+        { value: 'activity', label: t('financePage.tabs.activity'), icon: History },
     ];
 
     const recordPayment = (
@@ -82,6 +84,7 @@ export function FinancesPage() {
                 <Button leftIcon={Award} onClick={() => setApplying(true)}>{t('financePage.action.applyScholarship')}</Button>
             </AccessControl>
         ),
+        activity: undefined,
     }[tab];
 
     return (
@@ -96,6 +99,7 @@ export function FinancesPage() {
                 {tab === 'payments' && <PaymentManagement />}
                 {tab === 'expenses' && <ExpenseManagement />}
                 {tab === 'discounts' && <DiscountManagement applying={applying} setApplying={setApplying} />}
+                {tab === 'activity' && <AuditTrail />}
             </div>
 
             <RecordPaymentModal isOpen={paying} onClose={() => setPaying(false)} />

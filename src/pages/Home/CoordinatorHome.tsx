@@ -4,21 +4,20 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { examsService } from '../../api/services/exams.service';
-import { useAuthStore } from '../../store/useAuthStore';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import { Loader2, Users, BookOpen, BarChart2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { useWelcome } from '../../features/shell/identity';
 
 const CoordinatorHome: React.FC = () => {
     const { t } = useTranslation();
     const df = useDateFormat();
-    const { user } = useAuthStore();
     const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
     const todayLabel = df.date(new Date(), 'long');
-    const firstName = user?.firstName || 'Coordinator';
+    const welcome = useWelcome();
 
     const { data: examsData } = useQuery({
         queryKey: ['exams'],
@@ -39,10 +38,8 @@ const CoordinatorHome: React.FC = () => {
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
-                            {t('home.goodMorning')}, {firstName}
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
+                        <h1 className="text-2xl font-bold text-slate-900">{welcome.greeting}, {welcome.name}</h1>
+                        <p className="text-slate-500 text-sm font-medium mt-0.5">{welcome.role} · {todayLabel}</p>
                     </div>
 
                     <LeaveBalanceCard />

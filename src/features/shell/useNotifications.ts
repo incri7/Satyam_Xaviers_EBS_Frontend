@@ -1,16 +1,14 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { leavesService } from '../../api/services/leaves.service';
-import { noticesService } from '../../api/services/notices.service';
-import { attendanceService } from '../../api/services/attendance.service';
+import { notificationsService, type Feed, type FeedItem } from '../../api/services/notifications.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
-import { formatISODate } from '../../utils/nepaliDate';
-import { usePendingLeaveCount } from './usePendingLeaveCount';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { formatRs } from '../../utils/money';
 
-export type NotificationKind = 'leave' | 'notice' | 'attendance';
+export type NotificationKind = 'leave' | 'notice' | 'attendance' | 'fees' | 'audit';
 
 export interface AppNotification {
     id: string;
@@ -20,105 +18,121 @@ export interface AppNotification {
     at: string;
     to: string;
     tone?: 'bad' | 'warn' | 'ok' | 'info';
+    read: boolean;
 }
 
-const WEEK = 7 * 864e5;
-const APPROVERS = ['admin', 'principal'];
-const MARKERS = ['admin', 'principal', 'coordinator'];
-const STAFF = ['admin', 'principal', 'coordinator', 'teacher', 'staff', 'accountant'];
-
-/** Read state lives on this device: the API keeps no per-user notification feed. */
-function useSeen(userId?: number) {
-    const key = `sx-seen-notifications-${userId ?? 'anon'}`;
-    const [seen, setSeen] = useState<string[]>(() => {
-        try { return JSON.parse(localStorage.getItem(key) ?? '[]'); } catch { return []; }
-    });
-    const save = useCallback((ids: string[]) => {
-        const next = [...new Set([...seen, ...ids])].slice(-400);
-        setSeen(next);
-        try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* not remembered */ }
-    }, [key, seen]);
-    return { seen: useMemo(() => new Set(seen), [seen]), markSeen: save };
-}
+const KEY = ['notifications', 'feed'];
+const FINANCE = ['admin', 'principal', 'accountant'];
 
 /**
- * Figma H16 feed, built from what the school's data already says: leave
- * requests waiting for you, decisions on your own leave, notices from the
- * last week, and classes whose attendance is still unmarked today.
+ * Figma H16 feed, from the server: events stored as they happened and the
+ * notices this person can see. Read marks live on the server too, so an item
+ * read on the phone is read on the office computer. A notification.new event
+ * over the live connection refreshes the bell at once.
  */
 export function useNotifications() {
     const { t } = useTranslation();
     const df = useDateFormat();
-    const user = useAuthStore((s) => s.user);
-    const role = user?.role ?? '';
-    const today = formatISODate(new Date());
-    const { seen, markSeen } = useSeen(user?.id);
-    // Taken once per mount: the feed is a snapshot, refreshed with its queries.
-    const [now] = useState(() => Date.now());
+    const role = useAuthStore((s) => s.user?.role ?? '');
+    const signedIn = useAuthStore((s) => s.isAuthenticated);
+    const queryClient = useQueryClient();
 
-    const pending = usePendingLeaveCount();
-    const myLeave = useQuery({
-        queryKey: ['leaves', 'my-history'],
-        queryFn: () => leavesService.listLeaves({ limit: 200 }),
-        enabled: STAFF.includes(role),
-        staleTime: 60 * 1000,
+    const query = useQuery({
+        queryKey: KEY,
+        queryFn: () => notificationsService.getFeed(),
+        enabled: signedIn,
+        staleTime: 30 * 1000,
+        refetchInterval: 2 * 60 * 1000,
     });
-    const notices = useQuery({
-        queryKey: ['notices', 'feed'],
-        queryFn: () => noticesService.getNotices({ limit: 20 }),
-        enabled: !!user,
-        staleTime: 60 * 1000,
+    useWebSocket({ 'notification.new': () => void queryClient.invalidateQueries({ queryKey: KEY }) });
+
+    // Read marks show at once; the server's count replaces the guess.
+    const setRead = (ids: string[] | 'all') => queryClient.setQueryData<Feed>(KEY, (feed) => {
+        if (!feed) return feed;
+        const flips = (i: FeedItem) => !i.read && (ids === 'all' || ids.includes(i.id));
+        const flipped = feed.items.filter(flips).length;
+        return {
+            items: feed.items.map((i) => (flips(i) ? { ...i, read: true } : i)),
+            unread_count: ids === 'all' ? 0 : Math.max(0, feed.unread_count - flipped),
+        };
     });
-    const attendance = useQuery({
-        queryKey: ['attendance', 'today-summary', today],
-        queryFn: attendanceService.getTodaySummary,
-        enabled: MARKERS.includes(role),
-        staleTime: 60 * 1000,
+    const settle = (res: { unread_count: number }) => queryClient.setQueryData<Feed>(KEY, (feed) => feed && { ...feed, unread_count: res.unread_count });
+    const readSome = useMutation({
+        mutationFn: notificationsService.markRead,
+        onMutate: (ids) => setRead(ids),
+        onSuccess: settle,
+        onError: () => void queryClient.invalidateQueries({ queryKey: KEY }),
+    });
+    const readAll = useMutation({
+        mutationFn: notificationsService.markAllRead,
+        onMutate: () => setRead('all'),
+        onSuccess: settle,
+        onError: () => void queryClient.invalidateQueries({ queryKey: KEY }),
     });
 
-    const items = useMemo(() => {
-        const out: AppNotification[] = [];
-        (APPROVERS.includes(role) ? pending.data ?? [] : [])
-            .filter((l) => l.applicant_user_id !== user?.id)
-            .forEach((l) => out.push({
-                id: `leave-request-${l.id}`, kind: 'leave', tone: 'warn', at: l.created_at, to: '/leave-approvals',
-                title: t('notifications.leaveRequest', { name: l.applicant_name, type: t(`leavePage.type.${l.leave_type}`).toLowerCase() }),
-                body: l.start_date === l.end_date ? df.date(l.start_date) : t('leavePage.range', { from: df.date(l.start_date), to: df.date(l.end_date) }),
-            }));
-        (myLeave.data?.leaves ?? [])
-            .filter((l) => (!APPROVERS.includes(role) || l.applicant_user_id === user?.id) && l.status !== 'pending' && l.decided_at && now - new Date(l.decided_at).getTime() < 2 * WEEK)
-            .forEach((l) => out.push({
-                id: `leave-decision-${l.id}-${l.status}`, kind: 'leave', tone: l.status === 'approved' ? 'ok' : 'bad', at: l.decided_at!, to: '/leave',
-                title: t(l.status === 'approved' ? 'notifications.leaveApproved' : 'notifications.leaveDeclined', { date: df.date(l.start_date) }),
-                body: t(`leavePage.type.${l.leave_type}`),
-            }));
-        (notices.data ?? [])
-            .filter((n) => now - new Date(n.created_at).getTime() < WEEK)
-            .forEach((n) => out.push({
-                id: `notice-${n.id}`, kind: 'notice', tone: n.priority === 'high' ? 'bad' : 'info', at: n.created_at, to: '/communication',
-                title: n.title, body: n.posted_by_name ? t('notifications.noticeFrom', { name: n.posted_by_name }) : undefined,
-            }));
-        const a = attendance.data;
-        // After 10 AM an unmarked register is worth a nudge; before, it is just early.
-        if (a && a.sections_total > a.sections_marked && new Date(now).getHours() >= 10) {
-            const left = a.sections_total - a.sections_marked;
-            out.push({
-                id: `attendance-${today}-${left}`, kind: 'attendance', tone: 'warn', at: `${today}T10:00:00`, to: '/attendance',
-                title: t('notifications.unmarked', { count: left }), body: t('notifications.unmarkedBody', { marked: a.sections_marked, total: a.sections_total }),
-            });
+    const describe = useCallback((i: FeedItem): AppNotification => {
+        const p = i.params;
+        const sid = p.student_id;
+        const name = String(p.name ?? '');
+        const base = { id: i.id, at: i.created_at, read: i.read };
+        const leaveType = t(`leavePage.type.${p.leave_type}`, { defaultValue: String(p.leave_type ?? '') });
+        const range = p.start_date === p.end_date
+            ? df.date(String(p.start_date))
+            : t('leavePage.range', { from: df.date(String(p.start_date)), to: df.date(String(p.end_date)) });
+        const money = (v: unknown) => formatRs(String(v ?? 0), df.lang);
+        switch (i.kind) {
+            case 'leave.requested':
+                return { ...base, kind: 'leave', tone: 'warn', to: role === 'teacher' ? '/home/teacher' : '/leave-approvals',
+                    title: t('notifications.leaveRequest', { name, type: leaveType.toLowerCase() }), body: range };
+            case 'leave.decided': {
+                const ok = p.status === 'approved';
+                const child = role === 'parent' && sid;
+                return { ...base, kind: 'leave', tone: ok ? 'ok' : 'bad',
+                    to: child ? `/parent/child/${sid}/leave` : role === 'student' ? '/home/student' : '/leave',
+                    title: child
+                        ? t(ok ? 'notifications.childLeaveApproved' : 'notifications.childLeaveDeclined', { name, date: range })
+                        : t(ok ? 'notifications.leaveApproved' : 'notifications.leaveDeclined', { date: range }),
+                    body: leaveType };
+            }
+            case 'attendance.absent':
+                return { ...base, kind: 'attendance', tone: 'bad', to: role === 'parent' ? `/parent/child/${sid}/attendance` : '/attendance',
+                    title: t('notifications.absent', { name }), body: df.date(String(p.date)) };
+            case 'attendance.unmarked':
+                return { ...base, kind: 'attendance', tone: 'warn', to: '/attendance',
+                    title: t('notifications.unmarked', { count: Number(p.count ?? 0) }), body: df.date(String(p.date)) };
+            case 'welfare.flag':
+                return { ...base, kind: 'attendance', tone: 'bad', to: `/people/students/${sid}`,
+                    title: t('notifications.welfare', { name, count: Number(p.days ?? 0) }), body: t('notifications.welfareBody') };
+            case 'fee.reminder':
+                return { ...base, kind: 'fees', tone: 'warn', to: role === 'parent' ? `/parent/child/${sid}/fees` : '/finances/outstanding',
+                    title: t('notifications.feeReminder', { name }), body: t('notifications.feeDue', { amount: money(p.amount) }) };
+            case 'fee.paid':
+                return { ...base, kind: 'fees', tone: 'ok', to: role === 'parent' ? `/parent/child/${sid}/fees` : FINANCE.includes(role) ? '/finances' : '/',
+                    title: t('notifications.feePaid', { name }), body: t('notifications.feePaidBody', { amount: money(p.amount), receipt: p.receipt_no ?? '' }) };
+            case 'audit.archive_requested':
+                return { ...base, kind: 'audit', tone: 'info', to: '/activity/manage',
+                    title: t('notifications.auditRequested', { name }), body: range };
+            case 'audit.archive_decided': {
+                const ok = p.status === 'approved';
+                return { ...base, kind: 'audit', tone: ok ? 'ok' : 'bad', to: '/activity',
+                    title: t(ok ? 'notifications.auditApproved' : 'notifications.auditDeclined'), body: range };
+            }
+            case 'notice':
+            default:
+                return { ...base, kind: 'notice', tone: p.priority === 'high' ? 'bad' : 'info', to: '/communication',
+                    title: String(p.title ?? ''), body: p.posted_by_name ? t('notifications.noticeFrom', { name: p.posted_by_name }) : undefined };
         }
-        return out.sort((x, y) => y.at.localeCompare(x.at));
-    }, [role, pending.data, myLeave.data, notices.data, attendance.data, user?.id, t, df, today, now]);
+    }, [t, df, role]);
 
-    const unread = items.filter((i) => !seen.has(i.id));
-    const sources = [notices, ...(STAFF.includes(role) ? [myLeave] : []), ...(APPROVERS.includes(role) ? [pending] : []), ...(MARKERS.includes(role) ? [attendance] : [])];
+    const items = useMemo(() => (query.data?.items ?? []).map(describe), [query.data, describe]);
+
     return {
         items,
-        unread,
-        isRead: (id: string) => seen.has(id),
-        markRead: (ids: string[]) => markSeen(ids),
-        isPending: sources.some((s) => s.isPending && s.fetchStatus !== 'idle'),
-        isError: sources.length > 0 && sources.every((s) => s.isError),
-        refetch: () => sources.forEach((s) => void s.refetch()),
+        unreadCount: query.data?.unread_count ?? 0,
+        markRead: (ids: string[]) => { if (ids.length) readSome.mutate(ids); },
+        markAllRead: () => readAll.mutate(),
+        isPending: query.isPending && signedIn,
+        isError: query.isError,
+        refetch: () => void query.refetch(),
     };
 }

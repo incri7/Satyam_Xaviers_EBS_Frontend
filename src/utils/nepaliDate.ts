@@ -209,6 +209,32 @@ export function bsMonthStart(value: DateInput = new Date()): Date | null {
 }
 
 /**
+ * The BS year and month (1 = Baisakh … 12 = Chaitra) `offset` months before
+ * `now`. Reports and fee periods run on these months, not English ones.
+ */
+export function bsYearMonth(offset = 0, now: Date = new Date()): { year: number; month: number } {
+    try {
+        const bs = new NepaliDate(now).getBS();
+        const index = bs.year * 12 + bs.month - offset; // month is 0-based here
+        return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+    } catch {
+        return { year: now.getFullYear() + 57, month: 1 };
+    }
+}
+
+/** The school's year, Baisakh to Chaitra, as English dates (YYYY-MM-DD). */
+export function bsYearBounds(bsYear: number): { start: string; end: string } | null {
+    try {
+        const start = new NepaliDate(bsYear, 0, 1).toJsDate();
+        const end = new NepaliDate(bsYear + 1, 0, 1).toJsDate();
+        end.setDate(end.getDate() - 1);
+        return { start: isoLocal(start), end: isoLocal(end) };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Sunday of the week containing `value`.
  *
  * The Nepali school week runs Sunday to Friday, so a week that starts on

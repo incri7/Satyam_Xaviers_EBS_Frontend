@@ -4,18 +4,25 @@ import type { LeaveBalance, LeaveStatus, LeaveType } from '../../api/services/le
 export const LEAVE_TYPES: LeaveType[] = ['casual', 'sick', 'earned', 'maternity', 'unpaid'];
 /** Types with a yearly allowance; unpaid leave has no balance to draw down. */
 export const COUNTED: Exclude<LeaveType, 'unpaid'>[] = ['casual', 'sick', 'earned', 'maternity'];
+/** Types the school caps: the server refuses a request past what is left. */
+export const LIMITED: LeaveType[] = ['casual', 'sick'];
 
 export const STATUS_TONE: Record<LeaveStatus, BadgeTone> = { pending: 'warn', approved: 'ok', rejected: 'bad' };
 
 /**
- * Days a request takes off the balance: every calendar day from start to end,
- * both included — the same arithmetic the server uses when it approves.
+ * School days in a range, for the form before it is sent: every day but
+ * Saturday. The server counts the same way and also leaves out the school
+ * calendar's holidays, so a saved leave's own `days` is the one to show.
  */
 export function leaveDays(start: string, end: string): number {
     if (!start || !end || end < start) return 0;
-    const a = new Date(`${start.slice(0, 10)}T12:00:00`).getTime();
-    const b = new Date(`${end.slice(0, 10)}T12:00:00`).getTime();
-    return Math.round((b - a) / 864e5) + 1;
+    const day = new Date(`${start.slice(0, 10)}T12:00:00`);
+    const last = new Date(`${end.slice(0, 10)}T12:00:00`).getTime();
+    let n = 0;
+    for (; day.getTime() <= last; day.setDate(day.getDate() + 1)) {
+        if (day.getDay() !== 6) n += 1;
+    }
+    return n;
 }
 
 /** What is left of a type this year, or null for unpaid leave. */

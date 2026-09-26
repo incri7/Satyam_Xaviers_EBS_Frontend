@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Bell, CalendarCheck, CheckCheck, ClipboardCheck, Megaphone, RotateCw, Settings, type LucideIcon } from 'lucide-react';
+import { AlertCircle, Bell, CalendarCheck, CheckCheck, ClipboardCheck, History, Megaphone, RotateCw, Settings, Wallet, type LucideIcon } from 'lucide-react';
 
 import { Button, EmptyState, FilterChips, Skeleton } from '../../design-system';
 import { useDateFormat } from '../../hooks/useDateFormat';
@@ -11,20 +11,20 @@ import { HeaderPopover } from './HeaderPopover';
 import { useNotifications, type AppNotification, type NotificationKind } from './useNotifications';
 
 type Filter = 'all' | 'unread' | NotificationKind;
-const ICON: Record<NotificationKind, LucideIcon> = { leave: CalendarCheck, notice: Megaphone, attendance: ClipboardCheck };
+const ICON: Record<NotificationKind, LucideIcon> = { leave: CalendarCheck, notice: Megaphone, attendance: ClipboardCheck, fees: Wallet, audit: History };
 const TONE = { bad: 'bg-bad-soft text-bad', warn: 'bg-warn-soft text-warn', ok: 'bg-ok-soft text-ok', info: 'bg-info-soft text-info' };
 
 /**
  * Figma H16 Notifications: the bell in the top bar and its panel. Items
- * come from the school's own data (see useNotifications); tapping one opens
- * the page it is about and marks it read.
+ * come from the server's feed (see useNotifications); tapping one opens the
+ * page it is about and marks it read.
  */
 export function NotificationsBell({ className }: { className?: string }) {
     const { t } = useTranslation();
     const { lang } = useDateFormat();
     const [open, setOpen] = useState(false);
     const feed = useNotifications();
-    const n = feed.unread.length;
+    const n = feed.unreadCount;
     return (
         <div className="relative shrink-0">
             <button type="button" data-popover-toggle onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog"
@@ -51,24 +51,24 @@ function Panel({ feed, onClose }: { feed: ReturnType<typeof useNotifications>; o
     const [filter, setFilter] = useState<Filter>('all');
     const today = new Date().toDateString();
 
-    const match = (i: AppNotification) => filter === 'all' || (filter === 'unread' ? !feed.isRead(i.id) : i.kind === filter);
+    const match = (i: AppNotification) => filter === 'all' || (filter === 'unread' ? !i.read : i.kind === filter);
     const shown = feed.items.filter(match);
     const groups = [
         { key: 'today', items: shown.filter((i) => new Date(i.at).toDateString() === today) },
         { key: 'earlier', items: shown.filter((i) => new Date(i.at).toDateString() !== today) },
     ].filter((g) => g.items.length);
-    const kinds = (['leave', 'notice', 'attendance'] as NotificationKind[]).filter((k) => feed.items.some((i) => i.kind === k));
-    const open = (i: AppNotification) => { feed.markRead([i.id]); onClose(); navigate(i.to); };
+    const kinds = (['leave', 'notice', 'attendance', 'fees', 'audit'] as NotificationKind[]).filter((k) => feed.items.some((i) => i.kind === k));
+    const open = (i: AppNotification) => { if (!i.read) feed.markRead([i.id]); onClose(); navigate(i.to); };
 
     return (
         <>
             <div className="flex items-center gap-2 border-b border-line-subtle px-4 py-3">
                 <p className="flex-1 type-body-semibold text-ink">
                     {t('notifications.title')}
-                    {feed.unread.length > 0 && <span className="ml-2 type-small text-muted">{t('notifications.newCount', { n: formatCount(feed.unread.length, lang) })}</span>}
+                    {feed.unreadCount > 0 && <span className="ml-2 type-small text-muted">{t('notifications.newCount', { n: formatCount(feed.unreadCount, lang) })}</span>}
                 </p>
-                {feed.unread.length > 0 && (
-                    <Button variant="ghost" size="sm" leftIcon={CheckCheck} onClick={() => feed.markRead(feed.unread.map((i) => i.id))}>{t('notifications.markAll')}</Button>
+                {feed.unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" leftIcon={CheckCheck} onClick={feed.markAllRead}>{t('notifications.markAll')}</Button>
                 )}
             </div>
             {feed.items.length > 0 && (
@@ -76,7 +76,7 @@ function Panel({ feed, onClose }: { feed: ReturnType<typeof useNotifications>; o
                     <FilterChips aria-label={t('notifications.filter')} value={filter} onChange={setFilter} className="max-md:mx-0 max-md:px-0"
                         items={[
                             { value: 'all' as Filter, label: t('notifications.all') },
-                            { value: 'unread' as Filter, label: t('notifications.unread'), count: formatCount(feed.unread.length, lang) },
+                            { value: 'unread' as Filter, label: t('notifications.unread'), count: formatCount(feed.unreadCount, lang) },
                             ...kinds.map((k) => ({ value: k as Filter, label: t(`notifications.kind.${k}`) })),
                         ]} />
                 </div>
@@ -97,7 +97,7 @@ function Panel({ feed, onClose }: { feed: ReturnType<typeof useNotifications>; o
                         <ul>
                             {g.items.map((i) => {
                                 const Icon = ICON[i.kind];
-                                const unread = !feed.isRead(i.id);
+                                const unread = !i.read;
                                 return (
                                     <li key={i.id}>
                                         <button type="button" onClick={() => open(i)}

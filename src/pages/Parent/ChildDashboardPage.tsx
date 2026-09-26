@@ -10,6 +10,7 @@ import { parentService } from '../../api/services/parent.service';
 import { getMarksComparison } from '../../api/services/exams.service';
 import { TrendingUp, Calendar, CreditCard } from 'lucide-react';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { bsMonthStart, isoLocal } from '../../utils/nepaliDate';
 
 const CHART_COLORS = ['#B4213A', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
@@ -70,19 +71,22 @@ const ChildDashboardPage: React.FC = () => {
             }));
     }, [attendance, df]);
 
-    // ── Fee payments by month ───────────────────────────────────────────────
+    // ── Fee payments by Nepali month ────────────────────────────────────────
     const feeChartData = useMemo(() => {
         if (!fees?.payment_history.length) return [];
-        const buckets = new Map<string, number>();
+        const buckets = new Map<string, { start: Date; amount: number }>();
         for (const p of fees.payment_history) {
             const d = new Date(p.paid_at);
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            buckets.set(key, (buckets.get(key) ?? 0) + Number(p.amount));
+            const start = bsMonthStart(d) ?? d;
+            const key = isoLocal(start);
+            const b = buckets.get(key) ?? { start, amount: 0 };
+            b.amount += Number(p.amount);
+            buckets.set(key, b);
         }
         return Array.from(buckets.entries())
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, amount]) => ({
-                month: df.date(`${month}-01`, 'monthYear'),
+            .map(([, { start, amount }]) => ({
+                month: df.date(start, 'monthYear'),
                 amount,
             }));
     }, [fees, df]);

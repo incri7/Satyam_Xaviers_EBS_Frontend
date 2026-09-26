@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
-import { useAuthStore } from '../../store/useAuthStore';
 import { Link } from 'react-router-dom';
 import {
     AlertCircle, CheckCircle2, Loader2, Send, TrendingDown, FileBarChart2, ChevronRight
@@ -13,6 +12,8 @@ import { cn } from '../../utils/cn';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText } from '../../features/people/format';
+import { useWelcome } from '../../features/shell/identity';
+import { bsYearMonth } from '../../utils/nepaliDate';
 
 const RISK_STYLE: Record<string, string> = {
     High: 'bg-red-100 text-red-700',
@@ -26,7 +27,6 @@ const PREVIEW_SIZE = 10;
 const AccountantHome: React.FC = () => {
     const { t, i18n } = useTranslation();
     const df = useDateFormat();
-    const { user } = useAuthStore();
     const [reminderSuccess, setReminderSuccess] = useState('');
     const [reminderError, setReminderError] = useState('');
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -50,8 +50,8 @@ const AccountantHome: React.FC = () => {
     });
 
     const { data: monthlyReport } = useQuery({
-        queryKey: ['finances', 'monthly-report', today.getFullYear(), today.getMonth() + 1],
-        queryFn: () => financesService.getMonthlyReport(today.getFullYear(), today.getMonth() + 1),
+        queryKey: ['finances', 'monthly-report', bsYearMonth().year, bsYearMonth().month],
+        queryFn: () => financesService.getMonthlyReport(bsYearMonth().year, bsYearMonth().month),
     });
 
     const reminderMutation = useMutation({
@@ -73,7 +73,7 @@ const AccountantHome: React.FC = () => {
     const totalOutstanding = outstanding?.total_outstanding ?? 0;
     const familiesDue = outstanding?.total_count ?? 0;
     const highRiskCount = highRisk?.total_count ?? 0;
-    const firstName = user?.firstName || 'Accountant';
+    const welcome = useWelcome();
     const allSelected = entries.length > 0 && selectedIds.length === entries.length;
 
     const toggleSelected = (studentId: number) => {
@@ -106,10 +106,8 @@ const AccountantHome: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     {/* Greeting */}
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
-                            {t('home.goodMorning')}, {firstName}
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
+                        <h1 className="text-2xl font-bold text-slate-900">{welcome.greeting}, {welcome.name}</h1>
+                        <p className="text-slate-500 text-sm font-medium mt-0.5">{welcome.role} · {todayLabel}</p>
                     </div>
 
                     {/* Summary cards */}

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import {
     Award,
@@ -8,6 +9,8 @@ import {
     ClipboardCheck,
     ClipboardList,
     FileSpreadsheet,
+    History,
+    ListTree,
     GraduationCap,
     LayoutDashboard,
     Menu,
@@ -22,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../store/useAuthStore';
+import { auditService } from '../../api/services/audit.service';
 import { homeForRole } from '../../utils/roleHome';
 
 /**
@@ -70,6 +74,9 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'calendar', group: 'school', icon: CalendarDays, labelKey: 'calendar', href: '/academic-calendar', roles: ['admin', 'principal'] },
     { id: 'promotion', group: 'school', icon: Award, labelKey: 'promotion', href: '/promotion', roles: ['admin', 'principal'] },
     { id: 'access', group: 'school', icon: Shield, labelKey: 'access', href: '/settings/permissions', roles: ['admin'] },
+    // Shown to staff only when admin has given them a bucket (see useNavigation).
+    { id: 'activity', group: 'school', icon: History, labelKey: 'activity', href: '/activity', roles: ALL_STAFF },
+    { id: 'activityManage', group: 'school', icon: ListTree, labelKey: 'activityManage', href: '/activity/manage', roles: ['admin'] },
 ];
 
 /**
@@ -92,10 +99,12 @@ export const MORE_ICON = Menu;
 export function useNavigation() {
     const role = useAuthStore((s) => s.user?.role ?? '');
     const { pathname } = useLocation();
+    const hasActivity = useHasActivity();
 
     return useMemo(() => {
         const items = NAV_ITEMS
             .filter((item) => item.roles.includes(role))
+            .filter((item) => item.id !== 'activity' || role === 'admin' || hasActivity)
             // "Dashboard" is each role's own home; only admin's is /dashboard.
             .map((item) => (item.id === 'home' && role !== 'admin' ? { ...item, href: homeForRole(role) } : item));
 
@@ -116,5 +125,18 @@ export function useNavigation() {
             .filter((item): item is NavItem => Boolean(item));
 
         return { role, items, groups, active, tabs };
-    }, [role, pathname]);
+    }, [role, pathname, hasActivity]);
+}
+
+/** Whether admin has given this person any activity bucket to look at. */
+export function useHasActivity(): boolean {
+    const role = useAuthStore((s) => s.user?.role ?? '');
+    const signedIn = useAuthStore((s) => s.isAuthenticated);
+    const { data } = useQuery({
+        queryKey: ['audit', 'my-buckets'],
+        queryFn: auditService.myBuckets,
+        enabled: signedIn && role !== 'admin',
+        staleTime: 5 * 60 * 1000,
+    });
+    return role === 'admin' || (data?.length ?? 0) > 0;
 }

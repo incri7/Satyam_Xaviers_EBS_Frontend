@@ -6,7 +6,7 @@ import { AlertCircle, CalendarPlus, Plane, RotateCw, Send } from 'lucide-react';
 import { Badge, Banner, Button, Card, CardHeader, EmptyState, FilterChips, FormRow, Meter, SegmentedControl, Skeleton, TextAreaField, TextField } from '../../design-system';
 import { AppPage } from '../../components/layout/AppPage';
 import { leavesService, type LeaveRead, type LeaveStatus, type LeaveType } from '../../api/services/leaves.service';
-import { COUNTED, LEAVE_TYPES, STATUS_TONE, leaveDays, remaining } from '../../features/leave/format';
+import { COUNTED, LEAVE_TYPES, LIMITED, STATUS_TONE, leaveDays, remaining } from '../../features/leave/format';
 import { errorText } from '../../features/people/format';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
@@ -47,6 +47,8 @@ const TeacherLeavePage: React.FC = () => {
     const days = leaveDays(from, to);
     const left = remaining(balance.data, type);
     const after = left ? left.left - days : null;
+    // Casual and sick leave cannot go past what is left; the server refuses it.
+    const blocked = after != null && after < 0 && LIMITED.includes(type);
     const datesOk = !!from && !!to && to >= from;
 
     const submit = useMutation({
@@ -61,7 +63,7 @@ const TeacherLeavePage: React.FC = () => {
     const send = () => {
         setTried(true);
         setNotice(null);
-        if (!datesOk) return;
+        if (!datesOk || blocked) return;
         submit.mutate();
     };
 
@@ -114,10 +116,10 @@ const TeacherLeavePage: React.FC = () => {
                             hint={to ? df.date(to, 'long') : undefined} error={tried && (!to || (from && to < from)) ? t('leavePage.mine.pickTo') : undefined} />
                     </FormRow>
                     {days > 0 && (
-                        <Banner tone={after != null && after < 0 ? 'warn' : 'info'} icon={CalendarPlus}
+                        <Banner tone={blocked ? 'bad' : after != null && after < 0 ? 'warn' : 'info'} icon={CalendarPlus}
                             title={t('leavePage.mine.days', { count: days, n: formatCount(days, lang) })}>
                             {after == null ? t('leavePage.mine.unpaidNote')
-                                : after < 0 ? t('leavePage.mine.over', { type: typeLabel(type), n: formatCount(-after, lang) })
+                                : after < 0 ? t(blocked ? 'leavePage.mine.overLimit' : 'leavePage.mine.over', { type: typeLabel(type), n: formatCount(-after, lang), left: formatCount(left!.left, lang) })
                                     : t('leavePage.mine.after', { type: typeLabel(type), n: formatCount(after, lang), of: formatCount(left!.total, lang) })}
                         </Banner>
                     )}
@@ -125,7 +127,7 @@ const TeacherLeavePage: React.FC = () => {
                         placeholder={t('leaves.reasonPlaceholder')} />
                     <div className="flex flex-wrap justify-end gap-2">
                         {(from || to || reason) && <Button variant="ghost" onClick={() => { setFrom(''); setTo(''); setReason(''); setTried(false); }}>{t('leavePage.mine.clear')}</Button>}
-                        <Button leftIcon={Send} loading={submit.isPending} onClick={send}>{t('leavePage.mine.send')}</Button>
+                        <Button leftIcon={Send} loading={submit.isPending} disabled={blocked} onClick={send}>{t('leavePage.mine.send')}</Button>
                     </div>
                 </Card>
 
@@ -146,7 +148,7 @@ const TeacherLeavePage: React.FC = () => {
                     ) : (
                         <ul className="flex flex-col divide-y divide-line-subtle">
                             {shown.map((l) => {
-                                const n = leaveDays(l.start_date, l.end_date);
+                                const n = l.days ?? leaveDays(l.start_date, l.end_date);
                                 return (
                                     <li key={l.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
                                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">

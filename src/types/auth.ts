@@ -3,6 +3,10 @@ export interface User {
     email: string;
     phone: string;
     firstName?: string;
+    /** The name the person gave themselves, if any. */
+    full_name?: string | null;
+    /** How to show them: their own name, else their record's, else email. */
+    display_name?: string | null;
     lastName?: string;
     role: 'principal' | 'teacher' | 'student' | 'admin' | string;
     is_active: boolean;

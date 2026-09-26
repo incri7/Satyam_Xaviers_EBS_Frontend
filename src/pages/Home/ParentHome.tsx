@@ -5,13 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { parentService, type ChildSummary } from '../../api/services/parent.service';
-import { useAuthStore } from '../../store/useAuthStore';
 import {
     CheckCircle2, XCircle, Clock, AlertCircle, ChevronRight,
     BookOpen, CreditCard, FileText, Calendar, Loader2, BellRing
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { useWelcome } from '../../features/shell/identity';
 
 const ChildCard: React.FC<{ child: ChildSummary; feeDue?: number }> = ({ child, feeDue }) => {
     const { t } = useTranslation();
@@ -114,7 +114,6 @@ const ChildCard: React.FC<{ child: ChildSummary; feeDue?: number }> = ({ child, 
 const ParentHome: React.FC = () => {
     const { t } = useTranslation();
     const df = useDateFormat();
-    const { user } = useAuthStore();
     const todayLabel = df.date(new Date(), 'long');
 
     const { data, isLoading, error } = useQuery({
@@ -123,7 +122,7 @@ const ParentHome: React.FC = () => {
     });
 
     const children = data?.children ?? [];
-    const firstName = user?.firstName || 'Parent';
+    const welcome = useWelcome();
 
     // Fee reminder — fetched per child (no bulk endpoint), shown as a banner
     // whenever any child has an outstanding balance, so it surfaces the
@@ -151,8 +150,8 @@ const ParentHome: React.FC = () => {
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{t('home.goodMorning')}, {firstName}</h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
+                        <h1 className="text-2xl font-bold text-slate-900">{welcome.greeting}, {welcome.name}</h1>
+                        <p className="text-slate-500 text-sm font-medium mt-0.5">{welcome.role} · {todayLabel}</p>
                     </div>
 
                     {isLoading && (

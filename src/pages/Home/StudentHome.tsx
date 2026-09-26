@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { useWelcome } from '../../features/shell/identity';
 
 const STATUS_STYLE: Record<string, string> = {
     P: 'bg-emerald-100 text-emerald-700',
@@ -35,6 +36,7 @@ const TrendIcon: React.FC<{ trend: string }> = ({ trend }) => {
 
 const StudentHome: React.FC = () => {
     const { t } = useTranslation();
+    const welcome = useWelcome();
     const df = useDateFormat();
     const queryClient = useQueryClient();
 
@@ -100,7 +102,7 @@ const StudentHome: React.FC = () => {
                                     {df.date(new Date(), 'long')}
                                 </p>
                                 <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                                    {data.student_name}
+                                    {welcome.greeting}, {data.student_name}
                                 </h1>
                                 {classLabel && (
                                     <p className="text-sm text-slate-500 font-medium mt-0.5">{classLabel}</p>

@@ -3,7 +3,7 @@ import type {
     FeeStructure, FeeStructureCreate, FeeStructureUpdate,
     StudentFeeAssignment, StudentFeeAssignmentCreate, StudentFeeAssignmentUpdate,
     Payment, PaymentCreate, PaymentUpdate,
-    FeeDiscount, FeeDiscountCreate, FeeDiscountUpdate,
+    FeeDiscount, FeeDiscountCreate, FeeDiscountUpdate, FeeDiscountPage, AuditGroup, AuditPage,
     Expense, ExpenseCreate, ExpenseUpdate,
     FinancialSummary
 } from '../../types/finance';
@@ -89,6 +89,11 @@ export interface LedgerParams {
 export interface MonthlyReport {
     year: number;
     month: number;
+    /** The Nepali month the figures cover: 1 = Baisakh … 12 = Chaitra. */
+    bs_year: number;
+    bs_month: number;
+    start_date: string;
+    end_date: string;
     total_collected: number;
     transaction_count: number;
     first_receipt: string | null;
@@ -223,8 +228,9 @@ export const financesService = {
         return response.data;
     },
 
-    getMonthlyReport: async (year: number, month: number): Promise<MonthlyReport> => {
-        const response = await api.get('finances/reports/monthly', { params: { year, month } });
+    /** One Nepali month's collection; month 1 is Baisakh. */
+    getMonthlyReport: async (bsYear: number, bsMonth: number): Promise<MonthlyReport> => {
+        const response = await api.get('finances/reports/monthly', { params: { bs_year: bsYear, bs_month: bsMonth } });
         return response.data;
     },
 
@@ -233,6 +239,16 @@ export const financesService = {
         return response.data;
     },
 
+    /** Every scholarship in the school, newest first. */
+    listDiscounts: async (params: { search?: string; skip?: number; limit?: number } = {}): Promise<FeeDiscountPage> => {
+        const response = await api.get<FeeDiscountPage>('finances/discounts', { params });
+        return response.data;
+    },
+    /** The append-only log of money actions, newest first. */
+    getAuditLog: async (params: { group?: AuditGroup; start_date?: string; end_date?: string; skip?: number; limit?: number } = {}): Promise<AuditPage> => {
+        const response = await api.get<AuditPage>('finances/audit-log', { params });
+        return response.data;
+    },
     getStudentDiscounts: async (studentId: number): Promise<FeeDiscount[]> => {
         const response = await api.get(`finances/discounts/${studentId}`);
         return response.data;

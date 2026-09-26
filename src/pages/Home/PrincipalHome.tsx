@@ -6,7 +6,6 @@ import { Sidebar } from '../../components/layout/Sidebar';
 import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import NLQBar from '../../components/NLQBar';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { useAuthStore } from '../../store/useAuthStore';
 import { financesService } from '../../api/services/finances.service';
 import { attendanceService } from '../../api/services/attendance.service';
 import { peopleService } from '../../api/services/people.service';
@@ -14,17 +13,18 @@ import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import { AbsentTodayCard } from '../../components/attendance/AbsentTodayCard';
 import { Users, TrendingDown, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { useWelcome } from '../../features/shell/identity';
+import { bsYearMonth } from '../../utils/nepaliDate';
 
 const PrincipalHome: React.FC = () => {
     const { t } = useTranslation();
     const df = useDateFormat();
     const navigate = useNavigate();
-    const { user } = useAuthStore();
 
     const goToFeesReport = () => navigate('/finances/outstanding');
     const today = new Date();
     const todayLabel = df.date(today, 'long');
-    const firstName = user?.firstName || 'Principal';
+    const welcome = useWelcome();
 
     const [presentCount, setPresentCount] = useState<number | null>(null);
     const [lateFlash, setLateFlash] = useState(false);
@@ -42,8 +42,8 @@ const PrincipalHome: React.FC = () => {
     }, [todaySummary]);
 
     const { data: monthlyReport } = useQuery({
-        queryKey: ['finances', 'monthly-report', today.getFullYear(), today.getMonth() + 1],
-        queryFn: () => financesService.getMonthlyReport(today.getFullYear(), today.getMonth() + 1),
+        queryKey: ['finances', 'monthly-report', bsYearMonth().year, bsYearMonth().month],
+        queryFn: () => financesService.getMonthlyReport(bsYearMonth().year, bsYearMonth().month),
     });
 
     const { data: outstanding } = useQuery({
@@ -83,10 +83,8 @@ const PrincipalHome: React.FC = () => {
                 <DashboardHeader />
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
-                            {t('home.goodMorning')}, {firstName}
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">{todayLabel}</p>
+                        <h1 className="text-2xl font-bold text-slate-900">{welcome.greeting}, {welcome.name}</h1>
+                        <p className="text-slate-500 text-sm font-medium mt-0.5">{welcome.role} · {todayLabel}</p>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

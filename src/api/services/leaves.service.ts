@@ -19,6 +19,8 @@ export interface LeaveRead {
     decided_at: string | null;
     substitute_teacher_id: number | null;
     created_at: string;
+    /** School days covered: Saturdays and calendar holidays are not counted. */
+    days?: number | null;
 }
 
 export interface LeaveListResponse {
@@ -72,6 +74,11 @@ export interface PendingLeaveRead {
     applicant_student_id: number | null;
     applicant_user_id: number | null;
     created_at: string;
+    /** School days covered. */
+    days: number;
+    /** The applicant's allowance of this kind before this request; null for
+     *  students and unpaid leave. */
+    balance: { total: number; used: number; remaining: number } | null;
 }
 
 export interface SubstituteCandidate {

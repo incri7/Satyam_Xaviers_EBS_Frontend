@@ -7,7 +7,6 @@ import { DashboardHeader } from '../../components/layout/DashboardHeader';
 import { attendanceService } from '../../api/services/attendance.service';
 import { assignmentsService } from '../../api/services/assignments.service';
 import { aiService, type RiskFlag } from '../../api/services/ai.service';
-import { useAuthStore } from '../../store/useAuthStore';
 import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
 import {
     ClipboardCheck, ClipboardList, BookMarked, ArrowRight,
@@ -15,15 +14,15 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { useWelcome } from '../../features/shell/identity';
 
 const TeacherHome: React.FC = () => {
     const { t } = useTranslation();
     const df = useDateFormat();
-    const { user } = useAuthStore();
     const queryClient = useQueryClient();
     const today = new Date().toISOString().split('T')[0];
     const todayLabel = df.date(new Date(), 'long');
-    const greeting = new Date().getHours() < 12 ? t('home.goodMorning') : t('home.goodAfternoon');
+    const welcome = useWelcome();
 
     const { data: myAssignments } = useQuery({
         queryKey: ['assignments', 'my-classes'],
@@ -67,9 +66,9 @@ const TeacherHome: React.FC = () => {
                     <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-brand/5 rounded-full blur-3xl -mr-16 -mt-16" />
                         <div className="relative z-10">
-                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">{todayLabel}</p>
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">{welcome.role} · {todayLabel}</p>
                             <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-                                {greeting}, {user?.firstName || 'Teacher'}
+                                {welcome.greeting}, {welcome.name}
                             </h1>
                             <p className="text-slate-500 font-medium mt-1">
                                 {hasMarkedToday ? t('home.teacher.attendanceMarked') : t('home.teacher.attendanceNotMarked')}
