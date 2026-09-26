@@ -1,214 +1,167 @@
-import React, { useState } from 'react';
-import { X, Landmark, CheckCircle2, ChevronDown } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { financesService } from '../../api/services/finances.service';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { Landmark } from 'lucide-react';
+
+import { Banner, Button, Dialog, FormRow, SegmentedControl, TextField } from '../../design-system';
 import { academicsService } from '../../api/services/academics.service';
-import type { FeeStructureCreate } from '../../types/finance';
+import { financesService } from '../../api/services/finances.service';
+import { errorText } from '../../features/people/format';
+import { useFeeStructures } from '../../features/finance/queries';
+import { FREQUENCIES } from '../../features/finance/format';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount, formatRs } from '../../utils/money';
+import { cn } from '../../utils/cn';
+import type { FeeFrequency } from '../../types/finance';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
+    /** Start with this class ticked, e.g. from a class's "Add fee". */
+    classId?: number;
 }
 
-const FREQUENCY_OPTIONS = [
-    { label: 'One Time', value: 'one_time' },
-    { label: 'Monthly', value: 'monthly' },
-    { label: 'Quarterly', value: 'quarterly' },
-    { label: 'Yearly', value: 'yearly' },
-];
-
-export const CreateFeeStructureModal: React.FC<Props> = ({ isOpen, onClose }) => {
+/**
+ * Figma H02 "New fee structure". The API holds one class per fee, so
+ * ticking several classes creates the same fee once for each of them;
+ * "All classes" creates a single fee with no class. If some classes fail,
+ * the ones that worked are kept and the rest stay ticked to try again.
+ * Mount with a `key` so a preset class starts ticked.
+ */
+export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { lang } = df;
     const queryClient = useQueryClient();
-    const [success, setSuccess] = useState(false);
+    const [name, setName] = useState('');
+    const [type, setType] = useState('');
+    const [amount, setAmount] = useState('');
+    const [allClasses, setAllClasses] = useState(false);
+    const [picked, setPicked] = useState<number[]>(classId ? [classId] : []);
+    const [frequency, setFrequency] = useState<FeeFrequency>('monthly');
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
+    const [tried, setTried] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-    const [form, setForm] = useState({
-        name: '',
-        frequency: 'monthly',
-        amount: '',
-        fee_type: '',
-        class_id: '',
-        valid_from: '',
-        valid_to: '',
-    });
+    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), enabled: isOpen, staleTime: 5 * 60 * 1000 });
+    const existing = useFeeStructures(false);
+    const types = [...new Set((existing.data ?? []).map((f) => f.fee_type).filter(Boolean) as string[])].sort();
+    const classList = classes.data?.classes ?? [];
 
-    const { data: classesData } = useQuery({
-        queryKey: ['classes'],
-        queryFn: () => academicsService.getClasses({ limit: 100 }),
-        enabled: isOpen,
-    });
+    const close = () => {
+        setName(''); setType(''); setAmount(''); setAllClasses(false); setPicked(classId ? [classId] : []);
+        setFrequency('monthly'); setFrom(''); setTo(''); setTried(false); setError(null);
+        onClose();
+    };
 
-    const mutation = useMutation({
-        mutationFn: (data: FeeStructureCreate) => financesService.createFeeStructure(data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['fee-structures'] });
-            queryClient.invalidateQueries({ queryKey: ['financial-summary'] });
-            setSuccess(true);
-            setTimeout(() => { onClose(); setSuccess(false); resetForm(); }, 1500);
-        },
-        onError: (err: any) => {
-            const detail = err?.response?.data?.detail;
-            setError(typeof detail === 'string' ? detail : JSON.stringify(detail) || 'Failed to create fee structure');
-        },
-    });
+    const value = Number(amount);
+    const amountOk = amount !== '' && Number.isFinite(value) && value > 0;
+    const scopeOk = allClasses || picked.length > 0;
+    const datesOk = !from || !to || from <= to;
 
-    const resetForm = () => {
-        setForm({ name: '', frequency: 'monthly', amount: '', fee_type: '', class_id: '', valid_from: '', valid_to: '' });
-        setFieldErrors({});
+    const toggle = (id: number) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+    const submit = async () => {
+        setTried(true);
         setError(null);
+        if (!name.trim() || !amountOk || !scopeOk || !datesOk) return;
+        setBusy(true);
+        const base = { name: name.trim(), fee_type: type.trim() || undefined, amount: value, frequency, is_active: true, valid_from: from || undefined, valid_to: to || undefined };
+        const targets: (number | undefined)[] = allClasses ? [undefined] : picked;
+        const failed: number[] = [];
+        let firstError: unknown = null;
+        for (const id of targets) {
+            try {
+                await financesService.createFeeStructure({ ...base, class_id: id });
+            } catch (err) {
+                if (id !== undefined) failed.push(id);
+                firstError ??= err;
+            }
+        }
+        setBusy(false);
+        queryClient.invalidateQueries({ queryKey: ['fee-structures'] });
+        if (!firstError) return close();
+        if (!allClasses) setPicked(failed);
+        const names = failed.map((id) => classList.find((c) => c.id === id)?.name).filter(Boolean).join(', ');
+        setError(`${names ? t('financePage.newFee.partial', { names }) + ' ' : ''}${errorText(firstError, t('peoplePage.error.body'))}`);
     };
 
-    if (!isOpen) return null;
-
-    const validate = () => {
-        const errors: Record<string, string> = {};
-        if (!form.name.trim()) errors.name = 'Name is required';
-        if (!form.amount || parseFloat(form.amount) <= 0) errors.amount = 'Amount must be greater than 0';
-        if (!form.frequency) errors.frequency = 'Frequency is required';
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!validate()) return;
-
-        const payload: FeeStructureCreate = {
-            name: form.name,
-            frequency: form.frequency as any,
-            amount: parseFloat(form.amount),
-            fee_type: form.fee_type || undefined,
-            class_id: form.class_id ? Number(form.class_id) : undefined,
-            is_active: true,
-            valid_from: form.valid_from || undefined,
-            valid_to: form.valid_to || undefined,
-        };
-        mutation.mutate(payload);
-    };
+    const summary = amountOk && scopeOk
+        ? t(`financePage.newFee.summary.${frequency}`, {
+            amount: formatRs(value, lang),
+            scope: allClasses ? t('financePage.fees.allClassesShort') : t('financePage.newFee.classCount', { count: picked.length, n: formatCount(picked.length, lang) }),
+        })
+        : null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-sky-500 to-brand p-8 text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-6 opacity-10"><Landmark size={100} /></div>
-                    <div className="relative z-10 flex justify-between items-start">
-                        <div className="space-y-1">
-                            <h2 className="text-2xl font-bold tracking-tight">New Fee Structure</h2>
-                            <p className="text-white/80 font-medium text-sm">Define a new fee type for students</p>
-                        </div>
-                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                            <X className="w-5 h-5 text-white" />
-                        </button>
-                    </div>
+        <Dialog
+            open={isOpen}
+            onClose={close}
+            dismissible={!busy}
+            icon={Landmark}
+            title={t('financePage.newFee.title')}
+            subtitle={t('financePage.newFee.sub')}
+            closeLabel={t('common.close')}
+            footer={
+                <>
+                    <Button variant="quiet" onClick={close} disabled={busy}>{t('classesPage.dialog.cancel')}</Button>
+                    <Button leftIcon={Landmark} loading={busy} onClick={() => void submit()}>
+                        {busy ? t('financePage.newFee.creating') : !allClasses && picked.length > 1 ? t('financePage.newFee.createMany', { n: formatCount(picked.length, lang) }) : t('financePage.newFee.create')}
+                    </Button>
+                </>
+            }
+        >
+            {error && <Banner tone="bad" title={t('financePage.newFee.failed')}>{error}</Banner>}
+            <TextField label={t('financePage.newFee.name')} placeholder={t('financePage.newFee.namePlaceholder')} value={name} onChange={(e) => setName(e.target.value)}
+                error={tried && !name.trim() ? t('financePage.newFee.nameError') : undefined} />
+            <FormRow>
+                <TextField label={t('financePage.newFee.type')} optional={t('peopleForms.optional')} list="fee-types" placeholder={t('financePage.newFee.typePlaceholder')} value={type} onChange={(e) => setType(e.target.value)} />
+                <TextField label={t('financePage.record.amount')} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))}
+                    endAdornment={<span className="type-small text-muted">Rs</span>}
+                    error={tried && !amountOk ? t('financePage.record.amountError') : undefined} />
+            </FormRow>
+            <datalist id="fee-types">{types.map((x) => <option key={x} value={x} />)}</datalist>
+
+            <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 type-small-semibold text-ink">{t('financePage.newFee.classes')}</legend>
+                <div className="flex flex-wrap gap-2">
+                    <Chip on={allClasses} onClick={() => setAllClasses((v) => !v)}>{t('financePage.fees.allClassesShort')}</Chip>
+                    {classList.map((c) => (
+                        <Chip key={c.id} on={!allClasses && picked.includes(c.id)} disabled={allClasses} onClick={() => toggle(c.id)}>{c.name}</Chip>
+                    ))}
                 </div>
+                <p className={cn('type-caption', tried && !scopeOk ? 'text-bad' : 'text-muted')}>
+                    {tried && !scopeOk ? t('financePage.newFee.classesError') : t('financePage.newFee.classesHint')}
+                </p>
+            </fieldset>
 
-                {/* Form */}
-                <div className="p-8 bg-white">
-                    {success ? (
-                        <div className="py-12 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95">
-                            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 shadow-sm border border-green-100">
-                                <CheckCircle2 className="w-10 h-10" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900">Fee Structure Created!</h3>
-                        </div>
-                    ) : (
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            {error && (
-                                <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-2xl font-semibold">{error}</div>
-                            )}
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Fee Name *</label>
-                                <input
-                                    placeholder="e.g. Monthly Tuition Fee"
-                                    value={form.name}
-                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                    className={cn("w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all placeholder:text-slate-300", fieldErrors.name && "border-red-300")}
-                                />
-                                {fieldErrors.name && <p className="text-xs text-red-500 font-bold">{fieldErrors.name}</p>}
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Amount (NPR) *</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={form.amount}
-                                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                                        className={cn("w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all placeholder:text-slate-300", fieldErrors.amount && "border-red-300")}
-                                    />
-                                    {fieldErrors.amount && <p className="text-xs text-red-500 font-bold">{fieldErrors.amount}</p>}
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Frequency *</label>
-                                    <div className="relative">
-                                        <select
-                                            value={form.frequency}
-                                            onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold appearance-none outline-none transition-all"
-                                        >
-                                            {FREQUENCY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                        </select>
-                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Fee Type</label>
-                                    <input
-                                        placeholder="e.g. Tuition, Lab, Library"
-                                        value={form.fee_type}
-                                        onChange={(e) => setForm({ ...form, fee_type: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all placeholder:text-slate-300"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Class</label>
-                                    <div className="relative">
-                                        <select
-                                            value={form.class_id}
-                                            onChange={(e) => setForm({ ...form, class_id: e.target.value })}
-                                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold appearance-none outline-none transition-all"
-                                        >
-                                            <option value="">All classes</option>
-                                            {classesData?.classes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Valid From</label>
-                                    <input type="date" value={form.valid_from} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-slate-700">Valid To</label>
-                                    <input type="date" value={form.valid_to} onChange={(e) => setForm({ ...form, valid_to: e.target.value })} className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand rounded-2xl py-3.5 px-5 text-sm font-bold outline-none transition-all" />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 flex gap-4">
-                                <button type="button" onClick={onClose} className="flex-1 px-6 py-4 bg-slate-50 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all border border-slate-200">Cancel</button>
-                                <button type="submit" disabled={mutation.isPending} className="flex-[2] bg-brand text-white px-6 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3">
-                                    {mutation.isPending ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Landmark size={18} /><span>Create Fee Structure</span></>}
-                                </button>
-                            </div>
-                        </form>
-                    )}
-                </div>
+            <div className="flex flex-col gap-2">
+                <p className="type-small-semibold text-ink">{t('financePage.newFee.often')}</p>
+                <SegmentedControl options={FREQUENCIES.map((f) => ({ value: f, label: t(`financePage.freq.${f}`) }))} value={frequency} onChange={setFrequency}
+                    aria-label={t('financePage.newFee.often')} className="flex w-full [&>*]:flex-1" />
             </div>
-        </div>
+
+            <FormRow>
+                <TextField label={t('financePage.newFee.from')} optional={t('peopleForms.optional')} type="date" value={from} onChange={(e) => setFrom(e.target.value)} hint={from ? df.date(from) : undefined} />
+                <TextField label={t('financePage.newFee.to')} optional={t('peopleForms.optional')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
+                    hint={to ? df.date(to) : undefined} error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
+            </FormRow>
+
+            {summary && <Banner tone="info" title={summary}>{t('financePage.newFee.summaryBody')}</Banner>}
+        </Dialog>
     );
-};
+}
+
+function Chip({ on, disabled, onClick, children }: { on: boolean; disabled?: boolean; onClick: () => void; children: string }) {
+    return (
+        <button type="button" aria-pressed={on} disabled={disabled} onClick={onClick}
+            className={cn(
+                'h-9 rounded-full border px-3.5 type-small-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60 disabled:opacity-45',
+                on ? 'border-primary bg-primary-soft text-primary-text' : 'border-line bg-surface text-ink-2 hover:bg-surface-2',
+            )}>
+            {children}
+        </button>
+    );
+}

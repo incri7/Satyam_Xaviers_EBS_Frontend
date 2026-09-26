@@ -120,6 +120,8 @@ export interface Expense {
     payment_mode: PaymentMethod;
     description?: string;
     recorded_by_user_id: number;
+    /** Storage key of the attached bill, when there is one. */
+    attachment_key?: string | null;
 }
 
 export interface ExpenseCreate {

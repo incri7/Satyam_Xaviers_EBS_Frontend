@@ -60,13 +60,15 @@ export type DateStyle =
     | 'short'      // २०८३/०५/२१            · 2083/05/21
     | 'medium'     // २१ भाद्र, २०८३          · 21 Bhadra, 2083
     | 'long'       // आइतबार, २१ भाद्र, २०८३  · Sunday, 21 Bhadra, 2083
-    | 'monthYear'; // भाद्र २०८३             · Bhadra 2083
+    | 'monthYear'  // भाद्र २०८३             · Bhadra 2083
+    | 'dayMonth';  // आइतबार, २१ भाद्र         · Sunday, 21 Bhadra
 
 const PATTERNS: Record<DateStyle, string> = {
     short: 'YYYY/MM/DD',
     medium: 'DD MMMM, YYYY',
     long: 'ddd, DD MMMM, YYYY',
     monthYear: 'MMMM YYYY',
+    dayMonth: 'ddd, DD MMMM',
 };
 
 /**

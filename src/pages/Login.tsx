@@ -1,127 +1,144 @@
-import React, { useState } from 'react';
+import { useState, type BaseSyntheticEvent } from 'react';
+import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { SchoolLogo } from '../components/icons/SchoolLogo';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { useTranslation } from 'react-i18next';
+import { Info, Mail } from 'lucide-react';
+
+import { Banner, Button, Checkbox, IconTile, PasswordField, TextField } from '../design-system';
+import { AuthLayout } from '../features/auth/AuthLayout';
+import { AccountSafetyCard, AudienceChip } from '../features/auth/SignInPanel';
+import { getSignInError, type SignInError } from '../features/auth/signInError';
+import { getRememberMe, setRememberMe } from '../store/authStorage';
 import { useAuth } from '../hooks/useAuth';
 import { requestFCMToken, deviceService } from '../api/services/device.service';
 import { homeForRole } from '../utils/roleHome';
-import { useTranslation } from 'react-i18next';
-import { Languages } from 'lucide-react';
 
-const LoginPage: React.FC = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+interface SignInValues {
+    email: string;
+    password: string;
+    remember: boolean;
+}
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Figma: A01 Sign in. */
+const LoginPage = () => {
+    const { t } = useTranslation();
     const { login } = useAuth();
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
-    const isNepali = i18n.language === 'ne';
-    const toggleLanguage = () => i18n.changeLanguage(isNepali ? 'en' : 'ne');
+    const [serverError, setServerError] = useState<SignInError | null>(null);
 
-    const handleSignIn = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
+    const {
+        register,
+        handleSubmit,
+        setFocus,
+        formState: { errors, isSubmitting },
+    } = useForm<SignInValues>({ defaultValues: { email: '', password: '', remember: getRememberMe() } });
 
+    const shake = (form: HTMLFormElement | null) => {
+        if (!form || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        form.animate(
+            [{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(0)' }],
+            { duration: 400, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+        );
+    };
+
+    const onSubmit = async (values: SignInValues, event?: BaseSyntheticEvent) => {
+        setServerError(null);
+        // Decides where the session is stored (see store/authStorage), so it
+        // must be set before login() writes the tokens.
+        setRememberMe(values.remember);
         try {
-            const response = await login({ email, password });
+            const response = await login({ email: values.email.trim(), password: values.password });
 
+            // Push notifications are a bonus; never block sign-in on them.
             requestFCMToken().then((token) => {
                 if (token) deviceService.registerToken(token).catch(() => {});
             });
 
-            if (response.user.must_change_password === true) {
-                navigate('/reset-password');
-            } else {
-                navigate(homeForRole(response.user.role));
-            }
-        } catch (err: any) {
-            const detail = err.response?.data?.detail;
-
-            if (typeof detail === 'string') {
-                setError(detail);
-            } else if (Array.isArray(detail)) {
-                setError(detail[0]?.msg || t('auth.errorValidation'));
-            } else if (typeof detail === 'object' && detail !== null) {
-                setError(detail.msg || t('auth.errorGeneral'));
-            } else {
-                setError(t('auth.errorInvalid'));
-            }
-            setIsLoading(false);
+            navigate(response.user.must_change_password === true ? '/reset-password' : homeForRole(response.user.role));
+        } catch (err) {
+            const e = getSignInError(err, t);
+            setServerError(e);
+            shake(event?.target instanceof HTMLFormElement ? event.target : null);
+            if (e.field === 'password') setFocus('password');
         }
     };
 
+    // Once the person starts correcting their input, the old failure is stale.
+    const clearServerError = () => { if (serverError) setServerError(null); };
+
+    const passwordError = errors.password?.message ?? (serverError?.field === 'password' ? t('auth.errors.passwordHint') : undefined);
+
     return (
-        <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-100/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-blue-100/30 to-transparent pointer-events-none" />
-
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-12 z-10">
-                <div className="flex justify-end mb-2">
-                    <button
-                        onClick={toggleLanguage}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
-                        title={t('language.toggle')}
-                    >
-                        <Languages className="w-3.5 h-3.5" />
-                        {isNepali ? t('language.english') : t('language.nepali')}
-                    </button>
-                </div>
-                <div className="flex flex-col items-center mb-10">
-                    <SchoolLogo className="w-24 h-24 mb-6 shadow-lg shadow-brand/20" />
-                    <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        {t('app.name')}
-                    </h1>
-                    <p className="text-slate-500 font-medium text-sm mt-1">
-                        {t('app.tagline')}
-                    </p>
+        <AuthLayout panelFooter={<AccountSafetyCard />} chip={<AudienceChip />}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 lg:gap-[18px]">
+                <div className="flex flex-col gap-1.5">
+                    <h1 className="type-h2 text-ink lg:type-h1">{t('auth.title')}</h1>
+                    <p className="type-body text-muted">{t('auth.subtitle')}</p>
                 </div>
 
-                {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium animate-in fade-in slide-in-from-top-2">
-                        {error}
-                    </div>
+                {serverError && (
+                    <Banner tone="bad" title={serverError.title}>
+                        {serverError.body}
+                    </Banner>
                 )}
 
-                <form onSubmit={handleSignIn} className="space-y-6">
-                    <Input
-                        label={t('auth.emailAddress')}
-                        type="email"
-                        placeholder={t('auth.emailPlaceholder')}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
+                <TextField
+                    label={t('auth.email')}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    leftIcon={Mail}
+                    placeholder={t('auth.emailPlaceholder')}
+                    disabled={isSubmitting}
+                    error={errors.email?.message}
+                    {...register('email', {
+                        required: t('auth.validation.emailRequired'),
+                        pattern: { value: EMAIL_PATTERN, message: t('auth.validation.emailInvalid') },
+                        onChange: clearServerError,
+                    })}
+                />
 
-                    <div className="space-y-1">
-                        <Input
-                            label={t('auth.password')}
-                            type="password"
-                            placeholder={t('auth.passwordPlaceholder')}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                        <div className="flex items-center justify-end text-sm pt-1">
-                            <Link to="/forgot-password" className="text-brand font-semibold hover:text-brand-dark transition-colors">
-                                {t('auth.forgotPassword')}
-                            </Link>
-                        </div>
+                <PasswordField
+                    label={t('auth.password')}
+                    autoComplete="current-password"
+                    placeholder={t('auth.passwordPlaceholder')}
+                    disabled={isSubmitting}
+                    error={passwordError}
+                    showLabel={t('auth.showPassword')}
+                    hideLabel={t('auth.hidePassword')}
+                    capsLockMessage={t('auth.capsLockOn')}
+                    labelAction={
+                        <Link
+                            to="/forgot-password"
+                            className="rounded-sm type-small-semibold text-primary-text outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus/60"
+                        >
+                            {t('auth.forgotPassword')}
+                        </Link>
+                    }
+                    {...register('password', { required: t('auth.validation.passwordRequired'), onChange: clearServerError })}
+                />
+
+                <Checkbox label={t('auth.keepSignedIn')} disabled={isSubmitting} {...register('remember')} />
+
+                <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
+                    {isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
+                </Button>
+
+                <hr className="border-line-subtle" />
+
+                <div className="flex items-start gap-3 rounded-row bg-sunken px-3.5 py-3">
+                    <IconTile icon={Info} tone="brand" size={32} />
+                    <div className="min-w-0">
+                        <p className="type-small-semibold text-ink">{t('auth.firstTime.title')}</p>
+                        <p className="type-small text-muted">{t('auth.firstTime.body')}</p>
                     </div>
-
-                    <Button type="submit" isLoading={isLoading} className="mt-8">
-                        {isLoading ? t('auth.signingIn') : t('auth.signIn')}
-                    </Button>
-
-                    <p className="text-center text-sm text-slate-500 mt-8">
-                        {t('auth.needHelp')} <a href="mailto:support@sxebs.edu.np" className="text-brand font-semibold hover:text-brand-dark transition-colors">{t('auth.contactSupport')}</a>
-                    </p>
-                </form>
-            </div>
-        </div>
+                </div>
+            </form>
+        </AuthLayout>
     );
 };
 

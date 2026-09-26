@@ -1,146 +1,140 @@
-import { useState } from 'react';
-import { Bell, ChevronDown, Languages, Menu, UserCircle, LogOut } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { SchoolLogo } from '../icons/SchoolLogo';
-import { motion } from 'framer-motion';
-import { cn } from '../../utils/cn';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LogOut, Menu, UserCircle } from 'lucide-react';
+
+import { LanguageSwitch } from '../LanguageSwitch';
+import { Avatar } from '../../features/shell/AccountCard';
+import { useDisplayName } from '../../features/shell/identity';
+import { useNavigation } from '../../features/shell/navigation';
+import { useAcademicYearLabel } from '../../features/shell/useAcademicYear';
+import { NotificationsBell } from '../../features/shell/NotificationsPanel';
+import { AskAiButton } from '../../features/shell/AskAiPanel';
+import { SIDEBAR_ID } from './Sidebar';
+import { useAuth } from '../../hooks/useAuth';
+import { useDateFormat } from '../../hooks/useDateFormat';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUiStore } from '../../store/useUiStore';
-import { useAuth } from '../../hooks/useAuth';
-import { useTranslation } from 'react-i18next';
 import { hasSidebar } from '../../utils/sidebarVisibility';
-import { useDateFormat } from '../../hooks/useDateFormat';
+import { cn } from '../../utils/cn';
 
-export const DashboardHeader: React.FC = () => {
-    const { user } = useAuthStore();
-    const { logout } = useAuth();
-    const { toggleSidebar } = useUiStore();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const showMenuToggle = hasSidebar(user?.role, location.pathname);
-    const { t, i18n } = useTranslation();
+export interface DashboardHeaderProps {
+    /** Page name. Defaults to the menu item for the current route. */
+    title?: string;
+}
+
+/**
+ * Top bar of every signed-in page. Figma B01 "Top bar" (laptop) and
+ * "App bar" (phone).
+ *
+ * - Laptop: page title with today's date and the academic year; language
+ *   switch and notices on the right. The account lives in the sidebar.
+ * - Phone: date above a large title, notices on the right. Roles with a tab
+ *   bar reach the menu through More; the rest get a menu button here.
+ * - Parents outside a child's pages have no sidebar, so the language switch
+ *   and the account menu stay in this bar for them.
+ */
+export function DashboardHeader({ title }: DashboardHeaderProps) {
+    const { t } = useTranslation();
     const df = useDateFormat();
-    const [menuOpen, setMenuOpen] = useState(false);
-    const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : 'Principal';
-    const firstLetter = displayName.charAt(0).toUpperCase();
-    const isNepali = i18n.language === 'ne';
+    const { pathname } = useLocation();
+    const role = useAuthStore((s) => s.user?.role);
+    const { active, tabs } = useNavigation();
+    const { toggleSidebar, isSidebarOpen } = useUiStore();
+    const year = useAcademicYearLabel();
 
-    const toggleLanguage = () => {
-        i18n.changeLanguage(isNepali ? 'en' : 'ne');
-    };
+    const withSidebar = hasSidebar(role, pathname);
+    const showMenuButton = withSidebar && tabs.length === 0;
+    const pageTitle = title ?? (active ? t(`shell.nav.${active.labelKey}`) : t('app.name'));
+    const today = new Date();
 
     return (
-        <motion.header
-            initial={{ y: -80 }}
-            animate={{ y: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30"
-        >
-            <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                {showMenuToggle && (
-                    <button
-                        onClick={toggleSidebar}
-                        className="lg:hidden p-2.5 -ml-1 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all shrink-0"
-                        aria-label="Open menu"
-                    >
-                        <Menu className="w-5 h-5" />
-                    </button>
-                )}
-                <motion.div
-                    whileHover={{ scale: 1.05, rotate: 5 }}
-                    className="cursor-pointer hidden sm:block shrink-0"
+        <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-line bg-canvas px-[18px] pt-[max(env(safe-area-inset-top),6px)] pb-2.5 font-ui lg:h-[72px] lg:px-7 lg:py-3.5">
+            {showMenuButton && (
+                <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label={t('shell.openMenu')}
+                    aria-expanded={isSidebarOpen}
+                    aria-controls={SIDEBAR_ID}
+                    className={cn(iconButton, '-ml-1 lg:hidden')}
                 >
-                    <SchoolLogo className="w-12 h-12" />
-                </motion.div>
-                <div className="min-w-0">
-                    <h1 className="text-base md:text-xl font-bold text-slate-900 leading-tight truncate">{t('app.name')}</h1>
-                    <p className="text-[11px] font-bold text-slate-400 truncate">
-                        {df.date(new Date(), 'long')}
-                    </p>
-                </div>
+                    <Menu size={18} aria-hidden />
+                </button>
+            )}
+
+            <div className="flex min-w-0 flex-1 flex-col lg:flex-col-reverse lg:gap-px">
+                <p className="truncate type-small text-muted">
+                    <span className="lg:hidden">{df.date(today, 'dayMonth')}</span>
+                    <span className="hidden lg:inline">{t('shell.subtitle', { date: df.date(today, 'long'), year })}</span>
+                </p>
+                <h1 className="truncate type-h2 text-ink lg:type-h3">{pageTitle}</h1>
             </div>
 
-            <div className="flex items-center gap-2 md:gap-6 shrink-0">
-                {/* Language toggle */}
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={toggleLanguage}
-                    className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl text-slate-600 hover:text-brand hover:bg-brand/5 transition-all border border-slate-200"
-                    title={t('language.toggle')}
-                >
-                    <Languages className="w-4 h-4" />
-                    <span className="text-xs font-bold hidden sm:inline">{isNepali ? t('language.english') : t('language.nepali')}</span>
-                </motion.button>
+            <AskAiButton />
 
-                <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => navigate('/communication')}
-                    title={t('communication.title', 'Notices')}
-                    className="relative p-2.5 bg-slate-50 rounded-xl text-slate-500 hover:text-brand hover:bg-brand/5 transition-all"
-                >
-                    <Bell className="w-5 h-5" />
-                </motion.button>
-
-                <div className="h-10 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
-
-                <div className="relative">
-                    <button
-                        type="button"
-                        onClick={() => setMenuOpen(v => !v)}
-                        aria-expanded={menuOpen}
-                        className="flex items-center gap-2 sm:gap-4 cursor-pointer pl-2 group"
-                    >
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-slate-900 group-hover:text-brand transition-colors">{displayName}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user?.role || 'Principal'}</p>
-                        </div>
-                        <div className="relative">
-                            {user?.profile_image_url && user.profile_image_url !== 'string' ? (
-                                <img src={user.profile_image_url} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
-                            ) : (
-                                <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm">
-                                    {firstLetter}
-                                </div>
-                            )}
-                        </div>
-                        <ChevronDown className={cn(
-                            "w-4 h-4 text-slate-400 group-hover:text-brand transition-transform",
-                            menuOpen && "rotate-180 text-brand"
-                        )} />
-                    </button>
-
-                    {/* Dropdown Menu — click-toggled (hover doesn't exist on touch) */}
-                    {menuOpen && (
-                        <>
-                            <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                            <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 z-50 origin-top-right">
-                                <div className="p-2 space-y-1">
-                                    <div className="px-4 py-2 border-b border-slate-50 sm:hidden">
-                                        <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user?.role}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => { setMenuOpen(false); navigate('/profile'); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                                    >
-                                        <UserCircle className="w-4 h-4" />
-                                        {t('nav.profile', 'My Profile')}
-                                    </button>
-                                    <button
-                                        onClick={() => { setMenuOpen(false); logout(); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        {t('auth.signOut')}
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
+            <div className={cn('shrink-0', withSidebar && 'hidden lg:block')}>
+                <LanguageSwitch />
             </div>
-        </motion.header>
+
+            <NotificationsBell className={iconButton} />
+
+            {!withSidebar && <HeaderAccountMenu />}
+        </header>
     );
-};
+}
+
+const iconButton =
+    'grid size-10 shrink-0 place-items-center rounded-full bg-surface text-ink-2 ring-1 ring-inset ring-line outline-none transition-colors hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60';
+
+/** Account menu for pages without a sidebar (parents' top level). */
+function HeaderAccountMenu() {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const { logout } = useAuth();
+    const user = useAuthStore((s) => s.user);
+    const name = useDisplayName();
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onPointer = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('pointerdown', onPointer);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('pointerdown', onPointer);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    if (!user) return null;
+    return (
+        <div ref={ref} className="relative shrink-0">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={t('shell.account.menu')}
+                className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-focus/60"
+            >
+                <Avatar name={name} src={user.profile_image_url} className="size-10 bg-primary text-on-primary" />
+            </button>
+            {open && (
+                <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-56 animate-rise rounded-row border border-line bg-surface p-1.5 shadow-e3">
+                    <p className="truncate px-3 pt-1.5 pb-2 type-small-semibold text-ink">{name}</p>
+                    <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/profile'); }} className={menuItem}>
+                        <UserCircle size={16} aria-hidden /> {t('shell.account.profile')}
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { setOpen(false); logout(); }} className={cn(menuItem, 'text-bad hover:bg-bad-soft')}>
+                        <LogOut size={16} aria-hidden /> {t('shell.account.signOut')}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const menuItem = 'flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 type-small-medium text-ink outline-none hover:bg-sunken focus-visible:bg-sunken';

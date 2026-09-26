@@ -1,483 +1,430 @@
-import React from 'react';
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { profilesService, type ExamResult } from '../../api/services/profiles.service';
 import {
-    ArrowLeft, Phone, Mail, MapPin, Wallet, GraduationCap, CheckCircle2,
-    ClipboardList, Clock, AlertCircle, Loader2, Users, Receipt,
+    AlertCircle, CalendarDays, CheckCircle2, ChevronDown, ClipboardList, Droplet, GraduationCap,
+    MapPin, Mail, Pencil, Phone, Receipt, RotateCw, Umbrella, Users, Wallet,
 } from 'lucide-react';
-import { cn } from '../../utils/cn';
+
+import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, Tabs, type TabItem } from '../../design-system';
+import { AppPage } from '../../components/layout/AppPage';
+import { AccessControl } from '../../components/AccessControl';
+import { EditStudentModal } from '../../components/people/EditStudentModal';
+import { profilesService, type ExamResult, type StudentProfile } from '../../api/services/profiles.service';
+import { peopleService } from '../../api/services/people.service';
+import { KpiCard } from '../../features/dashboard/KpiCard';
+import { ProfileHeader, ProfileHeaderSkeleton } from '../../features/people/ProfileHeader';
+import { StudentStatusBadge } from '../../features/people/shared';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount, formatRs } from '../../utils/money';
+import { cn } from '../../utils/cn';
+import type { Student } from '../../types/people';
 
-const Card: React.FC<{ title: string; icon?: React.ElementType; children: React.ReactNode; className?: string }> =
-    ({ title, icon: Icon, children, className }) => (
-        <section className={cn('bg-white rounded-2xl border border-slate-100 shadow-sm', className)}>
-            <header className="flex items-center gap-2 px-5 py-3.5 border-b border-slate-100">
-                {Icon && <Icon className="w-4 h-4 text-slate-400" aria-hidden="true" />}
-                <h2 className="font-bold text-slate-900 text-sm">{title}</h2>
-            </header>
-            <div className="p-5">{children}</div>
-        </section>
-    );
+type Tab = 'overview' | 'attendance' | 'marks' | 'fees' | 'guardians';
 
-const Stat: React.FC<{ label: string; value: React.ReactNode; tone?: string }> = ({ label, value, tone }) => (
-    <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">{label}</p>
-        <p className={cn('text-lg font-black tracking-tight tabular-nums', tone || 'text-slate-900')}>{value}</p>
-    </div>
-);
-
-const ATTENDANCE_TONE: Record<string, string> = {
-    P: 'bg-emerald-500', L: 'bg-amber-400', HD: 'bg-sky-400', A: 'bg-red-500',
+const DAY_TONE: Record<string, string> = {
+    P: 'bg-ok text-white', L: 'bg-warn text-white', HD: 'bg-info text-white', A: 'bg-bad text-white', H: 'bg-sunken text-muted',
 };
 
-const StudentDetailPage: React.FC = () => {
+/** Figma F06 Student profile, from GET /people/students/{id}/profile. */
+const StudentDetailPage = () => {
     const { studentId } = useParams();
     const { t } = useTranslation();
-    const df = useDateFormat();
-    const [openExam, setOpenExam] = React.useState<number | null>(null);
+    const [tab, setTab] = useState<Tab>('overview');
+    const [editing, setEditing] = useState(false);
+    const id = Number(studentId);
 
-    const { data, isLoading, isError, error } = useQuery({
-        queryKey: ['student-profile', studentId],
-        queryFn: () => profilesService.getStudentProfile(Number(studentId)),
-        enabled: !!studentId,
+    const { data, isPending, isError, refetch } = useQuery({
+        queryKey: ['student-profile', id],
+        queryFn: () => profilesService.getStudentProfile(id),
+        enabled: Number.isFinite(id),
+    });
+    // The edit dialog needs the full register record, not the profile summary.
+    const { data: record } = useQuery({
+        queryKey: ['student', id],
+        queryFn: () => peopleService.getStudent(id) as Promise<Student>,
+        enabled: editing,
     });
 
-    const money = (n: number) =>
-        new Intl.NumberFormat('en-NP', {
-            style: 'currency', currency: 'NPR', maximumFractionDigits: 0,
-        }).format(n);
-
-    const shell = (body: React.ReactNode) => (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-8">
-                    <Link
-                        to="/people"
-                        className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors mb-4"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        {t('profile.backToPeople')}
-                    </Link>
-                    {body}
-                </div>
-            </main>
-        </div>
-    );
-
-    if (isLoading) {
-        return shell(
-            <div className="flex items-center justify-center py-24">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-            </div>,
-        );
-    }
-
-    if (isError || !data) {
-        return shell(
-            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-                <AlertCircle className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                <p className="font-bold text-slate-500">
-                    {(error as any)?.response?.data?.detail || t('profile.notFound')}
-                </p>
-            </div>,
-        );
-    }
-
-    const { student, enrollment, guardians, results, fees, attendance, assignments, leave } = data;
-
-    const examRow = (e: ExamResult) => {
-        const open = openExam === e.exam_id;
+    if (isPending) {
         return (
-            <li key={e.exam_id} className="border border-slate-100 rounded-xl overflow-hidden">
-                <button
-                    onClick={() => setOpenExam(open ? null : e.exam_id)}
-                    className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
-                >
-                    <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate">{e.exam_name}</p>
-                        <p className="text-xs font-medium text-slate-400">
-                            {e.term ? e.term + ' · ' : ''}{e.sat_on ? df.date(e.sat_on) : ''}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-sm font-black text-slate-900 tabular-nums">
-                            {e.percent.toFixed(1)}%
-                        </span>
-                        <span className="text-xs font-bold text-slate-500 tabular-nums">
-                            {t('profile.gpaShort')} {e.gpa.toFixed(2)}
-                        </span>
-                        <span className={cn(
-                            'text-[10px] font-black uppercase px-2 py-1 rounded-lg w-14 text-center',
-                            e.result === 'PASS' ? 'bg-emerald-50 text-emerald-600'
-                                : e.result === 'FAIL' ? 'bg-red-50 text-red-500'
-                                    : 'bg-slate-100 text-slate-500',
-                        )}>
-                            {e.grade || e.result}
-                        </span>
-                    </div>
-                </button>
-                {open && (
-                    <div className="border-t border-slate-100 overflow-x-auto">
-                        <table className="w-full min-w-[420px]">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        {t('profile.subject')}
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        {t('profile.marks')}
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        {t('profile.percent')}
-                                    </th>
-                                    <th className="px-4 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                        {t('profile.grade')}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {e.subjects.map((s) => (
-                                    <tr key={s.subject_id + s.subject_name}>
-                                        <td className="px-4 py-2 text-sm font-medium text-slate-700">
-                                            {s.subject_name}
-                                        </td>
-                                        <td className="px-4 py-2 text-sm text-right tabular-nums text-slate-600">
-                                            {s.is_absent ? t('profile.absentShort')
-                                                : `${s.obtained ?? '—'} / ${s.max_marks}`}
-                                        </td>
-                                        <td className="px-4 py-2 text-sm text-right tabular-nums text-slate-600">
-                                            {s.percent != null ? s.percent.toFixed(1) + '%' : '—'}
-                                        </td>
-                                        <td className={cn(
-                                            'px-4 py-2 text-sm font-black text-right',
-                                            s.is_pass === false ? 'text-red-500' : 'text-slate-800',
-                                        )}>
-                                            {s.grade || '—'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            <AppPage title={t('profilePage.crumbStudents')}>
+                <ProfileHeaderSkeleton />
+                <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:gap-3.5">
+                    {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-[118px] rounded-card" />)}
+                </div>
+            </AppPage>
+        );
+    }
+    if (isError || !data) {
+        return (
+            <AppPage title={t('profilePage.crumbStudents')}>
+                <Card>
+                    <EmptyState icon={AlertCircle} tone="bad" title={t('profilePage.loadError')}
+                        action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void refetch()}>{t('profilePage.retry')}</Button>}>
+                        {t('profile.notFound')}
+                    </EmptyState>
+                </Card>
+            </AppPage>
+        );
+    }
+
+    const { student, enrollment, guardians } = data;
+    const primary = guardians.find((g) => g.is_primary_contact && g.phone) ?? guardians.find((g) => g.phone);
+    const classLine = enrollment
+        ? [enrollment.class_name, enrollment.section_name].filter(Boolean).join(' ')
+        : t('profile.notEnrolled');
+
+    const tabs: TabItem<Tab>[] = [
+        { value: 'overview', label: t('profilePage.tabs.overview') },
+        { value: 'attendance', label: t('profilePage.tabs.attendance') },
+        { value: 'marks', label: t('profilePage.tabs.marks') },
+        { value: 'fees', label: t('profilePage.tabs.fees') },
+        { value: 'guardians', label: t('profilePage.tabs.guardians'), count: guardians.length },
+    ];
+
+    return (
+        <AppPage title={student.name}>
+            <ProfileHeader
+                crumb={t('profilePage.crumbStudents')}
+                crumbTo="/people"
+                name={student.name}
+                badge={<StudentStatusBadge status={student.status} />}
+                line={[classLine, student.admission_no].filter(Boolean).join(', ')}
+                meta={[
+                    ...(student.dob ? [{ icon: CalendarDays, label: t('profile.dob'), value: <DateText v={student.dob} /> }] : []),
+                    ...(student.blood_group ? [{ icon: Droplet, label: t('profile.bloodGroup'), value: student.blood_group }] : []),
+                    ...(student.city ? [{ icon: MapPin, label: t('peopleForms.label.city'), value: student.city }] : []),
+                ]}
+                actions={
+                    <>
+                        {primary?.phone && (
+                            <Button variant="quiet" leftIcon={Phone} onClick={() => { window.location.href = `tel:${primary.phone}`; }}>
+                                {t('profilePage.callParent')}
+                            </Button>
+                        )}
+                        <AccessControl id="students_update">
+                            <Button variant="quiet" leftIcon={Pencil} onClick={() => setEditing(true)}>{t('profilePage.edit')}</Button>
+                        </AccessControl>
+                    </>
+                }
+            />
+
+            <Figures data={data} />
+
+            <Tabs variant="underline" items={tabs} value={tab} onChange={setTab} aria-label={student.name} />
+
+            <div role="tabpanel" aria-label={t(`profilePage.tabs.${tab}`)} className="min-w-0">
+                {tab === 'overview' && (
+                    <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:gap-4">
+                        <div className="flex min-w-0 flex-col gap-3.5">
+                            <Results data={data} />
+                            <Fees data={data} />
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-3.5">
+                            <Guardians data={data} />
+                            <Attendance data={data} />
+                            <Assignments data={data} />
+                            <Leave data={data} />
+                        </div>
                     </div>
                 )}
-            </li>
-        );
-    };
-
-    return shell(
-        <div className="space-y-5">
-            {/* Identity */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <div className="flex flex-col md:flex-row md:items-start gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-brand/10 text-brand flex items-center justify-center text-xl font-black shrink-0">
-                        {student.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{student.name}</h1>
-                        <p className="text-slate-500 font-medium">
-                            {enrollment
-                                ? `${enrollment.class_name}${enrollment.section_name ? ' ' + enrollment.section_name : ''}`
-                                : t('profile.notEnrolled')}
-                            {student.admission_no ? ' · ' + student.admission_no : ''}
-                        </p>
-                        <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3 text-sm font-medium text-slate-500">
-                            {student.dob && (
-                                <span>{t('profile.dob')}: {df.date(student.dob)}</span>
-                            )}
-                            {student.blood_group && (
-                                <span>{t('profile.bloodGroup')}: {student.blood_group}</span>
-                            )}
-                            {student.city && (
-                                <span className="inline-flex items-center gap-1.5">
-                                    <MapPin className="w-3.5 h-3.5" />{student.city}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    {student.status && (
-                        <span className={cn(
-                            'text-[10px] font-black uppercase px-2.5 py-1 rounded-lg shrink-0',
-                            student.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500',
-                        )}>
-                            {student.status}
-                        </span>
-                    )}
-                </div>
+                {tab === 'attendance' && <Attendance data={data} />}
+                {tab === 'marks' && <Results data={data} />}
+                {tab === 'fees' && <Fees data={data} />}
+                {tab === 'guardians' && <Guardians data={data} />}
             </div>
 
-            {/* Headline numbers */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <Stat
-                        label={t('profile.feeBalance')}
-                        value={money(fees.balance)}
-                        tone={fees.balance > 0 ? 'text-red-500' : 'text-emerald-600'}
-                    />
-                    <p className="text-xs font-bold text-slate-400 mt-1">
-                        {money(fees.total_paid)} {t('profile.paidOf')} {money(fees.total_assigned)}
-                    </p>
-                </div>
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <Stat
-                        label={t('profile.attendance')}
-                        value={attendance.year_pct != null ? attendance.year_pct + '%' : '—'}
-                        tone={attendance.year_pct != null && attendance.year_pct < 80 ? 'text-amber-600' : undefined}
-                    />
-                    <p className="text-xs font-bold text-slate-400 mt-1">
-                        {t('profile.thisYear')} · {t('profile.nAbsences', { count: attendance.absences })}
-                    </p>
-                </div>
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <Stat
-                        label={t('profile.latestResult')}
-                        value={results.latest ? results.latest.percent.toFixed(1) + '%' : '—'}
-                        tone={results.latest?.result === 'FAIL' ? 'text-red-500' : undefined}
-                    />
-                    <p className="text-xs font-bold text-slate-400 mt-1">
-                        {results.latest
-                            ? `${t('profile.gpaShort')} ${results.latest.gpa.toFixed(2)} · ${results.latest.grade ?? ''}`
-                            : t('profile.noResults')}
-                    </p>
-                </div>
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                    <Stat label={t('profile.assignments')} value={assignments.total} />
-                    <p className="text-xs font-bold text-slate-400 mt-1">
-                        {assignments.by_status.missing
-                            ? t('profile.nMissing', { count: assignments.by_status.missing })
-                            : t('profile.noneMissing')}
-                    </p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="lg:col-span-2 space-y-5">
-                    {/* Results */}
-                    <Card title={t('profile.results')} icon={GraduationCap}>
-                        {results.exams.length === 0 ? (
-                            <p className="text-sm font-medium text-slate-400">{t('profile.noResults')}</p>
-                        ) : (
-                            <ul className="space-y-2">{results.exams.map(examRow)}</ul>
-                        )}
-                    </Card>
-
-                    {/* Fee ledger */}
-                    <Card title={t('profile.feeLedger')} icon={Wallet}>
-                        <div className="overflow-x-auto -mx-5 -mb-5">
-                            <table className="w-full min-w-[460px]">
-                                <thead className="bg-slate-50 border-y border-slate-100">
-                                    <tr>
-                                        <th className="px-5 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                            {t('profile.feeHead')}
-                                        </th>
-                                        <th className="px-4 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                            {t('profile.assigned')}
-                                        </th>
-                                        <th className="px-4 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                            {t('profile.paid')}
-                                        </th>
-                                        <th className="px-5 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                            {t('profile.balance')}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {fees.ledger.map((l) => (
-                                        <tr key={l.fee_structure_id}>
-                                            <td className="px-5 py-2.5 text-sm font-medium text-slate-700">
-                                                {l.name}
-                                                <span className="text-[11px] text-slate-400 ml-1.5">{l.frequency}</span>
-                                            </td>
-                                            <td className="px-4 py-2.5 text-sm text-right tabular-nums text-slate-500">
-                                                {money(l.assigned)}
-                                            </td>
-                                            <td className="px-4 py-2.5 text-sm text-right tabular-nums text-emerald-600">
-                                                {money(l.paid)}
-                                            </td>
-                                            <td className={cn(
-                                                'px-5 py-2.5 text-sm font-black text-right tabular-nums',
-                                                l.balance > 0 ? 'text-red-500' : 'text-slate-300',
-                                            )}>
-                                                {money(l.balance)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-
-                    {/* Payments */}
-                    <Card title={t('profile.payments')} icon={Receipt}>
-                        {fees.payments.length === 0 ? (
-                            <p className="text-sm font-medium text-slate-400">{t('profile.noPayments')}</p>
-                        ) : (
-                            <ul className="divide-y divide-slate-50 -mx-1">
-                                {fees.payments.map((p) => (
-                                    <li key={p.id} className="flex items-center justify-between gap-3 py-2 px-1">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-slate-800 truncate">
-                                                {p.fee_head || t('profile.unallocated')}
-                                            </p>
-                                            <p className="text-[11px] font-mono text-slate-400">
-                                                {p.receipt_no} · {p.paid_at ? df.date(p.paid_at) : ''}
-                                            </p>
-                                        </div>
-                                        <span className={cn(
-                                            'text-sm font-black tabular-nums shrink-0',
-                                            p.amount < 0 ? 'text-red-500' : 'text-emerald-600',
-                                        )}>
-                                            {money(p.amount)}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Card>
-                </div>
-
-                <div className="space-y-5">
-                    {/* Guardians */}
-                    <Card title={t('profile.guardians')} icon={Users}>
-                        {guardians.length === 0 ? (
-                            <p className="text-sm font-medium text-slate-400">{t('profile.noGuardians')}</p>
-                        ) : (
-                            <ul className="space-y-3">
-                                {guardians.map((g) => (
-                                    <li key={g.parent_id}>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-bold text-slate-800">{g.name}</p>
-                                            {g.is_primary_contact && (
-                                                <span className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-brand/10 text-brand">
-                                                    {t('profile.primary')}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-xs font-medium text-slate-400 capitalize">
-                                            {g.relationship}{g.occupation ? ' · ' + g.occupation : ''}
-                                        </p>
-                                        <div className="flex flex-col gap-0.5 mt-1">
-                                            {g.phone && (
-                                                <a href={'tel:' + g.phone}
-                                                   className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-brand">
-                                                    <Phone className="w-3 h-3" />{g.phone}
-                                                </a>
-                                            )}
-                                            {g.email && (
-                                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                                                    <Mail className="w-3 h-3" />{g.email}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Card>
-
-                    {/* Attendance */}
-                    <Card title={t('profile.attendance')} icon={CheckCircle2}>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                            <Stat label={t('profile.thisYear')}
-                                  value={attendance.year_pct != null ? attendance.year_pct + '%' : '—'} />
-                            <Stat label={t('profile.last30')}
-                                  value={attendance.last_30_pct != null ? attendance.last_30_pct + '%' : '—'} />
-                        </div>
-                        {attendance.recent.length > 0 && (
-                            <>
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                                    {t('profile.recentDays')}
-                                </p>
-                                <div className="flex flex-wrap gap-1">
-                                    {attendance.recent.map((r) => (
-                                        <span
-                                            key={r.date}
-                                            title={df.date(r.date) + ' · ' + r.status}
-                                            className={cn('w-5 h-5 rounded text-[9px] font-black text-white flex items-center justify-center',
-                                                ATTENDANCE_TONE[r.status] || 'bg-slate-300')}
-                                        >
-                                            {r.status}
-                                        </span>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </Card>
-
-                    {/* Assignments */}
-                    <Card title={t('profile.assignments')} icon={ClipboardList}>
-                        {assignments.total === 0 ? (
-                            <p className="text-sm font-medium text-slate-400">{t('profile.noAssignments')}</p>
-                        ) : (
-                            <>
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {Object.entries(assignments.by_status).map(([k, v]) => (
-                                        <span key={k} className={cn(
-                                            'px-2.5 py-1 rounded-lg text-xs font-bold',
-                                            k === 'graded' ? 'bg-emerald-50 text-emerald-600'
-                                                : k === 'missing' ? 'bg-red-50 text-red-500'
-                                                    : k === 'submitted' ? 'bg-blue-50 text-blue-600'
-                                                        : 'bg-slate-100 text-slate-500',
-                                        )}>
-                                            {v} {k}
-                                        </span>
-                                    ))}
-                                </div>
-                                <ul className="divide-y divide-slate-50 -mx-1">
-                                    {assignments.recent.slice(0, 6).map((a) => (
-                                        <li key={a.assignment_id} className="flex items-center justify-between gap-2 py-2 px-1">
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-slate-700 truncate">{a.title}</p>
-                                                <p className="text-[11px] font-medium text-slate-400">
-                                                    {a.subject_name}{a.due_date ? ' · ' + df.date(a.due_date) : ''}
-                                                </p>
-                                            </div>
-                                            {a.grade && (
-                                                <span className="text-xs font-black text-brand shrink-0">{a.grade}</span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </>
-                        )}
-                    </Card>
-
-                    {/* Leave */}
-                    <Card title={t('profile.leave')} icon={Clock}>
-                        {leave.requests.length === 0 ? (
-                            <p className="text-sm font-medium text-slate-400">{t('profile.noLeaveRequests')}</p>
-                        ) : (
-                            <ul className="divide-y divide-slate-50 -mx-1">
-                                {leave.requests.slice(0, 6).map((l) => (
-                                    <li key={l.id} className="flex items-center justify-between gap-2 py-2 px-1">
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-bold text-slate-700 capitalize">{l.leave_type}</p>
-                                            <p className="text-[11px] font-medium text-slate-400">
-                                                {df.date(l.start_date)} · {t('profile.nDays', { count: l.days })}
-                                            </p>
-                                        </div>
-                                        <span className={cn(
-                                            'text-[10px] font-black uppercase px-2 py-1 rounded-lg shrink-0',
-                                            l.status === 'approved' ? 'bg-emerald-50 text-emerald-600'
-                                                : l.status === 'rejected' ? 'bg-red-50 text-red-500'
-                                                    : 'bg-amber-50 text-amber-600',
-                                        )}>
-                                            {l.status}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </Card>
-                </div>
-            </div>
-        </div>,
+            {editing && record && <EditStudentModal student={record} isOpen onClose={() => setEditing(false)} />}
+        </AppPage>
     );
 };
+
+function DateText({ v }: { v: string | null }) {
+    const df = useDateFormat();
+    return <>{v ? df.date(v, 'medium') : '—'}</>;
+}
+
+function Figures({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const { attendance, results, fees, assignments } = data;
+    const latest = results.latest;
+    return (
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:gap-3.5">
+            <KpiCard icon={CheckCircle2} tone="ok" status="ready" label={t('profile.attendance')}
+                value={attendance.year_pct != null ? `${formatCount(attendance.year_pct, lang)}%` : '—'}
+                sub={<span className="truncate">{t('profile.nAbsences', { count: attendance.absences })}</span>} />
+            <KpiCard icon={GraduationCap} tone="brand" status="ready" label={t('profile.latestResult')}
+                value={latest ? `${latest.percent.toFixed(1)}%` : '—'}
+                sub={latest ? (
+                    <>
+                        <Badge tone={latest.result === 'FAIL' ? 'bad' : latest.result === 'PASS' ? 'ok' : 'neutral'}>{latest.grade || latest.result}</Badge>
+                        <span className="truncate">{t('profile.gpaShort')} {latest.gpa.toFixed(2)}</span>
+                    </>
+                ) : <span className="truncate">{t('profile.noResults')}</span>} />
+            <KpiCard icon={Wallet} tone={fees.balance > 0 ? 'bad' : 'ok'} status="ready" long label={t('profile.feeBalance')}
+                value={formatRs(fees.balance, lang)}
+                sub={<span className="truncate">{formatRs(fees.total_paid, lang)} {t('profile.paidOf')} {formatRs(fees.total_assigned, lang)}</span>} />
+            <KpiCard icon={ClipboardList} tone="info" status="ready" label={t('profile.assignments')}
+                value={formatCount(assignments.total, lang)}
+                sub={<span className="truncate">{assignments.by_status.missing ? t('profile.nMissing', { count: assignments.by_status.missing }) : t('profile.noneMissing')}</span>} />
+        </div>
+    );
+}
+
+function Results({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState<number | null>(data.results.exams[0]?.exam_id ?? null);
+    return (
+        <Card>
+            <CardHeader title={t('profile.results')} subtitle={data.results.exams_taken ? t('studentProfile.examsTaken', { count: data.results.exams_taken }) : undefined} />
+            {data.results.exams.length === 0 ? (
+                <p className="py-6 text-center type-small text-muted">{t('profile.noResults')}</p>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {data.results.exams.map((e) => (
+                        <ExamRow key={e.exam_id} exam={e} open={open === e.exam_id} onToggle={() => setOpen(open === e.exam_id ? null : e.exam_id)} />
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+}
+
+function ExamRow({ exam, open, onToggle }: { exam: ExamResult; open: boolean; onToggle: () => void }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const tone = exam.result === 'PASS' ? 'ok' : exam.result === 'FAIL' ? 'bad' : 'neutral';
+    return (
+        <li className="overflow-hidden rounded-row border border-line-subtle">
+            <button type="button" onClick={onToggle} aria-expanded={open}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-focus/60">
+                <div className="flex min-w-0 flex-1 flex-col gap-px">
+                    <span className="truncate type-body-semibold text-ink">{exam.exam_name}</span>
+                    <span className="truncate type-caption text-muted">{[exam.term, exam.sat_on ? df.date(exam.sat_on, 'medium') : null].filter(Boolean).join(', ')}</span>
+                </div>
+                <span className="type-body-semibold tabular-nums text-ink">{exam.percent.toFixed(1)}%</span>
+                <span className="type-caption tabular-nums text-muted max-sm:hidden">{t('profile.gpaShort')} {exam.gpa.toFixed(2)}</span>
+                <Badge tone={tone}>{exam.grade || exam.result}</Badge>
+                <ChevronDown size={16} className={cn('shrink-0 text-muted transition-transform', open && 'rotate-180')} aria-hidden />
+            </button>
+            {open && (
+                <div className="overflow-x-auto border-t border-line-subtle">
+                    <table className="w-full min-w-[420px] text-left">
+                        <thead className="bg-surface-2">
+                            <tr className="type-caption text-muted">
+                                <th className="px-4 py-2">{t('profile.subject')}</th>
+                                <th className="px-4 py-2 text-right">{t('profile.marks')}</th>
+                                <th className="px-4 py-2 text-right">{t('profile.percent')}</th>
+                                <th className="px-4 py-2 text-right">{t('profile.grade')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {exam.subjects.map((s) => (
+                                <tr key={s.subject_id + s.subject_name} className="border-t border-line-subtle type-small">
+                                    <td className="px-4 py-2 font-medium text-ink">{s.subject_name}</td>
+                                    <td className="px-4 py-2 text-right tabular-nums text-ink-2">{s.is_absent ? t('profile.absentShort') : `${s.obtained ?? '—'} / ${s.max_marks}`}</td>
+                                    <td className="px-4 py-2 text-right tabular-nums text-ink-2">{s.percent != null ? `${s.percent.toFixed(1)}%` : '—'}</td>
+                                    <td className={cn('px-4 py-2 text-right font-semibold', s.is_pass === false ? 'text-bad' : 'text-ink')}>{s.grade || '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </li>
+    );
+}
+
+function Fees({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { fees } = data;
+    const last = fees.payments.find((p) => p.amount > 0);
+    return (
+        <Card className="gap-2.5">
+            <CardHeader title={t('profile.feeLedger')} subtitle={last?.paid_at ? t('profilePage.lastPayment', { amount: formatRs(last.amount, df.lang), date: df.date(last.paid_at, 'medium') }) : undefined} />
+            <div className="-mx-5 overflow-x-auto">
+                <table className="w-full min-w-[460px] text-left">
+                    <thead className="border-y border-line-subtle bg-surface-2">
+                        <tr className="type-caption text-muted">
+                            <th className="px-5 py-2">{t('profile.feeHead')}</th>
+                            <th className="px-3 py-2 text-right">{t('profile.assigned')}</th>
+                            <th className="px-3 py-2 text-right">{t('profile.paid')}</th>
+                            <th className="px-5 py-2 text-right">{t('profile.balance')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {fees.ledger.map((l) => (
+                            <tr key={l.fee_structure_id} className="border-b border-line-subtle type-small">
+                                <td className="px-5 py-3"><span className="font-medium text-ink">{l.name}</span> <span className="text-muted">{l.frequency}</span></td>
+                                <td className="px-3 py-3 text-right tabular-nums text-ink-2">{formatRs(l.assigned, df.lang)}</td>
+                                <td className="px-3 py-3 text-right tabular-nums text-ok">{formatRs(l.paid, df.lang)}</td>
+                                <td className={cn('px-5 py-3 text-right font-semibold tabular-nums', l.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(l.balance, df.lang)}</td>
+                            </tr>
+                        ))}
+                        <tr className="type-small-semibold">
+                            <td className="px-5 py-2.5 text-ink">{t('profilePage.total')}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-ink">{formatRs(fees.total_assigned, df.lang)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-ok">{formatRs(fees.total_paid, df.lang)}</td>
+                            <td className={cn('px-5 py-2.5 text-right tabular-nums', fees.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(fees.balance, df.lang)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {fees.payments.length > 0 && (
+                <div className="flex flex-col">
+                    <p className="mt-2 mb-1 type-caption-semibold text-muted">{t('profile.payments')}</p>
+                    <ul>
+                        {fees.payments.map((p) => (
+                            <li key={p.id} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
+                                <Receipt size={16} className="shrink-0 text-muted" aria-hidden />
+                                <div className="flex min-w-0 flex-1 flex-col gap-px">
+                                    <span className="truncate type-small-medium text-ink">{p.fee_head || t('profile.unallocated')}</span>
+                                    <span className="truncate font-mono text-[11px] text-muted">{[p.receipt_no, p.paid_at ? df.date(p.paid_at, 'medium') : null].filter(Boolean).join(', ')}</span>
+                                </div>
+                                <span className={cn('shrink-0 type-small-semibold tabular-nums', p.amount < 0 ? 'text-bad' : 'text-ok')}>{formatRs(p.amount, df.lang)}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </Card>
+    );
+}
+
+function Guardians({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    return (
+        <Card>
+            <CardHeader title={t('profile.guardians')} />
+            {data.guardians.length === 0 ? (
+                <p className="py-4 text-center type-small text-muted">{t('profile.noGuardians')}</p>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {data.guardians.map((g) => (
+                        <li key={g.parent_id} className="flex flex-col gap-2 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-3">
+                            <div className="flex items-center gap-2">
+                                <Users size={16} className="shrink-0 text-muted" aria-hidden />
+                                <span className="min-w-0 flex-1 truncate type-body-semibold text-ink">{g.name}</span>
+                                {g.is_primary_contact && <Badge tone="brand">{t('profile.primary')}</Badge>}
+                            </div>
+                            <p className="type-caption text-muted">
+                                {[g.relationship ? t(`registerFamily.relationship.${g.relationship}`, { defaultValue: g.relationship }) : null, g.occupation].filter(Boolean).join(', ')}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {g.phone && (
+                                    <a href={`tel:${g.phone}`} className="inline-flex h-[34px] items-center gap-1.5 rounded-full bg-surface px-3 type-label-s text-ink ring-1 ring-inset ring-line outline-none hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60">
+                                        <Phone size={14} aria-hidden /> {g.phone}
+                                    </a>
+                                )}
+                                {g.email && (
+                                    <a href={`mailto:${g.email}`} className="inline-flex h-[34px] min-w-0 items-center gap-1.5 rounded-full bg-surface px-3 type-label-s text-ink ring-1 ring-inset ring-line outline-none hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60">
+                                        <Mail size={14} aria-hidden /> <span className="truncate">{g.email}</span>
+                                    </a>
+                                )}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+}
+
+function Attendance({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { attendance } = data;
+    const pct = (v: number | null) => (v != null ? `${formatCount(v, df.lang)}%` : '—');
+    return (
+        <Card>
+            <CardHeader title={t('profile.attendance')} subtitle={t('profile.nAbsences', { count: attendance.absences })} />
+            <div className="grid grid-cols-2 gap-3">
+                {[[t('profile.thisYear'), attendance.year_pct], [t('profile.last30'), attendance.last_30_pct]].map(([label, v]) => (
+                    <div key={String(label)} className="rounded-row bg-surface-2 px-3.5 py-3">
+                        <p className="type-caption text-muted">{label}</p>
+                        <p className="type-figure-m text-ink">{pct(v as number | null)}</p>
+                    </div>
+                ))}
+            </div>
+            {attendance.recent.length > 0 && (
+                <>
+                    <p className="type-caption-semibold text-muted">{t('profile.recentDays')}</p>
+                    <ul className="flex flex-wrap gap-[5px]">
+                        {attendance.recent.map((r) => (
+                            <li key={r.date} title={`${df.date(r.date, 'medium')}: ${t(`profilePage.status.${r.status}`, { defaultValue: r.status })}`}
+                                className={cn('grid size-7 place-items-center rounded-[8px] type-micro-bold', DAY_TONE[r.status] ?? 'bg-sunken text-muted')}>
+                                {r.status}
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {(['P', 'A', 'L', 'HD'] as const).map((s) => (
+                            <span key={s} className="inline-flex items-center gap-1.5 type-caption text-ink-2">
+                                <span aria-hidden className={cn('size-2 rounded-[3px]', DAY_TONE[s].split(' ')[0])} />
+                                {t(`profilePage.status.${s}`)}
+                            </span>
+                        ))}
+                    </div>
+                </>
+            )}
+        </Card>
+    );
+}
+
+function Assignments({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { assignments } = data;
+    if (assignments.total === 0) return null;
+    return (
+        <Card className="gap-2.5">
+            <CardHeader title={t('profile.assignments')} subtitle={assignments.by_status.missing ? t('profile.nMissing', { count: assignments.by_status.missing }) : t('profile.noneMissing')} />
+            <ul>
+                {assignments.recent.slice(0, 5).map((a) => (
+                    <li key={a.assignment_id} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
+                        <div className="flex min-w-0 flex-1 flex-col gap-px">
+                            <span className="truncate type-small-medium text-ink">{a.title}</span>
+                            <span className="truncate type-caption text-muted">{[a.subject_name, a.due_date ? df.date(a.due_date, 'medium') : null].filter(Boolean).join(', ')}</span>
+                        </div>
+                        <Badge tone={a.status === 'graded' ? 'ok' : a.status === 'missing' ? 'bad' : a.status === 'submitted' ? 'brand' : 'neutral'}>{a.grade || a.status}</Badge>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+}
+
+function Leave({ data }: { data: StudentProfile }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { leave } = data;
+    return (
+        <Card className="gap-2.5">
+            <CardHeader title={t('profile.leave')} />
+            {leave.requests.length === 0 ? (
+                <p className="py-2 type-small text-muted">{t('profile.noLeaveRequests')}</p>
+            ) : (
+                <ul>
+                    {leave.requests.slice(0, 5).map((l) => (
+                        <li key={l.id} className="flex items-center gap-3 border-b border-line-subtle py-2 last:border-0">
+                            <Umbrella size={16} className="shrink-0 text-muted" aria-hidden />
+                            <div className="flex min-w-0 flex-1 flex-col gap-px">
+                                <span className="truncate type-small-medium capitalize text-ink">{l.leave_type}</span>
+                                <span className="truncate type-caption text-muted">{df.date(l.start_date, 'medium')}, {t('profilePage.days', { count: l.days, n: formatCount(l.days, df.lang) })}</span>
+                            </div>
+                            <Badge tone={l.status === 'approved' ? 'ok' : l.status === 'rejected' ? 'bad' : 'warn'} dot>
+                                {t(`profilePage.${l.status}`, { defaultValue: l.status })}
+                            </Badge>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </Card>
+    );
+}
 
 export default StudentDetailPage;

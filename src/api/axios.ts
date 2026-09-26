@@ -29,8 +29,15 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
+        // A 401 from the auth endpoints themselves means "wrong credentials" or
+        // "bad refresh token", not "access token expired". Refreshing there has
+        // nothing to refresh, and would replace the server's answer with a
+        // generic error, so the sign-in page could not tell a wrong password
+        // from a dropped connection.
+        const isAuthCall = /auth\/(login|refresh-token|register|password-reset)/.test(originalRequest?.url ?? '');
+
         // If error is 401 and we haven't tried refreshing yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthCall) {
             originalRequest._retry = true;
 
             try {

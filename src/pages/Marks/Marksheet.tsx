@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Printer, Loader2, FileText, ArrowLeft } from 'lucide-react';
+import { Printer, FileText, ArrowLeft } from 'lucide-react';
+import { Badge, Button, Card, EmptyState, Skeleton } from '../../design-system';
 import type { ReportCard } from '../../api/services/exams.service';
 import { cn } from '../../utils/cn';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { academicYearLabel } from '../../utils/academicYear';
 
 /**
  * One student's result for one exam, laid out to be printed.
@@ -88,7 +90,7 @@ export const MarksheetDocument: React.FC<{ data: ReportCard }> = ({ data }) => {
             </header>
 
             <p className="text-center text-sm font-black uppercase tracking-[0.2em] text-slate-700 mb-5">
-                {exam.name}{exam.term ? ' · ' + exam.term : ''} · {exam.academic_year}
+                {exam.name}{exam.term ? ' · ' + exam.term : ''} · {academicYearLabel(exam.academic_year, df.lang)}
             </p>
 
             <dl className="grid grid-cols-2 gap-x-8 gap-y-1.5 mb-5 text-sm">
@@ -196,58 +198,37 @@ export const Marksheet: React.FC<{
     onBack: () => void;
 }> = ({ data, isLoading, isError, onBack }) => {
     const { t } = useTranslation();
-
-    const BackLink = () => (
-        <button
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-            <ArrowLeft className="w-4 h-4" />
-            {t('marks.backToClass')}
-        </button>
+    const bar = (
+        <div className="no-print flex flex-wrap items-center gap-2">
+            <Button variant="ghost" leftIcon={ArrowLeft} onClick={onBack}>{t('marks.backToClass')}</Button>
+            {data && !isLoading && !isError && (
+                <>
+                    <Badge tone={data.result === 'PASS' ? 'ok' : data.result === 'FAIL' ? 'bad' : 'neutral'} dot>{t(`marksPage.result.${data.result}`, { defaultValue: data.result })}</Badge>
+                    <Button variant="secondary" leftIcon={Printer} onClick={() => window.print()} className="ml-auto">{t('marks.printMarksheet')}</Button>
+                </>
+            )}
+        </div>
     );
 
     if (isLoading) {
-        return (
-            <>
-                <div className="mb-3"><BackLink /></div>
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-16 flex justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-                </div>
-            </>
-        );
+        return <div className="flex flex-col gap-3.5">{bar}<Skeleton className="mx-auto h-[640px] w-full max-w-3xl rounded-card" /></div>;
     }
-
     if (isError || !data) {
         return (
-            <>
-                <div className="mb-3"><BackLink /></div>
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-                    <FileText className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                    <p className="font-bold text-slate-500">{t('marks.noMarksheet')}</p>
-                    <p className="text-sm font-medium text-slate-400 mt-1">{t('marks.noMarksheetWhy')}</p>
-                </div>
-            </>
+            <div className="flex flex-col gap-3.5">
+                {bar}
+                <Card><EmptyState icon={FileText} title={t('marks.noMarksheet')}>{t('marks.noMarksheetWhy')}</EmptyState></Card>
+            </div>
         );
     }
-
     return (
-        <>
+        <div className="flex flex-col gap-3.5">
             <PrintStyles />
-            <div className="flex items-center mb-3 no-print">
-                <BackLink />
-                <button
-                    onClick={() => window.print()}
-                    className="ml-auto inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-colors"
-                >
-                    <Printer className="w-4 h-4" />
-                    {t('marks.printMarksheet')}
-                </button>
-            </div>
+            {bar}
             <div className="print-root">
                 <MarksheetDocument data={data} />
             </div>
-        </>
+        </div>
     );
 };
 

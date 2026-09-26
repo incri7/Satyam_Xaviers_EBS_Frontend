@@ -21,4 +21,12 @@ i18n
         },
     });
 
+// Keep <html lang> in step with the UI language: screen readers pick their
+// voice from it, and the design tokens give Devanagari taller line heights.
+const syncDocumentLang = (lng: string) => {
+    document.documentElement.lang = lng?.startsWith('ne') ? 'ne' : 'en';
+};
+syncDocumentLang(i18n.language);
+i18n.on('languageChanged', syncDocumentLang);
+
 export default i18n;

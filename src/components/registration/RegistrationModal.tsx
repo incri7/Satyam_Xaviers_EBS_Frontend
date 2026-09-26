@@ -1,903 +1,384 @@
-import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, ArrowLeft, CheckCircle2, Users, ChevronDown, UserPlus, User, Lock, GraduationCap } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { useRegistrationStore } from '../../store/useRegistrationStore';
+import { useState, type ReactNode } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { ArrowLeft, CheckCircle2, Mail, Pencil, Phone, Plus, Trash2, UserPlus } from 'lucide-react';
+
+import {
+    Banner,
+    Button,
+    Dialog,
+    FormRow,
+    IconTile,
+    SegmentedControl,
+    SelectField,
+    Stepper,
+    TextField,
+} from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import { academicsService } from '../../api/services/academics.service';
-
-export type RegistrationStep = 'user-account' | 'parent-details' | 'student-registration';
+import type { StudentCreate } from '../../types/people';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatISODate } from '../../utils/nepaliDate';
+import { errorText } from '../../features/people/format';
+import { bloodGroupOptions, genderOptions } from '../../features/people/options';
 
 interface RegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-interface Student {
-    firstName: string;
-    middleName: string;
-    lastName: string;
+type Relationship = 'father' | 'mother' | 'guardian' | 'other';
+const RELATIONSHIPS: Relationship[] = ['father', 'mother', 'guardian', 'other'];
+
+interface ChildDraft {
+    first_name: string;
+    middle_name: string;
+    last_name: string;
     dob: string;
     gender: string;
-    bloodGroup: string;
-    city: string;
-    state: string;
-    pincode: string;
-    admissionDate: string;
-    grade: string;
-    relationship: string;
-    isPrimary: boolean;
+    blood_group: string;
+    class_id: string;
+    admission_date: string;
+    relationship: Relationship;
 }
 
-interface FormData {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    password: string; // Added password
-    role: string;
-    middleName: string;
+interface ParentDraft {
+    first_name: string;
+    last_name: string;
     occupation: string;
-    nationalId: string;
-    address: string;
+    phone: string;
+    email: string;
+    national_id: string;
+    address_line: string;
     city: string;
     state: string;
-    pincode: string;
-    students: Student[];
 }
 
-export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }) => {
-    const {setStep1, setStep2, addStudent: storeAddStudent, updateStudent: storeUpdateStudent, removeStudent: storeRemoveStudent, reset: resetStore } = useRegistrationStore();
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [success, setSuccess] = useState(false);
+// The backend's rule for names (app/schemas: letters, spaces, ' . -; 2+).
+const NAME = /^[A-Za-z\s'.-]{2,}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    const [currentStep, setCurrentStep] = useState<RegistrationStep>('user-account');
-    const [studentStepView, setStudentStepView] = useState<'choice' | 'list' | 'form'>('choice');
-    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+const emptyChild = (): ChildDraft => ({
+    first_name: '', middle_name: '', last_name: '', dob: '', gender: '', blood_group: '', class_id: '',
+    admission_date: formatISODate(new Date()), relationship: 'father',
+});
+const emptyParent: ParentDraft = { first_name: '', last_name: '', occupation: '', phone: '', email: '', national_id: '', address_line: '', city: '', state: '' };
 
-    const initialFormData: FormData = {
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        password: '',
-        role: 'Parent',
-        middleName: '',
-        occupation: '',
-        nationalId: '',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        students: [],
-    };
-
-    const [formData, setFormData] = useState<FormData>(initialFormData);
-
-    const [currentStudent, setCurrentStudent] = useState<Student>({
-        firstName: '',
-        middleName: '',
-        lastName: '',
-        dob: '',
-        gender: 'Select gender',
-        bloodGroup: 'Select blood group',
-        city: '',
-        state: '',
-        pincode: '',
-        admissionDate: '',
-        grade: 'Select class',
-        relationship: 'Father',
-        isPrimary: false,
-    });
-
-    const [classOptions, setClassOptions] = useState<{ id: number; name: string }[]>([
-        { id: 0, name: 'Select class' }
-    ]);
-
-    // Fetch classes and set it to classOptions
-    useEffect(() => {
-        const fetchClasses = async () => {
-            try {
-                const res = await academicsService.getClasses();
-                setClassOptions([
-                    { id: 0, name: 'Select class' },
-                    ...res.classes.map(({ id, name }) => ({ id, name }))
-                ]);
-            }catch(error){
-                console.log(error);
-            }
-        }
-        fetchClasses();
-    }, []);
-        
-
-    // Reset form data
-    // when the registration is success
-    // and is opened again
-    useEffect(() => {
-        if(success)
-            resetData();
-    }, [isOpen]);
-
-    const resetData = ()=>{
-        setSuccess(false);
-        setError(null);
-        setFieldErrors({});
-        setCurrentStep('user-account');
-        setStudentStepView('choice');
-        setEditingIndex(null);
-        setFormData(initialFormData);
-        resetStore();
-    }
-
-    if (!isOpen) return null;
-
-    const steps: { id: RegistrationStep; label: string }[] = [
-        { id: 'user-account', label: 'User Account' },
-        { id: 'parent-details', label: 'Parent Details' },
-        { id: 'student-registration', label: 'Student Info' },
-    ];
-
-    const genderOptions = {
-        'Select gender': 'Select gender',
-        'Male': 'M',
-        'Female': 'F',
-        'Other': 'O'
-    };
-    const bloodGroupOptions = {
-        'Select blood group': 'Select blood group',
-        'A+': 'A+',
-        'A-': 'A-',
-        'B+': 'B+',
-        'B-': 'B-',
-        'O+': 'O+',
-        'O-': 'O-',
-        'AB+': 'AB+',
-        'AB-': 'AB-'
-
-    }
-
-    const stepIndex = steps.findIndex(s => s.id === currentStep);
-
-    const validateStep = () => {
-        const errors: Record<string, string> = {};
-
-        if (currentStep === 'user-account') {
-            if (!formData.firstName) errors.firstName = 'First name is required';
-            else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName)) errors.firstName = 'First name invalid';
-            if (formData.middleName && !/^[a-zA-Z\s'-]+$/.test(formData.middleName)) errors.middleName = 'Middle name invalid';
-            if (!formData.lastName) errors.lastName = 'Last name is required';
-            else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName)) errors.lastName = 'Last name invalid';
-            if (!formData.email) errors.email = 'Email is required';
-            else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Email is invalid';
-            if (!formData.phone) errors.phone = 'Phone number is required';
-            else {
-                const cleanPhone = formData.phone.replace(/[\s-]/g, '');
-                if (cleanPhone.startsWith('+')) {
-                    if (cleanPhone.length > 16) errors.phone = 'Phone number with country code must not exceed 16 characters';
-                } else {
-                    if (cleanPhone.length !== 10) errors.phone = 'Invalid phone number';
-                }
-            }
-        } else if (currentStep === 'parent-details') {
-            if (!formData.firstName) errors.firstName = 'First name is required';
-            else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName)) errors.firstName = 'First name invalid';
-            if (formData.middleName && !/^[a-zA-Z\s'-]+$/.test(formData.middleName)) errors.middleName = 'Middle name invalid';
-            if (!formData.lastName) errors.lastName = 'Last name is required';
-            else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName)) errors.lastName = 'Last name invalid';
-            if(!formData.occupation) errors.occupation = "Occupation is required";
-            else if(!/^[a-zA-Z\s'-]+$/.test(formData.occupation)) errors.occupation = 'Occupation invalid';
-            if(!formData.nationalId) errors.nationalId = "National Id is required";
-            else if(!/^[0-9-]+$/.test(formData.nationalId)) errors.nationalId = 'National Id invalid';
-            if(!formData.address) errors.address = "Address is required";
-            if (!formData.city) errors.city = 'City is required';
-            else if (!/^[a-zA-Z\s]+$/.test(formData.city)) errors.city = 'City invalid';
-            if (!formData.state) errors.state = 'State is required';
-            else if (!/^[a-zA-Z\s]+$/.test(formData.state)) errors.state = 'State invalid';
-            if (!formData.pincode) errors.pincode = 'Pincode is required';
-            else if (!/^[0-9]+$/.test(formData.pincode)) errors.pincode = 'Pincode invalid';
-        } else if (currentStep === 'student-registration') {
-            if (formData.students.length === 0) {
-                setError('Please add at least one student before completing registration.');
-                return false;
-            }
-        }
-
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const validateStudent = () => {
-        const errors: Record<string, string> = {};
-        if (!currentStudent.firstName) errors.studentFirstName = 'First name is required';
-        else if (!/^[a-zA-Z\s'-]+$/.test(currentStudent.firstName)) errors.studentFirstName = 'First name invalid';
-        if (currentStudent.middleName && !/^[a-zA-Z\s'-]+$/.test(currentStudent.middleName)) errors.studentmiddleName = 'Middle name invalid';
-        if (!currentStudent.lastName) errors.studentLastName = 'Last name is required';
-        else if (!/^[a-zA-Z\s'-]+$/.test(currentStudent.lastName)) errors.studentLastName = 'Last name invalid';
-        if (!currentStudent.dob) errors.studentDob = 'Date of birth is required';
-        else {
-            const dobDate = new Date(currentStudent.dob);
-            const fourYearsAgo = new Date();
-            fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
-            if (dobDate > fourYearsAgo) {
-                errors.studentDob = 'Student must be at least 4 years old';
-            }
-        }
-        if (currentStudent.gender === 'Select gender') errors.studentGender = 'Gender is required';
-        if (currentStudent.bloodGroup === 'Select blood group') errors.studentBloodGroup = 'Blood group is required';
-        if(!currentStudent.city) errors.studentCity = 'City is required';
-        else if(!/^[a-zA-Z\s'-]+$/.test(currentStudent.city)) errors.studentCity = 'City invalid';
-        if(!currentStudent.state) errors.studentState = 'State is required';
-        else if(!/^[a-zA-Z\s'-]+$/.test(currentStudent.state)) errors.studentState = 'State invalid';
-        if(!currentStudent.pincode) errors.studentPincode = 'Pincode is required';
-        else if (!/^[0-9]+$/.test(currentStudent.pincode)) errors.studentPincode = 'Pincode invalid';
-        if (!currentStudent.admissionDate) errors.studentAdmissionDate = 'Admission date is required';
-        if (currentStudent.grade === 'Select class') errors.studentGrade = 'Class is required';
-
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const updateField = (field: keyof FormData, value: any) => {
-        setFormData((prev) => {
-            if (field === 'city' || field === 'state' || field === 'pincode') {
-                return {
-                    ...prev,
-                    [field]: value,
-                    students: prev.students.map((student) => ({
-                        ...student,
-                        city: field === 'city' ? value : prev.city,
-                        state: field === 'state' ? value : prev.state,
-                        pincode: field === 'pincode' ? value : prev.pincode,
-                    })),
-                };
-            }
-
-            return { ...prev, [field]: value };
-        });
-        if (fieldErrors[field]) {
-            setFieldErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[field];
-                return newErrors;
-            });
-        }
-    };
-
-    const updateStudentField = (field: keyof Student, value: any) => {
-        setCurrentStudent((prev: Student) => ({ ...prev, [field]: value }));
-        const errorKey = `student${field.charAt(0).toUpperCase()}${field.slice(1)}`;
-        if (fieldErrors[errorKey]) {
-            setFieldErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[errorKey];
-                return newErrors;
-            });
-        }
-    };
-
-    const saveStudent = () => {
-        if (!validateStudent()) return;
-
-        if (editingIndex !== null) {
-            const updatedStudents = [...formData.students];
-            updatedStudents[editingIndex] = currentStudent;
-            updateField('students', updatedStudents);
-            storeUpdateStudent(editingIndex, {
-                ...currentStudent,
-                relationship: currentStudent.relationship
-            });
-        } else {
-            updateField('students', [...formData.students, currentStudent]);
-            storeAddStudent({
-                ...currentStudent,
-                relationship: currentStudent.relationship
-            });
-        }
-        setStudentStepView('list');
-        setEditingIndex(null);
-    };
-
-    const handleAddStudent = () => {
-        setCurrentStudent({
-            firstName: '',
-            middleName: '',
-            lastName: '',
-            dob: '',
-            gender: 'Select gender',
-            bloodGroup: 'Select blood group',
-            city: formData.city,
-            state: formData.state,
-            pincode: formData.pincode,
-            admissionDate: new Date().toISOString().split('T')[0],
-            grade: 'Select class',
-            relationship: 'Father',
-            isPrimary: formData.students.length === 0,
-        });
-        setEditingIndex(null);
-        setStudentStepView('form');
-    };
-
-    const handleEditStudent = (index: number) => {
-        setCurrentStudent(formData.students[index]);
-        setEditingIndex(index);
-        setStudentStepView('form');
-    };
-
-    const handleRemoveStudent = (index: number) => {
-        const updatedStudents = formData.students.filter((_, i) => i !== index);
-        updateField('students', updatedStudents);
-        storeRemoveStudent(index);
-        if (updatedStudents.length === 0) {
-            setStudentStepView('choice');
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-
-            <div className="relative bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-300">
-                {/* Modal Header */}
-                <div className="p-8 pb-4 flex flex-col">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white">
-                                <UserPlus className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-slate-900 tracking-tight">Parent & Student Registration</h2>
-                                <p className="text-sm font-medium text-slate-500">Step 1 of 3</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    {/* Thin Progress Bar */}
-                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-brand transition-all duration-500"
-                            style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
-                        />
-                    </div>
-                </div>
-
-                {/* Progress Stepper */}
-                <div className="px-10 py-6 border-b border-slate-100 flex items-center justify-between">
-                    {steps.map((step, idx) => (
-                        <div key={step.id} className="flex items-center gap-3">
-                            <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all",
-                                idx === stepIndex
-                                    ? "bg-brand text-white"
-                                    : idx < stepIndex
-                                        ? "bg-green-500 text-white"
-                                        : "bg-slate-100 text-slate-400"
-                            )}>
-                                {idx < stepIndex ? <CheckCircle2 className="w-5 h-5" /> : idx + 1}
-                            </div>
-                            <span className={cn(
-                                "text-sm font-semibold transition-colors",
-                                idx === stepIndex ? "text-slate-900" : "text-slate-400"
-                            )}>
-                                {idx === 0 ? 'User Account' : idx === 1 ? 'Parent Details' : 'Add Students'}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Step Content */}
-                <div className="flex-1 overflow-y-auto p-10 bg-white">
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl text-center font-medium animate-in fade-in slide-in-from-top-2">
-                            {error}
-                        </div>
-                    )}
-
-                    {success && (
-                        <div className="mb-6 p-8 bg-green-50 border border-green-100 rounded-2xl text-center space-y-4 animate-in zoom-in-95 duration-500">
-                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto text-green-500 shadow-sm">
-                                <CheckCircle2 className="w-10 h-10" />
-                            </div>
-                            <div className="space-y-1">
-                                <h3 className="text-xl font-bold text-slate-900">Registration Successful!</h3>
-                                <p className="text-sm text-green-700 font-medium">Please check your email for login credentials.</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {!success && currentStep === 'user-account' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
-                            {/* Blue Info Box */}
-                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                                    <User className="w-4 h-4" />
-                                </div>
-                                <p className="text-sm text-blue-700 font-medium">
-                                    You are creating a parent account. <span className="text-blue-600">The parent will receive login credentials via email.</span>
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.firstName} />
-                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.lastName} />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormInput label="Email Address" asterisk type="email" placeholder="parent@example.com" value={formData.email} onChange={(val) => updateField('email', val)} error={fieldErrors.email} />
-                                <FormInput label="Phone Number" asterisk placeholder="+977-9841234567" value={formData.phone} onChange={(val) => updateField('phone', val.replace(/[^\d\s+-]/g, ''))} error={fieldErrors.phone} />
-                            </div>
-
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-900">Role <span className="text-red-500">*</span></label>
-                                <div className="p-4 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-brand/5 rounded-xl flex items-center justify-center text-brand">
-                                            <Users className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">Parent</p>
-                                            <p className="text-xs text-slate-500">This role is automatically assigned</p>
-                                        </div>
-                                    </div>
-                                    <Lock className="w-5 h-5 text-slate-300" />
-                                </div>
-                                <p className="text-[11px] text-slate-400 font-medium px-1">Role is automatically set to Parent for this registration and cannot be changed.</p>
-                            </div>
-
-                            {/* Yellow Note Box */}
-                            <div className="p-5 bg-amber-50/50 border border-amber-100 rounded-xl">
-                                <p className="text-xs text-amber-800 leading-relaxed">
-                                    <span className="font-bold">Note:</span> A temporary password will be automatically generated and sent to the parent's email address. The parent must change this password on first login.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {!success && currentStep === 'parent-details' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-4xl mx-auto pb-10">
-                            {/* Personal Details */}
-                            <div className="space-y-6">
-                                <div className="border-b border-slate-100 pb-2">
-                                    <h3 className="text-lg font-bold text-slate-900">Personal Details</h3>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="First Name" asterisk placeholder="Ram" value={formData.firstName} onChange={(val) => updateField('firstName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.firstName} />
-                                    <FormInput label="Middle Name" placeholder="Kumar" value={formData.middleName} onChange={(val) => updateField('middleName', val.replace(/[^a-zA-Z\s'-]/g, ''))} />
-                                    <FormInput label="Last Name" asterisk placeholder="Sharma" value={formData.lastName} onChange={(val) => updateField('lastName', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.lastName} />
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <FormInput label="Occupation" asterisk placeholder="Engineer" value={formData.occupation} onChange={(val) => updateField('occupation', val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.occupation} />
-                                    <FormInput label="National ID (Citizenship)" asterisk placeholder="12345-6789-0123" value={formData.nationalId} onChange={(val) => updateField('nationalId', val.replace(/[^\d\s+-]/g, ''))} error={fieldErrors.nationalId}/>
-                                </div>
-                            </div>
-
-                            {/* Address Details */}
-                            <div className="space-y-6">
-                                <div className="border-b border-slate-100 pb-2">
-                                    <h3 className="text-lg font-bold text-slate-900">Address Details</h3>
-                                </div>
-                                <FormInput label="Address Line" asterisk placeholder="Hetauda-4, Makwanpur" value={formData.address} onChange={(val) => updateField('address', val)} error={fieldErrors.address} />
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <FormInput label="City" asterisk placeholder="Lalitpur" value={formData.city} onChange={(val) => updateField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.city} />
-                                    <FormInput label="State" asterisk placeholder="Bagmati" value={formData.state} onChange={(val) => updateField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.state} />
-                                    <FormInput label="Pincode" asterisk placeholder="44700" value={formData.pincode} onChange={(val) => updateField('pincode', val)} error={fieldErrors.pincode} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {!success && currentStep === 'student-registration' && (
-                        <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                            {studentStepView === 'choice' && (
-                                <div className="max-w-2xl mx-auto text-center space-y-8 py-10">
-                                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-600">
-                                        <GraduationCap className="w-10 h-10" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h3 className="text-xl font-bold text-slate-900">Would you like to add students now?</h3>
-                                        <p className="text-slate-500">You can add multiple students and specify your relationship with each.</p>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <button
-                                            onClick={handleAddStudent}
-                                            className="p-8 border-2 border-brand/20 bg-brand/5 rounded-2xl group hover:border-brand transition-all text-left space-y-4"
-                                        >
-                                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-brand shadow-sm">
-                                                <UserPlus className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <p className="text-lg font-bold text-slate-900 group-hover:text-brand transition-colors">Add a Student</p>
-                                                <p className="text-sm text-slate-500">Register students to the parent account</p>
-                                            </div>
-                                        </button>
-                                        <button
-                                            onClick={onClose}
-                                            className="p-8 border-2 border-slate-100 bg-white rounded-2xl group hover:border-slate-300 transition-all text-left space-y-4"
-                                        >
-                                            <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600">
-                                                <ArrowRight className="w-6 h-6" />
-                                            </div>
-                                            <div>
-                                                <p className="text-lg font-bold text-slate-900">Skip for Now</p>
-                                                <p className="text-sm text-slate-500">You can add students later from the dashboard</p>
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {studentStepView === 'list' && (
-                                <div className="max-w-4xl mx-auto space-y-6 pb-10">
-                                    <h3 className="text-lg font-bold text-slate-900">Students Added ({formData.students.length})</h3>
-                                    <div className="space-y-4">
-                                        {formData.students.map((student, idx) => (
-                                            <div key={idx} className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm flex items-center justify-between group hover:border-brand/30 transition-all">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-brand/5 group-hover:text-brand transition-colors">
-                                                        <GraduationCap className="w-6 h-6" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-3">
-                                                            <p className="font-bold text-slate-900">{student.firstName} {student.lastName}</p>
-                                                            {student.isPrimary && (
-                                                                <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-full border border-green-100">Primary Contact</span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-6 text-xs text-slate-500 font-medium tracking-tight">
-                                                            <span>Relationship: {student.relationship}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <button
-                                                        onClick={() => handleEditStudent(idx)}
-                                                        className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRemoveStudent(idx)}
-                                                        className="px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-red-100"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <button
-                                            onClick={handleAddStudent}
-                                            className="w-full p-4 border-2 border-dashed border-slate-100 rounded-2xl flex items-center justify-center gap-2 text-slate-400 font-bold text-sm hover:border-brand hover:text-brand hover:bg-brand/5 transition-all"
-                                        >
-                                            <UserPlus className="w-4 h-4" />
-                                            Add Another Student
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {studentStepView === 'form' && (
-                                <div className="max-w-4xl mx-auto space-y-8 pb-10">
-                                    <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                                        <p className="text-sm text-blue-800 font-bold">Student #{editingIndex !== null ? editingIndex + 1 : formData.students.length + 1} Information</p>
-                                        <p className="text-xs text-blue-600 font-medium">Fill in the student details below</p>
-                                    </div>
-
-                                    <div className="space-y-8">
-                                        <div className="space-y-6">
-                                            <div className="border-b border-slate-100 pb-2">
-                                                <h3 className="text-lg font-bold text-slate-900">Basic Information</h3>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="First Name" asterisk placeholder="Sita" value={currentStudent.firstName} onChange={val => updateStudentField('firstName',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentFirstName} />
-                                                <FormInput label="Middle Name" placeholder="Kumar" value={currentStudent.middleName} onChange={val => updateStudentField('middleName',val.replace(/[^a-zA-Z\s'-]/g, ''))} />
-                                                <FormInput label="Last Name" asterisk placeholder="Sharma" value={currentStudent.lastName} onChange={val => updateStudentField('lastName',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentLastName} />
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="Date of Birth" asterisk type="date" value={currentStudent.dob} onChange={val => updateStudentField('dob', val)} error={fieldErrors.studentDob} max={new Date(new Date().setFullYear(new Date().getFullYear() - 4)).toISOString().split('T')[0]} />
-                                                <FormSelect label="Gender" asterisk options={Object.entries(genderOptions).map(([label, value]) => ({label,value}))} value={currentStudent.gender} onChange={val => updateStudentField('gender', val)} error={fieldErrors.studentGender} />
-                                                <FormSelect label="Blood Group" asterisk options={Object.entries(bloodGroupOptions).map(([label, value]) => ({label,value}))} value={currentStudent.bloodGroup} onChange={val => updateStudentField('bloodGroup', val)} error={fieldErrors.studentBloodGroup} />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-6">
-                                            <div className="border-b border-slate-100 pb-2">
-                                                <h3 className="text-lg font-bold text-slate-900">Address Details</h3>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <FormInput label="City" asterisk placeholder="Lalitpur" value={currentStudent.city} onChange={val => updateStudentField('city',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentCity}/>
-                                                <FormInput label="State" asterisk placeholder="Bagmati" value={currentStudent.state} onChange={val => updateStudentField('state',val.replace(/[^a-zA-Z\s'-]/g, ''))} error={fieldErrors.studentState}/>
-                                                <FormInput label="Pincode" asterisk placeholder="44700" value={currentStudent.pincode} onChange={val => updateStudentField('pincode', val)} error={fieldErrors.studentPincode}/>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-6">
-                                            <div className="border-b border-slate-100 pb-2">
-                                                <h3 className="text-lg font-bold text-slate-900">Academic Placement</h3>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <FormInput label="Admission Date" asterisk type="date" value={currentStudent.admissionDate} onChange={val => updateStudentField('admissionDate', val)}  error={fieldErrors.admissionDate}/>
-                                                <FormSelect label="Class" asterisk options={classOptions.map(cls => ({ label: cls.name, value: cls.id.toString() }))} value={currentStudent.grade} onChange={val => updateStudentField('grade', val)} error={fieldErrors.studentGrade} />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-6">
-                                            <div className="border-b border-slate-100 pb-2">
-                                                <h3 className="text-lg font-bold text-slate-900">Relationship with Student</h3>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <p className="text-sm font-bold text-slate-900">I am the student's <span className="text-red-500">*</span></p>
-                                                <div className="space-y-3">
-                                                    {['Father', 'Mother', 'Guardian', 'Other'].map(rel => (
-                                                        <label key={rel} className="flex items-center gap-3 cursor-pointer group">
-                                                            <input
-                                                                type="radio"
-                                                                name="relationship"
-                                                                checked={currentStudent.relationship === rel}
-                                                                onChange={() => updateStudentField('relationship', rel)}
-                                                                className="w-4 h-4 text-brand bg-slate-50 border-slate-200 focus:ring-brand ring-offset-0"
-                                                            />
-                                                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">{rel}</span>
-                                                        </label>
-                                                    ))}
-                                                </div>
-                                                <div className="pt-4 border-t border-slate-50">
-                                                    <label className="flex items-center gap-3 cursor-pointer group">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={currentStudent.isPrimary}
-                                                            onChange={e => updateStudentField('isPrimary', e.target.checked)}
-                                                            className="w-4 h-4 text-brand bg-slate-50 border-slate-200 rounded focus:ring-brand ring-offset-0"
-                                                        />
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-900">Set as primary contact for this student</p>
-                                                            <p className="text-[10px] text-slate-400 font-medium">The school will contact you first for this student</p>
-                                                        </div>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-6 flex justify-between">
-                                        <button
-                                            onClick={() => formData.students.length > 0 ? setStudentStepView('list') : setStudentStepView('choice')}
-                                            className="px-6 py-2.5 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all border border-slate-100"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            onClick={saveStudent}
-                                            className="flex items-center gap-2 bg-brand text-white px-8 py-2.5 rounded-xl font-bold text-sm shadow-md hover:opacity-95 transition-all"
-                                        >
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            Save Student
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Modal Footer */}
-                {!success && (
-                    <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-white px-10">
-                        <div> 
-                            {currentStep === 'user-account' && (
-                                <button
-                                    onClick={() => {
-                                        resetData();
-                                    }}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
-                                >
-                                    Reset Data
-                                </button>
-                            )}
-                            {currentStep !== 'user-account' && (
-                                <button
-                                    onClick={() => {
-                                        if (currentStep === 'parent-details') setCurrentStep('user-account');
-                                        if (currentStep === 'student-registration') setCurrentStep('parent-details');
-                                    }}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all active:scale-95"
-                                >
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Back
-                                </button>
-                            )}
-                        </div>
-
-                        {currentStep === 'student-registration' && studentStepView === 'form' ? null : (
-                            <button
-                                disabled={isLoading}
-                                onClick={async () => {
-                                    if (!validateStep()) return;
-
-                                    if (currentStep === 'user-account') {
-                                        setStep1({
-                                            email: formData.email,
-                                            phone: formData.phone,
-                                            password: "",
-                                            firstName: formData.firstName,
-                                            lastName: formData.lastName
-                                        });
-                                        setCurrentStep('parent-details');
-                                    } else if (currentStep === 'parent-details') {
-                                        setStep2({
-                                            firstName: formData.firstName,
-                                            lastName: formData.lastName,
-                                            middleName: formData.middleName,
-                                            occupation: formData.occupation,
-                                            nationalId: formData.nationalId,
-                                            address: formData.address,
-                                            city: formData.city,
-                                            state: formData.state,
-                                            pincode: formData.pincode
-                                        });
-                                        setCurrentStep('student-registration');
-                                    } else if (currentStep === 'student-registration') {
-                                        // Final Complete
-                                        try {
-                                            setIsLoading(true);
-                                            setError(null);
-
-                                            const registrationData = {
-                                                user_in: {
-                                                    email: formData.email,
-                                                    phone: formData.phone,
-                                                    password: formData.password,
-                                                },
-                                                parent_in: {
-                                                    first_name: formData.firstName,
-                                                    last_name: formData.lastName,
-                                                    middle_name: formData.middleName || undefined,
-                                                    occupation: formData.occupation || undefined,
-                                                    national_id: formData.nationalId || undefined,
-                                                    address_line: formData.address || undefined,
-                                                    city: formData.city || undefined,
-                                                    state: formData.state || undefined,
-                                                    pincode: formData.pincode || undefined,
-                                                },
-                                                students_in: formData.students.map(s => ({
-                                                    first_name: s.firstName,
-                                                    last_name: s.lastName,
-                                                    middle_name: s.middleName || undefined,
-                                                    dob: s.dob,
-                                                    gender: s.gender,
-                                                    blood_group: s.bloodGroup || undefined,
-                                                    admission_date: s.admissionDate,
-                                                    class_id: s.grade && s.grade !== 'Select class' ? Number(s.grade) : undefined,
-                                                    city: s.city || undefined,
-                                                    state: s.state || undefined,
-                                                    pincode: s.pincode || undefined,
-                                                    relationship_type: s.relationship || undefined,
-                                                    is_primary_contact: s.isPrimary,
-                                                })),
-                                            };
-
-                                            await peopleService.registerParentStudent(registrationData);
-                                            setSuccess(true);
-                                            resetStore();
-                                            setTimeout(() => {
-                                                onClose();
-                                            }, 2000);
-                                        } catch (err: any) {
-                                            const errorMessage = err?.response?.data?.detail || err?.message || err?.toString() || 'Registration failed';
-                                            setError(errorMessage);
-                                            setSuccess(false);
-                                        } finally {
-                                            setIsLoading(false);
-                                        }
-                                    }
-                                }}
-                                className={cn(
-                                    "group flex items-center gap-3 bg-brand hover:opacity-90 text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-brand/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
-                                    (isLoading || success) && "opacity-50 cursor-not-allowed"
-                                )}
-                            >
-                                {isLoading ? 'Processing...' : currentStep === 'student-registration' ? (
-                                    <>
-                                        Complete Registration
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    </>
-                                ) : (
-                                    <>
-                                        {currentStep === 'parent-details' ? 'Continue to Students' : 'Continue to Parent Details'}
-                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+/** 10 digits, or + and up to 15 (the rule the old form used). */
+const validPhone = (v: string) => {
+    const digits = v.replace(/[\s-]/g, '');
+    return digits.startsWith('+') ? /^\+\d{7,15}$/.test(digits) : /^\d{10}$/.test(digits);
 };
 
-interface FormInputProps {
-    label: string;
-    type?: string;
-    placeholder?: string;
-    value?: string;
-    onChange?: (val: string) => void;
-    asterisk?: boolean;
-    error?: string;
-    max?: string;
-}
+const fourYearsAgo = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 4);
+    return formatISODate(d);
+};
 
-const FormInput: React.FC<FormInputProps> = ({ label, type = 'text', placeholder, value, onChange, asterisk, error, max }) => (
-    <div className="space-y-2 group text-left">
-        <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors">
-            {label}
-            {asterisk && <span className="text-red-500 font-bold">*</span>}
-        </label>
-        <div className="relative">
-            <input
-                type={type}
-                placeholder={placeholder}
-                value={value}
-                max={max}
-                onChange={(e) => onChange?.(e.target.value)}
-                className={cn(
-                    "w-full bg-[#F8F9FB] border focus:bg-white focus:ring-4 rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none placeholder:text-slate-300",
-                    error
-                        ? "border-red-300 focus:border-red-500 focus:ring-red-500/10"
-                        : "border-slate-100 focus:border-brand/30 focus:ring-brand/5"
-                )}
+/**
+ * Figma H07 "Register student": Student → Parent → Review, in one request
+ * (POST /people/register/parent-student) that creates the parent's account,
+ * the parent record and each child. A family with several children adds them
+ * from the Review step.
+ */
+export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const queryClient = useQueryClient();
+    const [step, setStep] = useState<0 | 1 | 2 | 'done'>(0);
+    const [children, setChildren] = useState<ChildDraft[]>([]);
+    const [editing, setEditing] = useState<number | null>(null);
+    const [parent, setParent] = useState<ParentDraft>(emptyParent);
+    const [error, setError] = useState<string | null>(null);
+
+    const childForm = useForm<ChildDraft>({ defaultValues: emptyChild() });
+    const parentForm = useForm<ParentDraft>({ defaultValues: emptyParent });
+    const dobValue = useWatch({ control: childForm.control, name: 'dob' });
+    const admittedValue = useWatch({ control: childForm.control, name: 'admission_date' });
+    const childFirstName = useWatch({ control: childForm.control, name: 'first_name' });
+
+    const { data: classesData } = useQuery({
+        queryKey: ['classes'],
+        queryFn: () => academicsService.getClasses({ limit: 100 }),
+        enabled: isOpen,
+    });
+    const classes = classesData?.classes ?? [];
+    const className = (id: string) => classes.find((c) => String(c.id) === id)?.name;
+
+    const reset = () => {
+        setStep(0);
+        setChildren([]);
+        setEditing(null);
+        setParent(emptyParent);
+        setError(null);
+        childForm.reset(emptyChild());
+        parentForm.reset(emptyParent);
+    };
+    const close = () => { reset(); onClose(); };
+
+    const mutation = useMutation({
+        mutationFn: () => {
+            const payload = {
+                user_in: { email: parent.email.trim(), phone: parent.phone.replace(/[\s-]/g, '') },
+                parent_in: {
+                    first_name: parent.first_name.trim(),
+                    last_name: parent.last_name.trim(),
+                    occupation: parent.occupation || undefined,
+                    national_id: parent.national_id || undefined,
+                    address_line: parent.address_line || undefined,
+                    city: parent.city || undefined,
+                    state: parent.state || undefined,
+                    // Kept on the parent record too, so a guardian is reachable
+                    // even before they sign in.
+                    phone: parent.phone.replace(/[\s-]/g, ''),
+                    email: parent.email.trim(),
+                },
+                students_in: children.map((c): StudentCreate => ({
+                    first_name: c.first_name.trim(),
+                    middle_name: c.middle_name || undefined,
+                    last_name: c.last_name.trim(),
+                    dob: c.dob,
+                    gender: c.gender,
+                    blood_group: c.blood_group || undefined,
+                    admission_date: c.admission_date,
+                    class_id: c.class_id ? Number(c.class_id) : undefined,
+                    relationship_type: c.relationship,
+                    is_primary_contact: true,
+                    city: parent.city || undefined,
+                    state: parent.state || undefined,
+                })),
+            };
+            return peopleService.registerParentStudent(payload);
+        },
+        onSuccess: () => {
+            ['students', 'parents', 'users'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+            queryClient.invalidateQueries({ queryKey: ['people-count'] });
+            setStep('done');
+        },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+    });
+
+    // ---- step actions -------------------------------------------------
+    const saveChild = childForm.handleSubmit((draft) => {
+        const next = editing === null ? [...children, draft] : children.map((c, i) => (i === editing ? draft : c));
+        setChildren(next);
+        setEditing(null);
+        // A second child, or an edit, goes straight back to the review.
+        setStep(parent.first_name ? 2 : 1);
+    });
+
+    const saveParent = parentForm.handleSubmit((draft) => {
+        setParent(draft);
+        setStep(2);
+    });
+
+    const editChild = (i: number) => { setEditing(i); childForm.reset(children[i]); setStep(0); };
+    const addChild = () => { setEditing(null); childForm.reset(emptyChild()); setStep(0); };
+    const removeChild = (i: number) => {
+        const next = children.filter((_, j) => j !== i);
+        setChildren(next);
+        if (next.length === 0) addChild();
+    };
+    const setRelationship = (i: number, r: Relationship) =>
+        setChildren((list) => list.map((c, j) => (j === i ? { ...c, relationship: r } : c)));
+
+    const firstChildName = children[0]?.first_name || childFirstName;
+    const busy = mutation.isPending;
+    const opt = t('peopleForms.optional');
+    const ce = childForm.formState.errors;
+    const pe = parentForm.formState.errors;
+
+    // ---- done ---------------------------------------------------------
+    if (step === 'done') {
+        return (
+            <Dialog
+                open={isOpen}
+                onClose={close}
+                icon={CheckCircle2}
+                iconTone="ok"
+                title={t('registerFamily.done.title')}
+                subtitle={t('registerFamily.done.body', { name: `${parent.first_name} ${parent.last_name}`.trim(), email: parent.email })}
+                closeLabel={t('common.close')}
+                size="sm"
+                footer={
+                    <>
+                        <Button variant="quiet" leftIcon={Plus} onClick={reset}>{t('registerFamily.action.another')}</Button>
+                        <Button onClick={close}>{t('registerFamily.action.done')}</Button>
+                    </>
+                }
             />
-            {error && (
-                <p className="mt-1.5 text-[11px] font-bold text-red-500 animate-in fade-in slide-in-from-top-1">
-                    {error}
-                </p>
-            )}
-        </div>
-    </div>
-);
+        );
+    }
 
-interface SelectOption {
-    label: string;
-    value: string;
-}
+    const subtitle =
+        step === 0
+            ? (children.length > 0 && editing === null ? t('registerFamily.subtitle.studentMore') : t('registerFamily.subtitle.student'))
+            : step === 1
+                ? children.length > 1 ? t('registerFamily.subtitle.parentMany') : t('registerFamily.subtitle.parent', { name: firstChildName })
+                : t('registerFamily.subtitle.review');
 
-interface FormSelectProps {
-    label: string;
-    options: SelectOption[];
-    value?: string;
-    onChange?: (val: string) => void;
-    asterisk?: boolean;
-    error?: string;
-}
-
-const FormSelect: React.FC<FormSelectProps> = ({ label, options, value, onChange, asterisk, error }) => (
-    <div className="space-y-2 group text-left">
-            <label className="text-sm font-bold text-slate-900 flex items-center gap-1 transition-colors uppercase tracking-tight">
-            {label}
-            {asterisk && <span className="text-red-500 font-bold ml-0.5">*</span>}
-        </label>
-        <div className="relative">
-            <select
-                value={value}
-                onChange={(e) => onChange?.(e.target.value)}
-                className={cn(
-                    "w-full bg-[#F8F9FB] border focus:bg-white rounded-xl py-4 px-5 text-sm text-slate-900 font-semibold transition-all outline-none appearance-none cursor-pointer",
-                     error ? "border-red-300 focus:border-red-500" : "border-slate-100 focus:border-brand/30"
+    const footer =
+        step === 0 ? (
+            <>
+                {children.length > 0 && parent.first_name ? (
+                    <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => { setEditing(null); setStep(2); }} className="sm:mr-auto">{t('registerFamily.action.back')}</Button>
+                ) : (
+                    <Button variant="quiet" onClick={close} className="sm:mr-auto">{t('registerFamily.action.cancel')}</Button>
                 )}
-            >
-                {options.map(opt => (<option key={opt.value} value={opt.value} className="font-semibold">{opt.label}</option>))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-        </div>
-        {error && (
-            <p className="mt-1.5 text-[11px] font-bold text-red-500 animate-in fade-in slide-in-from-top-1 pl-0.5">
-                {error}
-            </p>
-        )}
-    </div>
-);
+                <Button type="submit">{parent.first_name ? t('registerFamily.action.saveChild') : t('registerFamily.action.continueParent')}</Button>
+            </>
+        ) : step === 1 ? (
+            <>
+                <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(parent.first_name ? 2 : 0)} className="sm:mr-auto">{t('registerFamily.action.back')}</Button>
+                <Button type="submit">{t('registerFamily.action.continueReview')}</Button>
+            </>
+        ) : (
+            <>
+                <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(1)} disabled={busy} className="sm:mr-auto">{t('registerFamily.action.back')}</Button>
+                <Button leftIcon={UserPlus} loading={busy} onClick={() => { setError(null); mutation.mutate(); }}>
+                    {busy ? t('registerFamily.action.registering') : t('registerFamily.action.register')}
+                </Button>
+            </>
+        );
+
+    return (
+        <Dialog
+            open={isOpen}
+            onClose={close}
+            dismissible={!busy}
+            icon={UserPlus}
+            eyebrow={t('registerFamily.eyebrow', { n: step + 1 })}
+            title={t('registerFamily.title')}
+            subtitle={subtitle}
+            closeLabel={t('common.close')}
+            stepper={
+                <Stepper
+                    label={t('registerFamily.stepsLabel')}
+                    current={step}
+                    steps={[t('registerFamily.steps.student'), t('registerFamily.steps.parent'), t('registerFamily.steps.review')]}
+                />
+            }
+            onSubmit={step === 0 ? saveChild : step === 1 ? saveParent : undefined}
+            footer={footer}
+        >
+            {step === 0 && (
+                <>
+                    <FormRow>
+                        <TextField label={t('peopleForms.label.firstName')} autoComplete="off" error={ce.first_name?.message}
+                            {...childForm.register('first_name', { required: t('registerFamily.error.firstName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
+                        <TextField label={t('peopleForms.label.middleName')} optional={opt} autoComplete="off" {...childForm.register('middle_name')} />
+                    </FormRow>
+                    <FormRow>
+                        <TextField label={t('peopleForms.label.lastName')} autoComplete="off" error={ce.last_name?.message}
+                            {...childForm.register('last_name', { required: t('registerFamily.error.lastName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
+                        <TextField type="date" max={fourYearsAgo()} label={t('peopleForms.label.dob')} error={ce.dob?.message}
+                            hint={dobValue ? df.date(dobValue, 'medium') : undefined}
+                            {...childForm.register('dob', { required: t('registerFamily.error.dob'), validate: (v) => v <= fourYearsAgo() || t('registerFamily.error.tooYoung') })} />
+                    </FormRow>
+                    <FormRow>
+                        <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={ce.gender?.message}
+                            {...childForm.register('gender', { required: t('registerFamily.error.gender') })} />
+                        <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...childForm.register('blood_group')} />
+                    </FormRow>
+                    <FormRow>
+                        <SelectField label={t('registerFamily.field.class')} optional={opt} hint={t('registerFamily.hint.class')} placeholder={t('peopleForms.choose')}
+                            options={classes.map((c) => ({ value: String(c.id), label: c.name }))} {...childForm.register('class_id')} />
+                        <TextField type="date" label={t('peopleForms.label.admissionDate')} error={ce.admission_date?.message}
+                            hint={admittedValue ? df.date(admittedValue, 'medium') : undefined}
+                            {...childForm.register('admission_date', { required: t('registerFamily.error.admissionDate') })} />
+                    </FormRow>
+                </>
+            )}
+
+            {step === 1 && (
+                <>
+                    {children.map((c, i) => (
+                        <div key={i} className="flex flex-col gap-2">
+                            <p className="type-small-semibold text-ink">{t('registerFamily.field.relationshipTo', { name: c.first_name })}</p>
+                            <SegmentedControl<Relationship>
+                                aria-label={t('registerFamily.field.relationshipTo', { name: c.first_name })}
+                                value={c.relationship}
+                                onChange={(r) => setRelationship(i, r)}
+                                className="w-full [&>*]:flex-1"
+                                options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
+                            />
+                        </div>
+                    ))}
+                    <FormRow>
+                        <TextField label={t('peopleForms.label.firstName')} autoComplete="off" error={pe.first_name?.message}
+                            {...parentForm.register('first_name', { required: t('registerFamily.error.firstName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
+                        <TextField label={t('peopleForms.label.lastName')} autoComplete="off" error={pe.last_name?.message}
+                            {...parentForm.register('last_name', { required: t('registerFamily.error.lastName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
+                    </FormRow>
+                    <FormRow>
+                        <TextField type="tel" inputMode="tel" leftIcon={Phone} label={t('registerFamily.field.mobile')} placeholder="98XXXXXXXX" hint={t('registerFamily.hint.mobile')} error={pe.phone?.message}
+                            {...parentForm.register('phone', { required: t('registerFamily.error.mobile'), validate: (v) => validPhone(v) || t('registerFamily.error.mobile') })} />
+                        <TextField type="email" inputMode="email" autoCapitalize="none" leftIcon={Mail} label={t('registerFamily.field.email')} hint={t('registerFamily.hint.email')} error={pe.email?.message}
+                            {...parentForm.register('email', { required: t('registerFamily.error.email'), pattern: { value: EMAIL, message: t('registerFamily.error.emailInvalid') } })} />
+                    </FormRow>
+                    <FormRow>
+                        <TextField label={t('peopleForms.label.occupation')} optional={opt} {...parentForm.register('occupation')} />
+                        <TextField label={t('peopleForms.label.nationalId')} optional={opt} {...parentForm.register('national_id')} />
+                    </FormRow>
+                    <TextField label={t('peopleForms.label.address')} optional={opt} {...parentForm.register('address_line')} />
+                    <FormRow>
+                        <TextField label={t('peopleForms.label.city')} optional={opt} {...parentForm.register('city')} />
+                        <TextField label={t('peopleForms.label.state')} optional={opt} {...parentForm.register('state')} />
+                    </FormRow>
+                    <Banner tone="info" title={t('registerFamily.accountNote.title')}>{t('registerFamily.accountNote.body')}</Banner>
+                </>
+            )}
+
+            {step === 2 && (
+                <>
+                    {error && (
+                        <Banner tone="bad" title={t('registerFamily.error.title')} action={<Button variant="quiet" size="sm" onClick={() => setStep(1)}>{t('registerFamily.review.edit')}</Button>}>
+                            {error}
+                        </Banner>
+                    )}
+                    <Summary title={t('registerFamily.review.children', { count: children.length })}>
+                        {children.map((c, i) => (
+                            <li key={i} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
+                                <div className="flex min-w-0 flex-1 flex-col gap-px">
+                                    <span className="truncate type-small-semibold text-ink">{[c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ')}</span>
+                                    <span className="truncate type-caption text-muted">
+                                        {[className(c.class_id) ?? t('registerFamily.review.noClass'), t('registerFamily.review.born', { date: df.date(c.dob, 'medium') }), t(`registerFamily.relationship.${c.relationship}`)].join(', ')}
+                                    </span>
+                                </div>
+                                <Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => editChild(i)}>{t('registerFamily.review.edit')}</Button>
+                                <Button variant="ghost" size="sm" leftIcon={Trash2} onClick={() => removeChild(i)} aria-label={`${t('registerFamily.review.remove')} ${c.first_name}`} className="text-bad">
+                                    <span className="max-sm:sr-only">{t('registerFamily.review.remove')}</span>
+                                </Button>
+                            </li>
+                        ))}
+                    </Summary>
+                    <Button variant="secondary" leftIcon={Plus} onClick={addChild} className="self-start max-sm:w-full">{t('registerFamily.review.addChild')}</Button>
+                    <Summary title={t('registerFamily.review.parent')} action={<Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => setStep(1)}>{t('registerFamily.review.edit')}</Button>}>
+                        <li className="flex items-center gap-3 py-1">
+                            <IconTile icon={Phone} tone="brand" size={34} />
+                            <div className="flex min-w-0 flex-col gap-px">
+                                <span className="truncate type-small-semibold text-ink">{`${parent.first_name} ${parent.last_name}`.trim()}</span>
+                                <span className="truncate type-caption text-muted">{[parent.phone, parent.email, parent.occupation].filter(Boolean).join(', ')}</span>
+                            </div>
+                        </li>
+                    </Summary>
+                </>
+            )}
+        </Dialog>
+    );
+}
+
+/** Figma "Summary/…": a quiet box with a heading and an optional action. */
+function Summary({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+    return (
+        <section className="flex flex-col gap-1 rounded-row border border-line-subtle bg-surface-2 px-4 py-3">
+            <div className="flex min-h-[34px] items-center justify-between gap-2">
+                <h3 className="type-small-semibold text-ink">{title}</h3>
+                {action}
+            </div>
+            <ul className="flex flex-col">{children}</ul>
+        </section>
+    );
+}

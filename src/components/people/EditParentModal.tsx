@@ -1,10 +1,14 @@
-import React, { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { Home } from 'lucide-react';
+
+import { Banner, Button, Dialog, FormRow, FormSection, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
-import { X, Home, Save, User, MapPin } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Parent, ParentUpdate } from '../../types/people';
+import { errorText, fullName } from '../../features/people/format';
+import { blanksToNull } from '../../features/people/options';
 
 interface EditParentModalProps {
     parent: Parent;
@@ -12,188 +16,77 @@ interface EditParentModalProps {
     onClose: () => void;
 }
 
-export const EditParentModal: React.FC<EditParentModalProps> = ({ parent, isOpen, onClose }) => {
+/** Edit a parent or guardian record. */
+export function EditParentModal({ parent, isOpen, onClose }: EditParentModalProps) {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const { register, handleSubmit, reset } = useForm<ParentUpdate>();
+    const [error, setError] = useState<string | null>(null);
+    const { register, handleSubmit, reset, formState: { errors } } = useForm<ParentUpdate>();
 
     useEffect(() => {
-        if (parent) {
-            reset({
-                first_name: parent.first_name,
-                middle_name: parent.middle_name,
-                last_name: parent.last_name,
-                occupation: parent.occupation,
-                national_id: parent.national_id,
-                address_line: parent.address_line,
-                city: parent.city,
-                state: parent.state,
-                pincode: parent.pincode,
-            });
-        }
+        reset({
+            first_name: parent.first_name,
+            middle_name: parent.middle_name ?? '',
+            last_name: parent.last_name,
+            occupation: parent.occupation ?? '',
+            national_id: parent.national_id ?? '',
+            address_line: parent.address_line ?? '',
+            city: parent.city ?? '',
+            state: parent.state ?? '',
+            pincode: parent.pincode ?? '',
+        });
     }, [parent, reset]);
 
     const mutation = useMutation({
-        mutationFn: (data: ParentUpdate) => peopleService.updateParent(parent.id, data),
+        mutationFn: (data: ParentUpdate) => peopleService.updateParent(parent.id, blanksToNull(data)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['parents'] });
             onClose();
         },
-        onError: (err: any) => {
-            alert(err.response?.data?.detail || err.message || 'Failed to update parent');
-        }
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
+    const opt = t('peopleForms.optional');
+    const saving = mutation.isPending;
+
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                    />
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            dismissible={!saving}
+            icon={Home}
+            title={t('peopleForms.title.editParent')}
+            subtitle={t('peopleForms.subtitle.edit', { name: fullName(parent) })}
+            closeLabel={t('common.close')}
+            onSubmit={handleSubmit((data) => { setError(null); mutation.mutate(data); })}
+            footer={
+                <>
+                    <Button variant="quiet" onClick={onClose} disabled={saving}>{t('peopleForms.action.cancel')}</Button>
+                    <Button type="submit" loading={saving}>{saving ? t('peopleForms.action.saving') : t('peopleForms.action.save')}</Button>
+                </>
+            }
+        >
+            {error && <Banner tone="bad" title={t('peopleForms.error.saveTitle')}>{error}</Banner>}
 
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col"
-                    >
-                        {/* Header */}
-                        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
-                                    <Home className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-slate-900">Edit Parent Profile</h2>
-                                    <p className="text-slate-500 font-medium">Update guardian details and contact information</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="p-3 hover:bg-slate-50 rounded-2xl transition-colors text-slate-400"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
+            <FormSection title={t('peopleForms.section.personal')}>
+                <FormRow>
+                    <TextField label={t('peopleForms.label.firstName')} error={errors.first_name?.message} {...register('first_name', { required: t('peopleForms.error.firstName') })} />
+                    <TextField label={t('peopleForms.label.middleName')} optional={opt} {...register('middle_name')} />
+                </FormRow>
+                <FormRow>
+                    <TextField label={t('peopleForms.label.lastName')} error={errors.last_name?.message} {...register('last_name', { required: t('peopleForms.error.lastName') })} />
+                    <TextField label={t('peopleForms.label.occupation')} optional={opt} {...register('occupation')} />
+                </FormRow>
+                <TextField label={t('peopleForms.label.nationalId')} optional={opt} {...register('national_id')} />
+            </FormSection>
 
-                        {/* Content */}
-                        <form id="edit-parent-form" onSubmit={handleSubmit((data) => mutation.mutate(data))} className="flex-1 overflow-y-auto p-8 pt-6">
-                            <div className="space-y-10">
-                                {/* Basic Info */}
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <User className="w-4 h-4" />
-                                        Personal Information
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">First Name</label>
-                                            <input
-                                                {...register('first_name')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Middle Name</label>
-                                            <input
-                                                {...register('middle_name')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Last Name</label>
-                                            <input
-                                                {...register('last_name')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Occupation</label>
-                                            <input
-                                                {...register('occupation')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">National ID</label>
-                                            <input
-                                                {...register('national_id')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Address */}
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <MapPin className="w-4 h-4 ml-[-2px]" />
-                                        Location Details
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Address Line</label>
-                                            <input
-                                                {...register('address_line')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">City</label>
-                                            <input
-                                                {...register('city')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">State</label>
-                                            <input
-                                                {...register('state')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Pincode</label>
-                                            <input
-                                                {...register('pincode')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </form>
-
-                        {/* Footer */}
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-4 sticky bottom-0">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                form="edit-parent-form"
-                                disabled={mutation.isPending}
-                                className="flex items-center gap-2 px-8 py-3 bg-rose-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
-                            >
-                                {mutation.isPending ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="w-5 h-5" />
-                                )}
-                                <span>Save Changes</span>
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+            <FormSection title={t('peopleForms.section.contact')}>
+                <TextField label={t('peopleForms.label.address')} optional={opt} {...register('address_line')} />
+                <FormRow>
+                    <TextField label={t('peopleForms.label.city')} optional={opt} {...register('city')} />
+                    <TextField label={t('peopleForms.label.state')} optional={opt} {...register('state')} />
+                </FormRow>
+            </FormSection>
+        </Dialog>
     );
-};
+}

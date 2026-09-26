@@ -1,299 +1,180 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { AlertCircle, AlertTriangle, CalendarClock, Layers, Plus, Printer, RotateCw } from 'lucide-react';
+
+import { Banner, Button, Card, EmptyState, FilterChips, Skeleton } from '../../design-system';
+import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
+import { SelectMenu } from '../../components/common/SelectMenu';
 import { academicsService } from '../../api/services/academics.service';
 import { timetableService, type TimetableSlot } from '../../api/services/timetable.service';
-import { CalendarClock, ChevronDown, Plus, X, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { SlotDialog } from '../../features/timetable/SlotDialog';
+import { useNotice } from '../../features/people/useNotice';
+import { useUrlState, useUrlStateBatch } from '../../hooks/useUrlState';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
 
 /**
- * All seven days, Sunday first as Nepali calendars run.
- *
- * `value` follows the stored convention (Python's date.weekday(): Monday=0 …
- * Sunday=6), so the display order is independent of the numbering — Sunday is
- * 6 but shown first. Saturday was previously the last column and Sunday was
- * absent altogether, which made it look as though the week simply ended.
- *
- * Days the school does not currently teach stay in the grid and just come up
- * empty, rather than being dropped: a missing column reads as a bug, and a
- * period can still be scheduled there if the timetable changes.
+ * The school week, Sunday first as Nepali calendars run. `value` is the
+ * stored day (Python's weekday(): Monday 0 … Sunday 6). Saturday is shown
+ * only when something is scheduled on it.
  */
-const DAYS = [
-    { value: 6, label: 'Sun' },
-    { value: 0, label: 'Mon' },
-    { value: 1, label: 'Tue' },
-    { value: 2, label: 'Wed' },
-    { value: 3, label: 'Thu' },
-    { value: 4, label: 'Fri' },
-    { value: 5, label: 'Sat' },
-];
-
+const WEEK = [6, 0, 1, 2, 3, 4];
+const SATURDAY = 5;
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
+const DAY_KEY: Record<number, string> = { 0: 'mon', 1: 'tue', 2: 'wed', 3: 'thu', 4: 'fri', 5: 'sat', 6: 'sun' };
 
-const SlotEditor: React.FC<{
-    classId: number;
-    sectionId: number;
-    dayOfWeek: number;
-    periodNumber: number;
-    existing: TimetableSlot | null;
-    onClose: () => void;
-}> = ({ classId, sectionId, dayOfWeek, periodNumber, existing, onClose }) => {
-    const queryClient = useQueryClient();
-    const [subjectId, setSubjectId] = useState(existing ? String(existing.subject_id) : '');
-    const [teacherId, setTeacherId] = useState(existing?.teacher_id ? String(existing.teacher_id) : '');
-    const [error, setError] = useState('');
-
-    const { data: classSubjects } = useQuery({
-        queryKey: ['class-subjects', classId],
-        queryFn: () => academicsService.getClassSubjects(classId),
-    });
-    const { data: teacherOptions } = useQuery({
-        queryKey: ['teacher-options'],
-        queryFn: academicsService.getTeacherOptions,
-    });
-
-    // Query key must match the parent's exactly (string sectionId state, not
-    // this component's numeric prop) or invalidation silently no-ops.
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['timetable', String(sectionId)] });
-
-    const saveMutation = useMutation({
-        mutationFn: () => {
-            if (existing) {
-                return timetableService.updateSlot(existing.id, {
-                    subject_id: Number(subjectId),
-                    teacher_id: teacherId ? Number(teacherId) : undefined,
-                });
-            }
-            return timetableService.createSlot({
-                class_id: classId, section_id: sectionId,
-                day_of_week: dayOfWeek, period_number: periodNumber,
-                subject_id: Number(subjectId),
-                teacher_id: teacherId ? Number(teacherId) : undefined,
-            });
-        },
-        onSuccess: () => { invalidate(); onClose(); },
-        onError: (err: { response?: { data?: { detail?: string } } }) => setError(err.response?.data?.detail || 'Failed to save'),
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: () => timetableService.deleteSlot(existing!.id),
-        onSuccess: () => { invalidate(); onClose(); },
-        onError: (err: { response?: { data?: { detail?: string } } }) => setError(err.response?.data?.detail || 'Failed to delete'),
-    });
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-900">
-                        {DAYS.find(d => d.value === dayOfWeek)?.label} · Period {periodNumber}
-                    </h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {error && (
-                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-sm font-medium">
-                        <AlertCircle className="w-4 h-4 shrink-0" />{error}
-                    </div>
-                )}
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Subject</label>
-                    <select
-                        value={subjectId}
-                        onChange={e => {
-                            setSubjectId(e.target.value);
-                            const cs = (classSubjects || []).find(c => String(c.subject_id) === e.target.value);
-                            if (cs?.teacher_id) setTeacherId(String(cs.teacher_id));
-                        }}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand/30"
-                    >
-                        <option value="">Select subject...</option>
-                        {(classSubjects || []).map(cs => (
-                            <option key={cs.subject_id} value={cs.subject_id}>{cs.subject_name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">Teacher</label>
-                    <select
-                        value={teacherId}
-                        onChange={e => setTeacherId(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand/30"
-                    >
-                        <option value="">Unassigned</option>
-                        {(teacherOptions || []).map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="flex gap-3 pt-1">
-                    <button
-                        onClick={() => { setError(''); saveMutation.mutate(); }}
-                        disabled={!subjectId || saveMutation.isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:opacity-95 disabled:opacity-50 transition-all"
-                    >
-                        {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Save
-                    </button>
-                    {existing && (
-                        <button
-                            onClick={() => { setError(''); deleteMutation.mutate(); }}
-                            disabled={deleteMutation.isPending}
-                            className="px-4 py-2.5 border border-red-200 text-red-600 text-sm font-bold rounded-xl hover:bg-red-50 disabled:opacity-50 transition-all"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
+/**
+ * Figma C09 Timetable: which subject and teacher own each period of a
+ * section's week. Leave requests use it to suggest substitutes.
+ *
+ * Adapted: there is no "copy from another section". Clashes cannot be saved
+ * (the server refuses a teacher already teaching in that period), so the
+ * page flags periods with no teacher instead.
+ */
 const TimetablePage: React.FC = () => {
-    const [classId, setClassId] = useState('');
-    const [sectionId, setSectionId] = useState('');
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const [noticeUI, notify] = useNotice();
+    const [classId] = useUrlState('class', '');
+    const [chosenSection] = useUrlState('section', '');
+    const setUrl = useUrlStateBatch();
+    const [mobileDay, setMobileDay] = useState(String(WEEK[0]));
     const [editing, setEditing] = useState<{ day: number; period: number; slot: TimetableSlot | null } | null>(null);
 
-    const { data: classesData } = useQuery({
-        queryKey: ['classes'],
-        queryFn: () => academicsService.getClasses({ limit: 100 }),
-    });
+    const { data: classesData } = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }) });
     const { data: sectionsData } = useQuery({
-        queryKey: ['sections', classId],
+        queryKey: ['sections', Number(classId)],
         queryFn: () => academicsService.getSections({ class_id: Number(classId), limit: 100 }),
         enabled: !!classId,
     });
-    const { data: slots, isLoading } = useQuery({
+    const sections = sectionsData?.sections ?? [];
+    // A class with one section needs no second choice.
+    const sectionId = chosenSection || (sections.length === 1 ? String(sections[0].id) : '');
+    const { data: slots, isPending, isError, refetch } = useQuery({
         queryKey: ['timetable', sectionId],
         queryFn: () => timetableService.getSlots({ section_id: Number(sectionId) }),
         enabled: !!sectionId,
     });
 
-    const slotAt = (day: number, period: number) =>
-        (slots || []).find(s => s.day_of_week === day && s.period_number === period) || null;
+    const all = slots ?? [];
+    const days = all.some((s) => s.day_of_week === SATURDAY) ? [...WEEK, SATURDAY] : WEEK;
+    const slotAt = (day: number, period: number) => all.find((s) => s.day_of_week === day && s.period_number === period) ?? null;
+    const timeOf = (period: number) => all.find((s) => s.period_number === period && s.start_time)?.start_time?.slice(0, 5);
+    const noTeacher = all.filter((s) => !s.teacher_id);
+    const className = classesData?.classes.find((c) => String(c.id) === classId)?.name ?? '';
+    const sectionName = sections.find((s) => String(s.id) === sectionId)?.name ?? '';
+    const sectionLabel = [className, sectionName].filter(Boolean).join(' ');
+    const dayName = (d: number) => t(`timetablePage.day.${DAY_KEY[d]}`);
+
+    const cell = (day: number, period: number) => {
+        const slot = slotAt(day, period);
+        return (
+            <button type="button" onClick={() => setEditing({ day, period, slot })}
+                aria-label={slot ? `${dayName(day)}, ${t('timetablePage.period', { n: formatCount(period, lang) })}: ${slot.subject_name}` : t('timetablePage.addAt', { day: dayName(day), n: formatCount(period, lang) })}
+                className={cn(
+                    'flex min-h-[58px] w-full flex-col justify-center rounded-row px-3 py-2 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60',
+                    slot ? (slot.teacher_id ? 'bg-primary-soft hover:bg-primary-soft/70' : 'bg-warn-soft ring-1 ring-inset ring-warn/40')
+                        : 'items-center border border-dashed border-line text-muted hover:border-primary-soft-line hover:bg-surface-2',
+                )}>
+                {slot ? (
+                    <>
+                        <span className="truncate type-small-semibold text-ink">{slot.subject_name}</span>
+                        <span className={cn('truncate type-caption', slot.teacher_id ? 'text-ink-2' : 'text-warn')}>{slot.teacher_name || t('timetablePage.noTeacher')}</span>
+                    </>
+                ) : <Plus size={16} aria-hidden />}
+            </button>
+        );
+    };
+
+    const actions = sectionId ? <Button variant="quiet" leftIcon={Printer} onClick={() => window.print()}>{t('timetablePage.print')}</Button> : undefined;
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                            <CalendarClock className="w-6 h-6 text-brand" /> Timetable
-                        </h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">
-                            Set which subject and teacher own each period — this is what substitute suggestions check.
-                        </p>
-                    </div>
+        <AppPage title={t('timetablePage.title')}>
+            <PageBar actions={actions}>
+                <p className="type-small text-muted">{t('timetablePage.intro')}</p>
+            </PageBar>
+            {noticeUI}
 
-                    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Class</label>
-                            <div className="relative">
-                                <select
-                                    value={classId}
-                                    onChange={e => { setClassId(e.target.value); setSectionId(''); }}
-                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20"
-                                >
-                                    <option value="">Select class...</option>
-                                    {classesData?.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Section</label>
-                            <div className="relative">
-                                <select
-                                    value={sectionId}
-                                    onChange={e => setSectionId(e.target.value)}
-                                    disabled={!classId}
-                                    className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
-                                >
-                                    <option value="">Select section...</option>
-                                    {sectionsData?.sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {!sectionId ? (
-                        <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm">
-                            <CalendarClock className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                            <p className="font-bold text-slate-400">Select a class and section to view its timetable</p>
-                        </div>
-                    ) : isLoading ? (
-                        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-brand" /></div>
-                    ) : (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto">
-                            <table className="w-full text-sm min-w-[720px]">
-                                <thead>
-                                    <tr className="border-b border-slate-100">
-                                        <th className="px-4 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-wider">Period</th>
-                                        {DAYS.map(d => (
-                                            <th key={d.value} className="px-4 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-wider">{d.label}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {PERIODS.map(period => (
-                                        <tr key={period} className="border-b border-slate-50 last:border-none">
-                                            <td className="px-4 py-3 text-xs font-black text-slate-400">{period}</td>
-                                            {DAYS.map(d => {
-                                                const slot = slotAt(d.value, period);
-                                                return (
-                                                    <td key={d.value} className="px-2 py-2">
-                                                        <button
-                                                            onClick={() => setEditing({ day: d.value, period, slot })}
-                                                            className={cn(
-                                                                'w-full min-h-[52px] rounded-xl px-3 py-2 text-left transition-all',
-                                                                slot
-                                                                    ? 'bg-brand/5 border border-brand/20 hover:bg-brand/10'
-                                                                    : 'border border-dashed border-slate-200 hover:border-brand/40 hover:bg-slate-50 flex items-center justify-center text-slate-300'
-                                                            )}
-                                                        >
-                                                            {slot ? (
-                                                                <>
-                                                                    <p className="text-xs font-bold text-slate-900 truncate">{slot.subject_name}</p>
-                                                                    <p className="text-[11px] text-slate-500 font-medium truncate">{slot.teacher_name || 'Unassigned'}</p>
-                                                                </>
-                                                            ) : (
-                                                                <Plus className="w-4 h-4" />
-                                                            )}
-                                                        </button>
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+            <Toolbar>
+                <div className="flex flex-wrap gap-2 [&>*]:shrink-0">
+                    <SelectMenu value={classId} label={t('attendance.class')} icon={<Layers />} onChange={(v) => setUrl({ class: v || null, section: null })}
+                        options={[{ value: '', label: t('attendance.selectClass') }, ...(classesData?.classes ?? []).map((c) => ({ value: String(c.id), label: c.name }))]} />
+                    {classId && sections.length > 1 && (
+                        <SelectMenu value={sectionId} label={t('attendance.section')} onChange={(v) => setUrl({ section: v || null })}
+                            options={[{ value: '', label: t('timetablePage.pickSection') }, ...sections.map((s) => ({ value: String(s.id), label: s.name }))]} />
                     )}
                 </div>
-            </main>
+            </Toolbar>
+
+            {!sectionId ? (
+                <Card><EmptyState icon={CalendarClock} title={t('timetablePage.pickTitle')}>{t('timetablePage.pickBody')}</EmptyState></Card>
+            ) : isPending ? (
+                <Skeleton className="h-[520px] rounded-card" />
+            ) : isError ? (
+                <Card><EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+                    action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void refetch()}>{t('classesPage.action.retry')}</Button>}>{t('peoplePage.error.body')}</EmptyState></Card>
+            ) : (
+                <>
+                    {noTeacher.length > 0 && (
+                        <Banner tone="warn" icon={AlertTriangle} title={t('timetablePage.missingTeacher', { count: noTeacher.length, n: formatCount(noTeacher.length, lang) })}>
+                            {noTeacher.slice(0, 3).map((s) => `${dayName(s.day_of_week)} ${t('timetablePage.periodShort', { n: formatCount(s.period_number, lang) })}, ${s.subject_name}`).join('; ')}
+                        </Banner>
+                    )}
+                    {all.length === 0 && <Banner tone="info" title={t('timetablePage.emptyTitle', { name: sectionLabel })}>{t('timetablePage.emptyBody')}</Banner>}
+
+                    {/* Laptops: the week as a grid. */}
+                    <div className="overflow-x-auto rounded-card border border-line bg-surface shadow-e1 max-md:hidden">
+                        <table className="w-full min-w-[760px] border-separate border-spacing-1.5 p-2">
+                            <caption className="sr-only">{t('timetablePage.caption', { name: sectionLabel })}</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col" className="w-24 px-2 py-2 text-left type-caption-semibold text-muted">{t('timetablePage.periodCol')}</th>
+                                    {days.map((d) => <th key={d} scope="col" className="px-2 py-2 text-left type-caption-semibold text-muted">{dayName(d)}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {PERIODS.map((p) => (
+                                    <tr key={p}>
+                                        <th scope="row" className="px-2 text-left align-middle">
+                                            <span className="flex flex-col">
+                                                <span className="type-small-semibold text-ink">{t('timetablePage.period', { n: formatCount(p, lang) })}</span>
+                                                {timeOf(p) && <span className="type-caption tabular-nums text-muted">{timeOf(p)}</span>}
+                                            </span>
+                                        </th>
+                                        {days.map((d) => <td key={d} className="align-top">{cell(d, p)}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Phones: one day at a time. */}
+                    <div className="flex flex-col gap-3 md:hidden">
+                        <FilterChips aria-label={t('timetablePage.dayLabel')} value={mobileDay} onChange={setMobileDay}
+                            items={days.map((d) => ({ value: String(d), label: dayName(d), count: formatCount(all.filter((s) => s.day_of_week === d).length, lang) }))} />
+                        <ul className="flex flex-col gap-2">
+                            {PERIODS.map((p) => (
+                                <li key={p} className="flex items-center gap-3">
+                                    <span className="flex w-16 shrink-0 flex-col">
+                                        <span className="type-small-semibold text-ink">{t('timetablePage.periodShort', { n: formatCount(p, lang) })}</span>
+                                        {timeOf(p) && <span className="type-caption tabular-nums text-muted">{timeOf(p)}</span>}
+                                    </span>
+                                    <span className="min-w-0 flex-1">{cell(Number(mobileDay), p)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </>
+            )}
 
             {editing && (
-                <SlotEditor
-                    classId={Number(classId)}
-                    sectionId={Number(sectionId)}
-                    dayOfWeek={editing.day}
-                    periodNumber={editing.period}
-                    existing={editing.slot}
-                    onClose={() => setEditing(null)}
-                />
+                <SlotDialog key={`${editing.day}-${editing.period}`} classId={Number(classId)} sectionId={Number(sectionId)} sectionLabel={sectionLabel}
+                    day={editing.day} dayName={dayName(editing.day)} period={editing.period} existing={editing.slot}
+                    onClose={() => setEditing(null)} onSaved={(msg) => { setEditing(null); notify({ tone: 'ok', title: msg }); }} />
             )}
-        </div>
+        </AppPage>
     );
 };
 

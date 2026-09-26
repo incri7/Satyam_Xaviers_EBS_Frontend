@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { User } from '../types/auth';
+import { authStorage } from './authStorage';
 
 interface AuthState {
     user: User | null;
@@ -11,6 +12,8 @@ interface AuthState {
 
     setAuth: (user: User, accessToken: string, refreshToken: string) => void;
     setAccessToken: (token: string) => void;
+    /** Merge fields into the signed-in user, e.g. after the first password change. */
+    patchUser: (fields: Partial<User>) => void;
     logout: () => void;
     setHasHydrated: (state: boolean) => void;
 }
@@ -30,6 +33,9 @@ export const useAuthStore = create<AuthState>()(
             setAccessToken: (accessToken) =>
                 set({ accessToken }),
 
+            patchUser: (fields) =>
+                set((state) => ({ user: state.user ? { ...state.user, ...fields } : state.user })),
+
             logout: () =>
                 set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
 
@@ -37,6 +43,8 @@ export const useAuthStore = create<AuthState>()(
         }),
         {
             name: 'auth-storage',
+            // localStorage or sessionStorage, per "Keep me signed in".
+            storage: createJSONStorage(() => authStorage),
             onRehydrateStorage: (state) => {
                 return () => state?.setHasHydrated(true);
             },

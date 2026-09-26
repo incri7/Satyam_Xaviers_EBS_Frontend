@@ -52,7 +52,7 @@ export const InstallPrompt: React.FC = () => {
     if (!deferredPrompt && !showIosHint) return null;
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-[90]">
+        <div data-floating-bottom className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-[90]">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 flex items-start gap-3">
                 <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center text-brand shrink-0">
                     <Smartphone className="w-5 h-5" />

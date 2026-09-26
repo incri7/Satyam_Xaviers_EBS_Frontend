@@ -1,97 +1,74 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Briefcase, MapPin, Mail, Phone, Calendar, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Briefcase, CalendarDays, KeyRound, Mail, MapPin, Phone, type LucideIcon } from 'lucide-react';
+
+import { Button, Dialog, Skeleton } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { ActiveBadge } from '../../features/people/shared';
 
 interface Props {
     staffId: number | null;
     onClose: () => void;
 }
 
-const Row: React.FC<{ icon: React.ReactNode; label: string; value?: string | null }> = ({ icon, label, value }) => (
-    <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">{icon}</div>
-        <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-            <p className="text-sm font-semibold text-slate-800 break-words">{value || '—'}</p>
-        </div>
-    </div>
-);
-
-export const StaffProfileDrawer: React.FC<Props> = ({ staffId, onClose }) => {
+/**
+ * One staff member's record, opened from the Staff register. Staff have no
+ * profile page of their own, so this is a dialog (a sheet on phones).
+ */
+export function StaffProfileDrawer({ staffId, onClose }: Props) {
+    const { t } = useTranslation();
     const df = useDateFormat();
-    const { data, isLoading } = useQuery({
+    const { data, isPending } = useQuery({
         queryKey: ['staff-profile', staffId],
         queryFn: () => peopleService.getStaffProfile(staffId as number),
         enabled: !!staffId,
     });
 
+    const name = data ? [data.first_name, data.last_name].filter(Boolean).join(' ') : '';
+    const rows: [LucideIcon, string, string | null | undefined][] = data
+        ? [
+            [Phone, t('peopleForms.label.phone'), data.phone],
+            [Mail, t('peopleForms.label.email'), data.email],
+            [Briefcase, t('peopleForms.label.designation'), data.designation],
+            [CalendarDays, t('peoplePage.col.joined'), data.join_date ? df.date(data.join_date, 'medium') : null],
+            // The profile's email comes from the sign-in account, so it doubles as "has an account".
+            [KeyRound, t('peoplePage.col.signIn'), data.email ? t('peoplePage.value.hasSignIn') : t('peoplePage.value.noSignIn')],
+            [MapPin, t('peopleForms.label.address'), [data.address_line, data.city, data.state].filter(Boolean).join(', ') || null],
+        ]
+        : [];
+
     return (
-        <AnimatePresence>
-            {staffId && (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                    />
-                    <motion.div
-                        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="relative bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto"
-                    >
-                        <div className="sticky top-0 bg-white/90 backdrop-blur border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
-                            <h2 className="text-lg font-bold text-slate-900">Staff Profile</h2>
-                            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {isLoading || !data ? (
-                            <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand" /></div>
-                        ) : (
-                            <div className="p-6 space-y-6">
-                                {/* Identity */}
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
-                                        <Users className="w-8 h-8" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-xl font-bold text-slate-900">{data.first_name} {data.last_name || ''}</h3>
-                                            <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-full ${data.is_active === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                {data.is_active === false ? 'Inactive' : 'Active'}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                            {data.designation || 'Staff'}{data.staff_code ? ` • ${data.staff_code}` : ''}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Details */}
-                                <div className="grid grid-cols-1 gap-4">
-                                    <Row icon={<Mail className="w-4 h-4" />} label="Email" value={data.email} />
-                                    <Row icon={<Phone className="w-4 h-4" />} label="Phone" value={data.phone} />
-                                    <Row icon={<Briefcase className="w-4 h-4" />} label="Designation" value={data.designation} />
-                                    <Row
-                                        icon={<Calendar className="w-4 h-4" />}
-                                        label="Joined"
-                                        value={data.join_date ? df.date(data.join_date) : null}
-                                    />
-                                    <Row
-                                        icon={<MapPin className="w-4 h-4" />}
-                                        label="Location"
-                                        value={[data.address_line, data.city, data.state].filter(Boolean).join(', ') || null}
-                                    />
+        <Dialog
+            open={staffId !== null}
+            onClose={onClose}
+            size="sm"
+            icon={Briefcase}
+            title={name || t('peoplePage.tabs.staff')}
+            subtitle={data ? [data.designation, data.staff_code].filter(Boolean).join(', ') : undefined}
+            closeLabel={t('common.close')}
+            footer={<Button variant="quiet" onClick={onClose}>{t('common.close')}</Button>}
+        >
+            {isPending || !data ? (
+                <div aria-hidden className="flex flex-col gap-3">
+                    {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-9" />)}
+                </div>
+            ) : (
+                <>
+                    <div><ActiveBadge active={data.is_active !== false} /></div>
+                    <dl className="flex flex-col">
+                        {rows.map(([Icon, label, value]) => (
+                            <div key={label} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
+                                <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-surface-2 text-muted"><Icon size={16} aria-hidden /></span>
+                                <div className="flex min-w-0 flex-col">
+                                    <dt className="type-caption text-muted">{label}</dt>
+                                    <dd className="break-words type-small-medium text-ink">{value || '—'}</dd>
                                 </div>
                             </div>
-                        )}
-                    </motion.div>
-                </div>
+                        ))}
+                    </dl>
+                </>
             )}
-        </AnimatePresence>
+        </Dialog>
     );
-};
+}

@@ -1,183 +1,145 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Printer, Loader2, Users, AlertCircle, ChevronRight } from 'lucide-react';
+import { AlertCircle, ChevronRight, NotebookPen, Printer, Users } from 'lucide-react';
+
+import { Badge, Banner, Button, Card, EmptyState, ListCard, ListRow, Person, SearchField, Skeleton, Table, TableCard, THead, Td, Th, Tr } from '../../design-system';
 import type { ClassReportCards } from '../../api/services/exams.service';
-import { cn } from '../../utils/cn';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
 import { PrintStyles, MarksheetDocument } from './Marksheet';
 
 /**
- * The whole class: a results table on screen, a stack of marksheets on paper.
+ * Figma C05 Class marksheets: the class's results ranked on screen, and a
+ * stack of marksheets on paper.
  *
- * Printing a class one child at a time is the job this replaces. On screen the
- * table is the more useful artefact — it ranks and compares, which a pile of
- * individual sheets cannot — while the sheets themselves are rendered only for
- * the printer, each breaking to its own page.
+ * On screen the table ranks and compares, which a pile of sheets cannot; the
+ * sheets are rendered only for the printer, each on its own page. Students
+ * who did not pass every subject are listed after the ranked ones.
  */
 export const ClassMarksheets: React.FC<{
     data?: ClassReportCards;
     isLoading: boolean;
     isError: boolean;
-    /** The row is the way into a student's sheet. The table already shows more
-     *  than a dropdown could — percentage, GPA, grade, result — so it should
-     *  be the thing you click rather than a list to cross-reference. */
     onOpenStudent: (studentId: number) => void;
-}> = ({ data, isLoading, isError, onOpenStudent }) => {
+    onOpenEntry: () => void;
+}> = ({ data, isLoading, isError, onOpenStudent, onOpenEntry }) => {
     const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const [search, setSearch] = useState('');
 
     if (isLoading) {
         return (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-16 flex justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+            <div className="flex flex-col gap-3.5">
+                <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-[104px] rounded-card" />)}</div>
+                <Skeleton className="h-[360px] rounded-card" />
             </div>
         );
     }
-
     if (isError || !data || data.cards.length === 0) {
         return (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-                <Users className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                <p className="font-bold text-slate-500">{t('marks.noClassMarks')}</p>
-                <p className="text-sm font-medium text-slate-400 mt-1">{t('marks.noClassMarksWhy')}</p>
-            </div>
+            <Card>
+                <EmptyState icon={Users} title={t('marks.noClassMarks')} action={<Button variant="quiet" size="sm" leftIcon={NotebookPen} onClick={onOpenEntry}>{t('marksPage.openEntry')}</Button>}>
+                    {t('marks.noClassMarksWhy')}
+                </EmptyState>
+            </Card>
         );
     }
 
-    const passed = data.cards.filter((c) => c.result === 'PASS').length;
+    const passedCards = data.cards.filter((c) => c.result === 'PASS').sort((a, b) => Number(b.percent) - Number(a.percent));
+    const others = data.cards.filter((c) => c.result !== 'PASS').sort((a, b) => Number(b.percent) - Number(a.percent));
+    const ranked = [...passedCards.map((c, i) => ({ c, rank: i + 1 })), ...others.map((c) => ({ c, rank: null as number | null }))];
+    const q = search.trim().toLowerCase();
+    const shown = q ? ranked.filter(({ c }) => c.student_name.toLowerCase().includes(q) || (c.admission_no ?? '').toLowerCase().includes(q)) : ranked;
+    const gpas = data.cards.map((c) => Number(c.gpa)).filter(Number.isFinite);
+    const classGpa = gpas.length ? gpas.reduce((a, b) => a + b, 0) / gpas.length : null;
+    const top = passedCards[0];
+    const n = (v: number) => formatCount(v, lang);
+
+    const result = (r: string) => (
+        <Badge tone={r === 'PASS' ? 'ok' : r === 'FAIL' ? 'bad' : 'neutral'} dot>{t(`marksPage.result.${r}`, { defaultValue: r })}</Badge>
+    );
+    const stats = [
+        { label: t('marks.marksheetsReady'), value: `${n(data.cards.length)} / ${n(data.total_students)}`, sub: data.without_marks > 0 ? t('marks.withoutMarks', { count: data.without_marks }) : t('marksPage.allHaveMarks') },
+        { label: t('marks.passed'), value: n(passedCards.length), sub: t('marksPage.ofGraded', { pct: n(Math.round((passedCards.length / data.cards.length) * 1000) / 10) }), tone: 'text-ok' },
+        { label: t('marksPage.notPassed'), value: n(others.length), sub: t('marksPage.notPassedSub'), tone: others.length ? 'text-bad' : undefined },
+        { label: t('marksPage.classGpa'), value: classGpa != null ? classGpa.toFixed(2) : '—', sub: top ? t('marksPage.highest', { gpa: top.gpa, name: top.student_name }) : '' },
+    ];
 
     return (
         <>
             <PrintStyles />
-
-            <div className="no-print space-y-4">
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-wrap items-center gap-x-8 gap-y-3">
-                    <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            {t('marks.marksheetsReady')}
-                        </p>
-                        <p className="text-2xl font-black text-slate-900 tabular-nums">
-                            {data.cards.length}
-                            <span className="text-sm font-bold text-slate-400"> / {data.total_students}</span>
-                        </p>
-                    </div>
-                    <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            {t('marks.passed')}
-                        </p>
-                        <p className="text-2xl font-black text-emerald-600 tabular-nums">{passed}</p>
-                    </div>
-                    {data.cards.length - passed > 0 && (
-                        <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                                {t('marks.failed')}
-                            </p>
-                            <p className="text-2xl font-black text-red-500 tabular-nums">
-                                {data.cards.length - passed}
-                            </p>
+            <div className="no-print flex flex-col gap-3.5">
+                <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
+                    {stats.map((s) => (
+                        <div key={s.label} className="flex min-w-0 flex-col gap-1 rounded-card border border-line bg-surface p-3.5 shadow-e1 lg:px-[18px] lg:py-4">
+                            <p className="type-small-medium text-ink-2">{s.label}</p>
+                            <p className={`type-figure-m tabular-nums ${s.tone ?? 'text-ink'}`}>{s.value}</p>
+                            <p className="truncate type-caption text-muted">{s.sub}</p>
                         </div>
-                    )}
-
-                    <button
-                        onClick={() => window.print()}
-                        className="ml-auto inline-flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold text-sm rounded-xl shadow-lg shadow-brand/20 hover:opacity-95 transition-all"
-                    >
-                        <Printer className="w-4 h-4" />
-                        {t('marks.printAll', { count: data.cards.length })}
-                    </button>
+                    ))}
                 </div>
 
-                {/* Students with no marks would print as blank paper, so they are
-                    named here instead of silently dropped from the stack. */}
+                {/* Students with no marks would print as blank paper, so they are named here. */}
                 {data.without_marks > 0 && (
-                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 text-amber-800">
-                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                        <p className="text-sm font-bold">
-                            {t('marks.withoutMarks', { count: data.without_marks })}
-                        </p>
-                    </div>
+                    <Banner tone="warn" icon={AlertCircle} title={t('marks.withoutMarks', { count: data.without_marks })}
+                        action={<Button variant="quiet" size="sm" leftIcon={NotebookPen} onClick={onOpenEntry}>{t('marksPage.openEntry')}</Button>}>
+                        {t('marksPage.withoutMarksBody')}
+                    </Banner>
                 )}
 
-                <p className="text-xs font-bold text-slate-400 px-1">{t('marks.openHint')}</p>
-
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[620px]">
-                            <thead className="bg-slate-50 border-b border-slate-100">
-                                <tr>
-                                    {['#', t('marks.student'), t('marks.admissionNo')].map((h) => (
-                                        <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                            {h}
-                                        </th>
-                                    ))}
-                                    {[t('marks.obtained'), t('marks.percent'), t('marks.gpa')].map((h) => (
-                                        <th key={h} className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                            {h}
-                                        </th>
-                                    ))}
-                                    {[t('marks.grade'), t('marks.result')].map((h) => (
-                                        <th key={h} className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                            {h}
-                                        </th>
-                                    ))}
-                                    <th className="w-8" aria-hidden="true" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {data.cards.map((c, i) => (
-                                    <tr
-                                        key={c.student_id}
-                                        onClick={() => onOpenStudent(c.student_id)}
-                                        tabIndex={0}
-                                        role="button"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ' ') {
-                                                e.preventDefault();
-                                                onOpenStudent(c.student_id);
-                                            }
-                                        }}
-                                        className="cursor-pointer hover:bg-slate-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/40 transition-colors"
-                                    >
-                                        <td className="px-4 py-2.5 text-xs font-bold text-slate-400">{i + 1}</td>
-                                        <td className="px-4 py-2.5 text-sm font-bold text-slate-800">{c.student_name}</td>
-                                        <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{c.admission_no}</td>
-                                        <td className="px-4 py-2.5 text-sm text-right tabular-nums text-slate-600">
-                                            {c.total_obtained} / {c.total_max}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-sm text-right tabular-nums font-bold text-slate-900">
-                                            {c.percent}%
-                                        </td>
-                                        <td className="px-4 py-2.5 text-sm text-right tabular-nums text-slate-600">
-                                            {c.gpa}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-sm text-center font-black text-slate-900">
-                                            {c.grade ?? '—'}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-center">
-                                            <span className={cn(
-                                                'text-[10px] font-black uppercase px-2 py-1 rounded-lg',
-                                                c.result === 'PASS' ? 'bg-emerald-50 text-emerald-600'
-                                                    : c.result === 'FAIL' ? 'bg-red-50 text-red-500'
-                                                        : 'bg-slate-100 text-slate-500',
-                                            )}>
-                                                {c.result}
-                                            </span>
-                                        </td>
-                                        <td className="pr-4 text-slate-300">
-                                            <ChevronRight className="w-4 h-4" aria-hidden="true" />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <div className="flex flex-col gap-2.5 md:flex-row md:items-center">
+                    <SearchField value={search} onChange={setSearch} placeholder={t('marksPage.find')} clearLabel={t('common.clear')} containerClassName="md:w-[280px]" />
+                    <Button leftIcon={Printer} onClick={() => window.print()} className="md:ml-auto">{t('marks.printAll', { count: data.cards.length })}</Button>
                 </div>
+
+                <TableCard className="max-md:hidden" title={t('marksPage.ranked')} subtitle={t('marksPage.rankedSub')}>
+                    <Table aria-label={t('marksPage.ranked')}>
+                        <THead>
+                            <Th className="w-14">{t('marksPage.rank')}</Th>
+                            <Th>{t('marks.student')}</Th>
+                            <Th className="text-right">{t('marks.total')}</Th>
+                            <Th className="text-right">{t('marks.percent')}</Th>
+                            <Th className="text-right">{t('marks.gpa')}</Th>
+                            <Th className="text-center">{t('marks.grade')}</Th>
+                            <Th>{t('marks.result')}</Th>
+                            <Th className="w-10"><span className="sr-only">{t('marksPage.open')}</span></Th>
+                        </THead>
+                        <tbody>
+                            {shown.map(({ c, rank }) => (
+                                <Tr key={c.student_id} onClick={() => onOpenStudent(c.student_id)} className="cursor-pointer">
+                                    <Td className="tabular-nums text-muted">{rank != null ? n(rank) : '—'}</Td>
+                                    <Td><Person name={c.student_name} sub={c.admission_no} /></Td>
+                                    <Td className="whitespace-nowrap text-right tabular-nums">{t('marksPage.of', { a: c.total_obtained, b: c.total_max })}</Td>
+                                    <Td className="text-right type-small-semibold tabular-nums">{c.percent}%</Td>
+                                    <Td className="text-right tabular-nums">{c.gpa}</Td>
+                                    <Td className="text-center type-small-semibold">{c.grade ?? '—'}</Td>
+                                    <Td>{result(c.result)}</Td>
+                                    <Td>
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); onOpenStudent(c.student_id); }} aria-label={t('marksPage.viewCard', { name: c.student_name })}
+                                            className="grid size-8 place-items-center rounded-full text-muted outline-none hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60">
+                                            <ChevronRight size={16} aria-hidden />
+                                        </button>
+                                    </Td>
+                                </Tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </TableCard>
+
+                <ListCard className="md:hidden">
+                    {shown.map(({ c, rank }) => (
+                        <ListRow key={c.student_id} onClick={() => onOpenStudent(c.student_id)}>
+                            <span className="w-6 shrink-0 text-right type-caption tabular-nums text-muted">{rank != null ? n(rank) : '—'}</span>
+                            <span className="min-w-0 flex-1"><Person name={c.student_name} sub={`${c.percent}%, GPA ${c.gpa}`} size={36} /></span>
+                            {result(c.result)}
+                        </ListRow>
+                    ))}
+                </ListCard>
             </div>
 
-            {/* Rendered for the printer only — on screen the table above says
-                more in less space than thirty stacked sheets would. */}
+            {/* Rendered for the printer only. */}
             <div className="print-root hidden print:block">
-                {data.cards.map((c) => (
-                    <MarksheetDocument key={c.student_id} data={c} />
-                ))}
+                {data.cards.map((c) => <MarksheetDocument key={c.student_id} data={c} />)}
             </div>
         </>
     );

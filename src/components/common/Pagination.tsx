@@ -23,7 +23,9 @@ export const Pagination: React.FC<{
     pageSize: number;
     onChange: (page: number) => void;
     className?: string;
-}> = ({ page, totalPages, totalCount, pageSize, onChange, className }) => {
+    /** "inset" sits in a table card's footer; "card" stands alone. */
+    variant?: 'card' | 'inset';
+}> = ({ page, totalPages, totalCount, pageSize, onChange, className, variant = 'card' }) => {
     const { t } = useTranslation();
     if (totalPages <= 1) return null;
 
@@ -34,12 +36,12 @@ export const Pagination: React.FC<{
         <nav
             aria-label={t('common.pagination')}
             className={cn(
-                'flex flex-col sm:flex-row items-center justify-between gap-3',
-                'bg-white px-4 py-3 rounded-2xl border border-slate-100 shadow-sm',
+                'flex flex-col items-center justify-between gap-3 px-4 py-2.5 font-ui sm:flex-row md:px-[18px]',
+                variant === 'card' && 'rounded-card border border-line bg-surface shadow-e1',
                 className,
             )}
         >
-            <p className="text-sm font-medium text-slate-500">
+            <p className="type-small text-muted">
                 {t('common.showingRange', {
                     first,
                     last,
@@ -54,13 +56,13 @@ export const Pagination: React.FC<{
                     disabled={page === 1}
                     label={t('common.previous')}
                 >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft size={14} aria-hidden />
                     <span className="hidden sm:inline">{t('common.previous')}</span>
                 </PageButton>
 
                 {pageWindow(page, totalPages).map((p, i) =>
                     p === null ? (
-                        <span key={`gap-${i}`} className="px-2 text-slate-300 font-bold select-none">
+                        <span key={`gap-${i}`} aria-hidden className="w-6 select-none text-center type-small-semibold text-muted">
                             …
                         </span>
                     ) : (
@@ -70,11 +72,9 @@ export const Pagination: React.FC<{
                             onClick={() => onChange(p)}
                             aria-current={p === page ? 'page' : undefined}
                             className={cn(
-                                'min-w-9 px-3 py-2 rounded-xl text-sm font-bold transition-colors',
-                                'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
-                                p === page
-                                    ? 'bg-brand text-white shadow-sm shadow-brand/20'
-                                    : 'text-slate-600 hover:bg-slate-100',
+                                'grid h-[34px] min-w-[34px] place-items-center rounded-full px-1.5 type-small-semibold tabular-nums outline-none transition-colors',
+                                'focus-visible:ring-3 focus-visible:ring-focus/60',
+                                p === page ? 'bg-primary text-on-primary' : 'text-ink-2 hover:bg-sunken',
                             )}
                         >
                             {p}
@@ -88,7 +88,7 @@ export const Pagination: React.FC<{
                     label={t('common.next')}
                 >
                     <span className="hidden sm:inline">{t('common.next')}</span>
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight size={14} aria-hidden />
                 </PageButton>
             </div>
         </nav>
@@ -107,10 +107,9 @@ const PageButton: React.FC<{
         disabled={disabled}
         aria-label={label}
         className={cn(
-            'inline-flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-bold transition-colors',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
-            'text-slate-600 hover:bg-slate-100',
-            'disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed',
+            'inline-flex h-[34px] items-center gap-1.5 rounded-full px-3 type-label-s text-ink-2 outline-none transition-colors',
+            'hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60',
+            'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
         )}
     >
         {children}

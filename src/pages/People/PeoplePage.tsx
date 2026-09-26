@@ -1,200 +1,148 @@
-import React, { useState } from 'react';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, GraduationCap, Microscope, Home, UserCircle, Plus } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { BookOpen, Briefcase, GraduationCap, Home, Link2, Plus, UserCircle } from 'lucide-react';
+
+import { Button, Tabs, type TabItem } from '../../design-system';
+import { AppPage, PageBar } from '../../components/layout/AppPage';
 import { AccessControl } from '../../components/AccessControl';
 import { StudentManagement } from '../../components/people/StudentManagement';
 import { TeacherManagement } from '../../components/people/TeacherManagement';
 import { StaffManagement } from '../../components/people/StaffManagement';
 import { ParentManagement } from '../../components/people/ParentManagement';
 import { UserManagement } from '../../components/people/UserManagement';
+import { AddStaffModal } from '../../components/people/AddStaffModal';
 import { RegistrationModal } from '../../components/registration/RegistrationModal';
 import { AddStudentToParentModal } from '../../components/registration/AddStudentToParentModal';
 import { WorkforceRegistrationModal } from '../../components/people/WorkforceRegistrationModal';
-import { useTranslation } from 'react-i18next';
+import { peopleService } from '../../api/services/people.service';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
 
 type PeopleTab = 'students' | 'teachers' | 'staff' | 'parents' | 'users';
+const TABS: PeopleTab[] = ['students', 'teachers', 'staff', 'parents', 'users'];
+const STORAGE_KEY = 'people_active_tab';
 
-const PeoplePage: React.FC = () => {
-    const { t } = useTranslation();
-    const [activeTab, setActiveTabState] = useState<PeopleTab>(() => {
-        return (localStorage.getItem('people_active_tab') as PeopleTab) || 'students';
+function readTab(): PeopleTab {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY) as PeopleTab | null;
+        return saved && TABS.includes(saved) ? saved : 'students';
+    } catch {
+        return 'students';
+    }
+}
+
+/**
+ * Totals for the tab badges (Figma "People tabs"): one row each, so the
+ * count is the whole register, not the filtered page below.
+ */
+function useTabCounts() {
+    const one = { page: 1, limit: 1 };
+    const results = useQueries({
+        queries: [
+            { queryKey: ['people-count', 'students'], queryFn: () => peopleService.getStudents(one) },
+            { queryKey: ['people-count', 'teachers'], queryFn: () => peopleService.getTeachers(one) },
+            { queryKey: ['people-count', 'staff'], queryFn: () => peopleService.getStaffList(one) },
+            { queryKey: ['people-count', 'parents'], queryFn: () => peopleService.getParents(one) },
+            { queryKey: ['people-count', 'users'], queryFn: () => peopleService.getUsers(one) },
+        ].map((q) => ({ ...q, staleTime: 60 * 1000 })),
     });
-    const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
-    const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
-    const [isWorkforceModalOpen, setIsWorkforceModalOpen] = useState(false);
+    return Object.fromEntries(TABS.map((tab, i) => [tab, (results[i].data as { total_count?: number } | undefined)?.total_count])) as Record<PeopleTab, number | undefined>;
+}
 
-    const setActiveTab = (tab: PeopleTab) => {
-        setActiveTabState(tab);
-        localStorage.setItem('people_active_tab', tab);
+/** Figma F01–F05: Students and staff. */
+const PeoplePage = () => {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const [tab, setTabState] = useState<PeopleTab>(readTab);
+    const [registering, setRegistering] = useState(false);
+    const [addingChild, setAddingChild] = useState(false);
+    const [addingWorkforce, setAddingWorkforce] = useState(false);
+    const [addingStaff, setAddingStaff] = useState(false);
+    const counts = useTabCounts();
+
+    const setTab = (next: PeopleTab) => {
+        setTabState(next);
+        try { localStorage.setItem(STORAGE_KEY, next); } catch { /* the tab just won't be remembered */ }
     };
 
-    const categories = [
-        {
-            id: 'system',
-            labelKey: 'people.system',
-            tabs: [
-                { id: 'users', labelKey: 'people.userAccounts', icon: UserCircle, resource: 'users' },
-            ]
-        },
-        {
-            id: 'workforce',
-            labelKey: 'people.schoolPersonnel',
-            tabs: [
-                { id: 'teachers', labelKey: 'people.teachers', icon: Microscope, resource: 'teachers' },
-                { id: 'staff', labelKey: 'people.staff', icon: Users, resource: 'staff' },
-            ]
-        },
-        {
-            id: 'family',
-            labelKey: 'people.schoolFamily',
-            tabs: [
-                { id: 'students', labelKey: 'people.students', icon: GraduationCap, resource: 'students' },
-                { id: 'parents', labelKey: 'people.parents', icon: Home, resource: 'parents' },
-            ]
-        }
-    ];
+    const items: TabItem<PeopleTab>[] = [
+        { value: 'students', label: t('peoplePage.tabs.students'), icon: GraduationCap },
+        { value: 'teachers', label: t('peoplePage.tabs.teachers'), icon: BookOpen },
+        { value: 'staff', label: t('peoplePage.tabs.staff'), icon: Briefcase },
+        { value: 'parents', label: t('peoplePage.tabs.parents'), icon: Home },
+        { value: 'users', label: t('peoplePage.tabs.users'), icon: UserCircle },
+    ].map((item) => {
+        const n = counts[item.value as PeopleTab];
+        return { ...item, count: n === undefined ? undefined : formatCount(n, lang) } as TabItem<PeopleTab>;
+    });
+
+    const actions = {
+        students: (
+            <>
+                <AccessControl id="add_student_modal">
+                    <Button variant="quiet" leftIcon={Link2} onClick={() => setAddingChild(true)}>{t('peoplePage.actions.addToParent')}</Button>
+                </AccessControl>
+                <AccessControl id="registration_modal">
+                    <Button leftIcon={Plus} onClick={() => setRegistering(true)}>{t('peoplePage.actions.registerStudent')}</Button>
+                </AccessControl>
+            </>
+        ),
+        teachers: (
+            // Teachers sign in (attendance, marks), so adding one creates their account too.
+            <AccessControl id="users_create">
+                <Button leftIcon={Plus} onClick={() => setAddingWorkforce(true)}>{t('peoplePage.actions.addTeacher')}</Button>
+            </AccessControl>
+        ),
+        staff: (
+            <AccessControl id="staff_create">
+                <Button leftIcon={Plus} onClick={() => setAddingStaff(true)}>{t('peoplePage.actions.addStaff')}</Button>
+            </AccessControl>
+        ),
+        parents: (
+            <>
+                <AccessControl id="add_student_modal">
+                    <Button variant="quiet" leftIcon={Link2} onClick={() => setAddingChild(true)}>{t('peoplePage.actions.addToParent')}</Button>
+                </AccessControl>
+                <AccessControl id="registration_modal">
+                    <Button leftIcon={Plus} onClick={() => setRegistering(true)}>{t('peoplePage.actions.registerFamily')}</Button>
+                </AccessControl>
+            </>
+        ),
+        users: (
+            <AccessControl id="users_create">
+                <Button leftIcon={Plus} onClick={() => setAddingWorkforce(true)}>{t('peoplePage.actions.addAccount')}</Button>
+            </AccessControl>
+        ),
+    }[tab];
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
+        <AppPage title={t('peoplePage.title')}>
+            <PageBar actions={actions}>
+                <Tabs items={items} value={tab} onChange={setTab} aria-label={t('peoplePage.tabsLabel')} />
+            </PageBar>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-8">
-                    {/* Header Section */}
-                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                        <div className="space-y-1">
-                            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{t('people.title')}</h1>
-                            <p className="text-slate-500 font-medium">{t('people.subtitle')}</p>
-                        </div>
+            <div role="tabpanel" aria-label={t(`peoplePage.tabs.${tab}`)} className="min-w-0">
+                {tab === 'students' && <StudentManagement />}
+                {tab === 'teachers' && <TeacherManagement />}
+                {tab === 'staff' && <StaffManagement />}
+                {tab === 'parents' && <ParentManagement />}
+                {tab === 'users' && <UserManagement />}
+            </div>
 
-                        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
-                            {(activeTab === 'students' || activeTab === 'parents') && (
-                                <>
-                                    <AccessControl id="add_student_modal">
-                                        <button
-                                            onClick={() => setIsAddStudentModalOpen(true)}
-                                            className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-white text-slate-700 font-bold text-xs md:text-base rounded-xl md:rounded-2xl border border-slate-200 shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] whitespace-nowrap"
-                                        >
-                                            <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
-                                            <span className="truncate">{t('people.assignStudent')}</span>
-                                        </button>
-                                    </AccessControl>
-                                    <AccessControl id="registration_modal">
-                                        <button
-                                            onClick={() => setIsRegistrationModalOpen(true)}
-                                            className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
-                                        >
-                                            <Plus className="w-4 h-4 md:w-5 md:h-5 text-white shrink-0" />
-                                            <span className="truncate">{t('people.registerGuardian')}</span>
-                                        </button>
-                                    </AccessControl>
-                                </>
-                            )}
-
-                            {activeTab === 'users' && (
-                                <AccessControl id="users_create">
-                                    <button
-                                        onClick={() => setIsWorkforceModalOpen(true)}
-                                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
-                                    >
-                                        <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
-                                        <span className="truncate">{t('people.registerUser')}</span>
-                                    </button>
-                                </AccessControl>
-                            )}
-
-                            {activeTab === 'teachers' && (
-                                // Teachers need a login (they use the app for attendance/marks/etc.),
-                                // so "adding" one still goes through the same user-registration flow
-                                // as the Users tab — just pre-set to the teacher role and reachable
-                                // from here too, since that isn't obvious from this tab alone.
-                                <AccessControl id="users_create">
-                                    <button
-                                        onClick={() => setIsWorkforceModalOpen(true)}
-                                        className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-xs md:text-base rounded-xl md:rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98] whitespace-nowrap"
-                                    >
-                                        <Plus className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
-                                        <span className="truncate">{t('people.addTeacher')}</span>
-                                    </button>
-                                </AccessControl>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Grouped Tab Navigation — labeled groups on desktop, one compact wrapping row on phones */}
-                    <div className="flex flex-wrap gap-2 md:gap-6 items-start">
-                        {categories.map((category) => (
-                            <div key={category.id} className="md:space-y-2.5">
-                                <h3 className="hidden md:block text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] px-2">
-                                    {t(category.labelKey)}
-                                </h3>
-                                <div className="flex p-1 bg-white rounded-xl md:rounded-2xl border border-slate-100 shadow-sm w-fit">
-                                    {category.tabs.map((tab) => (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => setActiveTab(tab.id as PeopleTab)}
-                                            className={cn(
-                                                "flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-lg md:rounded-xl font-bold text-xs md:text-sm transition-all duration-200 whitespace-nowrap",
-                                                activeTab === tab.id
-                                                    ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
-                                                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                                            )}
-                                        >
-                                            <tab.icon className="w-3.5 h-3.5 shrink-0" />
-                                            {t(tab.labelKey)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="relative">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeTab}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {activeTab === 'students' && <StudentManagement />}
-                                {activeTab === 'teachers' && <TeacherManagement />}
-                                {activeTab === 'staff' && <StaffManagement />}
-                                {activeTab === 'parents' && <ParentManagement />}
-                                {activeTab === 'users' && <UserManagement />}
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </main>
-
-            {/* Registration Modals */}
             <AccessControl id="registration_modal">
-                <RegistrationModal
-                    isOpen={isRegistrationModalOpen}
-                    onClose={() => setIsRegistrationModalOpen(false)}
-                />
+                <RegistrationModal isOpen={registering} onClose={() => setRegistering(false)} />
             </AccessControl>
-
             <AccessControl id="add_student_modal">
-                <AddStudentToParentModal
-                    isOpen={isAddStudentModalOpen}
-                    onClose={() => setIsAddStudentModalOpen(false)}
-                />
+                <AddStudentToParentModal isOpen={addingChild} onClose={() => setAddingChild(false)} />
             </AccessControl>
-
             <WorkforceRegistrationModal
-                isOpen={isWorkforceModalOpen}
-                onClose={() => setIsWorkforceModalOpen(false)}
-                initialRole={activeTab === 'teachers' ? 'teacher' : undefined}
+                isOpen={addingWorkforce}
+                onClose={() => setAddingWorkforce(false)}
+                initialRole={tab === 'teachers' ? 'teacher' : undefined}
             />
-        </div>
+            <AddStaffModal isOpen={addingStaff} onClose={() => setAddingStaff(false)} />
+        </AppPage>
     );
 };
 

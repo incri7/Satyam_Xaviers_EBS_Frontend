@@ -132,8 +132,9 @@ export const financesService = {
     },
 
     // Payments
-    listPayments: async (studentId?: number): Promise<Payment[]> => {
-        const response = await api.get('finances/payments', { params: { student_id: studentId } });
+    /** Newest first. Without a student, `limit` (max 500) pages through all payments. */
+    listPayments: async (studentId?: number, page: { skip?: number; limit?: number } = {}): Promise<Payment[]> => {
+        const response = await api.get('finances/payments', { params: { student_id: studentId, ...page } });
         return response.data;
     },
     recordPayment: async (data: PaymentCreate): Promise<Payment> => {
@@ -178,6 +179,19 @@ export const financesService = {
     },
     voidExpense: async (id: number): Promise<Expense> => {
         const response = await api.delete(`finances/expenses/${id}`);
+        return response.data;
+    },
+    /** Photo or PDF of the bill (jpg, png, webp or pdf). */
+    uploadExpenseAttachment: async (id: number, file: File): Promise<Expense> => {
+        const form = new FormData();
+        form.append('file', file);
+        const response = await api.post(`finances/expenses/${id}/attachment`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+    getExpenseAttachment: async (id: number): Promise<Blob> => {
+        const response = await api.get(`finances/expenses/${id}/attachment`, { responseType: 'blob' });
         return response.data;
     },
 

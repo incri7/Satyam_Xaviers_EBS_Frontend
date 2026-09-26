@@ -1,556 +1,599 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicsService, type ClassSubjectRow, type ClassDetail } from '../../api/services/academics.service';
-import {
-    BookOpen, Layers, BookMarked, Users as UsersIcon, ChevronRight, ArrowLeft,
-    Search, Loader2, Microscope, Pencil, X, Check,
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import {
+    AlertCircle, AlertTriangle, BookMarked, CalendarClock, ChevronRight, Info, Layers, Pencil, Plus, RotateCw, UserCheck,
+} from 'lucide-react';
+
+import {
+    Badge, Button, Card, CardHeader, EmptyState, IconButton, IconTile, ListCard, ListRow, Meter, Person, SearchField,
+    Skeleton, Table, TableCard, TableMessage, TableSkeletonRows, THead, Td, Th, Tr,
+} from '../../design-system';
+import { Toolbar } from '../layout/AppPage';
 import { AccessControl } from '../AccessControl';
 import { ViewToggle, useViewMode } from '../common/ViewToggle';
 import { SelectMenu } from '../common/SelectMenu';
+import { academicsService, type ClassDetail, type ClassSubjectRow } from '../../api/services/academics.service';
+import { STAGES, seatTone, useClassOverview, type ClassOverview, type Stage } from '../../features/academics/queries';
+import { ManageSubjectsDialog, PickTeacherDialog } from '../../features/academics/dialogs';
+import { CreateSectionModal } from './CreateSectionModal';
+import { CreateEnrollmentModal } from './CreateEnrollmentModal';
+import { errorText } from '../../features/people/format';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
-import type { Class } from '../../types/academic';
 
 type View =
     | { level: 'classes' }
     | { level: 'class'; classId: number; className: string }
-    | { level: 'section'; classId: number; className: string; sectionId: number; sectionName: string };
+    | { level: 'section'; classId: number; className: string; sectionId: number };
 
-const capacityTone = (enrolled: number, cap: number | null) => {
-    const c = cap || 0;
-    const r = c > 0 ? enrolled / c : 0;
-    if (c > 0 && enrolled >= c) return { bar: 'bg-red-500', text: 'text-red-600' };
-    if (r >= 0.75) return { bar: 'bg-amber-500', text: 'text-amber-600' };
-    return { bar: 'bg-emerald-500', text: 'text-emerald-600' };
-};
-
-export const AcademicsExplorer: React.FC = () => {
+/**
+ * Figma F08 Classes → F09 Class detail → F10 Section detail, one drill-down.
+ */
+export function AcademicsExplorer() {
     const [view, setView] = useState<View>({ level: 'classes' });
+    if (view.level === 'class') {
+        return (
+            <ClassPage
+                classId={view.classId}
+                className={view.className}
+                onBack={() => setView({ level: 'classes' })}
+                onOpenSection={(sectionId) => setView({ level: 'section', classId: view.classId, className: view.className, sectionId })}
+            />
+        );
+    }
+    if (view.level === 'section') {
+        return (
+            <SectionPage
+                classId={view.classId}
+                className={view.className}
+                sectionId={view.sectionId}
+                onClasses={() => setView({ level: 'classes' })}
+                onClass={() => setView({ level: 'class', classId: view.classId, className: view.className })}
+                onSwitch={(classId, className, sectionId) => setView({ level: 'section', classId, className, sectionId })}
+            />
+        );
+    }
+    return <ClassList onOpen={(c) => setView({ level: 'class', classId: c.id, className: c.name })} />;
+}
 
+// ── Crumbs ────────────────────────────────────────────────────────────────────
+function Crumbs({ items }: { items: { label: string; onClick?: () => void }[] }) {
     return (
-        <div className="space-y-4">
-            {view.level === 'classes' && <ClassList onOpen={(c) => setView({ level: 'class', classId: c.id, className: c.name })} />}
-            {view.level === 'class' && (
-                <ClassView
-                    classId={view.classId}
-                    className={view.className}
-                    onBack={() => setView({ level: 'classes' })}
-                    onOpenSection={(sid, sname) => setView({ level: 'section', classId: view.classId, className: view.className, sectionId: sid, sectionName: sname })}
-                />
-            )}
-            {view.level === 'section' && (
-                <SectionView
-                    classId={view.classId}
-                    className={view.className}
-                    sectionId={view.sectionId}
-                    sectionName={view.sectionName}
-                    onBack={() => setView({ level: 'class', classId: view.classId, className: view.className })}
-                    onSwitch={(classId, className, sectionId, sectionName) =>
-                        setView({ level: 'section', classId, className, sectionId, sectionName })
-                    }
-                />
-            )}
-        </div>
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 type-small">
+            {items.map((it, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                    {i > 0 && <ChevronRight size={14} className="text-muted" aria-hidden />}
+                    {it.onClick ? (
+                        <button type="button" onClick={it.onClick} className="rounded-sm font-medium text-ink-2 outline-none hover:text-primary-text focus-visible:ring-3 focus-visible:ring-focus/60">
+                            {it.label}
+                        </button>
+                    ) : (
+                        <span aria-current="page" className="text-muted">{it.label}</span>
+                    )}
+                </span>
+            ))}
+        </nav>
     );
-};
+}
 
-// ── Breadcrumb ────────────────────────────────────────────────────────────────
-const Crumb: React.FC<{ onBack: () => void; trail: string[] }> = ({ onBack, trail }) => (
-    <button onClick={onBack} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">
-        <ArrowLeft className="w-4 h-4" />
-        {trail.join('  ›  ')}
-    </button>
-);
-
-// ── Level 1: classes ────────────────────────────────────────────────────────
-const ClassList: React.FC<{ onOpen: (c: Class) => void }> = ({ onOpen }) => {
+function SeatMeter({ filled, capacity, height = 6 }: { filled: number; capacity: number; height?: number }) {
     const { t } = useTranslation();
-    const df = useDateFormat();
-    const [view, setView] = useViewMode('academics_classes_view');
+    return <Meter value={capacity ? filled / capacity : 0} tone={seatTone(filled, capacity)} height={height} label={t('classesPage.card.seats', { filled, total: capacity })} />;
+}
+
+// ── F08: classes ─────────────────────────────────────────────────────────────
+function ClassList({ onOpen }: { onOpen: (c: { id: number; name: string }) => void }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const [view, setView] = useViewMode('academics_classes_view', 'cards');
     const [search, setSearch] = useState('');
-    const { data, isLoading } = useQuery({
-        queryKey: ['classes', search],
-        queryFn: () => academicsService.getClasses({ search, limit: 100 }),
-    });
-    const classes = (data?.classes || []) as Class[];
+    const [stage, setStage] = useState<Stage | 'all'>('all');
+    const { rows, isPending, isError, refetch } = useClassOverview();
+
+    const present = STAGES.filter((s) => rows.some((r) => r.stage === s));
+    const shown = rows
+        .filter((r) => stage === 'all' || r.stage === stage)
+        .filter((r) => r.klass.name.toLowerCase().includes(search.trim().toLowerCase()));
+
+    const sections = rows.reduce((n, r) => n + r.sections.length, 0);
+    const students = rows.reduce((n, r) => n + r.students, 0);
+    const capacity = rows.reduce((n, r) => n + r.capacity, 0);
+    const n = (v: number) => formatCount(v, lang);
+    const summaryLine = (r: ClassOverview) =>
+        `${t('classesPage.card.sections', { count: r.sections.length, n: n(r.sections.length) })}, ${t('classesPage.card.students', { count: r.students, n: n(r.students) })}`;
+
+    const chip = (value: Stage | 'all', label: string, count: number) => {
+        const on = stage === value;
+        return (
+            <button key={value} type="button" aria-pressed={on} onClick={() => setStage(value)}
+                className={cn(
+                    'inline-flex h-[34px] shrink-0 items-center gap-2 rounded-full px-3 type-small-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60',
+                    on ? 'bg-inverse text-on-inverse' : 'bg-surface text-ink-2 ring-1 ring-inset ring-line hover:bg-sunken',
+                )}>
+                {label}
+                <span className={cn('rounded-full px-1.5 type-micro-bold', on ? 'bg-white/20' : 'bg-sunken')}>{n(count)}</span>
+            </button>
+        );
+    };
+
+    const error = (
+        <EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+            action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={refetch}>{t('classesPage.action.retry')}</Button>}>
+            {t('peoplePage.error.body')}
+        </EmptyState>
+    );
+    const empty = (
+        <EmptyState icon={Layers} title={search || stage !== 'all' ? t('academics.noClassesMatch') : t('academics.noClassesYet')}>
+            {search || stage !== 'all' ? t('academics.noClassesMatchHint') : t('academics.noClassesYetHint')}
+        </EmptyState>
+    );
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={t('academics.searchClasses')}
-                        className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                    />
-                </div>
-                <ViewToggle value={view} onChange={setView} />
+        <div className="flex min-w-0 flex-col gap-3.5">
+            {/* Year summary (Figma "Year summary") */}
+            <div className="grid grid-cols-2 rounded-card border border-line bg-surface py-3 shadow-e1 md:grid-cols-4 md:py-4">
+                {[
+                    [t('classesPage.summary.classes'), n(rows.length), null],
+                    [t('classesPage.summary.sections'), n(sections), null],
+                    [t('classesPage.summary.students'), n(students), null],
+                    [t('classesPage.summary.seats'), capacity ? `${n(Math.round((students / capacity) * 100))}%` : '—', capacity ? t('classesPage.summary.seatsOf', { filled: n(students), total: n(capacity) }) : null],
+                ].map(([label, value, sub], i) => (
+                    <div key={i} className={cn('flex flex-col gap-0.5 px-4 py-1 md:px-5', i % 2 === 0 && 'max-md:border-r', i < 3 && 'md:border-r', 'border-line-subtle')}>
+                        <span className="type-small text-muted">{label}</span>
+                        <span className="flex flex-wrap items-baseline gap-2">
+                            {isPending ? <Skeleton className="h-7 w-12" /> : <span className="type-figure-m text-ink">{value}</span>}
+                            {sub && <span className="type-caption text-muted">{sub}</span>}
+                        </span>
+                    </div>
+                ))}
             </div>
 
-            {classes.length === 0 && !isLoading ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center space-y-2">
-                    <p className="font-bold text-slate-900">
-                        {search ? t('academics.noClassesMatch') : t('academics.noClassesYet')}
-                    </p>
-                    <p className="text-slate-500 text-sm">
-                        {search ? t('academics.noClassesMatchHint') : t('academics.noClassesYetHint')}
-                    </p>
+            <Toolbar end={<ViewToggle value={view} onChange={setView} />}>
+                <SearchField value={search} onChange={setSearch} placeholder={t('classesPage.search.classes')} clearLabel={t('common.clear')} containerClassName="md:w-[220px]" />
+                <div className="flex gap-1.5 max-md:-mx-4 max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none]">
+                    {chip('all', t('classesPage.stage.all'), rows.length)}
+                    {present.map((s) => chip(s, t(`classesPage.stage.${s}`), rows.filter((r) => r.stage === s).length))}
                 </div>
-            ) : view === 'table' ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100">
-                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        {t('academics.class')}
-                                    </th>
-                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        {t('academics.created')}
-                                    </th>
-                                    <th scope="col" className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">
-                                        {t('common.actions')}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {isLoading
-                                    ? [1, 2, 3, 4, 5].map(i => (
-                                        <tr key={i} className="animate-pulse">
-                                            <td colSpan={3} className="px-6 py-6 bg-slate-50/20" />
-                                        </tr>
-                                    ))
-                                    : classes.map(c => (
-                                        <tr
-                                            key={c.id}
-                                            onClick={() => onOpen(c)}
-                                            tabIndex={0}
-                                            role="button"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    onOpen(c);
-                                                }
-                                            }}
-                                            className="group cursor-pointer hover:bg-slate-50/60 focus:bg-slate-50/60 focus:outline-none transition-colors"
-                                        >
-                                            <td className="px-6 py-3.5">
-                                                <div className="flex items-center gap-3">
-                                                    {/* Same brand glyph the cards use, so switching
-                                                        views doesn't feel like a different product. */}
-                                                    <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center text-brand shrink-0">
-                                                        <BookOpen className="w-4 h-4" />
-                                                    </div>
-                                                    <span className="font-bold text-slate-900 whitespace-nowrap">{c.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-3.5 text-sm font-medium text-slate-500 whitespace-nowrap">
-                                                {df.date(c.created_at)}
-                                            </td>
-                                            <td className="px-6 py-3.5">
-                                                <span className="flex items-center justify-end gap-1.5 text-xs font-bold text-slate-400 group-hover:text-brand transition-colors whitespace-nowrap">
-                                                    {t('academics.openClass')}
-                                                    <ChevronRight className="w-4 h-4" />
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
+            </Toolbar>
+
+            {/* Cards (default, as in Figma), always on phones */}
+            <div className={cn(view === 'table' && 'md:hidden')}>
+                {isPending ? (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[162px] rounded-card" />)}</div>
+                ) : isError ? (
+                    <Card>{error}</Card>
+                ) : shown.length === 0 ? (
+                    <Card>{empty}</Card>
+                ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 lg:gap-3.5">
+                        {shown.map((r) => (
+                            <button key={r.klass.id} type="button" onClick={() => onOpen(r.klass)}
+                                className="group flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-[18px] text-left shadow-e1 outline-none transition-[box-shadow,border-color] duration-200 hover:border-primary-soft-line hover:shadow-e2 focus-visible:ring-3 focus-visible:ring-focus/60">
+                                <span className="flex items-center gap-2.5">
+                                    <IconTile icon={Layers} tone="brand" size={36} />
+                                    <span className="flex min-w-0 flex-1 flex-col">
+                                        <span className="truncate type-h3 text-ink">{r.klass.name}</span>
+                                        <span className="truncate type-caption text-muted">{summaryLine(r)}</span>
+                                    </span>
+                                    <ChevronRight size={18} className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
+                                </span>
+                                <span className="flex min-w-0 items-center gap-2 type-small text-ink-2">
+                                    <UserCheck size={15} className="shrink-0 text-muted" aria-hidden />
+                                    <span className="truncate">{r.teacherNames.length ? r.teacherNames.join(', ') : t('classesPage.card.noClassTeacher')}</span>
+                                </span>
+                                {r.missingTeacher.length > 0 && r.teacherNames.length > 0 && (
+                                    <span className="flex items-center gap-1.5 rounded-[10px] bg-warn-soft px-2.5 py-1.5 type-caption-semibold text-warn">
+                                        <AlertTriangle size={13} aria-hidden />
+                                        {t('classesPage.card.missing', { count: r.missingTeacher.length, sections: r.missingTeacher.join(', ') })}
+                                    </span>
+                                )}
+                                <span className="mt-auto flex flex-col gap-1.5">
+                                    <span className="flex items-center justify-between type-caption">
+                                        <span className="text-muted">{t('classesPage.card.capacity')}</span>
+                                        <span className="font-semibold text-ink-2">{r.capacity ? t('classesPage.card.seats', { filled: n(r.students), total: n(r.capacity) }) : t('classesPage.card.noLimit')}</span>
+                                    </span>
+                                    <SeatMeter filled={r.students} capacity={r.capacity} />
+                                </span>
+                            </button>
+                        ))}
                     </div>
-                </div>
-            ) : isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-20 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {classes.map((c, i) => (
-                        <motion.button
-                            key={c.id}
-                            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                            onClick={() => onOpen(c)}
-                            className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex items-center justify-between hover:shadow-md hover:border-brand/20 transition-all text-left"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 bg-brand/10 rounded-xl flex items-center justify-center text-brand">
-                                    <BookOpen className="w-5 h-5" />
-                                </div>
-                                <span className="font-bold text-slate-900">{c.name}</span>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors" />
-                        </motion.button>
-                    ))}
-                </div>
+                )}
+            </div>
+
+            {/* Table, from md up when chosen */}
+            {view === 'table' && (
+                <TableCard className="max-md:hidden">
+                    <Table>
+                        <THead>
+                            <Th>{t('classesPage.col.class')}</Th>
+                            <Th>{t('classesPage.col.sections')}</Th>
+                            <Th>{t('classesPage.col.students')}</Th>
+                            <Th>{t('classesPage.col.classTeacher')}</Th>
+                            <Th className="w-[220px]">{t('classesPage.col.capacity')}</Th>
+                            <Th><span className="sr-only">{t('classesPage.col.actions')}</span></Th>
+                        </THead>
+                        <tbody>
+                            {isPending ? <TableSkeletonRows columns={6} /> : isError ? <TableMessage columns={6}>{error}</TableMessage> : shown.length === 0 ? <TableMessage columns={6}>{empty}</TableMessage> : shown.map((r) => (
+                                <Tr key={r.klass.id} className="cursor-pointer" onClick={() => onOpen(r.klass)}>
+                                    <Td><span className="flex items-center gap-2.5"><IconTile icon={Layers} tone="brand" size={32} /><span className="type-body-semibold text-ink">{r.klass.name}</span></span></Td>
+                                    <Td className="tabular-nums">{n(r.sections.length)}</Td>
+                                    <Td className="tabular-nums">{n(r.students)}</Td>
+                                    <Td>{r.teacherNames.join(', ') || <span className="text-muted">{t('classesPage.card.noClassTeacher')}</span>}</Td>
+                                    <Td>
+                                        <span className="flex flex-col gap-1">
+                                            <span className="type-caption text-ink-2">{r.capacity ? t('classesPage.card.seats', { filled: n(r.students), total: n(r.capacity) }) : t('classesPage.card.noLimit')}</span>
+                                            <SeatMeter filled={r.students} capacity={r.capacity} />
+                                        </span>
+                                    </Td>
+                                    <Td><span className="flex justify-end"><IconButton icon={ChevronRight} label={r.klass.name} onClick={(e) => { e.stopPropagation(); onOpen(r.klass); }} /></span></Td>
+                                </Tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </TableCard>
             )}
         </div>
     );
-};
+}
 
-type SectionRow = ClassDetail['sections'][number];
+// ── Shared: subjects table (F09/F10) ──────────────────────────────────────────
+function useClassSubjects(classId: number) {
+    return useQuery({ queryKey: ['class-subjects', classId], queryFn: () => academicsService.getClassSubjects(classId) });
+}
 
-// ── Level 2: one class → its sections + subject count ──────────────────────────
-const ClassView: React.FC<{
-    classId: number; className: string; onBack: () => void;
-    onOpenSection: (sectionId: number, sectionName: string) => void;
-}> = ({ classId, className, onBack, onOpenSection }) => {
+function SubjectsCard({ classId, className }: { classId: number; className: string }) {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
-    const [assignCT, setAssignCT] = useState<SectionRow | null>(null);
+    const subjects = useClassSubjects(classId);
+    const [managing, setManaging] = useState(false);
+    const [assigning, setAssigning] = useState<ClassSubjectRow | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const teachers = useQuery({ queryKey: ['teacher-options'], queryFn: academicsService.getTeacherOptions, enabled: !!assigning, staleTime: 5 * 60 * 1000 });
 
-    const { data, isLoading } = useQuery({
-        queryKey: ['class-detail', classId],
-        queryFn: () => academicsService.getClassDetail(classId),
+    const setTeacher = useMutation({
+        mutationFn: ({ csId, tId }: { csId: number; tId: number | null }) => academicsService.setClassSubjectTeacher(csId, tId),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['class-subjects', classId] }); queryClient.invalidateQueries({ queryKey: ['class-detail', classId] }); setAssigning(null); },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
-    const classTeachers = data?.teachers || [];
 
-    const setClassTeacher = useMutation({
-        mutationFn: ({ sectionId, teacherId }: { sectionId: number; teacherId: number | null }) =>
-            academicsService.updateSection(sectionId, { class_teacher_id: teacherId }),
+    const rows = subjects.data ?? [];
+    const manage = (
+        <AccessControl id="classes_update">
+            <Button variant="quiet" size="sm" leftIcon={BookMarked} onClick={() => setManaging(true)}>{t('classesPage.action.manageSubjects')}</Button>
+        </AccessControl>
+    );
+
+    return (
+        <>
+            <TableCard title={t('classesPage.detail.subjectsTitle')} subtitle={rows.length ? `${t('classesPage.card.subjects', { count: rows.length, n: rows.length })}. ${t('classesPage.detail.subjectsSub')}` : undefined} action={manage}>
+                {subjects.isPending ? (
+                    <Table><tbody><TableSkeletonRows columns={3} rows={4} /></tbody></Table>
+                ) : rows.length === 0 ? (
+                    <EmptyState icon={BookMarked} title={t('classesPage.detail.noSubjects')}>{t('classesPage.detail.noSubjectsBody')}</EmptyState>
+                ) : (
+                    <Table>
+                        <THead>
+                            <Th>{t('classesPage.col.subject')}</Th>
+                            <Th>{t('classesPage.col.teacher')}</Th>
+                            <Th><span className="sr-only">{t('classesPage.col.actions')}</span></Th>
+                        </THead>
+                        <tbody>
+                            {rows.map((cs) => (
+                                <Tr key={cs.id}>
+                                    <Td><span className="flex items-center gap-2.5"><IconTile icon={BookMarked} tone="info" size={32} /><span className="type-body-semibold text-ink">{cs.subject_name}</span></span></Td>
+                                    <Td>{cs.teacher_name ? <Person name={cs.teacher_name} size={28} /> : <span className="text-muted">{t('classesPage.detail.noTeacher')}</span>}</Td>
+                                    <Td>
+                                        <span className="flex justify-end">
+                                            <AccessControl id="classes_update">
+                                                {cs.teacher_name
+                                                    ? <IconButton icon={Pencil} label={`${t('classesPage.action.change')}: ${cs.subject_name}`} onClick={() => { setError(null); setAssigning(cs); }} />
+                                                    : <Button variant="secondary" size="sm" onClick={() => { setError(null); setAssigning(cs); }}>{t('classesPage.action.assign')}</Button>}
+                                            </AccessControl>
+                                        </span>
+                                    </Td>
+                                </Tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                )}
+            </TableCard>
+
+            {managing && (
+                <ManageSubjectsDialog open onClose={() => setManaging(false)} classId={classId} className={className} currentIds={rows.map((r) => r.subject_id)} />
+            )}
+            {assigning && (
+                <PickTeacherDialog
+                    open
+                    onClose={() => setAssigning(null)}
+                    title={t('classesPage.dialog.subjectTeacherTitle', { subject: assigning.subject_name })}
+                    subtitle={t('classesPage.dialog.subjectTeacherSub', { class: className })}
+                    loading={teachers.isPending}
+                    choices={(teachers.data ?? []).map((tc) => ({ id: tc.id, name: tc.name, sub: tc.subjects.map((s) => s.name).join(', ') || tc.designation || undefined }))}
+                    currentId={assigning.teacher_id}
+                    noneLabel={t('classesPage.dialog.noTeacherOption')}
+                    emptyText={t('classesPage.dialog.noTeachers')}
+                    onPick={(id) => setTeacher.mutate({ csId: assigning.id, tId: id })}
+                    pending={setTeacher.isPending}
+                    error={error}
+                />
+            )}
+        </>
+    );
+}
+
+// ── Class teacher picker (F09 section cards, F10 header) ──────────────────────
+function useClassTeacherPicker(classId: number, className: string) {
+    const { t } = useTranslation();
+    const queryClient = useQueryClient();
+    const [target, setTarget] = useState<ClassDetail['sections'][number] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const detail = useQuery({ queryKey: ['class-detail', classId], queryFn: () => academicsService.getClassDetail(classId) });
+
+    const save = useMutation({
+        mutationFn: ({ sectionId, teacherId }: { sectionId: number; teacherId: number | null }) => academicsService.updateSection(sectionId, { class_teacher_id: teacherId }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['class-detail', classId] });
-            setAssignCT(null);
+            queryClient.invalidateQueries({ queryKey: ['sections'] });
+            setTarget(null);
         },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
-    return (
-        <div className="space-y-4">
-            <Crumb onBack={onBack} trail={['Classes', className]} />
-            <h2 className="text-xl font-bold text-slate-900">{className}</h2>
+    const open = (s: ClassDetail['sections'][number]) => { setError(null); setTarget(s); };
+    const ui = target && (
+        <PickTeacherDialog
+            open
+            onClose={() => setTarget(null)}
+            title={t('classesPage.dialog.classTeacherTitle', { section: `${className} ${target.name}` })}
+            subtitle={t('classesPage.dialog.classTeacherSub', { class: className })}
+            choices={(detail.data?.teachers ?? []).map((tc) => ({ id: tc.id, name: tc.name, sub: tc.subjects.join(', ') }))}
+            currentId={target.class_teacher_id}
+            noneLabel={t('classesPage.dialog.noneOption')}
+            emptyText={t('classesPage.dialog.noCandidates')}
+            onPick={(id) => save.mutate({ sectionId: target.id, teacherId: id })}
+            pending={save.isPending}
+            error={error}
+        />
+    );
+    return { detail, open, ui };
+}
 
-            {isLoading ? (
-                <div className="h-24 bg-white rounded-2xl animate-pulse border border-slate-100" />
-            ) : (
-                <>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5" /> Sections
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {(data?.sections || []).map(s => {
-                            const tone = capacityTone(s.enrolled_count, s.capacity);
-                            return (
-                                <div
-                                    key={s.id}
-                                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm p-5"
-                                >
-                                    <button
-                                        onClick={() => onOpenSection(s.id, s.name)}
-                                        className="w-full text-left"
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600">
-                                                    <Layers className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-900">{s.name}</p>
-                                                    <p className="text-xs text-slate-400 font-medium">
-                                                        Class teacher: {s.class_teacher_name || 'Not assigned'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors" />
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <UsersIcon className="w-3.5 h-3.5 text-slate-400" />
-                                            <span className={cn('text-sm font-bold', tone.text)}>{s.enrolled_count}/{s.capacity || '—'}</span>
-                                            {s.capacity ? (
-                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
-                                                    <div className={cn('h-full rounded-full', tone.bar)} style={{ width: `${Math.min((s.enrolled_count / s.capacity) * 100, 100)}%` }} />
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </button>
-                                    <AccessControl id="sections_update">
-                                        <button
-                                            onClick={() => setAssignCT(s)}
-                                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-brand hover:underline"
-                                        >
-                                            <Microscope className="w-3.5 h-3.5" />
-                                            {s.class_teacher_name ? 'Change class teacher' : 'Assign class teacher'}
-                                        </button>
-                                    </AccessControl>
-                                </div>
-                            );
-                        })}
-                        {(data?.sections || []).length === 0 && (
-                            <div className="col-span-full py-8 text-center text-slate-400 text-sm font-medium">
-                                No sections in this class yet.
-                            </div>
+// ── F09: one class ───────────────────────────────────────────────────────────
+function ClassPage({ classId, className, onBack, onOpenSection }: { classId: number; className: string; onBack: () => void; onOpenSection: (sectionId: number) => void }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const subjects = useClassSubjects(classId);
+    const { detail, open: pickTeacher, ui: teacherUi } = useClassTeacherPicker(classId, className);
+    const [adding, setAdding] = useState(false);
+    const n = (v: number) => formatCount(v, lang);
+
+    const sections = detail.data?.sections ?? [];
+    const students = sections.reduce((s, x) => s + x.enrolled_count, 0);
+    const capacity = sections.reduce((s, x) => s + (x.capacity ?? 0), 0);
+    const used = new Set(sections.map((s) => s.name.toUpperCase()));
+    const nextLetter = 'ABCDEFGH'.split('').find((l) => !used.has(l)) ?? '';
+    const seatDefault = sections.find((s) => s.capacity)?.capacity ?? 40;
+
+    const addSection = (
+        <AccessControl id="sections_create">
+            <Button leftIcon={Plus} onClick={() => setAdding(true)}>{t('classesPage.action.addSection')}</Button>
+        </AccessControl>
+    );
+
+    return (
+        <div className="flex min-w-0 flex-col gap-3.5 lg:gap-[18px]">
+            <Crumbs items={[{ label: t('classesPage.tabs.classes'), onClick: onBack }, { label: className }]} />
+
+            <header className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-e1 md:flex-row md:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                    <IconTile icon={Layers} tone="brand" size={52} />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                        <h2 className="type-h2 text-ink">{className}</h2>
+                        {detail.isPending ? <Skeleton className="h-3.5 w-56" /> : (
+                            <p className="type-body text-ink-2">
+                                {[
+                                    t('classesPage.card.sections', { count: sections.length, n: n(sections.length) }),
+                                    t('classesPage.card.students', { count: students, n: n(students) }),
+                                    t('classesPage.card.subjects', { count: subjects.data?.length ?? detail.data?.subject_count ?? 0, n: n(subjects.data?.length ?? detail.data?.subject_count ?? 0) }),
+                                ].join(', ')}
+                            </p>
                         )}
                     </div>
-
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3 mt-2">
-                        <BookMarked className="w-5 h-5 text-indigo-600 shrink-0" />
-                        <p className="text-sm font-medium text-indigo-900">
-                            {data?.subject_count ?? 0} subjects taught in {className}. Open a section to view them and their teachers.
-                        </p>
-                    </div>
-                </>
-            )}
-
-            {/* Assign class teacher modal */}
-            {assignCT && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div onClick={() => setAssignCT(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                    <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Class teacher for {className} — {assignCT.name}</h3>
-                            <button onClick={() => setAssignCT(null)} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-                        </div>
-                        <p className="text-xs text-slate-400 font-medium">
-                            Only teachers who teach a subject in {className} are shown.
-                        </p>
-                        <div className="space-y-1.5">
-                            <button
-                                onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: null })}
-                                className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-50 text-slate-500 hover:bg-slate-100"
-                            >
-                                — No class teacher —
-                            </button>
-                            {classTeachers.map(tch => (
-                                <button
-                                    key={tch.id}
-                                    onClick={() => setClassTeacher.mutate({ sectionId: assignCT.id, teacherId: tch.id })}
-                                    className={cn(
-                                        'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
-                                        assignCT.class_teacher_id === tch.id ? 'bg-brand/5 text-brand' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                    )}
-                                >
-                                    <span>{tch.name}{tch.subjects.length ? <span className="text-xs text-slate-400"> · {tch.subjects.join(', ')}</span> : ''}</span>
-                                    {assignCT.class_teacher_id === tch.id && <Check className="w-4 h-4" />}
-                                </button>
-                            ))}
-                            {classTeachers.length === 0 && (
-                                <p className="text-xs text-slate-400 py-2 text-center">No teachers assigned to any subject in this class yet. Assign subject teachers first.</p>
-                            )}
-                        </div>
-                        {setClassTeacher.isPending && <div className="flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-brand" /></div>}
-                    </div>
                 </div>
-            )}
-        </div>
-    );
-};
+                <div className="flex shrink-0 gap-2 max-md:[&>*]:flex-1">{addSection}</div>
+            </header>
 
-// ── Level 3: one section → subjects (of its class) + teacher each ──────────────
-const SectionView: React.FC<{
-    classId: number; className: string; sectionId: number; sectionName: string;
-    onBack: () => void;
-    onSwitch: (classId: number, className: string, sectionId: number, sectionName: string) => void;
-}> = ({ classId, className, sectionId, sectionName, onBack, onSwitch }) => {
-    const queryClient = useQueryClient();
-    const { t } = useTranslation();
-    const [managing, setManaging] = useState(false);
-    const [assigningFor, setAssigningFor] = useState<ClassSubjectRow | null>(null);
-
-    const { data: subjects, isLoading } = useQuery({
-        queryKey: ['class-subjects', classId],
-        queryFn: () => academicsService.getClassSubjects(classId),
-    });
-    const { data: allClasses } = useQuery({
-        queryKey: ['classes', 'all'],
-        queryFn: () => academicsService.getClasses({ limit: 100 }),
-        staleTime: 5 * 60 * 1000,
-    });
-    const { data: classDetail } = useQuery({
-        queryKey: ['class-detail', classId],
-        queryFn: () => academicsService.getClassDetail(classId),
-    });
-    const sections = classDetail?.sections || [];
-
-    // Switching class lands on that class's first section, so the page is
-    // never left pointing at a section that belongs to a different class.
-    const switchClass = (id: string) => {
-        const target = (allClasses?.classes || []).find((c) => String(c.id) === id);
-        if (!target || target.id === classId) return;
-        academicsService.getClassDetail(target.id).then((d) => {
-            const first = d.sections?.[0];
-            onSwitch(target.id, target.name, first?.id ?? 0, first?.name ?? '—');
-        });
-    };
-
-    const switchSection = (id: string) => {
-        const target = sections.find((sec) => String(sec.id) === id);
-        if (target) onSwitch(classId, className, target.id, target.name);
-    };
-    const { data: allSubjects } = useQuery({
-        queryKey: ['subjects', 'all'],
-        queryFn: () => academicsService.getSubjects(),
-        enabled: managing,
-    });
-    const { data: teacherOptions } = useQuery({
-        queryKey: ['teacher-options'],
-        queryFn: academicsService.getTeacherOptions,
-        enabled: !!assigningFor,
-    });
-
-    const setSubjectsMut = useMutation({
-        mutationFn: (ids: number[]) => academicsService.setClassSubjects(classId, ids),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['class-subjects', classId] }); queryClient.invalidateQueries({ queryKey: ['class-detail', classId] }); setManaging(false); },
-    });
-    const setTeacherMut = useMutation({
-        mutationFn: ({ csId, tId }: { csId: number; tId: number | null }) => academicsService.setClassSubjectTeacher(csId, tId),
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['class-subjects', classId] }); setAssigningFor(null); },
-    });
-
-    const currentIds = new Set((subjects || []).map(s => s.subject_id));
-
-    return (
-        <div className="space-y-4">
-            <Crumb onBack={onBack} trail={['Classes', className, `Section ${sectionName}`]} />
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <SelectMenu
-                        value={String(classId)}
-                        onChange={switchClass}
-                        label={t('academics.class')}
-                        icon={<BookOpen className="w-4 h-4 text-slate-400 shrink-0" />}
-                        options={(allClasses?.classes || []).map((c) => ({
-                            value: String(c.id),
-                            label: c.name,
-                        }))}
-                    />
-                    <SelectMenu
-                        value={String(sectionId)}
-                        onChange={switchSection}
-                        label={t('academics.section')}
-                        icon={<Layers className="w-4 h-4 text-slate-400 shrink-0" />}
-                        options={sections.map((sec) => ({
-                            value: String(sec.id),
-                            label: sec.name,
-                        }))}
-                    />
-                </div>
-                <AccessControl id="classes_update">
-                    <button
-                        onClick={() => setManaging(v => !v)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 shrink-0"
-                    >
-                        <Pencil className="w-4 h-4" /> Manage subjects
-                    </button>
-                </AccessControl>
-            </div>
-
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <BookMarked className="w-3.5 h-3.5" /> Subjects & teachers
-            </p>
-
-            {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse border border-slate-100" />)}
-                </div>
-            ) : (subjects || []).length === 0 ? (
-                <div className="py-10 text-center text-slate-400 text-sm font-medium">
-                    No subjects set for this class. Use "Manage subjects" to add them.
-                </div>
+            {detail.isError ? (
+                <Card><EmptyState icon={AlertCircle} tone="bad" title={t('classesPage.detail.notFound')} action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void detail.refetch()}>{t('classesPage.action.retry')}</Button>} /></Card>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {subjects!.map(cs => (
-                        <div key={cs.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
-                                    <BookMarked className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-slate-900 truncate">{cs.subject_name}</p>
-                                    <p className="text-xs font-medium text-slate-400 flex items-center gap-1 truncate">
-                                        <Microscope className="w-3 h-3 shrink-0" />
-                                        {cs.teacher_name || 'No teacher assigned'}
-                                    </p>
-                                </div>
-                            </div>
-                            <AccessControl id="classes_update">
-                                <button
-                                    onClick={() => setAssigningFor(cs)}
-                                    className="text-xs font-bold text-brand hover:underline shrink-0"
-                                >
-                                    {cs.teacher_name ? 'Change' : 'Assign'}
+                <section aria-labelledby="sections-heading" className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <h3 id="sections-heading" className="type-title text-ink">{t('classesPage.detail.sectionsHeading')}</h3>
+                        {capacity > 0 && <p className="type-small text-muted">{t('classesPage.detail.capacityLine', { total: n(capacity), filled: n(students) })}</p>}
+                    </div>
+                    {detail.isPending ? (
+                        <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 2 }, (_, i) => <Skeleton key={i} className="h-[247px] rounded-card" />)}</div>
+                    ) : (
+                        <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+                            {sections.map((s) => {
+                                const cap = s.capacity ?? 0;
+                                const tone = seatTone(s.enrolled_count, cap);
+                                const pct = cap ? Math.round((s.enrolled_count / cap) * 100) : 0;
+                                return (
+                                    <article key={s.id} className="flex min-w-0 flex-col gap-3.5 rounded-card border border-line bg-surface p-[18px] shadow-e1">
+                                        <header className="flex items-center gap-3">
+                                            <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-primary type-h3 text-on-primary">{s.name.slice(0, 2)}</span>
+                                            <div className="flex min-w-0 flex-1 flex-col">
+                                                <h4 className="truncate type-title text-ink">{className} {s.name}</h4>
+                                                <p className="type-caption text-muted">{t('classesPage.card.students', { count: s.enrolled_count, n: n(s.enrolled_count) })}</p>
+                                            </div>
+                                            {tone !== 'ok' && <Badge tone={tone} dot>{tone === 'bad' ? t('classesPage.detail.full') : t('classesPage.detail.pctFull', { pct: n(pct) })}</Badge>}
+                                        </header>
+                                        <div className="flex items-center gap-2.5 rounded-row bg-surface-2 px-3 py-2.5">
+                                            <span className="min-w-0 flex-1">
+                                                {s.class_teacher_name
+                                                    ? <Person name={s.class_teacher_name} sub={t('classesPage.detail.classTeacher')} />
+                                                    : <span className="flex flex-col"><span className="type-small-semibold text-ink-2">{t('classesPage.detail.notAssigned')}</span><span className="type-caption text-muted">{t('classesPage.detail.classTeacher')}</span></span>}
+                                            </span>
+                                            <AccessControl id="sections_update">
+                                                <Button variant="ghost" size="sm" onClick={() => pickTeacher(s)}>{s.class_teacher_name ? t('classesPage.action.change') : t('classesPage.action.assign')}</Button>
+                                            </AccessControl>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5">
+                                            <span className={cn('type-small-semibold', tone === 'bad' ? 'text-bad' : 'text-ink-2')}>
+                                                {cap ? t('classesPage.card.seats', { filled: n(s.enrolled_count), total: n(cap) }) : t('classesPage.card.noLimit')}
+                                            </span>
+                                            <SeatMeter filled={s.enrolled_count} capacity={cap} height={8} />
+                                        </div>
+                                        <Button variant="secondary" size="sm" fullWidth rightIcon={ChevronRight} onClick={() => onOpenSection(s.id)}>{t('classesPage.action.openSection')}</Button>
+                                    </article>
+                                );
+                            })}
+                            <AccessControl id="sections_create">
+                                <button type="button" onClick={() => setAdding(true)}
+                                    className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-card border-2 border-dashed border-line bg-surface-2 p-5 text-center outline-none transition-colors hover:border-primary-soft-line hover:bg-primary-soft focus-visible:ring-3 focus-visible:ring-focus/60">
+                                    <IconTile icon={Plus} tone="brand" size={40} />
+                                    <span className="type-title text-ink">{nextLetter ? t('classesPage.detail.addSectionCard', { letter: nextLetter }) : t('classesPage.action.addSection')}</span>
+                                    <span className="max-w-[260px] type-small text-muted">{sections.length ? t('classesPage.detail.addSectionHint') : t('classesPage.detail.noSectionsBody')}</span>
                                 </button>
                             </AccessControl>
                         </div>
-                    ))}
-                </div>
+                    )}
+                </section>
             )}
 
-            {/* Manage subjects modal */}
-            {managing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div onClick={() => setManaging(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                    <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Subjects in {className}</h3>
-                            <button onClick={() => setManaging(false)} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-                        </div>
-                        <p className="text-xs text-slate-400 font-medium">Tick the subjects this class teaches.</p>
-                        <div className="space-y-1.5">
-                            {(allSubjects || []).map(s => {
-                                const on = currentIds.has(s.id);
-                                return (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => {
-                                            const next = new Set(currentIds);
-                                            on ? next.delete(s.id) : next.add(s.id);
-                                            // optimistic local set via immediate mutation on confirm instead:
-                                            setSubjectsMut.mutate(Array.from(next));
-                                        }}
-                                        className={cn(
-                                            'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
-                                            on ? 'bg-brand/5 text-brand' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                        )}
-                                    >
-                                        {s.name}
-                                        {on && <Check className="w-4 h-4" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SubjectsCard classId={classId} className={className} />
 
-            {/* Assign teacher modal */}
-            {assigningFor && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div onClick={() => setAssigningFor(null)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                    <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900">Teacher for {assigningFor.subject_name}</h3>
-                            <button onClick={() => setAssigningFor(null)} className="p-2 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-                        </div>
-                        <div className="space-y-1.5">
-                            <button
-                                onClick={() => setTeacherMut.mutate({ csId: assigningFor.id, tId: null })}
-                                className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium bg-slate-50 text-slate-500 hover:bg-slate-100"
-                            >
-                                — No teacher —
-                            </button>
-                            {(teacherOptions || []).map(tch => (
-                                <button
-                                    key={tch.id}
-                                    onClick={() => setTeacherMut.mutate({ csId: assigningFor.id, tId: tch.id })}
-                                    className={cn(
-                                        'w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
-                                        assigningFor.teacher_id === tch.id ? 'bg-brand/5 text-brand' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                    )}
-                                >
-                                    <span>{tch.name}{tch.subjects.length ? <span className="text-xs text-slate-400"> · {tch.subjects.map(s => s.name).join(', ')}</span> : ''}</span>
-                                    {assigningFor.teacher_id === tch.id && <Check className="w-4 h-4" />}
-                                </button>
-                            ))}
-                            {(teacherOptions || []).length === 0 && (
-                                <p className="text-xs text-slate-400 py-2 text-center">No teachers registered yet.</p>
-                            )}
-                        </div>
-                        {setTeacherMut.isPending && <div className="flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-brand" /></div>}
-                    </div>
-                </div>
+            {teacherUi}
+            {adding && (
+                <CreateSectionModal isOpen onClose={() => setAdding(false)} classId={classId} className={className} suggestedName={nextLetter} suggestedSeats={seatDefault} />
             )}
         </div>
     );
-};
+}
+
+// ── F10: one section ─────────────────────────────────────────────────────────
+function SectionPage({
+    classId, className, sectionId, onClasses, onClass, onSwitch,
+}: {
+    classId: number; className: string; sectionId: number;
+    onClasses: () => void; onClass: () => void;
+    onSwitch: (classId: number, className: string, sectionId: number) => void;
+}) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const navigate = useNavigate();
+    const { detail, open: pickTeacher, ui: teacherUi } = useClassTeacherPicker(classId, className);
+    const [enrolling, setEnrolling] = useState(false);
+    const allClasses = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), staleTime: 5 * 60 * 1000 });
+    const students = useQuery({
+        queryKey: ['enrollments', 'section', sectionId],
+        queryFn: () => academicsService.getEnrollments({ class_id: classId, section_id: sectionId, limit: 100 }),
+    });
+    const n = (v: number) => formatCount(v, lang);
+
+    const sections = detail.data?.sections ?? [];
+    const section = sections.find((s) => s.id === sectionId);
+    const cap = section?.capacity ?? 0;
+    const filled = section?.enrolled_count ?? 0;
+    const tone = seatTone(filled, cap);
+
+    // Switching class lands on its first section, never a section of another class.
+    const switchClass = (id: string) => {
+        const target = (allClasses.data?.classes ?? []).find((c) => String(c.id) === id);
+        if (!target || target.id === classId) return;
+        academicsService.getClassDetail(target.id).then((d) => {
+            const first = d.sections?.[0];
+            if (first) onSwitch(target.id, target.name, first.id);
+        });
+    };
+
+    const list = students.data?.enrollments ?? [];
+
+    return (
+        <div className="flex min-w-0 flex-col gap-3.5 lg:gap-[18px]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <Crumbs items={[{ label: t('classesPage.tabs.classes'), onClick: onClasses }, { label: className, onClick: onClass }, { label: t('classesPage.section.crumb', { name: section?.name ?? '' }) }]} />
+                <div className="flex gap-2">
+                    <SelectMenu value={String(classId)} onChange={switchClass} label={t('classesPage.section.switchClass')} icon={<Layers />}
+                        options={(allClasses.data?.classes ?? []).map((c) => ({ value: String(c.id), label: c.name }))} />
+                    <SelectMenu value={String(sectionId)} onChange={(id) => onSwitch(classId, className, Number(id))} label={t('classesPage.section.switchSection')}
+                        options={sections.map((s) => ({ value: String(s.id), label: t('classesPage.section.crumb', { name: s.name }) }))} />
+                </div>
+            </div>
+
+            <header className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-e1 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                    <span className="grid size-[52px] shrink-0 place-items-center rounded-[16px] bg-primary type-h2 text-on-primary">{section?.name.slice(0, 2) ?? ''}</span>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="type-h2 text-ink">{className} {section?.name}</h2>
+                            {section && tone !== 'ok' && <Badge tone={tone} dot>{tone === 'bad' ? t('classesPage.detail.full') : t('classesPage.detail.pctFull', { pct: n(Math.round((filled / cap) * 100)) })}</Badge>}
+                        </div>
+                        <p className="type-body text-ink-2">
+                            {section?.class_teacher_name ? t('classesPage.section.teacherLine', { name: section.class_teacher_name }) : t('classesPage.section.noTeacherLine')}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-5 max-lg:border-t max-lg:border-line-subtle max-lg:pt-3">
+                    <div className="flex flex-col">
+                        <span className="type-caption text-muted">{t('classesPage.section.students')}</span>
+                        <span className="type-title tabular-nums text-ink">{cap ? t('classesPage.card.seats', { filled: n(filled), total: n(cap) }) : n(filled)}</span>
+                    </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2 max-md:[&>*]:flex-1">
+                    <Button variant="quiet" leftIcon={CalendarClock} onClick={() => navigate('/timetable')}>{t('classesPage.action.openTimetable')}</Button>
+                    {section && (
+                        <AccessControl id="sections_update">
+                            <Button variant="quiet" leftIcon={UserCheck} onClick={() => pickTeacher(section)}>{t('classesPage.action.assignClassTeacher')}</Button>
+                        </AccessControl>
+                    )}
+                </div>
+            </header>
+
+            <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] lg:gap-4">
+                <SubjectsCard classId={classId} className={className} />
+
+                <Card className="gap-2">
+                    <CardHeader
+                        title={t('classesPage.section.students')}
+                        subtitle={t('classesPage.section.studentsSub', { count: list.length, n: n(students.data?.total_count ?? list.length) })}
+                        action={
+                            <AccessControl id="enrollments_create">
+                                <Button variant="ghost" size="sm" leftIcon={Plus} onClick={() => setEnrolling(true)}>{t('classesPage.action.enrolShort')}</Button>
+                            </AccessControl>
+                        }
+                    />
+                    {cap > 0 && <SeatMeter filled={filled} capacity={cap} />}
+                    {students.isPending ? (
+                        <div className="flex flex-col gap-2">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-9" />)}</div>
+                    ) : list.length === 0 ? (
+                        <p className="py-6 text-center type-small text-muted">{t('classesPage.section.noStudents')}</p>
+                    ) : (
+                        <ListCard className="border-0 px-0 py-0 shadow-none">
+                            {list.map((e, i) => (
+                                <ListRow key={e.id}>
+                                    <span className="w-6 shrink-0 text-right type-caption tabular-nums text-muted">{n(i + 1)}</span>
+                                    <span className="min-w-0 flex-1">
+                                        <Person name={e.student ? [e.student.first_name, e.student.last_name].filter(Boolean).join(' ') : `#${e.student_id}`} sub={e.student?.admission_no} size={30} />
+                                    </span>
+                                </ListRow>
+                            ))}
+                        </ListCard>
+                    )}
+                    {tone === 'bad' && (
+                        <p className="flex items-start gap-2 rounded-row bg-surface-2 px-3 py-2.5 type-small text-ink-2">
+                            <Info size={16} className="mt-px shrink-0 text-muted" aria-hidden /> {t('classesPage.section.fullNote')}
+                        </p>
+                    )}
+                </Card>
+            </div>
+
+            {teacherUi}
+            {enrolling && <CreateEnrollmentModal isOpen onClose={() => setEnrolling(false)} classId={classId} sectionId={sectionId} />}
+        </div>
+    );
+}

@@ -1,141 +1,108 @@
-import React, { useState } from 'react';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { Wallet, Landmark, Receipt, PieChart, Plus, Tag } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AccessControl } from '../../components/AccessControl';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Award, FileSpreadsheet, Landmark, PieChart, Plus, Receipt, TrendingDown, Wallet } from 'lucide-react';
 
-// Sub-components
+import { Button, Tabs, type TabItem } from '../../design-system';
+import { AppPage, PageBar } from '../../components/layout/AppPage';
+import { AccessControl } from '../../components/AccessControl';
 import { FinancialSummary } from '../../components/finances/FinancialSummary';
 import { FeeStructureManagement } from '../../components/finances/FeeStructureManagement';
 import { PaymentManagement } from '../../components/finances/PaymentManagement';
 import { ExpenseManagement } from '../../components/finances/ExpenseManagement';
 import { DiscountManagement } from '../../components/finances/DiscountManagement';
-
-// Create Modals
 import { CreateFeeStructureModal } from '../../components/finances/CreateFeeStructureModal';
 import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
 import { RecordExpenseModal } from '../../components/finances/RecordExpenseModal';
 
 const FINANCE_TABS = ['summary', 'fees', 'payments', 'expenses', 'discounts'] as const;
 type FinanceTab = (typeof FINANCE_TABS)[number];
+const TAB_KEY = 'finances_active_tab';
 
-export const FinancesPage: React.FC = () => {
+/** Figma E02–E06: Fees and payments. */
+export function FinancesPage() {
     const { t } = useTranslation();
-    const [activeTab, setActiveTabState] = useState<FinanceTab>(() => {
-        const saved = localStorage.getItem('finances_active_tab');
-        // Validate: a stale/garbage stored value must not become the active tab.
-        return FINANCE_TABS.includes(saved as FinanceTab) ? (saved as FinanceTab) : 'summary';
+    const navigate = useNavigate();
+    const [tab, setTabState] = useState<FinanceTab>(() => {
+        try {
+            const saved = localStorage.getItem(TAB_KEY);
+            return FINANCE_TABS.includes(saved as FinanceTab) ? (saved as FinanceTab) : 'summary';
+        } catch {
+            return 'summary';
+        }
     });
+    const [paying, setPaying] = useState(false);
+    const [spending, setSpending] = useState(false);
+    const [newFee, setNewFee] = useState<{ classId?: number } | null>(null);
+    const [applying, setApplying] = useState(false);
 
-    const [isFeeModalOpen, setIsFeeModalOpen] = useState(false);
-    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-
-    const tabs = [
-        { id: 'summary', labelKey: 'finances.summary', icon: PieChart, resource: 'finances' },
-        { id: 'fees', labelKey: 'finances.feeStructures', icon: Landmark, resource: 'finances' },
-        { id: 'payments', labelKey: 'finances.payments', icon: Receipt, resource: 'payments' },
-        { id: 'expenses', labelKey: 'finances.expenses', icon: Wallet, resource: 'expenses' },
-        { id: 'discounts', labelKey: 'finances.discounts', icon: Tag, resource: 'finances' },
-    ] satisfies ReadonlyArray<{ id: FinanceTab; labelKey: string; icon: React.ElementType; resource: string }>;
-
-    const setActiveTab = (tab: FinanceTab) => {
-        setActiveTabState(tab);
-        localStorage.setItem('finances_active_tab', tab);
+    const setTab = (next: FinanceTab) => {
+        setTabState(next);
+        try { localStorage.setItem(TAB_KEY, next); } catch { /* not remembered */ }
     };
 
-    const handleCreateAction = () => {
-        if (activeTab === 'fees') setIsFeeModalOpen(true);
-        else if (activeTab === 'payments') setIsPaymentModalOpen(true);
-        else if (activeTab === 'expenses') setIsExpenseModalOpen(true);
-    };
+    const items: TabItem<FinanceTab>[] = [
+        { value: 'summary', label: t('financePage.tabs.summary'), icon: PieChart },
+        { value: 'fees', label: t('financePage.tabs.fees'), icon: Landmark },
+        { value: 'payments', label: t('financePage.tabs.payments'), icon: Receipt },
+        { value: 'expenses', label: t('financePage.tabs.expenses'), icon: Wallet },
+        { value: 'discounts', label: t('financePage.tabs.discounts'), icon: Award },
+    ];
 
-    const createButtonLabel = activeTab === 'fees'
-        ? t('finances.newFeeStructure')
-        : activeTab === 'payments'
-            ? t('finances.recordPayment')
-            : t('finances.recordExpense');
+    const recordPayment = (
+        <AccessControl id="payments_create">
+            <Button leftIcon={Receipt} onClick={() => setPaying(true)}>{t('financePage.action.recordPayment')}</Button>
+        </AccessControl>
+    );
+    const actions = {
+        summary: (
+            <>
+                <Button variant="quiet" leftIcon={FileSpreadsheet} onClick={() => navigate('/finances/ledger')}>{t('financePage.action.ledger')}</Button>
+                {recordPayment}
+            </>
+        ),
+        fees: (
+            <AccessControl id="finances_create">
+                <Button leftIcon={Plus} onClick={() => setNewFee({})}>{t('financePage.action.newFee')}</Button>
+            </AccessControl>
+        ),
+        payments: (
+            <>
+                <Button variant="quiet" leftIcon={TrendingDown} onClick={() => navigate('/finances/outstanding')}>{t('financePage.action.outstanding')}</Button>
+                {recordPayment}
+            </>
+        ),
+        expenses: (
+            <AccessControl id="expenses_create">
+                <Button leftIcon={Wallet} onClick={() => setSpending(true)}>{t('financePage.action.recordExpense')}</Button>
+            </AccessControl>
+        ),
+        discounts: (
+            <AccessControl id="finances_create">
+                <Button leftIcon={Award} onClick={() => setApplying(true)}>{t('financePage.action.applyScholarship')}</Button>
+            </AccessControl>
+        ),
+    }[tab];
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
+        <AppPage title={t('financePage.title')}>
+            <PageBar actions={actions}>
+                <Tabs items={items} value={tab} onChange={setTab} aria-label={t('financePage.tabsLabel')} />
+            </PageBar>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-8">
-                    {/* Header Section */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{t('finances.title')}</h1>
-                            <p className="text-slate-500 font-medium">{t('finances.subtitle')}</p>
-                        </div>
+            <div role="tabpanel" aria-label={t(`financePage.tabs.${tab}`)} className="min-w-0">
+                {tab === 'summary' && <FinancialSummary />}
+                {tab === 'fees' && <FeeStructureManagement onAdd={(classId) => setNewFee({ classId })} />}
+                {tab === 'payments' && <PaymentManagement />}
+                {tab === 'expenses' && <ExpenseManagement />}
+                {tab === 'discounts' && <DiscountManagement applying={applying} setApplying={setApplying} />}
+            </div>
 
-                        {activeTab !== 'summary' && (
-                            <AccessControl id={`${activeTab === 'fees' ? 'finances' : activeTab}_create`}>
-                                <button
-                                    onClick={handleCreateAction}
-                                    className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    <span>{createButtonLabel}</span>
-                                </button>
-                            </AccessControl>
-                        )}
-                    </div>
-
-                    {/* Tab Navigation */}
-                    <div className="flex p-1.5 bg-white rounded-2xl border border-slate-100 w-fit shadow-sm overflow-x-auto no-scrollbar max-w-full">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap",
-                                        isActive
-                                            ? "bg-sky-500 text-white shadow-md shadow-sky-200"
-                                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                                    )}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                    {t(tab.labelKey)}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Tab Content */}
-                    <div className="relative">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeTab}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {activeTab === 'summary' && <FinancialSummary />}
-                                {activeTab === 'fees' && <FeeStructureManagement />}
-                                {activeTab === 'payments' && <PaymentManagement />}
-                                {activeTab === 'expenses' && <ExpenseManagement />}
-                                {activeTab === 'discounts' && <DiscountManagement />}
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-                </div>
-            </main>
-
-            {/* Create Modals */}
-            <CreateFeeStructureModal isOpen={isFeeModalOpen} onClose={() => setIsFeeModalOpen(false)} />
-            <RecordPaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} />
-            <RecordExpenseModal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} />
-        </div>
+            <RecordPaymentModal isOpen={paying} onClose={() => setPaying(false)} />
+            <RecordExpenseModal isOpen={spending} onClose={() => setSpending(false)} />
+            {newFee && <CreateFeeStructureModal key={newFee.classId ?? 'all'} isOpen classId={newFee.classId} onClose={() => setNewFee(null)} />}
+        </AppPage>
     );
-};
+}
 
 export default FinancesPage;

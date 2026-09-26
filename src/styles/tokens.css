@@ -1,0 +1,268 @@
+/*
+ * Design tokens, version 3 (logo blue).
+ *
+ * The single source of truth is the Figma file's Design System page:
+ * "Primitives", "Theme Light" and "Theme Dark" variable collections, the
+ * text styles and the elevation styles. Names here mirror those names so a
+ * designer and a developer can point at the same thing.
+ *
+ * Components use the semantic utilities (bg-surface, text-ink, bg-primary …),
+ * never raw hex. Dark mode swaps the --sx-* values; nothing else changes.
+ *
+ * The legacy crimson tokens in index.css (bg-brand, bg-background-soft) stay
+ * until every page has moved to this system.
+ */
+
+/* ---------- Theme values ---------- */
+:root {
+  --sx-canvas: #F4F7FA;
+  --sx-surface: #FFFFFF;
+  --sx-surface-2: #FAFCFE;
+  --sx-sunken: #EAF0F5;
+  --sx-page: #E3E9F0;
+  --sx-inverse: #111A24;
+  --sx-line: #DCE4EC;
+  --sx-line-subtle: #EDF2F7;
+
+  --sx-ink: #111A24;
+  --sx-ink-2: #4B5B6E;
+  --sx-muted: #687A8F;
+  --sx-on-inverse: #FFFFFF;
+  --sx-on-primary: #FFFFFF;
+
+  --sx-primary: #1F52A6;
+  --sx-primary-hover: #1A418A;
+  --sx-primary-text: #1A418A;
+  --sx-primary-soft: #F1F8FB;
+  --sx-primary-soft-line: #E0EFF6;
+  --sx-primary-strong: #13295B;
+
+  --sx-ok: #0F8A5F;
+  --sx-ok-soft: #E6F5EE;
+  --sx-bad: #D8352A;
+  --sx-bad-soft: #FDECEA;
+  --sx-bad-line: #F4C4BE;
+  --sx-warn: #B26A00;
+  --sx-warn-soft: #FFF3DC;
+  --sx-info: #6D4AD1;
+  --sx-info-soft: #F0ECFC;
+  --sx-crest: #D12A3C;
+  --sx-focus: #4F8FC9;
+
+  --sx-shadow-1: 0 1px 2px rgb(20 40 70 / 0.05);
+  --sx-shadow-2: 0 1px 2px rgb(20 40 70 / 0.04), 0 10px 28px -14px rgb(20 40 70 / 0.16);
+  --sx-shadow-3: 0 30px 70px -30px rgb(20 40 70 / 0.35);
+
+  /* Nepali (Devanagari) needs taller lines so matras never clip. */
+  --sx-lh: 1;
+}
+
+:root:lang(ne) {
+  --sx-lh: 1.18;
+}
+
+[data-theme="dark"] {
+  --sx-canvas: #0B1220;
+  --sx-surface: #111B2D;
+  --sx-surface-2: #14203A;
+  --sx-sunken: #16223A;
+  --sx-page: #060A12;
+  --sx-inverse: #EEF3F9;
+  --sx-line: #22314D;
+  --sx-line-subtle: #1A2740;
+
+  --sx-ink: #EEF3F9;
+  --sx-ink-2: #B9C6D6;
+  --sx-muted: #8697AB;
+  --sx-on-inverse: #111A24;
+
+  --sx-primary: #2C6BC0;
+  --sx-primary-hover: #1F52A6;
+  --sx-primary-text: #9CC3F0;
+  --sx-primary-soft: #132643;
+  --sx-primary-soft-line: #1F3A63;
+  --sx-primary-strong: #86BBD6;
+
+  --sx-ok: #34C08A;
+  --sx-ok-soft: #12291F;
+  --sx-bad: #F2685D;
+  --sx-bad-soft: #321A18;
+  --sx-bad-line: #5A2723;
+  --sx-warn: #E5A33D;
+  --sx-warn-soft: #2E2413;
+  --sx-info: #A993F0;
+  --sx-info-soft: #221A3A;
+  --sx-crest: #F05A69;
+  --sx-focus: #86BBD6;
+
+  --sx-shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sx-shadow-2: 0 1px 2px rgb(0 0 0 / 0.35), 0 12px 30px -16px rgb(0 0 0 / 0.6);
+  --sx-shadow-3: 0 30px 70px -30px rgb(0 0 0 / 0.8);
+
+  color-scheme: dark;
+}
+
+/* ---------- Tailwind theme ---------- */
+@theme inline {
+  /* Semantic colours: bg-surface, text-ink, border-line, bg-primary … */
+  --color-canvas: var(--sx-canvas);
+  --color-surface: var(--sx-surface);
+  --color-surface-2: var(--sx-surface-2);
+  --color-sunken: var(--sx-sunken);
+  --color-page: var(--sx-page);
+  --color-inverse: var(--sx-inverse);
+  --color-line: var(--sx-line);
+  --color-line-subtle: var(--sx-line-subtle);
+  --color-ink: var(--sx-ink);
+  --color-ink-2: var(--sx-ink-2);
+  --color-muted: var(--sx-muted);
+  --color-on-inverse: var(--sx-on-inverse);
+  --color-on-primary: var(--sx-on-primary);
+  --color-primary: var(--sx-primary);
+  --color-primary-hover: var(--sx-primary-hover);
+  --color-primary-text: var(--sx-primary-text);
+  --color-primary-soft: var(--sx-primary-soft);
+  --color-primary-soft-line: var(--sx-primary-soft-line);
+  --color-primary-strong: var(--sx-primary-strong);
+  --color-ok: var(--sx-ok);
+  --color-ok-soft: var(--sx-ok-soft);
+  --color-bad: var(--sx-bad);
+  --color-bad-soft: var(--sx-bad-soft);
+  --color-bad-line: var(--sx-bad-line);
+  --color-warn: var(--sx-warn);
+  --color-warn-soft: var(--sx-warn-soft);
+  --color-info: var(--sx-info);
+  --color-info-soft: var(--sx-info-soft);
+  --color-crest: var(--sx-crest);
+  --color-focus: var(--sx-focus);
+
+  /* Shadows (Figma "Elevation/…" and "Glow/…" effect styles) */
+  --shadow-e1: var(--sx-shadow-1);
+  --shadow-e2: var(--sx-shadow-2);
+  --shadow-e3: var(--sx-shadow-3);
+}
+
+@theme {
+  /* Primitive blue scale, for brand surfaces that do not change with theme. */
+  --color-sx-blue-50: #F1F8FB;
+  --color-sx-blue-100: #E0EFF6;
+  --color-sx-blue-200: #B4D8E4;
+  --color-sx-blue-300: #86BBD6;
+  --color-sx-blue-400: #4F8FC9;
+  --color-sx-blue-500: #2C6BC0;
+  --color-sx-blue-600: #1F52A6;
+  --color-sx-blue-700: #1A418A;
+  --color-sx-blue-800: #16336E;
+  --color-sx-blue-900: #13295B;
+  --color-sx-blue-950: #0B1A3D;
+  --color-sx-mint: #5FD3A2;
+  --color-sx-gold: #FFD27A;
+
+  --font-display: "Bricolage Grotesque Variable", "Mukta", system-ui, sans-serif;
+  --font-ui: "Geist Variable", "Mukta", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-chip: 8px;
+  --radius-field: 12px;
+  --radius-row: 14px;
+  --radius-card: 20px;
+  --radius-dialog: 24px;
+  --radius-panel: 28px;
+
+  --shadow-glow-primary: 0 12px 26px -12px rgb(31 82 166 / 0.75);
+  --shadow-glow-ok: 0 6px 14px -8px rgb(15 138 95 / 0.9);
+  --shadow-glow-bad: 0 6px 14px -8px rgb(216 53 42 / 0.9);
+
+  /* Motion (Figma Design System, "Motion") */
+  --ease-sx: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-sx-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-shake: sx-shake 400ms var(--ease-sx);
+  --animate-rise: sx-rise 480ms var(--ease-sx) both;
+  --animate-drift-a: sx-drift-a 18s var(--ease-sx) infinite alternate;
+  --animate-drift-b: sx-drift-b 24s var(--ease-sx) infinite alternate;
+  --animate-shimmer: sx-shimmer 1.4s ease-in-out infinite;
+
+  @keyframes sx-shake {
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+  @keyframes sx-rise {
+    from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+    to { opacity: 1; transform: none; filter: none; }
+  }
+  @keyframes sx-drift-a {
+    to { transform: translate(-14%, 10%) scale(1.15); }
+  }
+  @keyframes sx-drift-b {
+    to { transform: translate(18%, -12%) scale(0.9); }
+  }
+  @keyframes sx-shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+  }
+}
+
+/* ---------- Text styles (Figma text styles, 1:1) ---------- */
+@utility type-display-xl { font-family: var(--font-display); font-weight: 700; font-size: 48px; line-height: calc(50px * var(--sx-lh)); letter-spacing: -0.035em; }
+@utility type-display-l { font-family: var(--font-display); font-weight: 700; font-size: 38px; line-height: calc(42px * var(--sx-lh)); letter-spacing: -0.03em; }
+@utility type-h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: calc(34px * var(--sx-lh)); letter-spacing: -0.025em; }
+@utility type-h2 { font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: calc(30px * var(--sx-lh)); letter-spacing: -0.02em; }
+@utility type-h3 { font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: calc(24px * var(--sx-lh)); letter-spacing: -0.015em; }
+@utility type-figure-xl { font-family: var(--font-display); font-weight: 700; font-size: 60px; line-height: 60px; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+@utility type-figure-l { font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 34px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+@utility type-figure-m { font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+@utility type-body-l { font-family: var(--font-ui); font-weight: 400; font-size: 16px; line-height: calc(24px * var(--sx-lh)); }
+@utility type-body { font-family: var(--font-ui); font-weight: 400; font-size: 14px; line-height: calc(20px * var(--sx-lh)); }
+@utility type-body-medium { font-family: var(--font-ui); font-weight: 500; font-size: 14px; line-height: calc(20px * var(--sx-lh)); }
+@utility type-body-semibold { font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: calc(20px * var(--sx-lh)); }
+@utility type-small { font-family: var(--font-ui); font-weight: 400; font-size: 13px; line-height: calc(18px * var(--sx-lh)); }
+@utility type-small-medium { font-family: var(--font-ui); font-weight: 500; font-size: 13px; line-height: calc(18px * var(--sx-lh)); }
+@utility type-small-semibold { font-family: var(--font-ui); font-weight: 600; font-size: 13px; line-height: calc(18px * var(--sx-lh)); }
+@utility type-caption { font-family: var(--font-ui); font-weight: 500; font-size: 12px; line-height: calc(16px * var(--sx-lh)); }
+@utility type-caption-semibold { font-family: var(--font-ui); font-weight: 600; font-size: 12px; line-height: calc(16px * var(--sx-lh)); }
+@utility type-micro { font-family: var(--font-ui); font-weight: 500; font-size: 11px; line-height: calc(14px * var(--sx-lh)); }
+@utility type-micro-bold { font-family: var(--font-ui); font-weight: 700; font-size: 11px; line-height: calc(14px * var(--sx-lh)); }
+@utility type-label { font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: calc(20px * var(--sx-lh)); }
+@utility type-label-s { font-family: var(--font-ui); font-weight: 600; font-size: 12.5px; line-height: calc(16px * var(--sx-lh)); }
+@utility type-title { font-family: var(--font-ui); font-weight: 600; font-size: 15px; line-height: calc(20px * var(--sx-lh)); }
+
+/* ---------- Brand surfaces ---------- */
+/* The navy hero gradient used by the sign-in brand panel and home heroes. */
+@utility bg-hero {
+  background-color: #13295B;
+  background-image:
+    radial-gradient(90% 90% at 85% 15%, rgb(44 107 192 / 0.9), transparent 60%),
+    radial-gradient(70% 70% at 100% 95%, rgb(134 187 214 / 0.45), transparent 60%),
+    radial-gradient(80% 80% at 20% 100%, rgb(11 26 61 / 0.7), transparent 60%),
+    linear-gradient(135deg, #1F52A6, #13295B);
+}
+
+/* The signed-in navigation rail (Figma "Sidebar"): logo blue into navy. */
+@utility bg-rail {
+  background-color: #13295B;
+  background-image: linear-gradient(180deg, #1A418A 0%, #13295B 70%, #0B1A3D 100%);
+}
+
+/*
+ * Phones and tablets with the floating tab bar (see MobileTabBar): every
+ * page's <main> keeps its last rows clear of the bar. Set on <html> by the
+ * tab bar while it is mounted, so pages need no changes.
+ */
+@media (width < 64rem) {
+  html[data-tab-bar] main {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+  /* Toasts and prompts pinned to the bottom sit above the bar, not on it. */
+  html[data-tab-bar] [data-floating-bottom] {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Everything becomes instant for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

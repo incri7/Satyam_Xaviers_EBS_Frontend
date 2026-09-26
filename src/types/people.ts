@@ -240,6 +240,9 @@ export interface ParentUnifiedCreate {
     state?: string;
     pincode?: string;
     national_id?: string;
+    /** On the parent record too, so a guardian can be reached before signing in. */
+    phone?: string;
+    email?: string;
 }
 
 export interface UserUnifiedCreate {

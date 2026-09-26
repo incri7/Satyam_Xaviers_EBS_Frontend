@@ -1,259 +1,217 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { financesService } from '../../api/services/finances.service';
-import { Receipt, Search, Filter, RotateCcw, Download, Calendar, CreditCard } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { AccessControl } from '../AccessControl';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { AlertCircle, Download, Receipt, RotateCcw, RotateCw, ShieldCheck, X } from 'lucide-react';
+
+import {
+    ActionMenu, Badge, Banner, Button, EmptyState, IconButton, ListCard, ListRow, SearchField, Skeleton, SortTh,
+    Table, TableCard, TableMessage, TableSkeletonRows, THead, Td, Th, Tr,
+} from '../../design-system';
+import { Toolbar } from '../layout/AppPage';
+import { Pagination } from '../common/Pagination';
+import { financesService, type LedgerEntry } from '../../api/services/finances.service';
+import { useLedger } from '../../features/finance/queries';
+import { yearRange } from '../../features/finance/period';
+import { downloadReceipt, formatSignedRs, methodKey } from '../../features/finance/format';
+import { ReversePaymentDialog, type ReversiblePayment } from '../../features/finance/ReversePaymentDialog';
+import { useListControls } from '../../features/people/useListControls';
+import { useNotice } from '../../features/people/useNotice';
+import { errorText } from '../../features/people/format';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
+import { cn } from '../../utils/cn';
 
-export const PaymentManagement: React.FC = () => {
+type SortKey = 'date' | 'amount' | 'party' | 'label';
+const PAGE_SIZE = 50;
+const COLUMNS = 6;
+
+/**
+ * Figma E04 Payments: every receipt this academic year, newest first.
+ *
+ * Rows come from /finances/ledger (income only), which already joins the
+ * student and fee names and searches and sorts on the server. Whether a
+ * payment was reversed is read from the reversal's transaction id
+ * ("REV-<original id>") in the latest 500 payments.
+ */
+export function PaymentManagement() {
+    const { t } = useTranslation();
     const df = useDateFormat();
-    const queryClient = useQueryClient();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [showFilters, setShowFilters] = useState(false);
-    const [filterMethod, setFilterMethod] = useState('');
-    const [filterFrom, setFilterFrom] = useState('');
-    const [filterTo, setFilterTo] = useState('');
+    const { lang } = df;
+    const can = usePermissionsStore((s) => s.hasPermission);
+    const [noticeUI, notify] = useNotice();
+    const list = useListControls<SortKey>();
+    const [reversing, setReversing] = useState<ReversiblePayment | null>(null);
+    const [downloading, setDownloading] = useState<number | null>(null);
+    const range = yearRange();
 
-    const { data: payments, isLoading } = useQuery({
-        queryKey: ['payments'],
-        queryFn: () => financesService.listPayments(),
+    const { data, isPending, isError, refetch } = useLedger({
+        kind: 'income',
+        start_date: range.start,
+        end_date: range.end,
+        search: list.search || undefined,
+        sort_by: list.sort.by ?? 'date',
+        sort_dir: list.sort.by ? list.sort.dir : 'desc',
+        skip: (list.page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
     });
+    const recent = useQuery({ queryKey: ['payments', 'recent'], queryFn: () => financesService.listPayments(undefined, { limit: 500 }), staleTime: 30 * 1000 });
 
-    const [downloadingId, setDownloadingId] = useState<number | null>(null);
+    // original id → reversal, and reversal id → original receipt
+    const links = useMemo(() => {
+        const byId = new Map((recent.data ?? []).map((p) => [p.id, p]));
+        const reversed = new Set<number>();
+        const reverses = new Map<number, string>();
+        for (const p of recent.data ?? []) {
+            const m = /^REV-(\d+)$/.exec(p.transaction_id ?? '');
+            if (!m) continue;
+            const original = Number(m[1]);
+            reversed.add(original);
+            reverses.set(p.id, byId.get(original)?.receipt_no || `#${original}`);
+        }
+        return { reversed, reverses };
+    }, [recent.data]);
 
-    const reverseMutation = useMutation({
-        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-            financesService.reversePayment(id, reason),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['payments'] }),
-    });
+    const rows: LedgerEntry[] = data?.entries ?? [];
+    const total = data?.total_count;
+    const title = total === undefined ? t('financePage.tabs.payments') : t('financePage.payments.count', { count: total, n: formatCount(total, lang) });
+    const filtered = Boolean(list.search);
+    const clearButton = filtered ? <Button variant="ghost" size="sm" leftIcon={X} onClick={list.resetSearch}>{t('common.clearFilters')}</Button> : undefined;
+    const totalPages = total ? Math.ceil(total / PAGE_SIZE) : 0;
+    const paging = totalPages > 1 ? { page: list.page, totalPages, totalCount: total!, pageSize: PAGE_SIZE, onChange: list.setPage } : undefined;
 
-    const handleDownload = async (payment: { id: number; receipt_no?: string }) => {
-        setDownloadingId(payment.id);
+    const kindOf = (e: LedgerEntry) => (e.amount < 0 ? 'reversal' : links.reversed.has(e.id) ? 'reversed' : 'paid');
+    const canReverse = (e: LedgerEntry) => kindOf(e) === 'paid' && can('payments', 'create');
+    const sub = (e: LedgerEntry) => (e.amount < 0 ? t('financePage.payments.reverses', { receipt: links.reverses.get(e.id) ?? '—' }) : e.label);
+
+    const download = async (e: LedgerEntry) => {
+        setDownloading(e.id);
         try {
-            const blob = await financesService.downloadReceiptBlob(payment.id);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `receipt-${payment.receipt_no ?? payment.id}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
+            await downloadReceipt(e.id, e.reference);
+        } catch (err) {
+            notify({ tone: 'bad', title: t('financePage.payments.receiptFailed'), body: errorText(err, t('peoplePage.error.body')) });
         } finally {
-            setDownloadingId(null);
+            setDownloading(null);
         }
     };
+    const askReverse = (e: LedgerEntry) =>
+        setReversing({ id: e.id, receipt: e.reference || `#${e.id}`, student: e.party || '—', amount: e.amount, method: e.method, date: e.date });
 
-    const formatCurrency = (amt: number) => {
-        return new Intl.NumberFormat('en-NP', {
-            style: 'currency',
-            currency: 'NPR',
-        }).format(amt);
+    const status = (e: LedgerEntry) => {
+        const k = kindOf(e);
+        return k === 'reversal' ? <Badge tone="warn">{t('financePage.payments.reversal')}</Badge>
+            : k === 'reversed' ? <Badge tone="neutral">{t('financePage.payments.reversed')}</Badge>
+                : <Badge tone="ok" dot>{t('financePage.payments.paid')}</Badge>;
     };
-
-    const formatDate = (dateStr: string) => df.date(dateStr);
-
-    const filteredPayments = payments?.filter(p => {
-        const matchesSearch =
-            p.receipt_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.transaction_id?.toLowerCase().includes(searchQuery.toLowerCase());
-        if (!matchesSearch) return false;
-        if (filterMethod && p.method !== filterMethod) return false;
-        if (filterFrom && p.paid_at && p.paid_at.slice(0, 10) < filterFrom) return false;
-        if (filterTo && p.paid_at && p.paid_at.slice(0, 10) > filterTo) return false;
-        return true;
-    }) || [];
-
-    const activeFilterCount = [filterMethod, filterFrom, filterTo].filter(Boolean).length;
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by receipt or trans ID..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                    />
-                </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setShowFilters(v => !v)}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-bold transition-all",
-                            showFilters || activeFilterCount > 0
-                                ? "bg-brand/5 border-brand/20 text-brand"
-                                : "bg-slate-50 border-slate-100 text-slate-600 hover:bg-slate-100"
-                        )}
-                    >
-                        <Filter className="w-4 h-4" />
-                        <span>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</span>
-                    </button>
-                    <div className="h-8 w-[1px] bg-slate-200"></div>
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
-                        <span>Transactions:</span>
-                        <span className="text-slate-900">{filteredPayments.length}</span>
-                    </div>
-                </div>
-            </div>
-
-            {showFilters && (
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Method</label>
-                        <select
-                            value={filterMethod}
-                            onChange={(e) => setFilterMethod(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                        >
-                            <option value="">All methods</option>
-                            <option value="cash">Cash</option>
-                            <option value="online">Online</option>
-                            <option value="bank_transfer">Bank transfer</option>
-                            <option value="card">Card</option>
-                            <option value="cheque">Cheque</option>
-                        </select>
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">From</label>
-                        <input
-                            type="date"
-                            value={filterFrom}
-                            onChange={(e) => setFilterFrom(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">To</label>
-                        <input
-                            type="date"
-                            value={filterTo}
-                            onChange={(e) => setFilterTo(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand/20"
-                        />
-                    </div>
-                    <button
-                        onClick={() => { setFilterMethod(''); setFilterFrom(''); setFilterTo(''); }}
-                        disabled={activeFilterCount === 0}
-                        className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors disabled:opacity-40"
-                    >
-                        Clear filters
-                    </button>
-                </div>
-            )}
-
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-slate-50/50">
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Receipt / ID</th>
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Date</th>
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Method</th>
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Amount</th>
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                                <th className="px-6 py-5 text-[11px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {isLoading ? (
-                                [1, 2, 3].map(i => (
-                                    <tr key={i} className="animate-pulse">
-                                        <td colSpan={6} className="px-6 py-8"><div className="h-4 bg-slate-100 rounded w-full"></div></td>
-                                    </tr>
-                                ))
-                            ) : filteredPayments.map((payment) => {
-                                const isVoid = payment.receipt_no?.startsWith('VOID');
-                                return (
-                                    <tr key={payment.id} className={cn("group transition-colors", isVoid ? "bg-slate-50/50" : "hover:bg-slate-50/30")}>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110",
-                                                    isVoid ? "bg-slate-200 text-slate-400" : "bg-emerald-50 text-emerald-600"
-                                                )}>
-                                                    <Receipt className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <p className={cn("font-bold text-sm transition-colors", isVoid ? "text-slate-400" : "text-slate-900")}>
-                                                        {payment.receipt_no || 'N/A'}
-                                                    </p>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight">#{payment.id}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-                                                <Calendar className="w-4 h-4 text-slate-400" />
-                                                {formatDate(payment.paid_at)}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-600 capitalize">
-                                                <CreditCard className="w-4 h-4 text-slate-400" />
-                                                {payment.method.replace('_', ' ')}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className={cn("text-sm font-black tracking-tight", isVoid ? "text-slate-400 line-through" : "text-slate-900")}>
-                                                {formatCurrency(payment.amount)}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className={cn(
-                                                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                                                isVoid ? "bg-slate-200 text-slate-500" : "bg-emerald-50 text-emerald-600"
-                                            )}>
-                                                {isVoid ? 'Voided' : 'Completed'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleDownload(payment)}
-                                                    disabled={downloadingId === payment.id}
-                                                    title="Download receipt PDF"
-                                                    className="p-2 text-slate-400 hover:text-brand hover:bg-blue-50 rounded-lg transition-all disabled:opacity-40"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </button>
-                                                {!isVoid && (
-                                                    <AccessControl id="payments_create">
-                                                        <button
-                                                            onClick={() => {
-                                                                const reason = prompt('Reason for reversal:');
-                                                                if (reason) reverseMutation.mutate({ id: payment.id, reason });
-                                                            }}
-                                                            title="Reverse payment"
-                                                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                                        >
-                                                            <RotateCcw className="w-4 h-4" />
-                                                        </button>
-                                                    </AccessControl>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-
-                {filteredPayments.length === 0 && !isLoading && (
-                    <div className="py-20 text-center space-y-4">
-                        <div className="inline-flex w-16 h-16 bg-slate-100 rounded-full items-center justify-center text-slate-400">
-                            <Receipt className="w-8 h-8" />
-                        </div>
-                        <div>
-                            <h4 className="font-bold text-slate-900">No transactions found</h4>
-                            <p className="text-sm text-slate-500 font-medium">Try adjusting your search filters</p>
-                        </div>
-                    </div>
-                )}
-            </div>
+    const amount = (e: LedgerEntry) => (
+        <span className={cn('tabular-nums', e.amount < 0 ? 'text-bad' : kindOf(e) === 'reversed' ? 'text-muted line-through' : 'text-ink')}>
+            {formatSignedRs(e.amount, lang)}
+        </span>
+    );
+    const actions = (e: LedgerEntry) => (
+        <div className="flex justify-end gap-1.5">
+            <IconButton icon={Download} label={t('financePage.payments.download')} onClick={() => void download(e)} disabled={downloading === e.id} />
+            <ActionMenu label={t('financePage.payments.more')} items={[
+                { label: t('financePage.payments.reverse'), icon: RotateCcw, tone: 'bad', onSelect: () => askReverse(e), hidden: !canReverse(e) },
+            ]} />
         </div>
     );
-};
+
+    const message = isError ? (
+        <EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+            action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void refetch()}>{t('classesPage.action.retry')}</Button>}>
+            {t('peoplePage.error.body')}
+        </EmptyState>
+    ) : !isPending && rows.length === 0 ? (
+        <EmptyState icon={Receipt} title={filtered ? t('financePage.payments.noMatch') : t('financePage.payments.empty')} action={clearButton}>
+            {filtered ? t('peoplePage.empty.filtered') : t('financePage.payments.emptyBody')}
+        </EmptyState>
+    ) : null;
+
+    return (
+        <div className="flex min-w-0 flex-col gap-3.5">
+            {noticeUI}
+            <Banner tone="info" icon={ShieldCheck} title={t('financePage.payments.ruleTitle')}>{t('financePage.payments.ruleBody')}</Banner>
+
+            <Toolbar>
+                <SearchField value={list.searchInput} onChange={list.setSearchInput} placeholder={t('financePage.payments.search')} clearLabel={t('common.clear')} containerClassName="md:w-[280px]" />
+            </Toolbar>
+
+            <TableCard className="max-md:hidden" title={title} subtitle={t('financePage.payments.sub', { from: df.date(range.start) })} action={clearButton}
+                footer={paging ? <Pagination variant="inset" {...paging} /> : undefined}>
+                <Table aria-label={title}>
+                    <THead>
+                        <Th>{t('financePage.col.receipt')}</Th>
+                        <SortTh k="party" sort={list.sort} onSort={list.toggleSort}>{t('financePage.col.student')}</SortTh>
+                        <SortTh k="date" sort={list.sort} onSort={list.toggleSort}>{t('financePage.col.date')}</SortTh>
+                        <SortTh k="amount" sort={list.sort} onSort={list.toggleSort} className="text-right">{t('financePage.col.amount')}</SortTh>
+                        <Th>{t('financePage.col.status')}</Th>
+                        <Th className="text-right">{t('classesPage.col.actions')}</Th>
+                    </THead>
+                    <tbody>
+                        {isPending ? <TableSkeletonRows columns={COLUMNS} /> : message ? <TableMessage columns={COLUMNS}>{message}</TableMessage> : rows.map((e) => (
+                            <Tr key={e.id}>
+                                <Td>
+                                    <span className="flex flex-col">
+                                        <span className="type-small-semibold tabular-nums text-ink">{e.reference || `#${e.id}`}</span>
+                                        <span className="type-caption text-muted">{t(methodKey(e.method))}</span>
+                                    </span>
+                                </Td>
+                                <Td>
+                                    <span className="flex min-w-0 flex-col">
+                                        <span className="truncate type-small-medium text-ink">{e.party || '—'}</span>
+                                        <span className="truncate type-caption text-muted">{sub(e)}</span>
+                                    </span>
+                                </Td>
+                                <Td className="whitespace-nowrap">{df.date(e.date)}</Td>
+                                <Td className="whitespace-nowrap text-right type-small-semibold">{amount(e)}</Td>
+                                <Td>{status(e)}</Td>
+                                <Td>{actions(e)}</Td>
+                            </Tr>
+                        ))}
+                    </tbody>
+                </Table>
+            </TableCard>
+
+            <div className="flex flex-col gap-2.5 md:hidden">
+                <div className="flex items-center justify-between px-1">
+                    <p className="type-small-semibold text-ink-2">{title}</p>
+                    {clearButton}
+                </div>
+                {isPending ? (
+                    <ListCard>{Array.from({ length: 6 }, (_, i) => <li key={i} className="py-3"><Skeleton className="h-10" /></li>)}</ListCard>
+                ) : message ? (
+                    <div className="rounded-card border border-line bg-surface">{message}</div>
+                ) : (
+                    <ListCard>
+                        {rows.map((e) => (
+                            <ListRow key={e.id}>
+                                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                    <span className="flex items-center gap-2 type-small-semibold text-ink">
+                                        <span className="tabular-nums">{e.reference || `#${e.id}`}</span>
+                                        {kindOf(e) !== 'paid' && status(e)}
+                                    </span>
+                                    <span className="truncate type-caption text-ink-2">{e.party || '—'}, {e.amount < 0 ? sub(e) : e.label}</span>
+                                </span>
+                                <span className="flex shrink-0 flex-col items-end gap-0.5">
+                                    <span className="type-small-semibold">{amount(e)}</span>
+                                    <span className="type-caption text-muted">{t(methodKey(e.method))}, {df.date(e.date, 'dayMonth').replace(/^[^,]*,\s*/, '')}</span>
+                                </span>
+                                <ActionMenu label={t('financePage.payments.more')} items={[
+                                    { label: t('financePage.payments.download'), icon: Download, onSelect: () => void download(e) },
+                                    { label: t('financePage.payments.reverse'), icon: RotateCcw, tone: 'bad', onSelect: () => askReverse(e), hidden: !canReverse(e) },
+                                ]} />
+                            </ListRow>
+                        ))}
+                    </ListCard>
+                )}
+                {paging && <Pagination {...paging} />}
+            </div>
+
+            {reversing && (
+                <ReversePaymentDialog key={reversing.id} payment={reversing} onClose={() => setReversing(null)}
+                    onDone={(receipt) => { setReversing(null); notify({ tone: 'ok', title: t('financePage.reverse.done', { receipt }) }); }} />
+            )}
+        </div>
+    );
+}

@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: "Satyam Xavier's EBS",
           short_name: 'SX EBS',
-          description: 'School management system for Satyam Xavier\'s Higher Secondary School',
+          description: 'School management system for Satyam Xavier\'s English Boarding School',
           theme_color: '#E5243B',
           background_color: '#ffffff',
           display: 'standalone',

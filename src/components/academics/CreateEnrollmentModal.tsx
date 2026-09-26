@@ -1,286 +1,186 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, CheckCircle2, UserCheck, AlertCircle, Calendar, Search, User, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Check, Loader2, Search, UserCheck } from 'lucide-react';
+
+import { Banner, Button, Dialog, FormRow, Person, SearchField, SelectField } from '../../design-system';
 import { academicsService } from '../../api/services/academics.service';
-import { academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
 import { peopleService } from '../../api/services/people.service';
+import { academicYearLabel, academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
+import { useDateFormat } from '../../hooks/useDateFormat';
 import type { Student } from '../../types/people';
+import type { Section } from '../../types/academic';
+import { errorText, fullName } from '../../features/people/format';
+import { cn } from '../../utils/cn';
 
 interface CreateEnrollmentModalProps {
     isOpen: boolean;
     onClose: () => void;
+    /** Opened from a class or section page: start there. */
+    classId?: number;
+    sectionId?: number;
 }
 
-export const CreateEnrollmentModal: React.FC<CreateEnrollmentModalProps> = ({ isOpen, onClose }) => {
+/**
+ * Figma H10 "Enroll student": who, which year, which class, which section,
+ * with each section's seats shown so a full one is visible before choosing.
+ * Figma's roll number is left out: enrolments have no roll number.
+ */
+export function CreateEnrollmentModal({ isOpen, onClose, classId: presetClass, sectionId: presetSection }: CreateEnrollmentModalProps) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
     const queryClient = useQueryClient();
-    const [formData, setFormData] = useState({
-        student_id: '',
-        class_id: '',
-        section_id: '',
-        academic_year: currentAcademicYear(),
-    });
-
-    const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedQuery, setDebouncedQuery] = useState('');
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<Student[]>([]);
-    const [showResults, setShowResults] = useState(false);
+    const [searchInput, setSearchInput] = useState('');
+    const [search, setSearch] = useState('');
+    const [student, setStudent] = useState<Student | null>(null);
+    const [year, setYear] = useState(currentAcademicYear());
+    const [classId, setClassId] = useState(presetClass ? String(presetClass) : '');
+    const [sectionId, setSectionId] = useState(presetSection ? String(presetSection) : '');
     const [error, setError] = useState<string | null>(null);
+    const [tried, setTried] = useState(false);
 
-    // Debounce search query
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedQuery(searchQuery);
-        }, 400);
-        return () => clearTimeout(timer);
-    }, [searchQuery]);
+        const id = setTimeout(() => setSearch(searchInput.trim()), 300);
+        return () => clearTimeout(id);
+    }, [searchInput]);
 
-    // Fetch students when debounced query changes
-    useEffect(() => {
-        if (!debouncedQuery || debouncedQuery.length < 2 || selectedStudent) {
-            setSearchResults([]);
-            return;
-        }
-
-        const fetchStudents = async () => {
-            setIsSearching(true);
-            try {
-                const response = await peopleService.getStudents({ search: debouncedQuery, limit: 10 });
-                setSearchResults(response.students || []);
-                setShowResults(true);
-            } catch (err) {
-                console.error('Search failed:', err);
-            } finally {
-                setIsSearching(false);
-            }
-        };
-
-        fetchStudents();
-    }, [debouncedQuery, selectedStudent]);
-
-    // Fetch classes for dropdown
-    const { data: classesData } = useQuery({
-        queryKey: ['classes'],
-        queryFn: () => academicsService.getClasses({ limit: 100 }),
+    const students = useQuery({
+        queryKey: ['students', 'pick', search],
+        queryFn: () => peopleService.getStudents({ search, limit: 8 }),
+        enabled: isOpen && !student && search.length >= 2,
+    });
+    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), enabled: isOpen });
+    const sections = useQuery({
+        queryKey: ['sections', Number(classId)],
+        queryFn: () => academicsService.getSections({ class_id: Number(classId), limit: 100 }),
+        enabled: isOpen && !!classId,
     });
 
-    // Fetch sections for selected class
-    const { data: sectionsData } = useQuery({
-        queryKey: ['sections', formData.class_id],
-        queryFn: () => academicsService.getSections({ class_id: formData.class_id ? Number(formData.class_id) : undefined }),
-        enabled: !!formData.class_id,
-    });
-
-    const mutation = useMutation({
-        mutationFn: academicsService.createEnrollment,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['enrollments'] });
-            handleClose();
-        },
-        onError: (err: any) => {
-            setError(err.response?.data?.detail || err.message || 'Failed to enroll student');
-        }
-    });
-
-    const handleClose = () => {
-        setFormData({ student_id: '', class_id: '', section_id: '', academic_year: currentAcademicYear() });
-        setSearchQuery('');
-        setDebouncedQuery('');
-        setSelectedStudent(null);
-        setSearchResults([]);
-        setError(null);
+    const close = () => {
+        setSearchInput(''); setSearch(''); setStudent(null); setYear(currentAcademicYear());
+        setClassId(presetClass ? String(presetClass) : ''); setSectionId(presetSection ? String(presetSection) : '');
+        setError(null); setTried(false);
         onClose();
     };
 
-    const handleSelectStudent = (student: Student) => {
-        setSelectedStudent(student);
-        setFormData({ ...formData, student_id: student.id.toString() });
-        setSearchQuery(''); // Clear query after selection
-        setShowResults(false);
+    const mutation = useMutation({
+        mutationFn: () =>
+            academicsService.createEnrollment({
+                student_id: student!.id,
+                class_id: Number(classId),
+                section_id: sectionId ? Number(sectionId) : undefined,
+                academic_year: year,
+            }),
+        onSuccess: () => {
+            ['enrollments', 'sections', 'class-detail', 'students'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+            close();
+        },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+    });
+
+    const submit = () => {
+        setTried(true);
+        setError(null);
+        if (!student || !classId) return;
+        mutation.mutate();
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.student_id) return setError('Student selection is required');
-        if (!formData.class_id) return setError('Class selection is required');
-
-        mutation.mutate({
-            student_id: Number(formData.student_id),
-            class_id: Number(formData.class_id),
-            section_id: formData.section_id ? Number(formData.section_id) : undefined,
-            academic_year: formData.academic_year,
-        });
-    };
-
-    if (!isOpen) return null;
+    const busy = mutation.isPending;
+    const results: Student[] = students.data?.students ?? [];
+    const sectionList: Section[] = sections.data?.sections ?? [];
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={handleClose}></div>
+        <Dialog
+            open={isOpen}
+            onClose={close}
+            dismissible={!busy}
+            icon={UserCheck}
+            title={t('classesPage.enrol.title')}
+            subtitle={t('classesPage.enrol.sub')}
+            closeLabel={t('common.close')}
+            footer={
+                <>
+                    <Button variant="quiet" onClick={close} disabled={busy}>{t('classesPage.dialog.cancel')}</Button>
+                    <Button leftIcon={UserCheck} loading={busy} onClick={submit}>
+                        {busy ? t('classesPage.enrol.enrolling') : student ? t('classesPage.enrol.button', { name: student.first_name }) : t('classesPage.enrol.buttonPlain')}
+                    </Button>
+                </>
+            }
+        >
+            {error && <Banner tone="bad" title={t('classesPage.enrol.failed')}>{error}</Banner>}
 
-            <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
-                            <UserCheck className="w-5 h-5" />
-                        </div>
-                        <h2 className="text-xl font-bold text-slate-900">New Enrollment</h2>
+            <div className="flex flex-col gap-1.5">
+                <p className="type-small-semibold text-ink">{t('classesPage.enrol.student')}</p>
+                {student ? (
+                    <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
+                        <span className="min-w-0 flex-1"><Person name={fullName(student)} sub={student.admission_no} /></span>
+                        <Button variant="ghost" size="sm" onClick={() => setStudent(null)}>{t('classesPage.enrol.change')}</Button>
                     </div>
-                    <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                ) : (
+                    <>
+                        <SearchField value={searchInput} onChange={setSearchInput} placeholder={t('classesPage.enrol.search')} clearLabel={t('common.clear')} />
+                        {tried && <p className="type-caption text-bad">{t('classesPage.enrol.pickStudent')}</p>}
+                        <div className="flex min-h-[64px] flex-col gap-1.5">
+                            {search.length < 2 ? (
+                                <p className="flex items-center gap-2 px-1 py-2 type-small text-muted"><Search size={15} aria-hidden /> {t('classesPage.enrol.searchHint')}</p>
+                            ) : students.isPending ? (
+                                <p className="flex items-center gap-2 px-1 py-2 type-small text-muted"><Loader2 size={15} className="animate-spin" aria-hidden /> {t('addChild.searching')}</p>
+                            ) : results.length === 0 ? (
+                                <p className="px-1 py-2 type-small text-muted">{t('classesPage.enrol.noMatch')}</p>
+                            ) : (
+                                results.map((s) => (
+                                    <button key={s.id} type="button" onClick={() => { setStudent(s); setSearchInput(''); }}
+                                        className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface px-3.5 py-2 text-left outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-focus/60">
+                                        <span className="min-w-0 flex-1"><Person name={fullName(s)} sub={s.admission_no} /></span>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {error && (
-                        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-medium">
-                            <AlertCircle className="w-5 h-5 shrink-0" />
-                            <p>{error}</p>
+            <FormRow>
+                <SelectField label={t('classesPage.enrol.year')} value={year} onChange={(e) => setYear(e.target.value)}
+                    options={academicYearOptions(3).map((y) => ({ value: y, label: academicYearLabel(y, lang) }))} />
+                <SelectField label={t('classesPage.enrol.class')} placeholder={t('peopleForms.choose')} value={classId}
+                    error={tried && !classId ? t('classesPage.enrol.pickClass') : undefined}
+                    onChange={(e) => { setClassId(e.target.value); setSectionId(''); }}
+                    options={(classes.data?.classes ?? []).map((c) => ({ value: c.id, label: c.name }))} />
+            </FormRow>
+
+            {classId && (
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="mb-2 type-small-semibold text-ink">{t('classesPage.enrol.section')}</legend>
+                    {sectionList.length === 0 && !sections.isPending ? (
+                        <p className="type-small text-muted">{t('classesPage.enrol.sectionNone')}</p>
+                    ) : (
+                        <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+                            {sectionList.map((s) => {
+                                const on = String(s.id) === sectionId;
+                                const filled = s.enrolled_count ?? 0;
+                                const full = !!s.capacity && filled >= s.capacity;
+                                return (
+                                    <button key={s.id} type="button" role="radio" aria-checked={on} onClick={() => setSectionId(on ? '' : String(s.id))}
+                                        className={cn(
+                                            'flex items-center gap-3 rounded-row border-[1.5px] px-3.5 py-3 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60',
+                                            on ? 'border-primary bg-primary-soft' : 'border-line bg-surface hover:bg-surface-2',
+                                        )}>
+                                        <span className={cn('grid size-9 shrink-0 place-items-center rounded-[10px] type-title', on ? 'bg-primary text-on-primary' : 'bg-sunken text-ink-2')}>{s.name.slice(0, 2)}</span>
+                                        <span className="flex min-w-0 flex-1 flex-col">
+                                            <span className="type-small-semibold text-ink">{t('classesPage.section.crumb', { name: s.name })}</span>
+                                            <span className={cn('type-caption', full ? 'text-bad' : 'text-muted')}>
+                                                {!s.capacity ? t('classesPage.enrol.noLimit', { filled }) : full ? t('classesPage.enrol.full', { filled, total: s.capacity }) : t('classesPage.enrol.seatsTaken', { filled, total: s.capacity })}
+                                            </span>
+                                        </span>
+                                        {on && <Check size={18} className="shrink-0 text-primary" aria-hidden />}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Academic Year</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <select
-                                value={formData.academic_year}
-                                onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
-                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none cursor-pointer"
-                            >
-                                {academicYearOptions(3).map(y => <option key={y} value={y}>{y}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2 relative">
-                        <label className="text-sm font-bold text-slate-700 ml-1">Search Student</label>
-                        <div className="relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by name or admission no..."
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    if (selectedStudent) setSelectedStudent(null);
-                                }}
-                                onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
-                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                            />
-                            {isSearching && (
-                                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand animate-spin" />
-                            )}
-                        </div>
-
-                        {/* Search Results Dropdown */}
-                        {showResults && searchResults.length > 0 && (
-                            <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl max-h-60 overflow-y-auto">
-                                {searchResults.map((student) => (
-                                    <button
-                                        key={student.id}
-                                        type="button"
-                                        onClick={() => handleSelectStudent(student)}
-                                        className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-none"
-                                    >
-                                        <div className="w-8 h-8 bg-brand/5 rounded-full flex items-center justify-center text-brand">
-                                            <User className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">{student.first_name} {student.last_name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                Adm: {student.admission_no || 'N/A'} • Status: {student.status}
-                                            </p>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {searchQuery.length >= 2 && !isSearching && searchResults.length === 0 && showResults && (
-                            <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl p-6 text-center">
-                                <p className="text-sm font-medium text-slate-500">No students found matching "{searchQuery}"</p>
-                            </div>
-                        )}
-
-                        {selectedStudent && (
-                            <div className="mt-3 p-3 bg-emerald-50 rounded-2xl flex items-center justify-between border border-emerald-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold text-emerald-900">Selected: {selectedStudent.first_name} {selectedStudent.last_name}</p>
-                                        <p className="text-[10px] font-medium text-emerald-600 uppercase">ID: {selectedStudent.id}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedStudent(null);
-                                        setSearchQuery('');
-                                        setFormData({ ...formData, student_id: '' });
-                                    }}
-                                    className="text-xs font-bold text-emerald-600 hover:underline"
-                                >
-                                    Clear
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 ml-1">Class</label>
-                            <div className="relative">
-                                <select
-                                    value={formData.class_id}
-                                    onChange={(e) => setFormData({ ...formData, class_id: e.target.value, section_id: '' })}
-                                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none"
-                                >
-                                    <option value="">Select Class</option>
-                                    {classesData?.classes.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 ml-1">Section (Optional)</label>
-                            <div className="relative">
-                                <select
-                                    value={formData.section_id}
-                                    onChange={(e) => setFormData({ ...formData, section_id: e.target.value })}
-                                    disabled={!formData.class_id}
-                                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand/20 transition-all outline-none appearance-none disabled:opacity-50"
-                                >
-                                    <option value="">Select Section</option>
-                                    {sectionsData?.sections.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-6">
-                        <button
-                            type="submit"
-                            disabled={mutation.isPending || !selectedStudent}
-                            className="w-full py-4 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            {mutation.isPending ? 'Processing...' : (
-                                <>
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    <span>Complete Enrollment</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </fieldset>
+            )}
+        </Dialog>
     );
-};
+}

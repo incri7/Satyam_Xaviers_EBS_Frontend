@@ -1,385 +1,281 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useMutation, keepPreviousData } from '@tanstack/react-query';
+import { useId, useMemo, useState } from 'react';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
+import { AlertCircle, ArrowLeft, CheckCircle2, Layers, Loader2, RotateCw, Send, TrendingDown, X } from 'lucide-react';
+
+import {
+    Badge, Button, Card, Checkbox, EmptyState, FilterChips, IconButton, ListCard, Person, SearchField, Skeleton,
+    Table, TableCard, TableMessage, TableSkeletonRows, THead, Td, Th, Tr, type BadgeTone,
+} from '../../design-system';
+import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
+import { AccessControl } from '../../components/AccessControl';
+import { Pagination } from '../../components/common/Pagination';
+import { SelectMenu } from '../../components/common/SelectMenu';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { KpiCard } from '../../features/dashboard/KpiCard';
 import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
 import { academicsService } from '../../api/services/academics.service';
-import {
-    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown,
-    Search, ChevronLeft, ChevronRight, X,
-} from 'lucide-react';
-import { cn } from '../../utils/cn';
-
-const RISK_STYLE: Record<string, string> = {
-    High: 'bg-red-100 text-red-700',
-    Medium: 'bg-amber-100 text-amber-700',
-    Low: 'bg-slate-100 text-slate-600',
-};
+import { useListControls } from '../../features/people/useListControls';
+import { useNotice } from '../../features/people/useNotice';
+import { errorText } from '../../features/people/format';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount, formatRs } from '../../utils/money';
 
 const PAGE_SIZE = 50;
+const COLUMNS = 7;
 type Risk = 'High' | 'Medium' | 'Low';
+const RISKS: Risk[] = ['High', 'Medium', 'Low'];
+const RISK_TONE: Record<Risk, BadgeTone> = { High: 'bad', Medium: 'warn', Low: 'neutral' };
+const ALL = 'all';
 
-const OutstandingFeesPage: React.FC = () => {
+/**
+ * Figma E07 Outstanding fees: who owes what, the riskiest first, and one
+ * tap to remind them. Reminders go out by SMS from the server; with nothing
+ * ticked, "Remind all" covers every family with a balance, not just this
+ * page, so it asks first.
+ */
+export default function OutstandingFeesPage() {
     const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const navigate = useNavigate();
+    const [confirmUI, confirm] = useConfirmDialog();
+    const [noticeUI, notify] = useNotice();
+    const list = useListControls<never>();
+    const [risk, setRisk] = useState<Risk | typeof ALL>(ALL);
+    const [classId, setClassId] = useState('');
+    const [selected, setSelected] = useState<number[]>([]);
+    const [sendingTo, setSendingTo] = useState<number | 'many' | null>(null);
 
-    const [searchInput, setSearchInput] = useState('');
-    const [search, setSearch] = useState('');
-    const [risk, setRisk] = useState<Risk | ''>('');
-    const [classId, setClassId] = useState<number | ''>('');
-    const [page, setPage] = useState(0);
-
-    const [selectedIds, setSelectedIds] = useState<number[]>([]);
-    const [sendingId, setSendingId] = useState<number | null>(null);
-    const [feedback, setFeedback] = useState('');
-    const [errorMsg, setErrorMsg] = useState('');
-
-    // Debounce the search box so typing doesn't fire a request per keystroke.
-    useEffect(() => {
-        const id = setTimeout(() => {
-            setSearch(searchInput.trim());
-            setPage(0);
-        }, 350);
-        return () => clearTimeout(id);
-    }, [searchInput]);
-
-    const { data, isLoading, isFetching } = useQuery({
-        queryKey: ['finances', 'outstanding', { search, risk, classId, page }],
+    const { data, isPending, isError, refetch } = useQuery({
+        queryKey: ['finances', 'outstanding', { search: list.search, risk, classId, page: list.page }],
         queryFn: () => financesService.getOutstanding({
             limit: PAGE_SIZE,
-            offset: page * PAGE_SIZE,
-            ...(search ? { search } : {}),
-            ...(risk ? { risk } : {}),
-            ...(classId !== '' ? { class_id: classId } : {}),
+            offset: (list.page - 1) * PAGE_SIZE,
+            search: list.search || undefined,
+            risk: risk === ALL ? undefined : risk,
+            class_id: classId ? Number(classId) : undefined,
         }),
-        placeholderData: keepPreviousData,
+        placeholderData: (prev) => prev,
     });
-
-    const { data: classesData } = useQuery({
-        queryKey: ['academics', 'classes', 'all'],
-        queryFn: () => academicsService.getClasses({ limit: 100 }),
-        staleTime: 5 * 60 * 1000,
+    // School-wide figures and the count behind each risk chip, unaffected by the filters.
+    const [whole, ...byRisk] = useQueries({
+        queries: [undefined, ...RISKS].map((r) => ({
+            queryKey: ['finances', 'outstanding', 'count', r ?? 'all'],
+            queryFn: () => financesService.getOutstanding({ limit: 1, risk: r }),
+            staleTime: 30 * 1000,
+        })),
     });
+    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), staleTime: 5 * 60 * 1000 });
 
-    const reminderMutation = useMutation({
-        mutationFn: (studentIds?: number[]) => financesService.sendBulkReminders(studentIds),
-        onSuccess: (res) => {
-            setFeedback(res.message);
-            setErrorMsg('');
-            setSelectedIds([]);
-            setSendingId(null);
-            setTimeout(() => setFeedback(''), 5000);
-        },
-        onError: (err: any) => {
-            setErrorMsg(err.response?.data?.detail || t('common.error'));
-            setSendingId(null);
-        },
+    const remind = useMutation({
+        mutationFn: (ids?: number[]) => financesService.sendBulkReminders(ids),
+        onSuccess: (res) => { notify({ tone: 'ok', title: res.message }); setSelected([]); },
+        onError: (err) => notify({ tone: 'bad', title: t('outstandingPage.remindFailed'), body: errorText(err, t('peoplePage.error.body')) }),
+        onSettled: () => setSendingTo(null),
     });
+    const sendOne = (e: OutstandingEntry) => { setSendingTo(e.student_id); remind.mutate([e.student_id]); };
+    const sendSelected = () => { setSendingTo('many'); remind.mutate(selected); };
+    const everyone = whole.data?.total_count ?? 0;
+    const askRemindAll = () =>
+        confirm({
+            title: t('outstandingPage.remindAllTitle', { n: formatCount(everyone, lang) }),
+            body: t('outstandingPage.remindAllBody'),
+            confirmLabel: t('outstandingPage.remindAllConfirm'),
+            tone: 'neutral',
+            onConfirm: () => { setSendingTo('many'); remind.mutate(undefined); },
+        });
 
-    const entries = data?.entries ?? [];
-    const totalCount = data?.total_count ?? 0;
-    const totalOutstanding = data?.total_outstanding ?? 0;
-    // Collected and raised describe the whole school and do not move with the
-    // filters — narrowing the arrears list does not change what was banked.
-    const totalCollected = data?.total_collected ?? 0;
-    const totalRaised = data?.total_raised ?? 0;
-    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-    const hasFilters = search !== '' || risk !== '' || classId !== '';
+    const rows: OutstandingEntry[] = useMemo(() => data?.entries ?? [], [data]);
+    const pageIds = rows.map((e) => e.student_id);
+    const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+    const toggle = (id: number) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    const togglePage = () => setSelected((s) => (allOnPage ? s.filter((id) => !pageIds.includes(id)) : [...new Set([...s, ...pageIds])]));
 
-    const pageIds = useMemo(() => entries.map(e => e.student_id), [entries]);
-    const allOnPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+    const filtered = Boolean(list.search || classId || risk !== ALL);
+    const clear = () => { list.resetSearch(); setClassId(''); setRisk(ALL); };
+    const clearButton = filtered ? <Button variant="ghost" size="sm" leftIcon={X} onClick={clear}>{t('common.clearFilters')}</Button> : undefined;
+    const total = data?.total_count;
+    const title = total === undefined ? t('outstandingPage.title') : t('outstandingPage.count', { count: total, n: formatCount(total, lang) });
+    const totalPages = total ? Math.ceil(total / PAGE_SIZE) : 0;
+    const paging = totalPages > 1 ? { page: list.page, totalPages, totalCount: total!, pageSize: PAGE_SIZE, onChange: list.setPage } : undefined;
 
-    const toggleSelected = (id: number) => {
-        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-    };
+    const chips = [
+        { value: ALL, label: t('financePage.expenses.all'), count: whole.data ? formatCount(whole.data.total_count, lang) : undefined },
+        ...RISKS.map((r, i) => ({ value: r, label: t(`outstandingPage.risk.${r}`), count: byRisk[i].data ? formatCount(byRisk[i].data!.total_count, lang) : undefined })),
+    ];
 
-    const toggleSelectPage = () => {
-        setSelectedIds(prev => allOnPageSelected
-            ? prev.filter(id => !pageIds.includes(id))
-            : [...prev, ...pageIds.filter(id => !prev.includes(id))]);
-    };
+    const riskBadge = (e: OutstandingEntry) => <Badge tone={RISK_TONE[e.risk] ?? 'neutral'} dot>{t(`outstandingPage.risk.${e.risk}`)}</Badge>;
+    const overdue = (e: OutstandingEntry) => (e.days_overdue > 0 ? t('outstandingPage.days', { count: e.days_overdue, n: formatCount(e.days_overdue, lang) }) : t('outstandingPage.notYet'));
+    const remindButton = (e: OutstandingEntry) => (
+        <AccessControl id="payments_create">
+            <IconButton icon={sendingTo === e.student_id ? Loader2 : Send} label={t('outstandingPage.remindOne', { name: e.student_name })}
+                onClick={() => sendOne(e)} disabled={remind.isPending} className={sendingTo === e.student_id ? '[&_svg]:animate-spin' : undefined} />
+        </AccessControl>
+    );
 
-    const sendToOne = (id: number) => {
-        setSendingId(id);
-        reminderMutation.mutate([id]);
-    };
+    const message = isError ? (
+        <EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+            action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void refetch()}>{t('classesPage.action.retry')}</Button>}>
+            {t('peoplePage.error.body')}
+        </EmptyState>
+    ) : !isPending && rows.length === 0 ? (
+        <EmptyState icon={CheckCircle2} title={filtered ? t('outstandingPage.noMatch') : t('outstandingPage.allClear')} action={clearButton}>
+            {filtered ? t('peoplePage.empty.filtered') : t('outstandingPage.allClearBody')}
+        </EmptyState>
+    ) : null;
 
-    const clearFilters = () => {
-        setSearchInput('');
-        setRisk('');
-        setClassId('');
-        setPage(0);
-    };
-
-    const riskLabel = (r: string) =>
-        r === 'High' ? t('home.accountant.riskHigh')
-            : r === 'Medium' ? t('home.accountant.riskMedium')
-                : r === 'Low' ? t('home.accountant.riskLow') : r;
+    const actions = (
+        <>
+            <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => navigate('/finances')}>{t('financePage.title')}</Button>
+            <AccessControl id="payments_create">
+                <Button leftIcon={Send} loading={sendingTo === 'many'} disabled={everyone === 0 || remind.isPending} onClick={askRemindAll}>
+                    {t('outstandingPage.remindAll', { n: formatCount(everyone, lang) })}
+                </Button>
+            </AccessControl>
+        </>
+    );
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    {/* Title + totals */}
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                                <TrendingDown className="w-6 h-6 text-red-500" />
-                                {t('outstanding.title')}
-                            </h1>
-                            <p className="text-slate-500 text-sm font-medium mt-0.5">
-                                {t('outstanding.subtitle', { count: totalCount })}
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            <div className="bg-emerald-50 border-2 border-emerald-100 rounded-2xl px-5 py-3">
-                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
-                                    {t('outstanding.collected')}
-                                </p>
-                                <p className="text-2xl font-bold text-emerald-700 tabular-nums">
-                                    Rs {Number(totalCollected).toLocaleString()}
-                                </p>
-                            </div>
+        <AppPage title={t('outstandingPage.title')}>
+            {confirmUI}
+            <PageBar actions={actions}>
+                <p className="type-small text-muted">{t('outstandingPage.intro')}</p>
+            </PageBar>
+            {noticeUI}
 
-                            <div className="bg-red-50 border-2 border-red-100 rounded-2xl px-5 py-3">
-                                <p className="text-xs font-bold text-red-500 uppercase tracking-wide">
-                                    {hasFilters ? t('outstanding.filteredTotal') : t('home.accountant.totalOutstanding')}
-                                </p>
-                                <p className="text-2xl font-bold text-red-700 tabular-nums">
-                                    Rs {Number(totalOutstanding).toLocaleString()}
-                                </p>
-                            </div>
+            <div className="grid min-w-0 gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-4">
+                <CollectedCard status={whole.isPending ? 'loading' : whole.isError ? 'error' : 'ready'} collected={Number(whole.data?.total_collected ?? 0)}
+                    raised={Number(whole.data?.total_raised ?? 0)} onRetry={() => void whole.refetch()} />
+                <KpiCard icon={TrendingDown} tone="bad" label={t('outstandingPage.outstanding')} long
+                    status={whole.isPending ? 'loading' : whole.isError ? 'error' : 'ready'} onRetry={() => void whole.refetch()}
+                    value={formatRs(whole.data?.total_outstanding ?? 0, lang)}
+                    sub={<span>{everyone > 0
+                        ? t('outstandingPage.average', { count: everyone, n: formatCount(everyone, lang), avg: formatRs(Number(whole.data?.total_outstanding ?? 0) / everyone, lang) })
+                        : t('outstandingPage.allClear')}</span>} />
+            </div>
 
-                            <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3">
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                                    {t('outstanding.raised')}
-                                </p>
-                                <p className="text-2xl font-bold text-slate-800 tabular-nums">
-                                    Rs {Number(totalRaised).toLocaleString()}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+            <FilterChips items={chips} value={risk} onChange={list.filter((v: string) => setRisk(v as Risk | typeof ALL))} aria-label={t('outstandingPage.byRisk')} />
+            <Toolbar>
+                <SearchField value={list.searchInput} onChange={list.setSearchInput} placeholder={t('outstandingPage.search')} clearLabel={t('common.clear')} containerClassName="md:w-[280px]" />
+                <SelectMenu value={classId} onChange={list.filter(setClassId)} label={t('outstandingPage.class')} icon={<Layers />}
+                    options={[{ value: '', label: t('classesPage.enrolments.allClasses') }, ...(classes.data?.classes ?? []).map((c) => ({ value: String(c.id), label: c.name }))]} />
+            </Toolbar>
 
-                    {/* Filters */}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-wrap gap-3 items-center">
-                        <div className="relative flex-1 min-w-[220px]">
-                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                placeholder={t('outstanding.searchPlaceholder')}
-                                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-                            />
-                        </div>
-                        <select
-                            value={risk}
-                            onChange={(e) => { setRisk(e.target.value as Risk | ''); setPage(0); }}
-                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand/30"
-                        >
-                            <option value="">{t('outstanding.allRisks')}</option>
-                            <option value="High">{t('home.accountant.riskHigh')}</option>
-                            <option value="Medium">{t('home.accountant.riskMedium')}</option>
-                            <option value="Low">{t('home.accountant.riskLow')}</option>
-                        </select>
-                        <select
-                            value={classId}
-                            onChange={(e) => { setClassId(e.target.value ? Number(e.target.value) : ''); setPage(0); }}
-                            className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand/30"
-                        >
-                            <option value="">{t('outstanding.allClasses')}</option>
-                            {classesData?.classes?.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                        {hasFilters && (
-                            <button
-                                onClick={clearFilters}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                                {t('outstanding.clearFilters')}
-                            </button>
-                        )}
-                        <div className="ml-auto flex items-center gap-2">
-                            {selectedIds.length > 0 && (
-                                <span className="text-sm font-semibold text-slate-500">
-                                    {t('outstanding.selectedCount', { count: selectedIds.length })}
-                                </span>
-                            )}
-                            <button
-                                onClick={() => reminderMutation.mutate(selectedIds.length > 0 ? selectedIds : undefined)}
-                                disabled={reminderMutation.isPending || totalCount === 0}
-                                className="inline-flex shrink-0 items-center gap-1.5 px-4 py-2 bg-brand text-white text-sm font-semibold whitespace-nowrap rounded-lg shadow-sm hover:opacity-95 transition-all disabled:opacity-50"
-                            >
-                                {reminderMutation.isPending && sendingId === null
-                                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                                    : <Send className="w-4 h-4" />}
-                                {selectedIds.length > 0
-                                    ? `${t('home.accountant.sendSelected')} (${selectedIds.length})`
-                                    : t('home.accountant.sendReminders')}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Sending to everyone, not just this page — say so plainly. */}
-                    {selectedIds.length === 0 && totalCount > entries.length && (
-                        <p className="text-xs font-medium text-amber-600 flex items-center gap-1.5">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                            {t('outstanding.remindAllWarning', { count: totalCount })}
-                        </p>
-                    )}
-
-                    {feedback && (
-                        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-700 font-medium text-sm">
-                            <CheckCircle2 className="w-5 h-5 shrink-0" />
-                            {feedback}
-                        </div>
-                    )}
-                    {errorMsg && (
-                        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 font-medium text-sm">
-                            <AlertCircle className="w-5 h-5 shrink-0" />
-                            {errorMsg}
-                        </div>
-                    )}
-
-                    {/* Table */}
-                    <div className={cn(
-                        'bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-opacity',
-                        isFetching && !isLoading && 'opacity-60'
-                    )}>
-                        {isLoading && (
-                            <div className="flex items-center justify-center py-20">
-                                <Loader2 className="w-8 h-8 text-brand animate-spin" />
-                            </div>
-                        )}
-
-                        {!isLoading && entries.length === 0 && (
-                            <div className="py-20 text-center">
-                                <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
-                                <p className="font-bold text-slate-400">
-                                    {hasFilters ? t('outstanding.noMatches') : t('home.accountant.allClear')}
-                                </p>
-                            </div>
-                        )}
-
-                        {!isLoading && entries.length > 0 && (
-                            <div className="divide-y divide-slate-50">
-                                <div className="hidden md:flex items-center gap-3 px-5 py-2.5 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
-                                    <input
-                                        type="checkbox"
-                                        checked={allOnPageSelected}
-                                        onChange={toggleSelectPage}
-                                        className="w-4 h-4 rounded border-slate-300 shrink-0"
-                                        aria-label={t('home.accountant.selectAll')}
-                                    />
-                                    <div className="grid grid-cols-12 gap-2 flex-1">
-                                        <span className="col-span-3">{t('home.accountant.student')}</span>
-                                        <span className="col-span-2">{t('outstanding.class')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.assigned')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.paid')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.balance')}</span>
-                                        <span className="col-span-1 text-center">{t('home.accountant.risk')}</span>
-                                    </div>
-                                    <span className="w-8 shrink-0" />
-                                </div>
-
-                                {entries.map((entry: OutstandingEntry) => (
-                                    <div key={entry.student_id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(entry.student_id)}
-                                            onChange={() => toggleSelected(entry.student_id)}
-                                            className="w-4 h-4 rounded border-slate-300 shrink-0"
-                                            aria-label={`${t('home.accountant.select')} ${entry.student_name}`}
-                                        />
-                                        <div className="grid grid-cols-12 gap-2 items-center flex-1 min-w-0">
-                                            <div className="col-span-12 md:col-span-3 min-w-0">
-                                                <p className="font-bold text-slate-800 text-sm truncate">{entry.student_name}</p>
-                                                <p className="text-xs text-slate-500 font-medium">{entry.admission_no}</p>
-                                            </div>
-                                            <div className="col-span-6 md:col-span-2">
-                                                <p className="text-sm font-medium text-slate-600 truncate">{entry.class_name ?? '—'}</p>
-                                            </div>
-                                            <div className="col-span-6 md:col-span-2 text-right">
-                                                <p className="text-sm font-semibold text-slate-600">
-                                                    Rs {Number(entry.total_assigned).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-6 md:col-span-2 text-right">
-                                                <p className="text-sm font-semibold text-emerald-600">
-                                                    Rs {Number(entry.total_paid).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-6 md:col-span-2 text-right">
-                                                <p className="text-sm font-bold text-red-700">
-                                                    Rs {Number(entry.balance).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-12 md:col-span-1 flex md:justify-center">
-                                                <span className={cn(
-                                                    'text-xs font-bold px-2.5 py-1 rounded-lg',
-                                                    RISK_STYLE[entry.risk] ?? 'bg-slate-100 text-slate-600'
-                                                )}>
-                                                    {riskLabel(entry.risk)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => sendToOne(entry.student_id)}
-                                            disabled={reminderMutation.isPending}
-                                            className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-lg text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
-                                            title={t('home.accountant.sendReminderTo', { name: entry.student_name })}
-                                        >
-                                            {reminderMutation.isPending && sendingId === entry.student_id
-                                                ? <Loader2 className="w-4 h-4 animate-spin" />
-                                                : <Send className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Pagination */}
-                    {totalCount > PAGE_SIZE && (
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-slate-500">
-                                {t('outstanding.showing', {
-                                    from: page * PAGE_SIZE + 1,
-                                    to: Math.min((page + 1) * PAGE_SIZE, totalCount),
-                                    total: totalCount,
-                                })}
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                                    disabled={page === 0}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                    {t('common.previous')}
-                                </button>
-                                <span className="text-sm font-semibold text-slate-500 px-2">
-                                    {page + 1} / {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => setPage(p => (p + 1 < totalPages ? p + 1 : p))}
-                                    disabled={page + 1 >= totalPages}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-                                >
-                                    {t('common.next')}
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
+            {selected.length > 0 && (
+                <div role="status" className="flex flex-wrap items-center gap-2.5 rounded-card border border-primary-soft-line bg-primary-soft px-4 py-2.5">
+                    <p className="type-small-semibold text-primary-text">{t('outstandingPage.selected', { count: selected.length, n: formatCount(selected.length, lang) })}</p>
+                    <span className="ml-auto flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setSelected([])}>{t('outstandingPage.clearSelection')}</Button>
+                        <AccessControl id="payments_create">
+                            <Button size="sm" leftIcon={Send} loading={sendingTo === 'many'} disabled={remind.isPending} onClick={sendSelected}>
+                                {t('outstandingPage.remindSelected', { count: selected.length, n: formatCount(selected.length, lang) })}
+                            </Button>
+                        </AccessControl>
+                    </span>
                 </div>
-            </main>
-        </div>
-    );
-};
+            )}
 
-export default OutstandingFeesPage;
+            <TableCard className="max-md:hidden" title={title} subtitle={t('outstandingPage.sub')} action={clearButton}
+                footer={paging ? <Pagination variant="inset" {...paging} /> : undefined}>
+                <Table aria-label={title}>
+                    <THead>
+                        <Th className="w-10"><Checkbox label={<span className="sr-only">{t('outstandingPage.selectPage')}</span>} checked={allOnPage} onChange={togglePage} /></Th>
+                        <Th>{t('financePage.col.student')}</Th>
+                        <Th>{t('outstandingPage.class')}</Th>
+                        <Th>{t('outstandingPage.overdue')}</Th>
+                        <Th>{t('outstandingPage.riskLabel')}</Th>
+                        <Th className="text-right">{t('outstandingPage.balance')}</Th>
+                        <Th className="text-right"><span className="sr-only">{t('classesPage.col.actions')}</span></Th>
+                    </THead>
+                    <tbody>
+                        {isPending ? <TableSkeletonRows columns={COLUMNS} /> : message ? <TableMessage columns={COLUMNS}>{message}</TableMessage> : rows.map((e) => (
+                            <Tr key={e.student_id}>
+                                <Td><Checkbox label={<span className="sr-only">{e.student_name}</span>} checked={selected.includes(e.student_id)} onChange={() => toggle(e.student_id)} /></Td>
+                                <Td><Person name={e.student_name} sub={e.admission_no} /></Td>
+                                <Td className="whitespace-nowrap">{e.class_name ?? '—'}</Td>
+                                <Td className="whitespace-nowrap tabular-nums">{overdue(e)}</Td>
+                                <Td>{riskBadge(e)}</Td>
+                                <Td className="whitespace-nowrap text-right">
+                                    <span className="flex flex-col items-end">
+                                        <span className="type-small-semibold tabular-nums text-bad">{formatRs(e.balance, lang)}</span>
+                                        <span className="type-caption tabular-nums text-muted">{t('outstandingPage.paidOf', { paid: formatRs(e.total_paid, lang), of: formatRs(e.total_assigned, lang) })}</span>
+                                    </span>
+                                </Td>
+                                <Td><div className="flex justify-end">{remindButton(e)}</div></Td>
+                            </Tr>
+                        ))}
+                    </tbody>
+                </Table>
+            </TableCard>
+
+            <div className="flex flex-col gap-2.5 md:hidden">
+                <div className="flex items-center justify-between px-1">
+                    <p className="type-small-semibold text-ink-2">{title}</p>
+                    {clearButton}
+                </div>
+                {isPending ? (
+                    <ListCard>{Array.from({ length: 6 }, (_, i) => <li key={i} className="py-3"><Skeleton className="h-12" /></li>)}</ListCard>
+                ) : message ? (
+                    <div className="rounded-card border border-line bg-surface">{message}</div>
+                ) : (
+                    <ListCard>
+                        {rows.map((e) => (
+                            <li key={e.student_id} className="flex items-start gap-3 py-3">
+                                <Checkbox className="mt-2.5" label={<span className="sr-only">{e.student_name}</span>} checked={selected.includes(e.student_id)} onChange={() => toggle(e.student_id)} />
+                                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                                    <span className="flex items-start justify-between gap-2">
+                                        <span className="min-w-0"><Person name={e.student_name} sub={e.class_name ?? e.admission_no} size={36} /></span>
+                                        <span className="shrink-0 type-small-semibold tabular-nums text-bad">{formatRs(e.balance, lang)}</span>
+                                    </span>
+                                    <span className="flex items-center gap-2 pl-[46px] type-caption text-muted">{riskBadge(e)} {overdue(e)}</span>
+                                </span>
+                                {remindButton(e)}
+                            </li>
+                        ))}
+                    </ListCard>
+                )}
+                {paging && <Pagination {...paging} />}
+            </div>
+        </AppPage>
+    );
+}
+
+/** Figma E07 "Collected so far": taken against raised, as one bar. */
+function CollectedCard({ status, collected, raised, onRetry }: { status: 'loading' | 'error' | 'ready'; collected: number; raised: number; onRetry: () => void }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const titleId = useId();
+    const share = raised > 0 ? Math.min(1, collected / raised) : 0;
+    const pct = Math.round(share * 100);
+
+    return (
+        <Card aria-labelledby={titleId} className="gap-3">
+            {status === 'loading' ? (
+                <div className="flex flex-col gap-2.5"><Skeleton className="h-3 w-40" /><Skeleton className="h-7 w-48" /><Skeleton className="h-3" /></div>
+            ) : status === 'error' ? (
+                <div className="flex items-center justify-between gap-3">
+                    <p className="type-small text-muted">{t('adminDashboard.cardError')}</p>
+                    <Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={onRetry}>{t('adminDashboard.retry')}</Button>
+                </div>
+            ) : (
+                <>
+                    <div className="flex flex-col gap-0.5">
+                        <h2 id={titleId} className="type-small-medium text-ink-2">{t('outstandingPage.collected')}</h2>
+                        <p className="flex flex-wrap items-baseline gap-x-2 type-figure-m text-ink lg:type-figure-l">
+                            {formatRs(collected, lang)}
+                            <span className="type-small text-muted">{t('outstandingPage.ofRaised', { amount: formatRs(raised, lang) })}</span>
+                        </p>
+                    </div>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-bad/75" aria-hidden>
+                        <span className="bg-ok" style={{ width: `${share * 100}%` }} />
+                    </div>
+                    <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+                        <li className="flex items-center gap-1.5 type-caption text-ink-2"><span aria-hidden className="size-2 rounded-[2px] bg-ok" />{t('outstandingPage.paidShare', { pct: formatCount(pct, lang) })}</li>
+                        <li className="flex items-center gap-1.5 type-caption text-ink-2"><span aria-hidden className="size-2 rounded-[2px] bg-bad/75" />{t('outstandingPage.dueShare', { pct: formatCount(100 - pct, lang) })}</li>
+                    </ul>
+                </>
+            )}
+        </Card>
+    );
+}

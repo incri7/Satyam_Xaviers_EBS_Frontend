@@ -1,397 +1,282 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import {
-    academicCalendarService,
-    type AcademicYear,
-    type HolidayEntry,
-    type TermSetup,
-} from '../../api/services/academicCalendar.service';
-import { Calendar, Plus, CheckCircle2, AlertTriangle, Loader2, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarCheck, CalendarDays, CheckCircle2, Plus, RotateCw, Trash2, Wand2 } from 'lucide-react';
+
+import { Badge, Banner, Button, Card, CardHeader, EmptyState, FormRow, IconButton, SelectField, Stepper, TextField, ToggleRow } from '../../design-system';
+import { AppPage } from '../../components/layout/AppPage';
+import { academicCalendarService, type AcademicYear, type CalendarSummary, type TermSetup } from '../../api/services/academicCalendar.service';
+import { MonthPreview } from '../../features/calendar/MonthPreview';
+import { PRESET_2083, SATURDAY, WEEK_ORDER, countDays, eachDay, expandHolidays, type HolidayRange } from '../../features/calendar/days';
+import { errorText } from '../../features/people/format';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { academicYearLabel, currentAcademicYear } from '../../utils/academicYear';
+import { formatCount } from '../../utils/money';
+import { cn } from '../../utils/cn';
 
-const NEPAL_HOLIDAYS_2026_27: HolidayEntry[] = [
-    { date: '2026-10-02', label: 'Dashain (Day 1)' },
-    { date: '2026-10-03', label: 'Dashain (Day 2)' },
-    { date: '2026-10-04', label: 'Dashain (Day 3)' },
-    { date: '2026-10-05', label: 'Dashain (Day 4)' },
-    { date: '2026-10-06', label: 'Dashain (Day 5)' },
-    { date: '2026-10-07', label: 'Dashain (Day 6)' },
-    { date: '2026-10-08', label: 'Dashain (Day 7)' },
-    { date: '2026-10-09', label: 'Dashain (Day 8)' },
-    { date: '2026-10-10', label: 'Dashain (Day 9)' },
-    { date: '2026-10-11', label: 'Dashain (Day 10)' },
-    { date: '2026-10-20', label: 'Tihar (Day 1)' },
-    { date: '2026-10-21', label: 'Tihar (Day 2)' },
-    { date: '2026-10-22', label: 'Tihar / Laxmi Puja' },
-    { date: '2026-10-23', label: 'Tihar / Govardhan Puja' },
-    { date: '2026-10-24', label: 'Bhai Tika' },
-    { date: '2026-12-25', label: 'Christmas Day' },
-    { date: '2027-01-11', label: 'Prithvi Jayanti' },
-    { date: '2027-02-19', label: 'Democracy Day' },
-    { date: '2027-03-08', label: 'International Womens Day' },
-    { date: '2027-05-28', label: 'Republic Day' },
-];
+const STEPS = ['year', 'terms', 'holidays', 'week', 'review'] as const;
 
-type Step = 1 | 2 | 3 | 4 | 5;
-
+/**
+ * Figma B04 Academic calendar setup: the year's dates, its terms, holidays,
+ * which weekdays the school works, and a review. Attendance percentages
+ * count only the school days this produces.
+ *
+ * The working week defaults to Sunday to Friday. The old page sent Saturday
+ * and Sunday as the weekend, which left every Sunday out of the school days
+ * attendance is divided by. Running setup again on a year replaces its days.
+ */
 const AcademicCalendarPage: React.FC = () => {
-    const df = useDateFormat();
-    const queryClient = useQueryClient();
     const { t } = useTranslation();
-    const [step, setStep] = useState<Step>(1);
-
-    const [yearName, setYearName] = useState('');
-    const [bsYear, setBsYear] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [setCurrent, setSetCurrent] = useState(true);
-    const [createdYear, setCreatedYear] = useState<AcademicYear | null>(null);
-
-    const [holidays, setHolidays] = useState<HolidayEntry[]>(NEPAL_HOLIDAYS_2026_27);
-    const [newHolidayDate, setNewHolidayDate] = useState('');
-    const [newHolidayLabel, setNewHolidayLabel] = useState('');
-
+    const df = useDateFormat();
+    const { lang } = df;
+    const queryClient = useQueryClient();
+    const [step, setStep] = useState(0);
+    const [year, setYear] = useState<AcademicYear | null>(null);
+    // Enrolments are keyed "2026-2027" and the server matches the year's name
+    // against them, so the name is that form; the BS label is shown beside it.
+    const thisStart = Number(currentAcademicYear().split('-')[0]);
+    const yearChoices = [thisStart, thisStart + 1].map((y) => `${y}-${y + 1}`);
+    const [name, setName] = useState(currentAcademicYear());
+    const [start, setStart] = useState('');
+    const [end, setEnd] = useState('');
+    const [isCurrent, setIsCurrent] = useState(true);
     const [terms, setTerms] = useState<TermSetup[]>([
-        { term_number: 1, name: 'First Term', start_date: '', end_date: '' },
-        { term_number: 2, name: 'Second Term', start_date: '', end_date: '' },
+        { term_number: 1, name: 'First term', start_date: '', end_date: '' },
+        { term_number: 2, name: 'Second term', start_date: '', end_date: '' },
+        { term_number: 3, name: 'Third term', start_date: '', end_date: '' },
     ]);
+    const [ranges, setRanges] = useState<HolidayRange[]>(PRESET_2083);
+    const [draft, setDraft] = useState<HolidayRange>({ label: '', from: '', to: '' });
+    const [weekend, setWeekend] = useState<number[]>([SATURDAY]);
+    const [tried, setTried] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [done, setDone] = useState<CalendarSummary | null>(null);
 
-    const [summary, setSummary] = useState<{ working_days: number; holidays: number; weekends: number; total_days: number } | null>(null);
-    const [setupError, setSetupError] = useState('');
+    const years = useQuery({ queryKey: ['academic-years'], queryFn: academicCalendarService.listYears });
 
-    const { data: existingYears } = useQuery({
-        queryKey: ['academic-years'],
-        queryFn: academicCalendarService.listYears,
+    const yearFrom = year?.start_date ?? start;
+    const yearTo = year?.end_date ?? end;
+    const holidays = useMemo(() => (yearFrom && yearTo ? expandHolidays(ranges, yearFrom, yearTo) : []), [ranges, yearFrom, yearTo]);
+    const totals = yearFrom && yearTo && yearTo > yearFrom ? countDays(yearFrom, yearTo, weekend, holidays) : null;
+    const usedTerms = terms.filter((x) => x.start_date && x.end_date);
+
+    const createYear = useMutation({
+        mutationFn: () => academicCalendarService.createYear({ name, bs_year: academicYearLabel(name, 'en'), start_date: start, end_date: end, is_current: isCurrent }),
+        onSuccess: (y) => { setYear(y); queryClient.invalidateQueries({ queryKey: ['academic-years'] }); setStep(1); setTried(false); },
+        onError: (err) => setError(errorText(err, t('academicCalendar.failedCreate'))),
     });
-
-    const createYearMutation = useMutation({
-        mutationFn: academicCalendarService.createYear,
-        onSuccess: (year) => {
-            setCreatedYear(year);
+    const setup = useMutation({
+        mutationFn: () => academicCalendarService.setupDays(year!.id, { weekend_days: weekend, holidays, terms: usedTerms }),
+        onSuccess: (summary) => {
+            setDone(summary);
             queryClient.invalidateQueries({ queryKey: ['academic-years'] });
-            setStep(2);
+            queryClient.invalidateQueries({ queryKey: ['academic-terms'] });
+            queryClient.invalidateQueries({ queryKey: ['academic-calendar'] });
         },
+        onError: (err) => setError(errorText(err, t('academicCalendar.failedCreate'))),
     });
 
-    const setupMutation = useMutation({
-        mutationFn: ({ yearId, body }: { yearId: number; body: Parameters<typeof academicCalendarService.setupDays>[1] }) =>
-            academicCalendarService.setupDays(yearId, body),
-        onSuccess: (data) => {
-            setSummary(data);
-            queryClient.invalidateQueries({ queryKey: ['academic-years'] });
-            setStep(5);
-        },
-        onError: (err: any) => setSetupError(err.response?.data?.detail || t('academicCalendar.failedCreate')),
-    });
-
-    const handleCreateYear = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!yearName || !startDate || !endDate) return;
-        createYearMutation.mutate({ name: yearName, bs_year: bsYear || undefined, start_date: startDate, end_date: endDate, is_current: setCurrent });
+    /** Start again on a year that exists, keeping its dates. */
+    const resume = (y: AcademicYear) => {
+        setYear(y); setName(y.name); setStart(y.start_date); setEnd(y.end_date); setIsCurrent(y.is_current);
+        setDone(null); setError(null); setStep(1); setTried(false);
+        // Its saved terms, where there are any, rather than the blank defaults.
+        academicCalendarService.getTerms(y.id).then((saved) => {
+            if (saved.length) setTerms(saved.map((x) => ({ term_number: x.term_number, name: x.name ?? '', start_date: x.start_date, end_date: x.end_date })));
+        }).catch(() => { /* keep the defaults */ });
     };
 
-    const handleAddHoliday = () => {
-        if (!newHolidayDate || !newHolidayLabel) return;
-        setHolidays(prev => [...prev, { date: newHolidayDate, label: newHolidayLabel }]);
-        setNewHolidayDate('');
-        setNewHolidayLabel('');
+    const termProblem = (x: TermSetup) => {
+        if (!x.start_date && !x.end_date) return null;
+        if (!x.start_date || !x.end_date || x.end_date < x.start_date) return t('calendarPage.termDates');
+        if (x.start_date < yearFrom || x.end_date > yearTo) return t('calendarPage.termOutside');
+        return null;
     };
-
-    const handleConfirmSetup = () => {
-        if (!createdYear) return;
-        setSetupError('');
-        setupMutation.mutate({
-            yearId: createdYear.id,
-            body: {
-                weekend_days: [5, 6],
-                holidays: holidays.filter(h => h.date >= (createdYear.start_date || '') && h.date <= (createdYear.end_date || '')),
-                terms: terms.filter(t => t.start_date && t.end_date),
-            },
-        });
+    const next = () => {
+        setTried(true);
+        setError(null);
+        if (step === 0) {
+            if (year) { setStep(1); setTried(false); return; }
+            if (!start || !end || end <= start) return;
+            createYear.mutate();
+            return;
+        }
+        if (step === 1 && terms.some(termProblem)) return;
+        setStep((s) => Math.min(STEPS.length - 1, s + 1));
+        setTried(false);
     };
+    const addRange = () => {
+        if (!draft.label.trim() || !draft.from) return;
+        setRanges((r) => [...r, { label: draft.label.trim(), from: draft.from, to: draft.to && draft.to >= draft.from ? draft.to : draft.from }]);
+        setDraft({ label: '', from: '', to: '' });
+    };
+    const n = (v: number) => formatCount(v, lang);
+    const rangeText = (r: HolidayRange) => r.from === r.to ? df.date(r.from) : t('leavePage.range', { from: df.date(r.from), to: df.date(r.to) });
+    const inYear = (r: HolidayRange) => r.to >= yearFrom && r.from <= yearTo;
 
+    const stepBody = [
+        // 1. Year dates
+        <div key="year" className="flex flex-col gap-4">
+            {year ? <Banner tone="info" title={t('calendarPage.yearExists', { name: academicYearLabel(year.name, lang) })}>{t('calendarPage.yearExistsBody')}</Banner> : null}
+            <SelectField label={t('calendarPage.yearName')} value={name} disabled={!!year} onChange={(e) => setName(e.target.value)} hint={t('calendarPage.yearNameHint')}
+                options={(year && !yearChoices.includes(name) ? [name, ...yearChoices] : yearChoices).map((y) => ({ value: y, label: `${academicYearLabel(y, lang)} (${y})` }))} />
+            <FormRow>
+                <TextField label={t('academicCalendar.startDate')} type="date" value={start} disabled={!!year} onChange={(e) => setStart(e.target.value)} hint={start ? df.date(start, 'long') : t('calendarPage.startHint')}
+                    error={tried && !start ? t('calendarPage.startError') : undefined} />
+                <TextField label={t('academicCalendar.endDate')} type="date" value={end} min={start || undefined} disabled={!!year} onChange={(e) => setEnd(e.target.value)} hint={end ? df.date(end, 'long') : t('calendarPage.endHint')}
+                    error={tried && (!end || (start && end <= start)) ? t('calendarPage.endError') : undefined} />
+            </FormRow>
+            {!year && <ToggleRow title={t('academicCalendar.setAsCurrent')} checked={isCurrent} onChange={setIsCurrent}>{t('calendarPage.currentBody')}</ToggleRow>}
+        </div>,
+        // 2. Terms
+        <div key="terms" className="flex flex-col gap-3">
+            <p className="type-small text-ink-2">{t('calendarPage.termsIntro')}</p>
+            {terms.map((x, i) => (
+                <div key={i} className="flex flex-col gap-2 rounded-row border border-line-subtle bg-surface-2 p-3">
+                    <div className="flex items-end gap-2">
+                        <TextField label={t('calendarPage.termName', { n: n(i + 1) })} value={x.name} containerClassName="flex-1"
+                            onChange={(e) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
+                        <IconButton icon={Trash2} label={t('calendarPage.removeTerm')} onClick={() => setTerms((p) => p.filter((_, j) => j !== i).map((y, j) => ({ ...y, term_number: j + 1 })))} />
+                    </div>
+                    <FormRow>
+                        <TextField label={t('academicCalendar.termStart')} type="date" value={x.start_date} min={yearFrom} max={yearTo}
+                            onChange={(e) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, start_date: e.target.value } : y)))} hint={x.start_date ? df.date(x.start_date) : undefined} />
+                        <TextField label={t('academicCalendar.termEnd')} type="date" value={x.end_date} min={x.start_date || yearFrom} max={yearTo}
+                            onChange={(e) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, end_date: e.target.value } : y)))} hint={x.end_date ? df.date(x.end_date) : undefined}
+                            error={tried ? termProblem(x) ?? undefined : undefined} />
+                    </FormRow>
+                </div>
+            ))}
+            <Button variant="quiet" leftIcon={Plus} className="w-fit" onClick={() => setTerms((p) => [...p, { term_number: p.length + 1, name: '', start_date: '', end_date: '' }])}>{t('calendarPage.addTerm')}</Button>
+        </div>,
+        // 3. Holidays
+        <div key="holidays" className="flex flex-col gap-3">
+            <p className="type-small text-ink-2">{t('calendarPage.holidaysIntro', { n: n(holidays.length) })}</p>
+            <div className="flex flex-col gap-2 rounded-row border border-line-subtle bg-surface-2 p-3">
+                <TextField label={t('calendarPage.holidayName')} value={draft.label} placeholder={t('calendarPage.holidayHint')} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} />
+                <FormRow>
+                    <TextField label={t('leaves.from')} type="date" value={draft.from} min={yearFrom} max={yearTo} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} hint={draft.from ? df.date(draft.from) : undefined} />
+                    <TextField label={t('leaves.to')} optional={t('peopleForms.optional')} type="date" value={draft.to} min={draft.from || yearFrom} max={yearTo} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} hint={draft.to ? df.date(draft.to) : t('calendarPage.oneDay')} />
+                </FormRow>
+                <Button variant="secondary" leftIcon={Plus} className="w-fit" disabled={!draft.label.trim() || !draft.from} onClick={addRange}>{t('calendarPage.addHoliday')}</Button>
+            </div>
+            <ul className="flex flex-col divide-y divide-line-subtle">
+                {ranges.map((r, i) => (
+                    <li key={`${r.label}-${r.from}-${i}`} className={cn('flex items-center gap-3 py-2.5', !inYear(r) && 'opacity-50')}>
+                        <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate type-small-semibold text-ink">{r.label}</span>
+                            <span className="type-caption text-muted">
+                                {rangeText(r)}, {t('calendarPage.nDays', { count: eachDay(r.from, r.to).length, n: n(eachDay(r.from, r.to).length) })}
+                                {!inYear(r) && ` · ${t('calendarPage.outsideYear')}`}
+                            </span>
+                        </span>
+                        <IconButton icon={Trash2} label={t('calendarPage.removeHoliday', { name: r.label })} onClick={() => setRanges((p) => p.filter((_, j) => j !== i))} />
+                    </li>
+                ))}
+            </ul>
+            <Button variant="ghost" leftIcon={Wand2} className="w-fit" onClick={() => setRanges((p) => [...p, ...PRESET_2083.filter((x) => !p.some((y) => y.label === x.label && y.from === x.from))])}>{t('calendarPage.loadPreset')}</Button>
+        </div>,
+        // 4. Working week
+        <div key="week" className="flex flex-col gap-3">
+            <p className="type-small text-ink-2">{t('calendarPage.weekIntro')}</p>
+            <div role="group" aria-label={t('calendarPage.steps.week')} className="grid grid-cols-7 gap-1.5">
+                {WEEK_ORDER.map((d) => {
+                    const works = !weekend.includes(d);
+                    return (
+                        <button key={d} type="button" aria-pressed={works} onClick={() => setWeekend((w) => (works ? [...w, d] : w.filter((x) => x !== d)))}
+                            className={cn('flex flex-col items-center gap-1 rounded-row border-[1.5px] px-1 py-3 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60',
+                                works ? 'border-primary bg-primary-soft text-primary-text' : 'border-line bg-surface text-muted')}>
+                            <span className="type-small-semibold">{t(`calendarPage.wd.${d}`)}</span>
+                            <span className="type-micro">{works ? t('calendarPage.school') : t('calendarPage.off')}</span>
+                        </button>
+                    );
+                })}
+            </div>
+            {!weekend.includes(6) && <p className="type-caption text-muted">{t('calendarPage.sundayNote')}</p>}
+        </div>,
+        // 5. Review
+        <div key="review" className="flex flex-col gap-3.5">
+            {done ? (
+                <Banner tone="ok" icon={CheckCircle2} title={t('calendarPage.doneTitle', { name: academicYearLabel(year?.name ?? name, lang) })}>
+                    {t('calendarPage.doneBody', { w: n(done.working_days), h: n(done.holidays), e: n(done.weekends) })}
+                </Banner>
+            ) : <p className="type-small text-ink-2">{t('calendarPage.reviewIntro')}</p>}
+            <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {[['total', totals?.total], ['working', done?.working_days ?? totals?.working], ['weekends', done?.weekends ?? totals?.weekends], ['holidays', done?.holidays ?? totals?.holidays]].map(([k, v]) => (
+                    <div key={k as string} className={cn('flex flex-col gap-0.5 rounded-row px-3.5 py-3', k === 'working' ? 'bg-primary-soft' : 'bg-surface-2')}>
+                        <dd className={cn('type-h3 tabular-nums', k === 'working' ? 'text-primary-text' : 'text-ink')}>{v == null ? '—' : n(v as number)}</dd>
+                        <dt className="type-caption text-muted">{t(`calendarPage.count.${k}`)}</dt>
+                    </div>
+                ))}
+            </dl>
+            <ul className="flex flex-col gap-1 type-small text-ink-2">
+                <li>{t('calendarPage.review.year', { name: academicYearLabel(year?.name ?? name, lang), from: df.date(yearFrom), to: df.date(yearTo) })}</li>
+                <li>{usedTerms.length ? t('calendarPage.review.terms', { list: usedTerms.map((x) => x.name || t('calendarPage.termName', { n: x.term_number })).join(', ') }) : t('calendarPage.review.noTerms')}</li>
+                <li>{t('calendarPage.review.week', { list: WEEK_ORDER.filter((d) => !weekend.includes(d)).map((d) => t(`calendarPage.wd.${d}`)).join(', ') })}</li>
+            </ul>
+        </div>,
+    ];
+
+    const last = step === STEPS.length - 1;
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-3xl mx-auto w-full">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{t('academicCalendar.title')}</h1>
-                        <p className="text-slate-500 text-sm mt-0.5">{t('academicCalendar.subtitle')}</p>
-                    </div>
-
-                    {existingYears && existingYears.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                            <h2 className="text-sm font-bold text-slate-700 mb-3">{t('academicCalendar.existingYears')}</h2>
-                            <div className="space-y-2">
-                                {existingYears.map(y => (
-                                    <div key={y.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                                        <div>
-                                            <span className="font-bold text-slate-900 text-sm">{y.name}</span>
-                                            {y.bs_year && <span className="text-xs text-slate-400 ml-2">({y.bs_year} BS)</span>}
-                                            {y.is_current && (
-                                                <span className="ml-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">{t('academicCalendar.current')}</span>
-                                            )}
-                                        </div>
-                                        <span className="text-xs text-slate-500">
-                                            {y.working_days_count
-                                                ? `${y.working_days_count} ${t('academicCalendar.workingDays')}`
-                                                : t('academicCalendar.notSetUp')}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                        {([1, 2, 3, 4, 5] as Step[]).map((s) => (
-                            <React.Fragment key={s}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                                    step === s ? 'bg-brand text-white' :
-                                    step > s ? 'bg-emerald-100 text-emerald-600' :
-                                    'bg-slate-100 text-slate-400'
-                                }`}>
-                                    {step > s ? <CheckCircle2 className="w-4 h-4" /> : s}
-                                </div>
-                                {s < 5 && <div className={`flex-1 h-0.5 ${step > s ? 'bg-emerald-200' : 'bg-slate-100'}`} />}
-                            </React.Fragment>
+        <AppPage title={t('calendarPage.title')}>
+            {/* Years already made */}
+            {(years.data?.length ?? 0) > 0 && (
+                <Card className="gap-3">
+                    <CardHeader title={t('calendarPage.years')} />
+                    <ul className="flex flex-col divide-y divide-line-subtle">
+                        {years.data!.map((y) => (
+                            <li key={y.id} className="flex flex-wrap items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                    <span className="flex items-center gap-2 type-small-semibold text-ink">{academicYearLabel(y.name, lang)}{y.is_current && <Badge tone="ok" dot>{t('academicCalendar.current')}</Badge>}</span>
+                                    <span className="type-caption text-muted">
+                                        {t('leavePage.range', { from: df.date(y.start_date), to: df.date(y.end_date) })} · {y.working_days_count ? t('calendarPage.schoolDays', { n: n(y.working_days_count) }) : t('academicCalendar.notSetUp')}
+                                    </span>
+                                </span>
+                                <Button variant={y.working_days_count ? 'ghost' : 'quiet'} size="sm" leftIcon={y.working_days_count ? RotateCw : ArrowRight} onClick={() => resume(y)}>
+                                    {y.working_days_count ? t('calendarPage.redo') : t('calendarPage.continue')}
+                                </Button>
+                            </li>
                         ))}
+                    </ul>
+                </Card>
+            )}
+
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+                <Card className="gap-4">
+                    <CardHeader title={year ? t('calendarPage.setUpNamed', { name: academicYearLabel(year.name, lang) }) : t('calendarPage.setUpNew')} subtitle={t('calendarPage.intro')} />
+                    <Stepper steps={STEPS.map((s) => t(`calendarPage.steps.${s}`))} current={done ? STEPS.length : step} label={t('calendarPage.progress')} />
+                    {error && <Banner tone="bad" title={t('calendarPage.failed')}>{error}</Banner>}
+                    {stepBody[step]}
+                    <div className="flex flex-wrap items-center gap-2 border-t border-line-subtle pt-3.5">
+                        {step > 0 && !done && <Button variant="ghost" leftIcon={ArrowLeft} onClick={() => { setStep((s) => s - 1); setTried(false); }}>{t('calendarPage.back')}</Button>}
+                        <span className="ml-auto" />
+                        {!last ? (
+                            <Button rightIcon={ArrowRight} loading={createYear.isPending} onClick={next}>{step === 0 && !year ? t('calendarPage.createAndNext') : t('calendarPage.next')}</Button>
+                        ) : done ? (
+                            <Button variant="quiet" onClick={() => { setDone(null); setYear(null); setStep(0); setStart(''); setEnd(''); }}>{t('calendarPage.another')}</Button>
+                        ) : (
+                            <Button leftIcon={CalendarCheck} loading={setup.isPending} disabled={!year} onClick={() => { setError(null); setup.mutate(); }}>{t('calendarPage.activate')}</Button>
+                        )}
                     </div>
+                </Card>
 
-                    {step === 1 && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Calendar className="w-5 h-5 text-brand" />
-                                <h2 className="font-bold text-slate-900">{t('academicCalendar.step1Title')}</h2>
-                            </div>
-                            <form onSubmit={handleCreateYear} className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.yearName')} *</label>
-                                        <input
-                                            type="text"
-                                            value={yearName}
-                                            onChange={e => setYearName(e.target.value)}
-                                            placeholder="2026-27"
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.bsYear')}</label>
-                                        <input
-                                            type="text"
-                                            value={bsYear}
-                                            onChange={e => setBsYear(e.target.value)}
-                                            placeholder="2083-84"
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.startDate')} *</label>
-                                        <input
-                                            type="date"
-                                            value={startDate}
-                                            onChange={e => setStartDate(e.target.value)}
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-600 mb-1 block">{t('academicCalendar.endDate')} *</label>
-                                        <input
-                                            type="date"
-                                            value={endDate}
-                                            onChange={e => setEndDate(e.target.value)}
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={setCurrent}
-                                        onChange={e => setSetCurrent(e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <span className="text-sm font-medium text-slate-700">{t('academicCalendar.setAsCurrent')}</span>
-                                </label>
-                                {createYearMutation.error && (
-                                    <p className="text-sm text-red-600 font-medium">
-                                        {(createYearMutation.error as any).response?.data?.detail || t('academicCalendar.failedCreate')}
-                                    </p>
-                                )}
-                                <button
-                                    type="submit"
-                                    disabled={createYearMutation.isPending}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
-                                >
-                                    {createYearMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                                    {t('academicCalendar.createYear')}
-                                </button>
-                            </form>
-                        </div>
-                    )}
-
-                    {step === 2 && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-2">{t('academicCalendar.step2Title')}</h2>
-                            <p className="text-sm text-slate-500 mb-4">{t('academicCalendar.step2Desc')}</p>
-                            <div className="flex flex-wrap gap-2 mb-6">
-                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => (
-                                    <span key={d} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 font-bold text-sm rounded-lg">✓ {d}</span>
-                                ))}
-                                {['Sat', 'Sun'].map(d => (
-                                    <span key={d} className="px-3 py-1.5 bg-slate-100 text-slate-500 font-medium text-sm rounded-lg">Off {d}</span>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => setStep(3)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 transition-all"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                                {t('academicCalendar.looksGood')}
-                            </button>
-                        </div>
-                    )}
-
-                    {step === 3 && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-1">{t('academicCalendar.step3Title')}</h2>
-                            <p className="text-sm text-slate-500 mb-4">{t('academicCalendar.step3Desc')}</p>
-
-                            <div className="space-y-1.5 max-h-64 overflow-y-auto mb-4">
-                                {holidays.map((h, i) => (
-                                    <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-slate-50 rounded-lg">
-                                        <span className="text-sm font-medium text-slate-700">{h.label}</span>
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-xs text-slate-400">{df.date(h.date)}</span>
-                                            <button onClick={() => setHolidays(prev => prev.filter((_, j) => j !== i))} className="text-slate-300 hover:text-red-500 transition-colors">
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="flex gap-2 mb-4">
-                                <input
-                                    type="date"
-                                    value={newHolidayDate}
-                                    onChange={e => setNewHolidayDate(e.target.value)}
-                                    className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                />
-                                <input
-                                    type="text"
-                                    value={newHolidayLabel}
-                                    onChange={e => setNewHolidayLabel(e.target.value)}
-                                    placeholder={t('academicCalendar.holidayName')}
-                                    className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                />
-                                <button
-                                    onClick={handleAddHoliday}
-                                    className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                                >
-                                    <Plus className="w-4 h-4 text-slate-600" />
-                                </button>
-                            </div>
-
-                            <button
-                                onClick={() => setStep(4)}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 transition-all"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                                {t('academicCalendar.nextTerms')}
-                            </button>
-                        </div>
-                    )}
-
-                    {step === 4 && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-900 mb-4">{t('academicCalendar.step4Title')}</h2>
-                            <div className="space-y-4 mb-4">
-                                {terms.map((term, i) => (
-                                    <div key={i} className="grid grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{term.name}</label>
-                                            <input
-                                                type="text"
-                                                value={term.name}
-                                                onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{t('academicCalendar.termStart')}</label>
-                                            <input
-                                                type="date"
-                                                value={term.start_date}
-                                                onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, start_date: e.target.value } : x))}
-                                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 mb-1 block">{t('academicCalendar.termEnd')}</label>
-                                            <input
-                                                type="date"
-                                                value={term.end_date}
-                                                onChange={e => setTerms(prev => prev.map((x, j) => j === i ? { ...x, end_date: e.target.value } : x))}
-                                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            {setupError && (
-                                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium mb-3">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    {setupError}
+                <Card className="gap-3 lg:sticky lg:top-0">
+                    {yearFrom && yearTo && yearTo > yearFrom ? (
+                        <>
+                            <MonthPreview key={yearFrom} yearFrom={yearFrom} yearTo={yearTo} weekend={weekend} holidays={holidays} />
+                            {totals && (
+                                <div className="rounded-row bg-primary-soft px-3.5 py-3">
+                                    <p className="type-caption text-primary-text">{t('calendarPage.workingIn', { name: academicYearLabel(year?.name ?? name, lang) })}</p>
+                                    <p className="type-figure-m tabular-nums text-primary-text">{n(totals.working)}</p>
+                                    <p className="type-caption text-primary-text/80">{t('calendarPage.workingOf', { t: n(totals.total), w: n(totals.weekends), h: n(totals.holidays) })}</p>
                                 </div>
                             )}
-                            <button
-                                onClick={handleConfirmSetup}
-                                disabled={setupMutation.isPending}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
-                            >
-                                {setupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                {t('academicCalendar.confirmActivate')}
-                            </button>
-                        </div>
-                    )}
-
-                    {step === 5 && summary && (
-                        <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-6">
-                            <div className="flex items-center gap-2 mb-4">
-                                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                                <h2 className="font-bold text-slate-900">{t('academicCalendar.step5Title')}</h2>
-                            </div>
-                            <p className="text-sm text-slate-500 mb-4">
-                                <strong>{createdYear?.name}</strong> {t('academicCalendar.step5Desc')}
-                            </p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {[
-                                    { labelKey: 'academicCalendar.totalDays', value: summary.total_days, color: 'bg-slate-50 text-slate-700' },
-                                    { labelKey: 'academicCalendar.workingDaysLabel', value: summary.working_days, color: 'bg-emerald-50 text-emerald-700' },
-                                    { labelKey: 'academicCalendar.holidays', value: summary.holidays, color: 'bg-amber-50 text-amber-700' },
-                                    { labelKey: 'academicCalendar.weekends', value: summary.weekends, color: 'bg-slate-50 text-slate-600' },
-                                ].map(item => (
-                                    <div key={item.labelKey} className={`rounded-xl p-3 text-center ${item.color}`}>
-                                        <p className="text-2xl font-black">{item.value}</p>
-                                        <p className="text-xs font-medium mt-0.5">{t(item.labelKey)}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </main>
-        </div>
+                        </>
+                    ) : <EmptyState icon={CalendarDays} title={t('calendarPage.previewTitle')}>{t('calendarPage.previewBody')}</EmptyState>}
+                </Card>
+            </div>
+        </AppPage>
     );
 };
 

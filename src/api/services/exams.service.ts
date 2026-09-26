@@ -35,6 +35,9 @@ export interface MarkRead {
 export interface MarksGridResponse {
     schedule_id: number;
     marks: MarkRead[];
+    /** The paper's maximum, so inputs enforce the ceiling the save is checked against. */
+    max_marks?: number | string;
+    subject_name?: string;
 }
 
 export interface MarksProgressEntry {

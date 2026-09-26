@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-This is the **frontend** for Satyam Xavier's EBS — a school management PWA for Satyam Xavier's Higher Secondary School, Nepal. The FastAPI backend lives at `../Satyam_Xaviers_EBS` and carries the authoritative build plan (its `CLAUDE.md` defines the 8-block build sequence and non-negotiable rules — read it for product context).
+This is the **frontend** for Satyam Xavier's EBS — a school management PWA for Satyam Xavier's English Boarding School, Nepal. The FastAPI backend lives at `../Satyam_Xaviers_EBS` and carries the authoritative build plan (its `CLAUDE.md` defines the 8-block build sequence and non-negotiable rules — read it for product context).
 
 ## Commands
 

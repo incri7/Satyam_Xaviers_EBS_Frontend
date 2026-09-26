@@ -1,268 +1,149 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useId, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { AlertCircle, Award, Plus, RotateCw, Trash2 } from 'lucide-react';
+
+import { ActionMenu, Badge, Button, Card, CardHeader, EmptyState, Skeleton, type BadgeTone } from '../../design-system';
+import { useConfirmDialog } from '../common/ConfirmDialog';
 import { financesService } from '../../api/services/finances.service';
-import { Tag, Plus, Trash2, Search, X } from 'lucide-react';
-import { AccessControl } from '../AccessControl';
+import { StudentPicker } from '../../features/people/StudentPicker';
+import { ApplyScholarshipDialog } from '../../features/finance/ApplyScholarshipDialog';
+import { decodeReason } from '../../features/finance/format';
+import { useFeeStructures } from '../../features/finance/queries';
+import { useNotice } from '../../features/people/useNotice';
+import { errorText, fullName } from '../../features/people/format';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount, formatRs } from '../../utils/money';
+import { isoLocal } from '../../utils/nepaliDate';
+import type { FeeDiscount } from '../../types/finance';
+import type { Student } from '../../types/people';
 
-export const DiscountManagement: React.FC = () => {
+/**
+ * Figma E06 Scholarships, adapted: the API lists scholarships per student
+ * (there is no school-wide list), so the tab looks one student up and
+ * shows theirs. Applying one opens H04 with that student already picked.
+ */
+export function DiscountManagement({ applying, setApplying }: { applying: boolean; setApplying: (open: boolean) => void }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const { lang } = df;
+    const titleId = useId();
     const queryClient = useQueryClient();
-    const [studentId, setStudentId] = useState('');
-    const [searched, setSearched] = useState<number | null>(null);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [createError, setCreateError] = useState<string | null>(null);
-    const [form, setForm] = useState({
-        fee_structure_id: '',
-        is_percent: true,
-        value: '',
-        reason: '',
+    const can = usePermissionsStore((s) => s.hasPermission);
+    const [confirmUI, confirm] = useConfirmDialog();
+    const [noticeUI, notify] = useNotice();
+    const [student, setStudent] = useState<Student | null>(null);
+    const fees = useFeeStructures(false);
+
+    const discounts = useQuery({
+        queryKey: ['discounts', student?.id],
+        queryFn: () => financesService.getStudentDiscounts(student!.id),
+        enabled: !!student,
+    });
+    const remove = useMutation({
+        mutationFn: financesService.deleteDiscount,
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['discounts'] }); queryClient.invalidateQueries({ queryKey: ['finances', 'outstanding'] }); },
+        onError: (err) => notify({ tone: 'bad', title: t('financePage.scholarships.removeFailed'), body: errorText(err, t('peoplePage.error.body')) }),
     });
 
-    const { data: discounts, isLoading } = useQuery({
-        queryKey: ['discounts', searched],
-        queryFn: () => financesService.getStudentDiscounts(searched!),
-        enabled: searched !== null,
-    });
-
-    const { data: feeStructures } = useQuery({
-        queryKey: ['fee-structures', 'active'],
-        queryFn: () => financesService.getFeeStructures(true),
-        enabled: isCreateOpen,
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: number) => financesService.deleteDiscount(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['discounts', searched] }),
-    });
-
-    const createMutation = useMutation({
-        mutationFn: financesService.createDiscount,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['discounts', searched] });
-            setIsCreateOpen(false);
-            setCreateError(null);
-            setForm({ fee_structure_id: '', is_percent: true, value: '', reason: '' });
-        },
-        onError: (err: any) => {
-            setCreateError(err.response?.data?.detail || 'Failed to apply scholarship');
-        },
-    });
-
-    const handleCreate = (e: React.FormEvent) => {
-        e.preventDefault();
-        setCreateError(null);
-        if (!form.fee_structure_id) return setCreateError('Select a fee structure');
-        const value = parseFloat(form.value);
-        if (isNaN(value) || value <= 0) return setCreateError('Enter a valid scholarship value');
-        if (form.is_percent && value > 100) return setCreateError('Percentage cannot exceed 100');
-        createMutation.mutate({
-            student_id: searched!,
-            fee_structure_id: Number(form.fee_structure_id),
-            is_percent: form.is_percent,
-            value,
-            reason: form.reason || undefined,
+    const today = isoLocal(new Date());
+    const day = (v?: string) => (v ? v.slice(0, 10) : '');
+    const status = (d: FeeDiscount): { tone: BadgeTone; label: string } => {
+        const from = day(d.valid_from);
+        const to = day(d.valid_to);
+        if (from && from > today) return { tone: 'info', label: t('financePage.scholarships.starts', { date: df.date(from) }) };
+        if (to && to < today) return { tone: 'neutral', label: t('financePage.scholarships.ended') };
+        return { tone: 'ok', label: t('financePage.scholarships.active') };
+    };
+    const feeOf = (d: FeeDiscount) => fees.data?.find((f) => f.id === d.fee_structure_id);
+    const valueText = (d: FeeDiscount) => {
+        if (d.is_percent) return `${formatCount(Number(d.value), lang)}%`;
+        const fee = feeOf(d);
+        return `${formatRs(d.value, lang)}${fee ? ` ${t(`financePage.scholarships.per.${fee.frequency}`)}` : ''}`;
+    };
+    const dates = (d: FeeDiscount) => {
+        const from = day(d.valid_from);
+        const to = day(d.valid_to);
+        if (from && to) return t('financePage.scholarships.range', { from: df.date(from), to: df.date(to) });
+        if (from) return t('financePage.scholarships.fromOnly', { from: df.date(from) });
+        if (to) return t('financePage.scholarships.untilOnly', { to: df.date(to) });
+        return t('financePage.scholarships.always');
+    };
+    const askRemove = (d: FeeDiscount) =>
+        confirm({
+            title: t('financePage.scholarships.removeTitle'),
+            body: t('financePage.scholarships.removeBody', { value: valueText(d), fee: feeOf(d)?.name ?? `#${d.fee_structure_id}` }),
+            confirmLabel: t('financePage.scholarships.remove'),
+            onConfirm: () => remove.mutate(d.id),
         });
-    };
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        const id = parseInt(studentId);
-        if (!isNaN(id)) setSearched(id);
-    };
+    const list = discounts.data ?? [];
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h3 className="font-bold text-slate-900 mb-4">Look up student scholarships</h3>
-                <form onSubmit={handleSearch} className="flex gap-3">
-                    <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="number"
-                            placeholder="Student ID"
-                            value={studentId}
-                            onChange={(e) => setStudentId(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        className="px-5 py-2.5 bg-brand text-white text-sm font-bold rounded-xl hover:bg-brand/90 transition-all"
-                    >
-                        Search
-                    </button>
-                </form>
+        <div className="flex min-w-0 flex-col gap-3.5">
+            {confirmUI}
+            {noticeUI}
+            <p className="type-small text-muted">{t('financePage.scholarships.intro')}</p>
+
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+                <Card className="gap-3">
+                    <StudentPicker label={t('financePage.scholarships.lookUp')} value={student} onChange={setStudent} />
+                </Card>
+
+                <Card aria-labelledby={titleId} className="gap-3">
+                    {!student ? (
+                        <EmptyState icon={Award} title={t('financePage.scholarships.pickTitle')}>{t('financePage.scholarships.pickBody')}</EmptyState>
+                    ) : (
+                        <>
+                            <CardHeader titleId={titleId} title={fullName(student)}
+                                subtitle={discounts.data ? t('financePage.scholarships.count', { count: list.length, n: formatCount(list.length, lang) }) : student.admission_no}
+                                action={can('finances', 'create') && <Button variant="quiet" size="sm" leftIcon={Plus} onClick={() => setApplying(true)}>{t('financePage.scholarships.apply')}</Button>} />
+                            {discounts.isPending ? (
+                                <div className="flex flex-col gap-3">{Array.from({ length: 2 }, (_, i) => <Skeleton key={i} className="h-16" />)}</div>
+                            ) : discounts.isError ? (
+                                <EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+                                    action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void discounts.refetch()}>{t('classesPage.action.retry')}</Button>}>
+                                    {t('peoplePage.error.body')}
+                                </EmptyState>
+                            ) : list.length === 0 ? (
+                                <EmptyState icon={Award} title={t('financePage.scholarships.none')}>{t('financePage.scholarships.noneBody')}</EmptyState>
+                            ) : (
+                                <ul className="flex flex-col divide-y divide-line-subtle">
+                                    {list.map((d) => {
+                                        const { type, reason } = decodeReason(d.reason);
+                                        const s = status(d);
+                                        return (
+                                            <li key={d.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                                                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                                                    <span className="flex flex-wrap items-center gap-2 type-small-semibold text-ink">
+                                                        {feeOf(d)?.name ?? `#${d.fee_structure_id}`}
+                                                        {type && <Badge tone="brand">{t(`financePage.scholarships.types.${type}`)}</Badge>}
+                                                    </span>
+                                                    {reason && <span className="type-small text-ink-2">{reason}</span>}
+                                                    <span className="type-caption text-muted">{dates(d)}</span>
+                                                </span>
+                                                <span className="flex shrink-0 flex-col items-end gap-1">
+                                                    <span className="type-body-semibold tabular-nums text-ink">{valueText(d)}</span>
+                                                    <Badge tone={s.tone} dot>{s.label}</Badge>
+                                                </span>
+                                                <ActionMenu label={t('financePage.payments.more')} items={[
+                                                    { label: t('financePage.scholarships.remove'), icon: Trash2, tone: 'bad', onSelect: () => askRemove(d), hidden: !can('finances', 'delete') },
+                                                ]} />
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                </Card>
             </div>
 
-            {searched !== null && (
-                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center">
-                                <Tag className="w-4 h-4 text-violet-600" />
-                            </div>
-                            <div>
-                                <p className="font-bold text-slate-900 text-sm">Scholarships — Student #{searched}</p>
-                                <p className="text-xs text-slate-400 font-medium">{discounts?.length ?? 0} active scholarships</p>
-                            </div>
-                        </div>
-                        <AccessControl id="finances_create">
-                            <button
-                                onClick={() => setIsCreateOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-violet-50 text-violet-700 text-sm font-bold rounded-xl hover:bg-violet-100 transition-all"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Scholarship
-                            </button>
-                        </AccessControl>
-                    </div>
-
-                    {isCreateOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                            <div
-                                onClick={() => setIsCreateOpen(false)}
-                                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                            />
-                            <div className="relative bg-white w-full max-w-lg rounded-[2rem] shadow-2xl p-8 space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-slate-900">Apply Scholarship</h3>
-                                        <p className="text-sm text-slate-500 font-medium">Student #{searched}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setIsCreateOpen(false)}
-                                        className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-400"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
-                                </div>
-
-                                <form onSubmit={handleCreate} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Fee Structure</label>
-                                        <select
-                                            value={form.fee_structure_id}
-                                            onChange={(e) => setForm(f => ({ ...f, fee_structure_id: e.target.value }))}
-                                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                                        >
-                                            <option value="">Select fee structure…</option>
-                                            {(feeStructures || []).map((fs: any) => (
-                                                <option key={fs.id} value={fs.id}>{fs.name} — Rs. {fs.amount}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Type</label>
-                                            <select
-                                                value={form.is_percent ? 'percent' : 'fixed'}
-                                                onChange={(e) => setForm(f => ({ ...f, is_percent: e.target.value === 'percent' }))}
-                                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                                            >
-                                                <option value="percent">Percentage (%)</option>
-                                                <option value="fixed">Fixed amount (Rs.)</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Value</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                placeholder={form.is_percent ? 'e.g. 50' : 'e.g. 2000'}
-                                                value={form.value}
-                                                onChange={(e) => setForm(f => ({ ...f, value: e.target.value }))}
-                                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Reason</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Merit scholarship, sibling discount"
-                                            value={form.reason}
-                                            onChange={(e) => setForm(f => ({ ...f, reason: e.target.value }))}
-                                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 outline-none"
-                                        />
-                                    </div>
-
-                                    {createError && (
-                                        <p className="text-sm font-medium text-rose-600 bg-rose-50 rounded-xl px-4 py-3">{createError}</p>
-                                    )}
-
-                                    <div className="flex justify-end gap-3 pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsCreateOpen(false)}
-                                            className="px-5 py-2.5 font-bold text-slate-500 hover:text-slate-900 transition-colors text-sm"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={createMutation.isPending}
-                                            className="px-6 py-2.5 bg-violet-600 text-white text-sm font-bold rounded-xl hover:bg-violet-700 transition-all disabled:opacity-50"
-                                        >
-                                            {createMutation.isPending ? 'Applying…' : 'Apply Scholarship'}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {isLoading ? (
-                        <div className="py-12 text-center text-slate-400 text-sm font-medium">Loading…</div>
-                    ) : discounts && discounts.length > 0 ? (
-                        <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[480px]">
-                            <thead>
-                                <tr className="bg-slate-50/50">
-                                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">Reason</th>
-                                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">Value</th>
-                                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400">Valid</th>
-                                    <th className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {discounts.map((d) => (
-                                    <tr key={d.id} className="hover:bg-slate-50/30 transition-colors">
-                                        <td className="px-6 py-4 text-sm font-medium text-slate-700">{d.reason ?? '—'}</td>
-                                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                                            {d.is_percent ? `${d.value}%` : `Rs. ${d.value}`}
-                                        </td>
-                                        <td className="px-6 py-4 text-xs text-slate-500 font-medium">
-                                            {d.valid_from ?? '—'} → {d.valid_to ?? 'ongoing'}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <AccessControl id="finances_delete">
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm('Remove this scholarship?')) deleteMutation.mutate(d.id);
-                                                    }}
-                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </AccessControl>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        </div>
-                    ) : (
-                        <div className="py-16 text-center space-y-3">
-                            <div className="inline-flex w-14 h-14 bg-slate-100 rounded-full items-center justify-center text-slate-400">
-                                <Tag className="w-6 h-6" />
-                            </div>
-                            <p className="text-sm text-slate-500 font-medium">No scholarships for this student</p>
-                        </div>
-                    )}
-                </div>
+            {applying && (
+                <ApplyScholarshipDialog key={student?.id ?? 'new'} student={student} onClose={() => setApplying(false)}
+                    onDone={(s) => { setApplying(false); setStudent(s); notify({ tone: 'ok', title: t('financePage.scholarships.applied', { name: fullName(s) }) }); }} />
             )}
         </div>
     );
-};
+}

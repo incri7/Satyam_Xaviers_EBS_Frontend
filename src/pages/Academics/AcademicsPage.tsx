@@ -1,113 +1,84 @@
-import React, { useState } from 'react';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Users, Plus } from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { AccessControl } from '../../components/AccessControl';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Award, Layers, Plus, UserCheck } from 'lucide-react';
 
+import { Button, Tabs, type TabItem } from '../../design-system';
+import { AppPage, PageBar } from '../../components/layout/AppPage';
+import { AccessControl } from '../../components/AccessControl';
 import { AcademicsExplorer } from '../../components/academics/AcademicsExplorer';
 import { EnrollmentManagement } from '../../components/academics/EnrollmentManagement';
 import { CreateClassModal } from '../../components/academics/CreateClassModal';
 import { CreateEnrollmentModal } from '../../components/academics/CreateEnrollmentModal';
+import { academicsService } from '../../api/services/academics.service';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { currentAcademicYear } from '../../utils/academicYear';
+import { formatCount } from '../../utils/money';
 
-type ActiveTab = 'classes' | 'enrollments';
+type Tab = 'classes' | 'enrolments';
+const TAB_KEY = 'academics_active_tab';
 
-const AcademicsPage: React.FC = () => {
+/** Figma F08–F11: Classes and subjects. */
+const AcademicsPage = () => {
     const { t } = useTranslation();
-    const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
-        const saved = localStorage.getItem('academics_active_tab');
-        return saved === 'enrollments' ? 'enrollments' : 'classes';
+    const { lang } = useDateFormat();
+    const navigate = useNavigate();
+    const role = useAuthStore((s) => s.user?.role);
+    const [tab, setTabState] = useState<Tab>(() => {
+        try { return localStorage.getItem(TAB_KEY) === 'enrollments' ? 'enrolments' : 'classes'; } catch { return 'classes'; }
     });
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [creating, setCreating] = useState(false);
 
-    const setActiveTab = (tab: ActiveTab) => {
-        setActiveTabState(tab);
-        localStorage.setItem('academics_active_tab', tab);
+    const setTab = (next: Tab) => {
+        setTabState(next);
+        try { localStorage.setItem(TAB_KEY, next === 'enrolments' ? 'enrollments' : 'classes'); } catch { /* not remembered */ }
     };
 
-    const tabs = [
-        { id: 'classes', labelKey: 'academics.classes', icon: BookOpen, permission: 'classes' },
-        { id: 'enrollments', labelKey: 'academics.enrollments', icon: Users, permission: 'enrollments' },
+    // Totals for the tab badges.
+    const classCount = useQuery({ queryKey: ['classes', 'count'], queryFn: () => academicsService.getClasses({ limit: 1 }), staleTime: 60 * 1000 });
+    const enrolCount = useQuery({
+        queryKey: ['enrollments', 'count', currentAcademicYear()],
+        queryFn: () => academicsService.getEnrollments({ academic_year: currentAcademicYear(), limit: 1 }),
+        staleTime: 60 * 1000,
+    });
+    const count = (n?: number) => (n === undefined ? undefined : formatCount(n, lang));
+
+    const items: TabItem<Tab>[] = [
+        { value: 'classes', label: t('classesPage.tabs.classes'), icon: Layers, count: count(classCount.data?.total_count) },
+        { value: 'enrolments', label: t('classesPage.tabs.enrolments'), icon: UserCheck, count: count(enrolCount.data?.total_count) },
     ];
 
-    const addButtonLabel = activeTab === 'classes'
-        ? t('academics.addClass')
-        : t('academics.addEnrollment');
+    const actions =
+        tab === 'classes' ? (
+            <AccessControl id="classes_create">
+                <Button leftIcon={Plus} onClick={() => setCreating(true)}>{t('classesPage.action.addClass')}</Button>
+            </AccessControl>
+        ) : (
+            <>
+                {(role === 'admin' || role === 'principal') && (
+                    <Button variant="quiet" leftIcon={Award} onClick={() => navigate('/promotion')}>{t('classesPage.action.promotion')}</Button>
+                )}
+                <AccessControl id="enrollments_create">
+                    <Button leftIcon={UserCheck} onClick={() => setCreating(true)}>{t('classesPage.action.enrol')}</Button>
+                </AccessControl>
+            </>
+        );
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
+        <AppPage title={t('classesPage.title')}>
+            <PageBar actions={actions}>
+                <Tabs items={items} value={tab} onChange={setTab} aria-label={t('classesPage.tabsLabel')} />
+            </PageBar>
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-8">
-                    {/* Header Section */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">{t('academics.title')}</h1>
-                            <p className="text-slate-500 font-medium">{t('academics.subtitle')}</p>
-                        </div>
+            <div role="tabpanel" aria-label={t(`classesPage.tabs.${tab}`)} className="min-w-0">
+                {tab === 'classes' ? <AcademicsExplorer /> : <EnrollmentManagement />}
+            </div>
 
-                        <AccessControl id={`${activeTab}_create`}>
-                            <button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-brand text-white font-bold text-sm rounded-xl md:rounded-2xl shrink-0 shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all active:scale-[0.98]"
-                            >
-                                <Plus className="w-5 h-5" />
-                                <span>{addButtonLabel}</span>
-                            </button>
-                        </AccessControl>
-                    </div>
-
-                    {/* Tab Navigation — compact equal-width tabs on phones, roomy pills on desktop */}
-                    <div className="flex w-full md:w-fit max-w-full overflow-x-auto p-1 md:p-1.5 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as ActiveTab)}
-                                className={cn(
-                                    "flex flex-1 md:flex-initial items-center justify-center gap-1.5 md:gap-2 px-2 md:px-6 py-2 md:py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 whitespace-nowrap min-w-0",
-                                    activeTab === tab.id
-                                        ? "bg-sky-500 text-white shadow-md shadow-sky-200 scale-100"
-                                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                                )}
-                            >
-                                <tab.icon className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0" />
-                                <span className="truncate">{t(tab.labelKey)}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="relative">
-                        <AnimatePresence mode="wait">
-                            <motion.div
-                                key={activeTab}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                {activeTab === 'classes' && <AcademicsExplorer />}
-                                {activeTab === 'enrollments' && <EnrollmentManagement />}
-                            </motion.div>
-                        </AnimatePresence>
-                    </div>
-                </div>
-
-                {/* Create Modals */}
-                <CreateClassModal
-                    isOpen={activeTab === 'classes' && isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                />
-                <CreateEnrollmentModal
-                    isOpen={activeTab === 'enrollments' && isCreateModalOpen}
-                    onClose={() => setIsCreateModalOpen(false)}
-                />
-            </main>
-        </div>
+            <CreateClassModal isOpen={tab === 'classes' && creating} onClose={() => setCreating(false)} />
+            {tab === 'enrolments' && creating && <CreateEnrollmentModal isOpen onClose={() => setCreating(false)} />}
+        </AppPage>
     );
 };
 

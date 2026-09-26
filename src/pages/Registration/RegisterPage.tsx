@@ -94,7 +94,7 @@ const RegisterPage: React.FC = () => {
                     <SchoolLogo className="w-20 h-20 mb-5 shadow-lg shadow-brand/20" />
                     <h1 className="text-2xl font-bold text-slate-900 text-center">{t('register.parentTitle')}</h1>
                     <p className="text-slate-500 text-sm font-medium mt-1 text-center">
-                        Satyam Xavier's Higher Secondary School
+                        Satyam Xavier's English Boarding School
                     </p>
                 </div>
 

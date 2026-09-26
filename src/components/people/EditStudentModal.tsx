@@ -1,10 +1,15 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { GraduationCap } from 'lucide-react';
+
+import { Banner, Button, Dialog, FormRow, FormSection, SelectField, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
-import { X, GraduationCap, Save, AlertCircle, MapPin } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Student, StudentUpdate } from '../../types/people';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { errorText, fullName } from '../../features/people/format';
+import { bloodGroupOptions, blanksToNull, genderOptions, studentStatusOptions } from '../../features/people/options';
 
 interface EditStudentModalProps {
     student: Student;
@@ -12,198 +17,93 @@ interface EditStudentModalProps {
     onClose: () => void;
 }
 
-export const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, isOpen, onClose }) => {
+/** Edit a student's register record (the H07 field style, one step). */
+export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalProps) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const queryClient = useQueryClient();
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<StudentUpdate>();
+    const [error, setError] = useState<string | null>(null);
+    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StudentUpdate>();
+    const dobValue = useWatch({ control, name: 'dob' });
+    const admittedValue = useWatch({ control, name: 'admission_date' });
 
     useEffect(() => {
-        if (student) {
-            reset({
-                first_name: student.first_name,
-                last_name: student.last_name,
-                middle_name: student.middle_name,
-                dob: student.dob,
-                gender: student.gender,
-                blood_group: student.blood_group,
-                status: student.status,
-                admission_date: student.admission_date,
-                city: student.city,
-                state: student.state,
-                pincode: student.pincode,
-            });
-        }
+        reset({
+            first_name: student.first_name,
+            middle_name: student.middle_name ?? '',
+            last_name: student.last_name,
+            dob: student.dob ?? '',
+            gender: student.gender ?? '',
+            blood_group: student.blood_group ?? '',
+            status: student.status,
+            admission_date: student.admission_date ?? '',
+            city: student.city ?? '',
+            state: student.state ?? '',
+            pincode: student.pincode ?? '',
+        });
     }, [student, reset]);
 
     const mutation = useMutation({
-        mutationFn: (data: StudentUpdate) => peopleService.updateStudent(student.id, data),
+        mutationFn: (data: StudentUpdate) => peopleService.updateStudent(student.id, blanksToNull(data)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['students'] });
+            queryClient.invalidateQueries({ queryKey: ['student', student.id] });
             onClose();
         },
-        onError: (err: any) => {
-            alert(err.message || 'Failed to update student');
-        }
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
+    const bs = (v?: string) => (v ? df.date(v, 'medium') : undefined);
+    const opt = t('peopleForms.optional');
+    const saving = mutation.isPending;
+
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                    />
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            dismissible={!saving}
+            icon={GraduationCap}
+            title={t('peopleForms.title.editStudent')}
+            subtitle={t('peopleForms.subtitle.edit', { name: fullName(student) })}
+            closeLabel={t('common.close')}
+            onSubmit={handleSubmit((data) => { setError(null); mutation.mutate(data); })}
+            footer={
+                <>
+                    <Button variant="quiet" onClick={onClose} disabled={saving}>{t('peopleForms.action.cancel')}</Button>
+                    <Button type="submit" loading={saving}>{saving ? t('peopleForms.action.saving') : t('peopleForms.action.save')}</Button>
+                </>
+            }
+        >
+            {error && <Banner tone="bad" title={t('peopleForms.error.saveTitle')}>{error}</Banner>}
 
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col"
-                    >
-                        {/* Header */}
-                        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center text-brand">
-                                    <GraduationCap className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-slate-900">Edit Student Profile</h2>
-                                    <p className="text-slate-500 font-medium">Update student information and academic records</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={onClose}
-                                className="p-3 hover:bg-slate-50 rounded-2xl transition-colors text-slate-400"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
+            <FormSection title={t('peopleForms.section.personal')}>
+                <FormRow>
+                    <TextField label={t('peopleForms.label.firstName')} error={errors.first_name?.message} {...register('first_name', { required: t('peopleForms.error.firstName') })} />
+                    <TextField label={t('peopleForms.label.middleName')} optional={opt} {...register('middle_name')} />
+                </FormRow>
+                <FormRow>
+                    <TextField label={t('peopleForms.label.lastName')} error={errors.last_name?.message} {...register('last_name', { required: t('peopleForms.error.lastName') })} />
+                    <TextField type="date" label={t('peopleForms.label.dob')} hint={bs(dobValue)} {...register('dob')} />
+                </FormRow>
+                <FormRow>
+                    <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...register('gender')} />
+                    <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...register('blood_group')} />
+                </FormRow>
+            </FormSection>
 
-                        {/* Content */}
-                        <form id="edit-student-form" onSubmit={handleSubmit((data) => mutation.mutate(data))} className="flex-1 overflow-y-auto p-8 pt-6">
-                            <div className="space-y-10">
-                                {/* Basic Info */}
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <AlertCircle className="w-4 h-4" />
-                                        Personal Information
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">First Name</label>
-                                            <input
-                                                {...register('first_name', { required: 'Required' })}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                            {errors.first_name && <span className="text-xs text-red-500 font-bold mt-1 block">{errors.first_name.message}</span>}
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Middle Name</label>
-                                            <input
-                                                {...register('middle_name')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Last Name</label>
-                                            <input
-                                                {...register('last_name', { required: 'Required' })}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                            {errors.last_name && <span className="text-xs text-red-500 font-bold mt-1 block">{errors.last_name.message}</span>}
-                                        </div>
-                                    </div>
-                                </section>
+            <FormSection title={t('peopleForms.section.school')}>
+                <FormRow>
+                    <SelectField label={t('peopleForms.label.status')} options={studentStatusOptions(t)} {...register('status')} />
+                    <TextField type="date" label={t('peopleForms.label.admissionDate')} hint={bs(admittedValue)} {...register('admission_date')} />
+                </FormRow>
+            </FormSection>
 
-                                {/* Additional Info */}
-                                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Gender</label>
-                                        <select
-                                            {...register('gender')}
-                                            className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                        >
-                                            <option value="male">Male</option>
-                                            <option value="female">Female</option>
-                                            <option value="other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Blood Group</label>
-                                        <input
-                                            {...register('blood_group')}
-                                            className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Status</label>
-                                        <select
-                                            {...register('status')}
-                                            className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="inactive">Inactive</option>
-                                            <option value="graduated">Graduated</option>
-                                            <option value="withdrawn">Withdrawn</option>
-                                        </select>
-                                    </div>
-                                </section>
-
-                                {/* Address */}
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <MapPin className="w-4 h-4 ml-[-2px]" />
-                                        Location Details
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">City</label>
-                                            <input
-                                                {...register('city')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">State</label>
-                                            <input
-                                                {...register('state')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </form>
-
-                        {/* Footer */}
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-4 sticky bottom-0">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                form="edit-student-form"
-                                disabled={mutation.isPending}
-                                className="flex items-center gap-2 px-8 py-3 bg-brand text-white font-bold rounded-2xl shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
-                            >
-                                {mutation.isPending ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="w-5 h-5" />
-                                )}
-                                <span>Save Changes</span>
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+            <FormSection title={t('peopleForms.section.contact')}>
+                <FormRow>
+                    <TextField label={t('peopleForms.label.city')} optional={opt} {...register('city')} />
+                    <TextField label={t('peopleForms.label.state')} optional={opt} {...register('state')} />
+                </FormRow>
+            </FormSection>
+        </Dialog>
     );
-};
+}

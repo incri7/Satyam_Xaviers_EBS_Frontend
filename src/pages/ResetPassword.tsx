@@ -1,170 +1,250 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Languages } from 'lucide-react';
-import { SchoolLogo } from '../components/icons/SchoolLogo';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+
+import { Banner, Button, PasswordField } from '../design-system';
+import { BackLink } from '../components/BackLink';
+import { AuthLayout } from '../features/auth/AuthLayout';
+import { PasswordSafetyNote } from '../features/auth/SignInPanel';
+import { PasswordStrength } from '../features/auth/PasswordStrength';
+import { PASSWORD_MAX, checkPassword } from '../features/auth/passwordRules';
+import { getPasswordError } from '../features/auth/passwordError';
 import { authService } from '../api/services/auth.service';
+import { useAuthStore } from '../store/useAuthStore';
+import { homeForRole } from '../utils/roleHome';
 
+/**
+ * - change: signed in, from My profile. Needs the current password.
+ * - first:  signed in with the temporary password (must_change_password).
+ * - token:  opened from the reset email (?token=…). Not signed in.
+ */
+type Mode = 'change' | 'first' | 'token';
 
-const ResetPasswordPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { t, i18n } = useTranslation();
-    const isNepali = i18n.language === 'ne';
-    const toggleLanguage = () => i18n.changeLanguage(isNepali ? 'en' : 'ne');
+interface PasswordValues {
+    current: string;
+    next: string;
+    confirm: string;
+}
+
+/** Figma: A03 Set a new password. */
+const ResetPasswordPage = () => {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const { user, isAuthenticated, _hasHydrated } = useAuthStore();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
+    if (!_hasHydrated) return null;
+    if (!token && !isAuthenticated) return <Navigate to="/login" replace />;
 
-        if (newPassword !== confirmPassword) {
-            setError(t('register.passwordsNoMatch'));
-            setIsLoading(false);
-            return;
-        }
-        
-        try {
-            if (!token) {
-                await authService.changePassword({current_password: currentPassword, new_password: newPassword });
-                setIsSuccess(true);
-            }else{
-                await authService.confirmPasswordReset({ token, new_password: newPassword });
-                setIsSuccess(true);
-            }
-        } catch (err: any) {
-            const detail = err.response?.data?.detail;
-            if (typeof detail === 'string') {
-                setError(detail);
-            } else if (Array.isArray(detail)) {
-                setError(detail[0]?.msg || 'Validation error occurred.');
-            } else {
-                setError(t('register.resetFailed'));
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-
-    useEffect(() => {
-        if (!token && isSuccess) {
-            setTimeout(() => {
-                navigate('/login');
-            }, 3000);
-        }
-    }, [isSuccess]);
+    const mode: Mode = token ? 'token' : user?.must_change_password ? 'first' : 'change';
 
     return (
-        <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Background Vignettes */}
-            <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-100/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-blue-100/30 to-transparent pointer-events-none" />
-
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-12 z-10 transition-all duration-300">
-                <div className="flex justify-end mb-2">
-                    <button
-                        onClick={toggleLanguage}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
-                        title={t('language.toggle')}
-                    >
-                        <Languages className="w-3.5 h-3.5" />
-                        {isNepali ? t('language.english') : t('language.nepali')}
-                    </button>
-                </div>
-                <div className="flex flex-col items-center mb-8">
-                    <SchoolLogo className="w-20 h-20 mb-6 shadow-lg shadow-brand/20" />
-                    <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        {t('register.setNewPassword')}
-                    </h1>
-                    <p className="text-slate-500 font-medium text-sm mt-2 text-center">
-                        {t('register.newPasswordSubtitle')}
-                    </p>
-                </div>
-                {!token && isSuccess ?  (
-                    <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
-                        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            {t('register.passwordChanged')}
-                        </div>
-                    </div>
-                    ) :
-                token && isSuccess ? (
-                    <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
-                        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            {t('register.passwordReset')}
-                        </div>
-                        <Link to="/login">
-                            <Button className="w-full mt-4">
-                                {t('register.signInNow')}
-                            </Button>
-                        </Link>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        {error && (
-                            <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center font-medium">
-                                {error}
-                            </div>
-                        )}
-
-                       {!token && (
-                         <Input
-                            label={t('register.currentPassword')}
-                            type="password"
-                            placeholder={t('register.enterCurrentPassword')}
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            required
-                            minLength={6}
-                        />
-                       )}
-
-                         <Input
-                            label={t('register.newPassword')}
-                            type="password"
-                            placeholder={t('register.enterNewPassword')}
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                            minLength={6}
-                        />
-
-                        <Input
-                            label={t('register.confirmPassword')}
-                            type="password"
-                            placeholder={t('register.enterConfirmPassword')}
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            minLength={6}
-                        />
-
-                        <Button type="submit" isLoading={isLoading} className="mt-2">
-                            {t('register.resetPassword')}
-                        </Button>
-                        {token ?
-                        <div className="text-center mt-6">
-                            <Link
-                                to="/login"
-                                className="text-sm font-semibold text-slate-500 hover:text-brand transition-colors flex items-center justify-center gap-2"
-                            >
-                                {t('register.cancel')}
-                            </Link>
-                        </div>:<div></div>}
-                    </form>
-                )}
-            </div>
-        </div>
+        <AuthLayout
+            purpose={t('auth.setPassword.brandPurpose')}
+            panelFooter={<PasswordSafetyNote />}
+            compactBand
+        >
+            <SetPasswordForm key={mode} mode={mode} token={token} />
+        </AuthLayout>
     );
 };
+
+function SetPasswordForm({ mode, token }: { mode: Mode; token: string | null }) {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const user = useAuthStore((s) => s.user);
+    const patchUser = useAuthStore((s) => s.patchUser);
+
+    const [outcome, setOutcome] = useState<'form' | 'done' | 'link'>('form');
+    const [banner, setBanner] = useState<{ title: string; body: string } | null>(null);
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        getValues,
+        trigger,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm<PasswordValues>({ defaultValues: { current: '', next: '', confirm: '' } });
+
+    const next = useWatch({ control, name: 'next' });
+    const confirm = useWatch({ control, name: 'confirm' });
+    // A reset link does not say whose account it is, so the name rule is
+    // left to the server there (it still checks the email).
+    const identity = mode === 'token' ? null : { email: user?.email, firstName: user?.firstName, lastName: user?.lastName };
+    const check = checkPassword(next, identity);
+    const matches = confirm.length > 0 && confirm === next && !errors.confirm;
+
+    const onSubmit = async (values: PasswordValues) => {
+        setBanner(null);
+        try {
+            if (mode === 'token' && token) {
+                await authService.confirmPasswordReset({ token, new_password: values.next });
+            } else {
+                await authService.changePassword({
+                    current_password: mode === 'change' ? values.current : null,
+                    new_password: values.next,
+                });
+            }
+        } catch (err) {
+            const e = getPasswordError(err, t);
+            if (e.kind === 'field') {
+                setError(e.field, { type: 'server', message: e.message }, { shouldFocus: true });
+            } else if (e.kind === 'link') {
+                setOutcome('link');
+            } else {
+                setBanner({ title: e.title, body: e.body });
+            }
+            return;
+        }
+
+        if (mode === 'first') {
+            patchUser({ must_change_password: false });
+            navigate(homeForRole(user?.role), { replace: true });
+            return;
+        }
+        setOutcome('done');
+    };
+
+    const copy = {
+        change: { title: t('auth.setPassword.change.title'), subtitle: t('auth.setPassword.change.subtitle'), submit: t('auth.setPassword.change.submit') },
+        first: { title: t('auth.setPassword.first.title'), subtitle: null, submit: t('auth.setPassword.first.submit') },
+        token: { title: t('auth.setPassword.token.title'), subtitle: t('auth.setPassword.token.subtitle'), submit: t('auth.setPassword.token.submit') },
+    }[mode];
+
+    const backLink =
+        mode === 'change' ? <BackLink to="/profile">{t('auth.setPassword.back.profile')}</BackLink>
+        : mode === 'token' ? <BackLink to="/login">{t('auth.setPassword.back.signIn')}</BackLink>
+        : null;
+
+    const heading = (
+        <div className="flex flex-col gap-1.5">
+            <h1 className="type-h2 text-ink lg:type-h1">
+                {outcome === 'done'
+                    ? mode === 'token' ? t('auth.setPassword.done.resetTitle') : t('auth.setPassword.done.changedTitle')
+                    : copy.title}
+            </h1>
+            {copy.subtitle && outcome === 'form' && <p className="type-body text-muted">{copy.subtitle}</p>}
+        </div>
+    );
+
+    if (outcome === 'done') {
+        return (
+            <div className="flex flex-col gap-4 lg:gap-[18px]">
+                {heading}
+                <Banner tone="ok" title={mode === 'token' ? t('auth.setPassword.done.resetTitle') : t('auth.setPassword.done.changedTitle')}>
+                    {mode === 'token' ? t('auth.setPassword.done.resetBody') : t('auth.setPassword.done.changedBody')}
+                </Banner>
+                {mode === 'token' ? (
+                    <Button size="lg" fullWidth onClick={() => navigate('/login', { replace: true })}>
+                        {t('auth.setPassword.done.signIn')}
+                    </Button>
+                ) : (
+                    <Button size="lg" fullWidth onClick={() => navigate('/profile', { replace: true })}>
+                        {t('auth.setPassword.back.profile')}
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
+    if (outcome === 'link') {
+        return (
+            <div className="flex flex-col gap-4 lg:gap-[18px]">
+                {backLink}
+                {heading}
+                <Banner tone="bad" title={t('auth.setPassword.errors.linkTitle')}>
+                    {t('auth.setPassword.errors.linkBody')}
+                </Banner>
+                <Button size="lg" fullWidth onClick={() => navigate('/forgot-password')}>
+                    {t('auth.setPassword.errors.linkAction')}
+                </Button>
+            </div>
+        );
+    }
+
+    const fieldCopy = {
+        showLabel: t('auth.showPassword'),
+        hideLabel: t('auth.hidePassword'),
+        capsLockMessage: t('auth.capsLockOn'),
+    };
+
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 lg:gap-[18px]">
+            {backLink}
+            {heading}
+
+            {mode === 'first' && (
+                <Banner tone="info" title={t('auth.setPassword.first.bannerTitle')}>
+                    {t('auth.setPassword.first.bannerBody')}
+                </Banner>
+            )}
+
+            {banner && (
+                <Banner tone="bad" title={banner.title}>
+                    {banner.body}
+                </Banner>
+            )}
+
+            {/* Lets password managers file the new password under the right account. */}
+            {user?.email && mode !== 'token' && (
+                <input type="email" name="username" autoComplete="username" value={user.email} readOnly hidden />
+            )}
+
+            {mode === 'change' && (
+                <PasswordField
+                    {...fieldCopy}
+                    label={t('auth.setPassword.current')}
+                    autoComplete="current-password"
+                    placeholder={t('auth.setPassword.currentPlaceholder')}
+                    disabled={isSubmitting}
+                    error={errors.current?.message}
+                    {...register('current', { required: t('auth.setPassword.validation.currentRequired') })}
+                />
+            )}
+
+            <div className="flex flex-col gap-2.5">
+                <PasswordField
+                    {...fieldCopy}
+                    label={t('auth.setPassword.new')}
+                    autoComplete="new-password"
+                    maxLength={PASSWORD_MAX}
+                    placeholder={t('auth.setPassword.newPlaceholder')}
+                    disabled={isSubmitting}
+                    error={errors.next?.message}
+                    {...register('next', {
+                        validate: (value) => checkPassword(value, identity).valid || t('auth.setPassword.validation.newInvalid'),
+                        // A mismatch already on screen must follow edits here too.
+                        onChange: () => { if (errors.confirm) void trigger('confirm'); },
+                    })}
+                />
+                <PasswordStrength check={check} />
+            </div>
+
+            <PasswordField
+                {...fieldCopy}
+                label={t('auth.setPassword.confirm')}
+                autoComplete="new-password"
+                maxLength={PASSWORD_MAX}
+                placeholder={t('auth.setPassword.confirmPlaceholder')}
+                disabled={isSubmitting}
+                error={errors.confirm?.message}
+                success={matches ? t('auth.setPassword.match') : undefined}
+                {...register('confirm', {
+                    required: t('auth.setPassword.validation.confirmRequired'),
+                    validate: (value) => value === getValues('next') || t('auth.setPassword.mismatch'),
+                    // Judge the match when they leave the box, not on every key.
+                    onBlur: (e) => { if (e.target.value) void trigger('confirm'); },
+                })}
+            />
+
+            <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
+                {isSubmitting ? t('auth.setPassword.saving') : copy.submit}
+            </Button>
+        </form>
+    );
+}
 
 export default ResetPasswordPage;

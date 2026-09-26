@@ -1,282 +1,170 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import {
-    leavesService,
-    type LeaveCreate,
-    type LeaveType,
-    type LeaveRead,
-} from '../../api/services/leaves.service';
-import { Loader2, PlusCircle, CheckCircle2, XCircle, Clock, CalendarDays } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { AlertCircle, CalendarPlus, Plane, RotateCw, Send } from 'lucide-react';
+
+import { Badge, Banner, Button, Card, CardHeader, EmptyState, FilterChips, FormRow, Meter, SegmentedControl, Skeleton, TextAreaField, TextField } from '../../design-system';
+import { AppPage } from '../../components/layout/AppPage';
+import { leavesService, type LeaveRead, type LeaveStatus, type LeaveType } from '../../api/services/leaves.service';
+import { COUNTED, LEAVE_TYPES, STATUS_TONE, leaveDays, remaining } from '../../features/leave/format';
+import { errorText } from '../../features/people/format';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { formatCount } from '../../utils/money';
 
-const STATUS_STYLE: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    approved: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-red-100 text-red-700',
-};
+type Filter = 'all' | LeaveStatus;
 
-const STATUS_ICON: Record<string, React.ReactNode> = {
-    pending: <Clock className="w-3.5 h-3.5" />,
-    approved: <CheckCircle2 className="w-3.5 h-3.5" />,
-    rejected: <XCircle className="w-3.5 h-3.5" />,
-};
-
+/**
+ * Figma G01 My leave: what is left this year, a request form, and the
+ * history of requests. Every staff role files leave here; a teacher files
+ * against their teacher record, everyone else against their account.
+ */
 const TeacherLeavePage: React.FC = () => {
     const { t } = useTranslation();
     const df = useDateFormat();
+    const { lang } = df;
     const queryClient = useQueryClient();
-    const { user } = useAuthStore();
-    // Only an actual Teacher profile can file as applicant_type 'teacher'
-    // (it resolves to Teacher.id server-side). Every other role reaching
-    // this page — staff, coordinator, principal, accountant — has no
-    // Teacher profile and must file as 'staff' (resolves to their user id).
+    const user = useAuthStore((s) => s.user);
     const applicantType = user?.role === 'teacher' ? 'teacher' : 'staff';
-    const [showForm, setShowForm] = useState(false);
-    const [formError, setFormError] = useState('');
-    const [form, setForm] = useState<LeaveCreate>({
-        applicant_type: applicantType,
-        leave_type: 'casual',
-        start_date: '',
-        end_date: '',
-        reason: '',
-    });
+    // The list shows admin and principal everyone's leave; this page is theirs only.
+    const seesAll = user?.role === 'admin' || user?.role === 'principal';
 
-    const LEAVE_TYPES: { value: LeaveType; labelKey: string }[] = [
-        { value: 'casual', labelKey: 'leaves.typeCasual' },
-        { value: 'sick', labelKey: 'leaves.typeSick' },
-        { value: 'earned', labelKey: 'leaves.typeEarned' },
-        { value: 'maternity', labelKey: 'leaves.typeMaternity' },
-        { value: 'unpaid', labelKey: 'leaves.typeUnpaid' },
-    ];
+    const [type, setType] = useState<LeaveType>('casual');
+    const [from, setFrom] = useState('');
+    const [to, setTo] = useState('');
+    const [reason, setReason] = useState('');
+    const [tried, setTried] = useState(false);
+    const [notice, setNotice] = useState<{ tone: 'ok' | 'bad'; title: string; body?: string } | null>(null);
+    const [filter, setFilter] = useState<Filter>('all');
 
-    const STATUS_LABEL: Record<string, string> = {
-        pending: t('leaves.statusPending'),
-        approved: t('leaves.statusApproved'),
-        rejected: t('leaves.statusRejected'),
-    };
+    const balance = useQuery({ queryKey: ['leaves', 'my-balance'], queryFn: () => leavesService.getMyBalance() });
+    const history = useQuery({ queryKey: ['leaves', 'my-history'], queryFn: () => leavesService.listLeaves({ limit: 200 }) });
 
-    const { data: balance, isLoading: balanceLoading } = useQuery({
-        queryKey: ['leaves', 'my-balance'],
-        queryFn: () => leavesService.getMyBalance(),
-    });
+    const mine: LeaveRead[] = (history.data?.leaves ?? [])
+        .filter((l) => !seesAll || l.applicant_user_id === user?.id)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const shown = mine.filter((l) => filter === 'all' || l.status === filter);
+    const days = leaveDays(from, to);
+    const left = remaining(balance.data, type);
+    const after = left ? left.left - days : null;
+    const datesOk = !!from && !!to && to >= from;
 
-    const { data: history, isLoading: historyLoading } = useQuery({
-        queryKey: ['leaves', 'my-history'],
-        queryFn: () => leavesService.listLeaves({ limit: 50 }),
-    });
-
-    const submitMutation = useMutation({
-        mutationFn: (data: LeaveCreate) => leavesService.submitLeave(data),
+    const submit = useMutation({
+        mutationFn: () => leavesService.submitLeave({ applicant_type: applicantType, leave_type: type, start_date: from, end_date: to, reason: reason.trim() || undefined }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['leaves'] });
-            setShowForm(false);
-            setForm({ applicant_type: applicantType, leave_type: 'casual', start_date: '', end_date: '', reason: '' });
-            setFormError('');
+            setFrom(''); setTo(''); setReason(''); setTried(false);
+            setNotice({ tone: 'ok', title: t('leavePage.mine.sent'), body: t('leavePage.mine.sentBody') });
         },
-        onError: (err: any) => {
-            const detail = err.response?.data?.detail;
-            setFormError(typeof detail === 'string' ? detail : t('common.error'));
-        },
+        onError: (err) => setNotice({ tone: 'bad', title: t('leavePage.mine.failed'), body: errorText(err, t('peoplePage.error.body')) }),
     });
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!form.start_date || !form.end_date) {
-            setFormError(t('leaves.from') + ' / ' + t('leaves.to') + ' required.');
-            return;
-        }
-        setFormError('');
-        submitMutation.mutate(form);
+    const send = () => {
+        setTried(true);
+        setNotice(null);
+        if (!datesOk) return;
+        submit.mutate();
     };
 
-    const balanceItems = balance
-        ? [
-              { labelKey: 'leaves.typeCasual', total: balance.casual_total, remaining: balance.casual_remaining },
-              { labelKey: 'leaves.typeSick', total: balance.sick_total, remaining: balance.sick_remaining },
-              { labelKey: 'leaves.typeEarned', total: balance.earned_total, remaining: balance.earned_remaining },
-              { labelKey: 'leaves.typeMaternity', total: balance.maternity_total, remaining: balance.maternity_remaining },
-          ]
-        : [];
-
-    const leaves = history?.leaves ?? [];
+    const typeLabel = (k: LeaveType) => t(`leavePage.type.${k}`);
+    const range = (l: LeaveRead) => (l.start_date === l.end_date ? df.date(l.start_date) : t('leavePage.range', { from: df.date(l.start_date), to: df.date(l.end_date) }));
+    const counts: Record<Filter, number> = { all: mine.length, pending: 0, approved: 0, rejected: 0 };
+    mine.forEach((l) => { counts[l.status] += 1; });
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">{t('leaves.title')}</h1>
-                            <p className="text-slate-500 text-sm font-medium mt-0.5">
-                                {t('leaves.balanceFor')} {balance?.year ?? new Date().getFullYear()}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setShowForm(s => !s)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-brand text-white text-sm font-bold rounded-2xl shadow-sm hover:opacity-95 transition-all"
-                        >
-                            <PlusCircle className="w-4 h-4" />
-                            {t('leaves.applyLeave')}
-                        </button>
-                    </div>
+        <AppPage title={t('leavePage.mine.title')}>
+            {notice && <Banner tone={notice.tone} title={notice.title}>{notice.body}</Banner>}
 
-                    {/* Balance cards */}
-                    {balanceLoading ? (
-                        <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-brand" /></div>
+            {/* What is left this year, per type */}
+            <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
+                {balance.isPending ? COUNTED.map((k) => <Skeleton key={k} className="h-[118px] rounded-card" />)
+                    : balance.isError ? (
+                        <Card className="col-span-full"><EmptyState icon={AlertCircle} tone="bad" title={t('leavePage.mine.balanceError')}
+                            action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void balance.refetch()}>{t('classesPage.action.retry')}</Button>} /></Card>
+                    ) : COUNTED.filter((k) => k !== 'maternity' || balance.data!.maternity_total > 0).map((k) => {
+                        const b = remaining(balance.data, k)!;
+                        const used = b.total - b.left;
+                        return (
+                            <div key={k} className="flex min-w-0 flex-col gap-1.5 rounded-card border border-line bg-surface p-3.5 shadow-e1 lg:px-[18px] lg:py-4">
+                                <p className="type-small-medium text-ink-2">{typeLabel(k)}</p>
+                                <p className="flex items-baseline gap-1.5">
+                                    <span className="type-figure-m tabular-nums text-ink">{formatCount(b.left, lang)}</span>
+                                    <span className="type-small text-muted">{t('leavePage.mine.ofLeft', { n: formatCount(b.total, lang) })}</span>
+                                </p>
+                                <Meter value={b.total ? b.left / b.total : 0} tone={b.total && b.left / b.total < 0.25 ? 'warn' : 'brand'} label={typeLabel(k)} />
+                                <p className="type-caption text-muted">{b.total === 0 ? t('leavePage.mine.none') : t('leavePage.mine.used', { n: formatCount(used, lang) })}</p>
+                            </div>
+                        );
+                    })}
+            </div>
+
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+                <Card className="gap-4">
+                    <CardHeader title={t('leavePage.mine.ask')} subtitle={t('leavePage.mine.askSub')} />
+                    <div className="flex flex-col gap-2">
+                        <p className="type-small-semibold text-ink">{t('leavePage.mine.type')}</p>
+                        <div className="max-sm:-mx-1 max-sm:overflow-x-auto max-sm:px-1 max-sm:[scrollbar-width:none]">
+                            <SegmentedControl options={LEAVE_TYPES.map((k) => ({ value: k, label: typeLabel(k) }))} value={type} onChange={setType}
+                                aria-label={t('leavePage.mine.type')} className="w-max sm:flex sm:w-full sm:[&>*]:flex-1" />
+                        </div>
+                    </div>
+                    <FormRow>
+                        <TextField label={t('leaves.from')} type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (to && e.target.value > to) setTo(e.target.value); }}
+                            hint={from ? df.date(from, 'long') : undefined} error={tried && !from ? t('leavePage.mine.pickFrom') : undefined} />
+                        <TextField label={t('leaves.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
+                            hint={to ? df.date(to, 'long') : undefined} error={tried && (!to || (from && to < from)) ? t('leavePage.mine.pickTo') : undefined} />
+                    </FormRow>
+                    {days > 0 && (
+                        <Banner tone={after != null && after < 0 ? 'warn' : 'info'} icon={CalendarPlus}
+                            title={t('leavePage.mine.days', { count: days, n: formatCount(days, lang) })}>
+                            {after == null ? t('leavePage.mine.unpaidNote')
+                                : after < 0 ? t('leavePage.mine.over', { type: typeLabel(type), n: formatCount(-after, lang) })
+                                    : t('leavePage.mine.after', { type: typeLabel(type), n: formatCount(after, lang), of: formatCount(left!.total, lang) })}
+                        </Banner>
+                    )}
+                    <TextAreaField label={t('leavePage.mine.reason')} optional={t('peopleForms.optional')} rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
+                        placeholder={t('leaves.reasonPlaceholder')} />
+                    <div className="flex flex-wrap justify-end gap-2">
+                        {(from || to || reason) && <Button variant="ghost" onClick={() => { setFrom(''); setTo(''); setReason(''); setTried(false); }}>{t('leavePage.mine.clear')}</Button>}
+                        <Button leftIcon={Send} loading={submit.isPending} onClick={send}>{t('leavePage.mine.send')}</Button>
+                    </div>
+                </Card>
+
+                <Card className="gap-3">
+                    <CardHeader title={t('leavePage.mine.history')} subtitle={t('leavePage.mine.historySub')} />
+                    {mine.length > 0 && (
+                        <FilterChips aria-label={t('leavePage.mine.history')} value={filter} onChange={setFilter}
+                            items={(['all', 'pending', 'approved', 'rejected'] as Filter[]).filter((f) => f === 'all' || f === filter || counts[f] > 0)
+                                .map((f) => ({ value: f, label: f === 'all' ? t('financePage.expenses.all') : t(`leavePage.status.${f}`), count: formatCount(counts[f], lang) }))} />
+                    )}
+                    {history.isPending ? (
+                        <div className="flex flex-col gap-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
+                    ) : history.isError ? (
+                        <EmptyState icon={AlertCircle} tone="bad" title={t('peoplePage.error.title')}
+                            action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void history.refetch()}>{t('classesPage.action.retry')}</Button>} />
+                    ) : shown.length === 0 ? (
+                        <EmptyState icon={Plane} title={t('leaves.noLeaves')}>{t('leavePage.mine.noneBody')}</EmptyState>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {balanceItems.map(item => (
-                                <div key={item.labelKey} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">{t(item.labelKey)}</p>
-                                    <p className="text-2xl font-black text-slate-900 mt-1">{item.remaining}</p>
-                                    <p className="text-xs text-slate-400 font-medium mt-0.5">{t('leaves.of')} {item.total} {t('leaves.remaining')}</p>
-                                    <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full bg-brand transition-all"
-                                            style={{ width: item.total > 0 ? `${(item.remaining / item.total) * 100}%` : '0%' }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Apply form */}
-                    {showForm && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <CalendarDays className="w-4 h-4 text-brand" />
-                                {t('leaves.newRequest')}
-                            </h2>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                                            {t('leaves.leaveType')}
-                                        </label>
-                                        <select
-                                            value={form.leave_type}
-                                            onChange={e => setForm(f => ({ ...f, leave_type: e.target.value as LeaveType }))}
-                                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                        >
-                                            {LEAVE_TYPES.map(t_ => (
-                                                <option key={t_.value} value={t_.value}>{t(t_.labelKey)}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                                                {t('leaves.from')}
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={form.start_date}
-                                                onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                                                required
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                                                {t('leaves.to')}
-                                            </label>
-                                            <input
-                                                type="date"
-                                                value={form.end_date}
-                                                onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                                                required
-                                                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5">
-                                        {t('leaves.reason')}
-                                    </label>
-                                    <textarea
-                                        value={form.reason}
-                                        onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-                                        rows={3}
-                                        placeholder={t('leaves.reasonPlaceholder')}
-                                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none"
-                                    />
-                                </div>
-                                {formError && (
-                                    <p className="text-sm text-red-600 font-medium">{formError}</p>
-                                )}
-                                <div className="flex gap-3">
-                                    <button
-                                        type="submit"
-                                        disabled={submitMutation.isPending}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white text-sm font-bold rounded-xl shadow-sm hover:opacity-95 disabled:opacity-60 transition-all"
-                                    >
-                                        {submitMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                                        {t('leaves.submitRequest')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowForm(false); setFormError(''); }}
-                                        className="px-5 py-2.5 border border-slate-200 text-sm font-bold rounded-xl text-slate-600 hover:bg-slate-50 transition-all"
-                                    >
-                                        {t('leaves.cancel')}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Leave history */}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="px-5 py-4 border-b border-slate-100">
-                            <h2 className="font-bold text-slate-800">{t('leaves.history')}</h2>
-                        </div>
-                        {historyLoading && (
-                            <div className="flex justify-center py-12">
-                                <Loader2 className="w-6 h-6 animate-spin text-brand" />
-                            </div>
-                        )}
-                        {!historyLoading && leaves.length === 0 && (
-                            <div className="py-12 text-center">
-                                <p className="text-slate-400 font-medium">{t('leaves.noLeaves')}</p>
-                            </div>
-                        )}
-                        {leaves.length > 0 && (
-                            <div className="divide-y divide-slate-50">
-                                {leaves.map((leave: LeaveRead) => (
-                                    <div key={leave.id} className="px-5 py-3.5 flex items-center justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-slate-800 text-sm capitalize">
-                                                {leave.leave_type}
-                                            </p>
-                                            <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                                {df.date(leave.start_date)} → {df.date(leave.end_date)}
-                                                {leave.reason && ` · ${leave.reason}`}
-                                            </p>
-                                        </div>
-                                        <span className={cn(
-                                            'inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg capitalize',
-                                            STATUS_STYLE[leave.status] ?? 'bg-slate-100 text-slate-600'
-                                        )}>
-                                            {STATUS_ICON[leave.status]}
-                                            {STATUS_LABEL[leave.status] ?? leave.status}
+                        <ul className="flex flex-col divide-y divide-line-subtle">
+                            {shown.map((l) => {
+                                const n = leaveDays(l.start_date, l.end_date);
+                                return (
+                                    <li key={l.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                            <span className="type-small-semibold text-ink">{t('leavePage.mine.row', { type: typeLabel(l.leave_type), count: n, n: formatCount(n, lang) })}</span>
+                                            <span className="type-caption text-ink-2">{range(l)}{l.reason ? `. ${l.reason}` : ''}</span>
+                                            <span className="type-caption text-muted">
+                                                {l.status === 'pending' ? t('leavePage.mine.sentOn', { when: df.relative(l.created_at) }) : l.decided_at ? t('leavePage.mine.decidedOn', { when: df.date(l.decided_at) }) : ''}
+                                            </span>
                                         </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </main>
-        </div>
+                                        <Badge tone={STATUS_TONE[l.status]} dot>{t(`leavePage.status.${l.status}`)}</Badge>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </Card>
+            </div>
+        </AppPage>
     );
 };
 

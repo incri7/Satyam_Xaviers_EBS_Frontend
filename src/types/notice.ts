@@ -33,15 +33,16 @@ export interface NoticeCreate {
     valid_to?: string;
 }
 
+/** Null clears a field: a date taken off, or the old target when the audience changes. */
 export interface NoticeUpdate {
     title?: string;
     body?: string;
     scope?: NoticeAudienceScope;
     priority?: NoticePriority;
-    role?: string;
-    class_id?: number;
-    section_id?: number;
-    student_id?: number;
-    valid_from?: string;
-    valid_to?: string;
+    role?: string | null;
+    class_id?: number | null;
+    section_id?: number | null;
+    student_id?: number | null;
+    valid_from?: string | null;
+    valid_to?: string | null;
 }

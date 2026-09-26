@@ -1,197 +1,84 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { Phone, UserPlus } from 'lucide-react';
+
+import { Banner, Button, Dialog, FormRow, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
-import { X, Users, Save, Briefcase, MapPin } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { StaffCreate } from '../../types/people';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { errorText } from '../../features/people/format';
+import { withoutBlanks } from '../../features/people/options';
 
 interface AddStaffModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-export const AddStaffModal: React.FC<AddStaffModalProps> = ({ isOpen, onClose }) => {
+/**
+ * Figma H08 "Add staff member", for office and support staff. Teachers and
+ * anyone who signs in are added with an account (WorkforceRegistrationModal).
+ */
+export function AddStaffModal({ isOpen, onClose }: AddStaffModalProps) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
     const queryClient = useQueryClient();
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<StaffCreate>();
+    const [error, setError] = useState<string | null>(null);
+    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StaffCreate>();
+    const joinedValue = useWatch({ control, name: 'join_date' });
+
+    const close = () => { reset(); setError(null); onClose(); };
 
     const mutation = useMutation({
-        mutationFn: (data: StaffCreate) => {
-            const clean: any = {};
-            for (const [key, value] of Object.entries(data)) {
-                if (value !== '' && value !== undefined && value !== null) {
-                    clean[key] = value;
-                }
-            }
-            return peopleService.createStaff(clean as StaffCreate);
-        },
+        mutationFn: (data: StaffCreate) => peopleService.createStaff(withoutBlanks(data)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['staff'] });
-            reset();
-            onClose();
+            queryClient.invalidateQueries({ queryKey: ['people-count', 'staff'] });
+            close();
         },
-        onError: (err: any) => {
-            alert(err.response?.data?.detail || err.message || 'Failed to add staff member');
-        }
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
-    const handleClose = () => {
-        reset();
-        onClose();
-    };
+    const opt = t('peopleForms.optional');
+    const saving = mutation.isPending;
 
     return (
-        <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={handleClose}
-                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-                    />
-
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col"
-                    >
-                        {/* Header */}
-                        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
-                                    <Users className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-slate-900">Add Staff Member</h2>
-                                    <p className="text-slate-500 font-medium">A record — no login account is created</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleClose}
-                                className="p-3 hover:bg-slate-50 rounded-2xl transition-colors text-slate-400"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        {/* Content */}
-                        <form id="add-staff-form" onSubmit={handleSubmit((data) => mutation.mutate(data))} className="flex-1 overflow-y-auto p-8 pt-6">
-                            <div className="space-y-10">
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <Briefcase className="w-4 h-4" />
-                                        Employment Information
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">First Name *</label>
-                                            <input
-                                                {...register('first_name', { required: 'First name is required' })}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                            {errors.first_name && <p className="text-xs font-bold text-red-500 mt-1.5">{errors.first_name.message}</p>}
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Last Name</label>
-                                            <input
-                                                {...register('last_name')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Designation</label>
-                                            <input
-                                                placeholder="e.g. Peon, Guard, Librarian"
-                                                {...register('designation')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Phone</label>
-                                            <input
-                                                {...register('phone')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Staff Code</label>
-                                            <input
-                                                {...register('staff_code')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Join Date</label>
-                                            <input
-                                                type="date"
-                                                {...register('join_date')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section>
-                                    <div className="flex items-center gap-2 mb-6 text-slate-400 uppercase tracking-widest text-[10px] font-bold">
-                                        <MapPin className="w-4 h-4 ml-[-2px]" />
-                                        Location Details
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Address Line</label>
-                                            <input
-                                                {...register('address_line')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">City</label>
-                                            <input
-                                                {...register('city')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">State</label>
-                                            <input
-                                                {...register('state')}
-                                                className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-brand/20 transition-all outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </form>
-
-                        {/* Footer */}
-                        <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-4 sticky bottom-0">
-                            <button
-                                type="button"
-                                onClick={handleClose}
-                                className="px-6 py-3 font-bold text-slate-500 hover:text-slate-900 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                form="add-staff-form"
-                                disabled={mutation.isPending}
-                                className="flex items-center gap-2 px-8 py-3 bg-amber-600 text-white font-bold rounded-2xl shadow-lg shadow-amber-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
-                            >
-                                {mutation.isPending ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="w-5 h-5" />
-                                )}
-                                <span>Add Staff Member</span>
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>
+        <Dialog
+            open={isOpen}
+            onClose={close}
+            dismissible={!saving}
+            icon={UserPlus}
+            title={t('peopleForms.title.addStaff')}
+            subtitle={t('peopleForms.subtitle.addStaff')}
+            closeLabel={t('common.close')}
+            size="md"
+            onSubmit={handleSubmit((data) => { setError(null); mutation.mutate(data); })}
+            footer={
+                <>
+                    <Button variant="quiet" onClick={close} disabled={saving}>{t('peopleForms.action.cancel')}</Button>
+                    <Button type="submit" leftIcon={UserPlus} loading={saving}>{saving ? t('peopleForms.action.adding') : t('peopleForms.action.add')}</Button>
+                </>
+            }
+        >
+            {error && <Banner tone="bad" title={t('peopleForms.error.addTitle')}>{error}</Banner>}
+            <FormRow>
+                <TextField label={t('peopleForms.label.firstName')} error={errors.first_name?.message} {...register('first_name', { required: t('peopleForms.error.firstName') })} />
+                <TextField label={t('peopleForms.label.lastName')} optional={opt} {...register('last_name')} />
+            </FormRow>
+            <FormRow>
+                <TextField label={t('peopleForms.label.designation')} optional={opt} {...register('designation')} />
+                <TextField type="tel" inputMode="tel" leftIcon={Phone} label={t('peopleForms.label.phone')} optional={opt} {...register('phone')} />
+            </FormRow>
+            <FormRow>
+                <TextField type="date" label={t('peopleForms.label.joinDate')} optional={opt} hint={joinedValue ? df.date(joinedValue, 'medium') : undefined} {...register('join_date')} />
+                <TextField label={t('peopleForms.label.staffCode')} optional={opt} {...register('staff_code')} />
+            </FormRow>
+            <TextField label={t('peopleForms.label.address')} optional={opt} {...register('address_line')} />
+            <FormRow>
+                <TextField label={t('peopleForms.label.city')} optional={opt} {...register('city')} />
+                <TextField label={t('peopleForms.label.state')} optional={opt} {...register('state')} />
+            </FormRow>
+        </Dialog>
     );
-};
+}

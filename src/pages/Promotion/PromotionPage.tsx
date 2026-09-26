@@ -1,277 +1,228 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import {
-    academicCalendarService,
-    type PromotionDecision,
-    type PromotionEvalResponse,
-    type PromotionConfirmEntry,
-} from '../../api/services/academicCalendar.service';
+import { AlertTriangle, Award, CheckCircle2, GraduationCap, Layers, RotateCw, ShieldAlert } from 'lucide-react';
+
+import { Badge, Banner, Button, Card, EmptyState, FilterChips, Person, SearchField, SegmentedControl, SelectField, Skeleton } from '../../design-system';
+import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
+import { SelectMenu } from '../../components/common/SelectMenu';
+import { useConfirmDialog } from '../../components/common/ConfirmDialog';
+import { academicCalendarService, type PromotionConfirmEntry, type PromotionDecision } from '../../api/services/academicCalendar.service';
 import { academicsService } from '../../api/services/academics.service';
-import { CheckCircle2, AlertTriangle, GraduationCap, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { classRank } from '../../features/dashboard/queries';
+import { errorText } from '../../features/people/format';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { academicYearLabel } from '../../utils/academicYear';
+import { formatCount } from '../../utils/money';
+import { cn } from '../../utils/cn';
 
-type GroupKey = 'promote' | 'hold_back' | 'review_required' | 'graduating';
+type Final = PromotionConfirmEntry['final_decision'];
+type Group = 'promote' | 'hold' | 'leave' | 'review';
+interface Row { d: PromotionDecision; group: Group; misLeaving: boolean }
 
+/**
+ * Figma B05 Year-end promotion: the server's recommendation for every
+ * student, changeable here, then one confirm that enrols them in the next
+ * year. Each student starts with a next class — the class above for
+ * promotion, the same class for holding back — so nobody is left out of the
+ * confirm for want of a dropdown.
+ *
+ * The server picks the leaving class by the highest class *name*, which
+ * makes "UKG" outrank "Class 10". Only the genuinely highest class is
+ * treated as leaving here; anyone else it marks as leaving is flagged for
+ * review instead.
+ */
 const PromotionPage: React.FC = () => {
-    const queryClient = useQueryClient();
     const { t } = useTranslation();
-    const [evalResult, setEvalResult] = useState<PromotionEvalResponse | null>(null);
-    const [expanded, setExpanded] = useState<Set<GroupKey>>(new Set(['review_required']));
-    const [overrides, setOverrides] = useState<Map<number, 'PROMOTE' | 'HOLD_BACK'>>(new Map());
-    const [toClassMap, setToClassMap] = useState<Map<number, number>>(new Map());
-    const [toYearName, setToYearName] = useState('');
-    const [confirmDone, setConfirmDone] = useState(false);
-    const [confirmResult, setConfirmResult] = useState<{ enrollments_created: number; graduated: number } | null>(null);
+    const { lang } = useDateFormat();
+    const queryClient = useQueryClient();
+    const [confirmUI, confirm] = useConfirmDialog();
+    const [decision, setDecision] = useState<Record<number, Final>>({});
+    const [toClass, setToClass] = useState<Record<number, number>>({});
+    const [target, setTarget] = useState('');
+    const [classFilter, setClassFilter] = useState('');
+    const [view, setView] = useState<'all' | Group>('all');
+    const [search, setSearch] = useState('');
+    const [done, setDone] = useState<{ enrollments_created: number; graduated: number } | null>(null);
 
-    const REC_LABEL: Record<string, { label: string; color: string }> = {
-        PROMOTE: { label: t('promotion.promote'), color: 'text-emerald-700 bg-emerald-50' },
-        HOLD_BACK: { label: t('promotion.holdBack'), color: 'text-red-700 bg-red-50' },
-        REVIEW_REQUIRED: { label: t('promotion.requiresReview'), color: 'text-amber-700 bg-amber-50' },
-        GRADUATING: { label: t('promotion.graduating'), color: 'text-violet-700 bg-violet-50' },
+    const current = useQuery({ queryKey: ['academic-years', 'current'], queryFn: academicCalendarService.getCurrentYear, retry: false });
+    const years = useQuery({ queryKey: ['academic-years'], queryFn: academicCalendarService.listYears });
+    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }) });
+    const evaluate = useMutation({ mutationFn: () => academicCalendarService.evaluatePromotion(current.data!.id), onSuccess: () => { setDecision({}); setToClass({}); } });
+
+    const classList = useMemo(() => classes.data?.classes ?? [], [classes.data]);
+    const topRank = Math.max(...classList.map((c) => classRank(c.name)).filter((r) => r < 1000), -99);
+    const idOf = (name: string) => classList.find((c) => c.name === name)?.id;
+    const nextOf = (name: string) => {
+        const above = classList.filter((c) => classRank(c.name) === classRank(name) + 1);
+        return above.length === 1 ? above[0].id : undefined; // Class 10 → Science or Management is the school's choice
     };
 
-    const GROUP_META: { key: GroupKey; titleKey: string; descKey: string; colorClass: string }[] = [
-        { key: 'promote', titleKey: 'promotion.promote', descKey: 'promotion.groupPromoteDesc', colorClass: 'border-emerald-100 bg-emerald-50/30' },
-        { key: 'hold_back', titleKey: 'promotion.holdBack', descKey: 'promotion.groupHoldDesc', colorClass: 'border-red-100 bg-red-50/30' },
-        { key: 'review_required', titleKey: 'promotion.requiresReview', descKey: 'promotion.groupReviewDesc', colorClass: 'border-amber-100 bg-amber-50/30' },
-        { key: 'graduating', titleKey: 'promotion.graduatingClass', descKey: 'promotion.groupGradDesc', colorClass: 'border-violet-100 bg-violet-50/30' },
+    const rows: Row[] = useMemo(() => {
+        const r = evaluate.data;
+        if (!r) return [];
+        const leaving = r.graduating.map((d) => (classRank(d.class_name) === topRank
+            ? { d, group: 'leave' as Group, misLeaving: false }
+            : { d, group: 'review' as Group, misLeaving: true }));
+        return [
+            ...r.promote.map((d) => ({ d, group: 'promote' as Group, misLeaving: false })),
+            ...r.hold_back.map((d) => ({ d, group: 'hold' as Group, misLeaving: false })),
+            ...r.review_required.map((d) => ({ d, group: 'review' as Group, misLeaving: false })),
+            ...leaving,
+        ];
+    }, [evaluate.data, topRank]);
+
+    const defaultFinal = (row: Row): Final | undefined =>
+        row.group === 'promote' ? 'PROMOTE' : row.group === 'hold' ? 'HOLD_BACK' : row.group === 'leave' ? 'GRADUATING' : undefined;
+    const finalOf = (row: Row) => decision[row.d.student_id] ?? defaultFinal(row);
+    const classOf = (row: Row) => {
+        const f = finalOf(row);
+        if (toClass[row.d.student_id]) return toClass[row.d.student_id];
+        if (f === 'PROMOTE') return nextOf(row.d.class_name);
+        if (f === 'HOLD_BACK') return idOf(row.d.class_name);
+        return undefined;
+    };
+    const ready = (row: Row) => { const f = finalOf(row); return f === 'GRADUATING' || (!!f && !!classOf(row)); };
+    const unready = rows.filter((r) => !ready(r));
+
+    const counts = { promote: 0, hold: 0, leave: 0, review: 0 };
+    rows.forEach((r) => { counts[r.group] += 1; });
+    const q = search.trim().toLowerCase();
+    const shown = rows.filter((r) => (view === 'all' || r.group === view) && (!classFilter || r.d.class_name === classFilter) && (!q || r.d.student_name.toLowerCase().includes(q)));
+    const classNames = [...new Set(rows.map((r) => r.d.class_name))].sort((a, b) => classRank(a) - classRank(b));
+    const targets = (years.data ?? []).filter((y) => y.id !== current.data?.id);
+    const targetName = target || targets.find((y) => !y.is_current && y.start_date > (current.data?.start_date ?? ''))?.name || '';
+
+    const confirmPromotion = useMutation({
+        mutationFn: () => academicCalendarService.confirmPromotion({
+            from_academic_year_id: current.data!.id,
+            to_academic_year_name: targetName,
+            decisions: rows.map((r) => ({ student_id: r.d.student_id, final_decision: finalOf(r)!, to_class_id: classOf(r) ?? 0 })),
+        }),
+        onSuccess: (res) => { setDone(res); ['academic-years', 'enrollments', 'students'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] })); },
+    });
+    const askConfirm = () => confirm({
+        title: t('promotionPage.confirmTitle', { year: academicYearLabel(targetName, lang) }),
+        body: t('promotionPage.confirmBody', { n: formatCount(rows.length - counts.leave, lang), l: formatCount(rows.filter((r) => finalOf(r) === 'GRADUATING').length, lang) }),
+        confirmLabel: t('promotionPage.confirm'),
+        onConfirm: () => confirmPromotion.mutate(),
+    });
+
+    const setFinal = (row: Row, f: Final) => {
+        setDecision((d) => ({ ...d, [row.d.student_id]: f }));
+        setToClass((c) => { const n = { ...c }; delete n[row.d.student_id]; return n; });
+    };
+    const pct = (v: number) => `${formatCount(Math.round(v * 10) / 10, lang)}%`;
+    const groupBadge = (row: Row) => row.misLeaving
+        ? <Badge tone="warn" dot>{t('promotionPage.checkLeaving')}</Badge>
+        : row.group === 'review' ? <Badge tone="warn" dot>{t('promotionPage.group.review')}</Badge> : null;
+    const decisionControl = (row: Row) => {
+        const f = finalOf(row);
+        if (row.group === 'leave') return <Badge tone="info" dot>{t('promotionPage.leaving')}</Badge>;
+        return (
+            <SegmentedControl size="sm" aria-label={t('promotionPage.decision')} value={(f ?? '') as string} onChange={(v) => setFinal(row, v as Final)} className="w-max"
+                options={[{ value: 'PROMOTE', label: t('promotionPage.promote') }, { value: 'HOLD_BACK', label: t('promotionPage.hold') }]} />
+        );
+    };
+    const classControl = (row: Row) => {
+        const f = finalOf(row);
+        if (f === 'GRADUATING') return <span className="type-small text-muted">{t('promotionPage.leavesSchool')}</span>;
+        if (!f) return <span className="type-small text-warn">{t('promotionPage.decideFirst')}</span>;
+        return (
+            <SelectField label={t('promotionPage.nextYear')} className="h-10" containerClassName="min-w-[150px] [&_label]:sr-only" value={classOf(row) ?? ''} placeholder={t('promotionPage.pickClass')}
+                onChange={(e) => setToClass((c) => ({ ...c, [row.d.student_id]: Number(e.target.value) }))}
+                options={classList.map((c) => ({ value: c.id, label: c.name }))} />
+        );
+    };
+
+    const stats: { key: Group; icon: typeof Award; tone: string }[] = [
+        { key: 'promote', icon: Award, tone: 'text-ok' },
+        { key: 'hold', icon: RotateCw, tone: 'text-bad' },
+        { key: 'leave', icon: GraduationCap, tone: 'text-info' },
+        { key: 'review', icon: ShieldAlert, tone: 'text-warn' },
     ];
 
-    const { data: currentYear } = useQuery({
-        queryKey: ['academic-years', 'current'],
-        queryFn: academicCalendarService.getCurrentYear,
-        retry: false,
-    });
-
-    const { data: classes } = useQuery({
-        queryKey: ['classes'],
-        queryFn: () => academicsService.getClasses({ page: 1, limit: 50 }),
-    });
-
-    const evalMutation = useMutation({
-        mutationFn: () => academicCalendarService.evaluatePromotion(currentYear!.id),
-        onSuccess: (data) => setEvalResult(data),
-    });
-
-    const confirmMutation = useMutation({
-        mutationFn: (decisions: PromotionConfirmEntry[]) =>
-            academicCalendarService.confirmPromotion({
-                from_academic_year_id: currentYear!.id,
-                to_academic_year_name: toYearName,
-                decisions,
-            }),
-        onSuccess: (data) => {
-            setConfirmDone(true);
-            setConfirmResult(data);
-            queryClient.invalidateQueries({ queryKey: ['academic-years'] });
-        },
-    });
-
-    const toggleGroup = (key: GroupKey) => {
-        setExpanded(prev => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key); else next.add(key);
-            return next;
-        });
-    };
-
-    const buildDecisions = (): PromotionConfirmEntry[] => {
-        if (!evalResult) return [];
-        const all: PromotionDecision[] = [
-            ...evalResult.promote,
-            ...evalResult.hold_back,
-            ...evalResult.review_required,
-            ...evalResult.graduating,
-        ];
-        return all.map(d => {
-            const override = overrides.get(d.student_id);
-            const finalDecision = override ?? d.recommendation;
-            const toClass = toClassMap.get(d.student_id) ?? 0;
-            return {
-                student_id: d.student_id,
-                final_decision: finalDecision as PromotionConfirmEntry['final_decision'],
-                to_class_id: toClass,
-            };
-        }).filter(d => d.to_class_id > 0 || d.final_decision === 'GRADUATING');
-    };
-
-    const classOptions = classes?.classes ?? [];
-
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-72">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-4xl mx-auto w-full">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{t('promotion.title')}</h1>
-                        <p className="text-slate-500 text-sm mt-0.5">{t('promotion.subtitle')}</p>
-                    </div>
+        <AppPage title={t('promotionPage.title')}>
+            {confirmUI}
+            <PageBar actions={evaluate.data && !done ? <Button variant="quiet" leftIcon={RotateCw} loading={evaluate.isPending} onClick={() => evaluate.mutate()}>{t('promotionPage.again')}</Button> : undefined}>
+                <p className="type-small text-muted">{current.data ? t('promotionPage.intro', { year: academicYearLabel(current.data.name, lang) }) : t('promotionPage.introPlain')}</p>
+            </PageBar>
 
-                    {confirmDone && confirmResult ? (
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-8 text-center">
-                            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-                            <h2 className="font-bold text-slate-900 text-lg mb-1">{t('promotion.complete')}</h2>
-                            <p className="text-slate-500 text-sm">
-                                {confirmResult.enrollments_created} {t('promotion.enrolledIn')} {toYearName} · {confirmResult.graduated} {t('promotion.graduated')}
-                            </p>
+            {done ? (
+                <Card><EmptyState icon={CheckCircle2} title={t('promotion.complete')}>{t('promotionPage.doneBody', { n: formatCount(done.enrollments_created, lang), l: formatCount(done.graduated, lang), year: academicYearLabel(targetName, lang) })}</EmptyState></Card>
+            ) : current.isPending ? <Skeleton className="h-[200px] rounded-card" />
+                : !current.data ? (
+                    <Card><EmptyState icon={AlertTriangle} tone="bad" title={t('promotionPage.noYear')}>{t('promotion.noYear')}</EmptyState></Card>
+                ) : !evaluate.data ? (
+                    <Card>
+                        <EmptyState icon={GraduationCap} title={t('promotionPage.readyTitle', { year: academicYearLabel(current.data.name, lang) })}
+                            action={<Button leftIcon={GraduationCap} loading={evaluate.isPending} onClick={() => evaluate.mutate()}>{t('promotion.evaluate')}</Button>}>
+                            {t('promotionPage.readyBody')}
+                        </EmptyState>
+                        {evaluate.isError && <Banner tone="bad" title={t('promotion.evalFailed')}>{errorText(evaluate.error, t('peoplePage.error.body'))}</Banner>}
+                    </Card>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
+                            {stats.map((s) => (
+                                <button key={s.key} type="button" onClick={() => setView(view === s.key ? 'all' : s.key)} aria-pressed={view === s.key}
+                                    className={cn('flex flex-col gap-1 rounded-card border bg-surface p-3.5 text-left shadow-e1 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-focus/60 lg:px-[18px] lg:py-4',
+                                        view === s.key ? 'border-primary' : 'border-line hover:border-primary-soft-line')}>
+                                    <span className="flex items-center gap-2 type-small-medium text-ink-2"><s.icon size={16} className={s.tone} aria-hidden />{t(`promotionPage.group.${s.key}`)}</span>
+                                    <span className={cn('type-figure-m tabular-nums', s.tone)}>{formatCount(counts[s.key], lang)}</span>
+                                    <span className="type-caption text-muted">{t(`promotionPage.groupSub.${s.key}`)}</span>
+                                </button>
+                            ))}
                         </div>
-                    ) : (
-                        <>
-                            {!currentYear ? (
-                                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-sm text-amber-700 font-medium flex items-center gap-2">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    {t('promotion.noYear')}
-                                </div>
-                            ) : !evalResult ? (
-                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                                    <h2 className="font-bold text-slate-900 mb-1">{t('promotion.readyTitle')}</h2>
-                                    <p className="text-sm text-slate-500 mb-4">
-                                        {t('promotion.readyDesc')} <strong>{currentYear.name}</strong>. {t('promotion.readyNote')}
-                                    </p>
-                                    <button
-                                        onClick={() => evalMutation.mutate()}
-                                        disabled={evalMutation.isPending}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
-                                    >
-                                        {evalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <GraduationCap className="w-4 h-4" />}
-                                        {t('promotion.evaluate')}
-                                    </button>
-                                    {evalMutation.error && (
-                                        <p className="text-sm text-red-600 font-medium mt-3">
-                                            {(evalMutation.error as any).response?.data?.detail || t('promotion.evalFailed')}
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                        {[
-                                            { labelKey: 'promotion.promote', count: evalResult.promote.length, color: 'bg-emerald-50 text-emerald-700' },
-                                            { labelKey: 'promotion.holdBack', count: evalResult.hold_back.length, color: 'bg-red-50 text-red-700' },
-                                            { labelKey: 'promotion.review', count: evalResult.review_required.length, color: 'bg-amber-50 text-amber-700' },
-                                            { labelKey: 'promotion.graduating', count: evalResult.graduating.length, color: 'bg-violet-50 text-violet-700' },
-                                        ].map(item => (
-                                            <div key={item.labelKey} className={`rounded-2xl p-4 text-center ${item.color}`}>
-                                                <p className="text-2xl md:text-3xl font-black">{item.count}</p>
-                                                <p className="text-xs font-bold mt-0.5">{t(item.labelKey)}</p>
-                                            </div>
-                                        ))}
-                                    </div>
+                        {rows.some((r) => r.misLeaving) && (
+                            <Banner tone="warn" icon={AlertTriangle} title={t('promotionPage.misLeavingTitle', { count: rows.filter((r) => r.misLeaving).length, n: formatCount(rows.filter((r) => r.misLeaving).length, lang) })}>{t('promotionPage.misLeavingBody')}</Banner>
+                        )}
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                                        <label className="text-sm font-bold text-slate-700 block mb-2">{t('promotion.targetYear')}</label>
-                                        <input
-                                            type="text"
-                                            value={toYearName}
-                                            onChange={e => setToYearName(e.target.value)}
-                                            placeholder="2027-28"
-                                            className="border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand/30 w-48"
-                                        />
-                                        <p className="text-xs text-slate-400 mt-1.5">{t('promotion.targetYearNote')}</p>
-                                    </div>
+                        <Toolbar>
+                            <SearchField value={search} onChange={setSearch} placeholder={t('promotionPage.search')} clearLabel={t('common.clear')} containerClassName="md:w-[260px]" />
+                            <SelectMenu value={classFilter} label={t('attendance.class')} icon={<Layers />} onChange={setClassFilter}
+                                options={[{ value: '', label: t('classesPage.enrolments.allClasses') }, ...classNames.map((c) => ({ value: c, label: c }))]} />
+                        </Toolbar>
+                        {view !== 'all' && <FilterChips aria-label={t('promotionPage.decision')} value={view} onChange={setView}
+                            items={[{ value: 'all', label: t('financePage.expenses.all'), count: formatCount(rows.length, lang) }, { value: view, label: t(`promotionPage.group.${view}`), count: formatCount(counts[view as Group], lang) }]} />}
 
-                                    {GROUP_META.map(({ key, titleKey, descKey, colorClass }) => {
-                                        const students = evalResult[key];
-                                        if (students.length === 0) return null;
-                                        const open = expanded.has(key);
-                                        return (
-                                            <div key={key} className={`rounded-2xl border ${colorClass} overflow-hidden`}>
-                                                <button
-                                                    onClick={() => toggleGroup(key)}
-                                                    className="w-full flex items-center justify-between px-5 py-4"
-                                                >
-                                                    <div>
-                                                        <p className="font-bold text-slate-900 text-sm">{t(titleKey)} — {students.length} {t('promotion.students')}</p>
-                                                        <p className="text-xs text-slate-500">{t(descKey)}</p>
-                                                    </div>
-                                                    {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                                                </button>
-                                                {open && (
-                                                    <div className="divide-y divide-white/50 bg-white">
-                                                        {students.map((d: PromotionDecision) => {
-                                                            const override = overrides.get(d.student_id);
-                                                            const final = override ?? d.recommendation;
-                                                            const rec = REC_LABEL[final] ?? REC_LABEL[d.recommendation];
-                                                            return (
-                                                                <div key={d.student_id} className="px-5 py-3 flex items-center gap-4">
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className="text-sm font-bold text-slate-900 truncate">{d.student_name}</p>
-                                                                        <div className="flex gap-3 mt-0.5">
-                                                                            <span className="text-xs text-slate-400">{t('promotion.attendanceLabel')} {d.attendance_pct.toFixed(1)}%</span>
-                                                                            <span className="text-xs text-slate-400">{t('promotion.marksLabel')} {d.marks_pct.toFixed(1)}%</span>
-                                                                        </div>
-                                                                    </div>
-                                                                    {key === 'review_required' && (
-                                                                        <select
-                                                                            value={override ?? ''}
-                                                                            onChange={e => {
-                                                                                const val = e.target.value as 'PROMOTE' | 'HOLD_BACK';
-                                                                                if (!val) {
-                                                                                    const next = new Map(overrides);
-                                                                                    next.delete(d.student_id);
-                                                                                    setOverrides(next);
-                                                                                } else {
-                                                                                    setOverrides(new Map(overrides).set(d.student_id, val));
-                                                                                }
-                                                                            }}
-                                                                            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none"
-                                                                        >
-                                                                            <option value="">{t('promotion.decide')}</option>
-                                                                            <option value="PROMOTE">{t('promotion.promote')}</option>
-                                                                            <option value="HOLD_BACK">{t('promotion.holdBack')}</option>
-                                                                        </select>
-                                                                    )}
-                                                                    {final !== 'GRADUATING' && (
-                                                                        <select
-                                                                            value={toClassMap.get(d.student_id) ?? ''}
-                                                                            onChange={e => setToClassMap(new Map(toClassMap).set(d.student_id, Number(e.target.value)))}
-                                                                            className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none"
-                                                                        >
-                                                                            <option value="">{t('promotion.toClass')}</option>
-                                                                            {classOptions.map((c: any) => (
-                                                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                                                            ))}
-                                                                        </select>
-                                                                    )}
-                                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${rec.color}`}>{rec.label}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                        <Card className="gap-0 overflow-hidden p-0">
+                            <div aria-hidden className="grid grid-cols-[minmax(0,1.6fr)_repeat(2,80px)_190px_170px] gap-3 border-b border-line-subtle px-5 py-2.5 type-caption-semibold text-muted max-lg:hidden">
+                                <span>{t('promotionPage.student')}</span><span className="text-right">{t('promotionPage.attendance')}</span><span className="text-right">{t('promotionPage.marks')}</span>
+                                <span>{t('promotionPage.decision')}</span><span>{t('promotionPage.nextYear')}</span>
+                            </div>
+                            <ul className="flex flex-col divide-y divide-line-subtle">
+                                {shown.slice(0, 300).map((row) => (
+                                    <li key={row.d.student_id} className={cn('grid items-center gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1.6fr)_repeat(2,80px)_190px_170px] lg:px-5', !ready(row) && 'bg-warn-soft/40')}>
+                                        <span className="flex min-w-0 items-center gap-2"><span className="min-w-0 flex-1"><Person name={row.d.student_name} sub={row.d.class_name} size={36} /></span>{groupBadge(row)}</span>
+                                        <span className="flex flex-col lg:items-end"><span className="type-caption text-muted lg:hidden">{t('promotionPage.attendance')}</span><span className={cn('type-small-semibold tabular-nums', row.d.attendance_pct < 75 ? 'text-bad' : 'text-ink')}>{pct(row.d.attendance_pct)}</span></span>
+                                        <span className="flex flex-col lg:items-end"><span className="type-caption text-muted lg:hidden">{t('promotionPage.marks')}</span><span className={cn('type-small-semibold tabular-nums', row.d.marks_pct < 40 ? 'text-bad' : 'text-ink')}>{pct(row.d.marks_pct)}</span></span>
+                                        <span>{decisionControl(row)}</span>
+                                        <span>{classControl(row)}</span>
+                                    </li>
+                                ))}
+                                {shown.length === 0 && <li className="px-5 py-6 text-center type-small text-muted">{t('peoplePage.empty.filtered')}</li>}
+                            </ul>
+                            {shown.length > 300 && <p className="border-t border-line-subtle px-5 py-3 type-caption text-muted">{t('promotionPage.narrow', { n: formatCount(shown.length, lang) })}</p>}
+                        </Card>
 
-                                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                                        {confirmMutation.error && (
-                                            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-600 font-medium mb-3">
-                                                <AlertTriangle className="w-4 h-4 shrink-0" />
-                                                {(confirmMutation.error as any).response?.data?.detail || t('promotion.confirmFailed')}
-                                            </div>
-                                        )}
-                                        <button
-                                            onClick={() => confirmMutation.mutate(buildDecisions())}
-                                            disabled={confirmMutation.isPending || !toYearName || buildDecisions().length === 0}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-brand text-white font-bold rounded-xl hover:opacity-95 disabled:opacity-50 transition-all"
-                                        >
-                                            {confirmMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                            {t('promotion.confirmBtn')} {toYearName || '…'} {t('promotion.confirmEnrollments')}
-                                        </button>
-                                        <p className="text-xs text-slate-400 mt-2">
-                                            {buildDecisions().length} {t('promotion.studentsAssigned')} {(evalResult.promote.length + evalResult.hold_back.length + evalResult.review_required.length + evalResult.graduating.length)} {t('promotion.studentsHaveClass')}
-                                        </p>
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
-            </main>
-        </div>
+                        <Card className="sticky bottom-3 z-10 gap-3 shadow-e3">
+                            <div className="flex flex-wrap items-end gap-3">
+                                <SelectField label={t('promotionPage.target')} value={targetName} placeholder={t('peopleForms.choose')} containerClassName="w-full sm:w-[260px]"
+                                    hint={targets.length ? undefined : t('promotionPage.noTarget')} onChange={(e) => setTarget(e.target.value)}
+                                    options={targets.map((y) => ({ value: y.name, label: `${academicYearLabel(y.name, lang)} (${y.name})` }))} />
+                                <p className={cn('flex-1 type-small', unready.length ? 'text-warn' : 'text-ink-2')}>
+                                    {unready.length ? t('promotionPage.unready', { count: unready.length, n: formatCount(unready.length, lang) }) : t('promotionPage.allReady', { n: formatCount(rows.length, lang) })}
+                                </p>
+                                <Button leftIcon={CheckCircle2} loading={confirmPromotion.isPending} disabled={!targetName || unready.length > 0} onClick={askConfirm}>{t('promotionPage.confirm')}</Button>
+                            </div>
+                            {confirmPromotion.isError && <Banner tone="bad" title={t('promotion.confirmFailed')}>{errorText(confirmPromotion.error, t('peoplePage.error.body'))}</Banner>}
+                            <p className="type-caption text-muted">{t('promotionPage.irreversible')}</p>
+                        </Card>
+                    </>
+                )}
+        </AppPage>
     );
 };
 

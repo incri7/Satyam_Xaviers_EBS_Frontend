@@ -34,7 +34,7 @@ export const ViewToggle: React.FC<{
         <div
             role="group"
             aria-label={t('common.viewAs')}
-            className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0"
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-sunken p-[3px] font-ui"
         >
             {options.map(({ mode, icon: Icon, label }) => {
                 const active = value === mode;
@@ -46,14 +46,12 @@ export const ViewToggle: React.FC<{
                         aria-pressed={active}
                         title={label}
                         className={cn(
-                            'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors',
-                            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40',
-                            active
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700',
+                            'inline-flex items-center gap-1.5 rounded-full px-3 py-[7px] type-label-s outline-none transition-colors',
+                            'focus-visible:ring-3 focus-visible:ring-focus/60',
+                            active ? 'bg-surface text-ink shadow-e1' : 'text-ink-2 hover:text-ink',
                         )}
                     >
-                        <Icon className="w-4 h-4" aria-hidden="true" />
+                        <Icon size={15} aria-hidden="true" />
                         <span className="hidden sm:inline">{label}</span>
                     </button>
                 );

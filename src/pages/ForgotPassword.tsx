@@ -1,111 +1,93 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Languages } from 'lucide-react';
-import { SchoolLogo } from '../components/icons/SchoolLogo';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { Mail, MailCheck, ShieldAlert } from 'lucide-react';
+
+import { Banner, Button, TextField } from '../design-system';
+import { BackLink } from '../components/BackLink';
+import { AuthLayout } from '../features/auth/AuthLayout';
 import { authService } from '../api/services/auth.service';
+import { errorText } from '../features/people/format';
 
-const ForgotPasswordPage: React.FC = () => {
-    const { t, i18n } = useTranslation();
-    const isNepali = i18n.language === 'ne';
-    const toggleLanguage = () => i18n.changeLanguage(isNepali ? 'en' : 'ne');
-    const [email, setEmail] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+interface Values {
+    email: string;
+}
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
+/**
+ * Figma A02 Forgot password. The server answers the same way whether or not
+ * an account uses the email, so the page cannot and does not say which: a
+ * reset form that confirms addresses is a list of accounts for anyone to probe.
+ */
+const ForgotPasswordPage = () => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const [sentTo, setSentTo] = useState<string | null>(null);
+    const [failure, setFailure] = useState<string | null>(null);
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({ defaultValues: { email: '' } });
 
+    const onSubmit = async ({ email }: Values) => {
+        setFailure(null);
         try {
-            await authService.requestPasswordReset(email);
-            setIsSuccess(true);
-        } catch (err: any) {
-            const detail = err.response?.data?.detail;
-            if (typeof detail === 'string') {
-                setError(detail);
-            } else {
-                setError(t('register.sendFailed'));
-            }
-        } finally {
-            setIsLoading(false);
+            await authService.requestPasswordReset(email.trim());
+            setSentTo(email.trim());
+        } catch (err) {
+            setFailure(errorText(err, t('forgotPage.failedBody')));
         }
     };
 
     return (
-        <div className="min-h-screen w-full bg-background-soft flex items-center justify-center p-4 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-100/30 to-transparent pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-blue-100/30 to-transparent pointer-events-none" />
-
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-8 sm:p-12 z-10 transition-all duration-300">
-                <div className="flex justify-end mb-2">
-                    <button
-                        onClick={toggleLanguage}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors"
-                        title={t('language.toggle')}
-                    >
-                        <Languages className="w-3.5 h-3.5" />
-                        {isNepali ? t('language.english') : t('language.nepali')}
-                    </button>
-                </div>
-                <div className="flex flex-col items-center mb-8">
-                    <SchoolLogo className="w-20 h-20 mb-6 shadow-lg shadow-brand/20" />
-                    <h1 className="text-2xl font-bold text-slate-900 text-center tracking-tight">
-                        {t('register.forgotTitle')}
-                    </h1>
-                    <p className="text-slate-500 font-medium text-sm mt-2 text-center">
-                        {t('register.forgotSubtitle')}
-                    </p>
-                </div>
-
-                {isSuccess ? (
-                    <div className="text-center space-y-6 animate-in fade-in zoom-in duration-300">
-                        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-100 text-sm font-medium">
-                            {t('register.resetSent')} <strong>{email}</strong>.
+        <AuthLayout purpose={t('forgotPage.purpose')} compactBand
+            panelFooter={
+                <aside className="flex items-center gap-3.5 rounded-[18px] bg-white/10 px-[18px] py-4 ring-1 ring-inset ring-white/18">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-white/14" aria-hidden><ShieldAlert size={20} className="text-white" /></span>
+                    <div className="flex min-w-0 flex-col gap-1">
+                        <p className="type-body-semibold text-white">{t('forgotPage.note.title')}</p>
+                        <p className="type-small text-white/78">{t('forgotPage.note.body')}</p>
+                    </div>
+                </aside>
+            }>
+            <div className="flex flex-col gap-6">
+                <BackLink to="/login">{t('auth.setPassword.back.signIn')}</BackLink>
+                {sentTo ? (
+                    <div className="flex flex-col gap-5">
+                        <span className="grid size-14 place-items-center rounded-[18px] bg-ok-soft text-ok" aria-hidden><MailCheck size={28} /></span>
+                        <div className="flex flex-col gap-2">
+                            <h1 className="type-h2 text-ink">{t('forgotPage.sentTitle')}</h1>
+                            <p className="type-body text-ink-2">{t('forgotPage.sentBody', { email: sentTo })}</p>
                         </div>
-                        <Link to="/login">
-                            <Button variant="outline" className="w-full mt-4">
-                                {t('register.backToSignIn')}
-                            </Button>
-                        </Link>
+                        <ul className="flex list-disc flex-col gap-1 pl-5 type-small text-ink-2">
+                            <li>{t('forgotPage.tips.spam')}</li>
+                            <li>{t('forgotPage.tips.expiry')}</li>
+                            <li>{t('forgotPage.tips.once')}</li>
+                        </ul>
+                        <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => navigate('/login')}>{t('auth.setPassword.back.signIn')}</Button>
+                            <Button variant="quiet" onClick={() => setSentTo(null)}>{t('forgotPage.again')}</Button>
+                        </div>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        {error && (
-                            <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg text-center font-medium">
-                                {error}
-                            </div>
-                        )}
-
-                        <Input
-                            label={t('register.emailLabel')}
-                            type="email"
-                            placeholder={t('register.emailPlaceholder')}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-
-                        <Button type="submit" isLoading={isLoading} className="mt-2">
-                            {t('register.sendResetLink')}
-                        </Button>
-
-                        <div className="text-center mt-6">
-                            <Link
-                                to="/login"
-                                className="text-sm font-semibold text-slate-500 hover:text-brand transition-colors flex items-center justify-center gap-2"
-                            >
-                                <span>←</span> {t('register.backToSignIn')}
-                            </Link>
+                    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-2">
+                            <h1 className="type-h2 text-ink">{t('forgotPage.title')}</h1>
+                            <p className="type-body text-ink-2">{t('forgotPage.subtitle')}</p>
+                        </div>
+                        {failure && <Banner tone="bad" title={t('forgotPage.failed')}>{failure}</Banner>}
+                        <TextField label={t('auth.email')} type="email" autoComplete="email" inputMode="email" leftIcon={Mail} autoFocus
+                            placeholder={t('auth.emailPlaceholder')} error={errors.email?.message}
+                            {...register('email', {
+                                required: t('forgotPage.emailRequired'),
+                                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: t('forgotPage.emailInvalid') },
+                            })} />
+                        <Button type="submit" size="lg" fullWidth loading={isSubmitting}>{isSubmitting ? t('forgotPage.sending') : t('forgotPage.send')}</Button>
+                        <div className="rounded-row border border-line-subtle bg-surface-2 px-4 py-3">
+                            <p className="type-small-semibold text-ink">{t('forgotPage.noEmail.title')}</p>
+                            <p className="type-small text-ink-2">{t('forgotPage.noEmail.body')}</p>
                         </div>
                     </form>
                 )}
             </div>
-        </div>
+        </AuthLayout>
     );
 };
 
