@@ -124,7 +124,8 @@ export default function LedgerPage() {
         try {
             const all: LedgerEntry[] = [];
             for (let skip = 0; ; skip += 500) {
-                const page = await financesService.getLedger({ ...filters, skip, limit: 500 });
+                // The first page marks it as an export, so it is recorded once in the activity log.
+                const page = await financesService.getLedger({ ...filters, skip, limit: 500, ...(skip === 0 ? { export: true } : {}) });
                 all.push(...page.entries);
                 if (all.length >= page.total_count || page.entries.length === 0) break;
             }

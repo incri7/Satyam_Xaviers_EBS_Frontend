@@ -3259,7 +3259,12 @@
     "feePaidBody": "{{amount}} · receipt {{receipt}}",
     "auditRequested": "{{name}} asked to see older activity",
     "auditApproved": "Your request for older activity is approved",
-    "auditDeclined": "Your request for older activity was declined"
+    "auditDeclined": "Your request for older activity was declined",
+    "auditAlert": "{{name}} {{what}}",
+    "auditAlertBody": "Recorded in the activity log.",
+    "auditRepeatedSignIn_one": "{{count}} failed sign-in to {{email}}",
+    "auditRepeatedSignIn_other": "{{count}} failed sign-ins to {{email}}",
+    "auditRepeatedBody": "Within 15 minutes. If this was not you, change the password and check signed-in devices."
   },
   "askAi": {
     "open": "Ask about the school",
@@ -3439,6 +3444,22 @@
         "access_changed": "Changed who can see a bucket",
         "older_records_requested": "Asked to see older activity",
         "older_records_decided": "Answered a request for older activity"
+      },
+      "views": {
+        "student_profile": "Opened a student's full profile",
+        "staff_profile": "Opened a teacher's or staff member's profile",
+        "report_card": "Opened a report card",
+        "class_report_cards": "Opened a class's report cards",
+        "receipt": "Downloaded a receipt",
+        "expense_bill": "Opened an expense's bill",
+        "ledger_exported": "Exported the ledger",
+        "report": "Opened a school report",
+        "activity_log": "Looked at the activity log"
+      },
+      "security": {
+        "access_refused": "Was refused access",
+        "sign_in_failed": "Failed to sign in",
+        "repeated_sign_in_failures": "Repeated failed sign-ins to one account"
       }
     },
     "allEvents": "All events",
@@ -3589,7 +3610,9 @@
       "calendar": "Calendar and promotion",
       "school": "School settings",
       "ai": "AI",
-      "audit": "Activity log"
+      "audit": "Activity log",
+      "views": "Records looked at",
+      "security": "Security"
     },
     "table": {
       "student_attendance": "Attendance",
@@ -3715,6 +3738,9 @@
     "hiddenRecords_one": "{{n}} record from a class you do not have is not shown",
     "hiddenRecords_other": "{{n}} records from classes you do not have are not shown",
     "andOthers_one": "and {{count}} other",
-    "andOthers_other": "and {{count}} others"
+    "andOthers_other": "and {{count}} others",
+    "triedEmail": "Tried {{email}}",
+    "triedTimes_one": "{{count}} failed attempt on {{email}}",
+    "triedTimes_other": "{{count}} failed attempts on {{email}}"
   }
 }

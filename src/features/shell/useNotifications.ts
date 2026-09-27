@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { formatRs } from '../../utils/money';
+import { eventLabel } from '../audit/format';
 
 export type NotificationKind = 'leave' | 'notice' | 'attendance' | 'fees' | 'audit';
 
@@ -112,6 +113,16 @@ export function useNotifications() {
             case 'audit.archive_requested':
                 return { ...base, kind: 'audit', tone: 'info', to: '/activity/manage',
                     title: t('notifications.auditRequested', { name }), body: range };
+            case 'audit.alert': {
+                const repeated = p.event === 'security.repeated_sign_in_failures';
+                const label = eventLabel(t, String(p.event ?? ''), String(p.label ?? ''));
+                return { ...base, kind: 'audit', tone: repeated ? 'bad' : 'warn',
+                    // The account's owner goes to their devices; admin to the log.
+                    to: role === 'admin' ? '/activity' : '/profile',
+                    title: repeated ? t('notifications.auditRepeatedSignIn', { count: Number(p.count ?? 0), email: p.email ?? '' })
+                        : p.actor_name ? t('notifications.auditAlert', { name: p.actor_name, what: label.toLowerCase() }) : label,
+                    body: repeated ? t('notifications.auditRepeatedBody') : t('notifications.auditAlertBody') };
+            }
             case 'audit.archive_decided': {
                 const ok = p.status === 'approved';
                 return { ...base, kind: 'audit', tone: ok ? 'ok' : 'bad', to: '/activity',

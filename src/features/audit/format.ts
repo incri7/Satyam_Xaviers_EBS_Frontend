@@ -28,6 +28,16 @@ export function aboutLine(t: TFunction, entry: AuditEntry): string {
     return t('audit.andMore', { list: names.slice(0, 2).join(', '), count: names.length - 2 });
 }
 
+/** For entries that change nothing: the page refused, or the email tried. */
+export function detailLine(t: TFunction, entry: AuditEntry): string {
+    const p = entry.params as Record<string, unknown>;
+    if (typeof p.path === 'string') return `${String(p.method ?? '')} ${p.path}`.trim();
+    if (typeof p.email === 'string') {
+        return typeof p.count === 'number' ? t('audit.triedTimes', { email: p.email, count: p.count }) : t('audit.triedEmail', { email: p.email });
+    }
+    return '';
+}
+
 /** How many records the entry touched, counting the ones not listed. */
 export function recordCount(entry: AuditEntry): number {
     const more = Object.values(entry.params.more ?? {}).reduce((a, b) => a + b, 0);

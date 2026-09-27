@@ -84,6 +84,8 @@ export interface LedgerParams {
     sort_dir?: 'asc' | 'desc';
     skip?: number;
     limit?: number;
+    /** Marks the request as an export, so it is recorded in the activity log. */
+    export?: boolean;
 }
 
 export interface MonthlyReport {

@@ -3259,7 +3259,12 @@
     "feePaidBody": "{{amount}} · रसिद {{receipt}}",
     "auditRequested": "{{name}} ले पुरानो गतिविधि हेर्न माग्नुभयो",
     "auditApproved": "पुरानो गतिविधि हेर्ने तपाईंको माग स्वीकृत भयो",
-    "auditDeclined": "पुरानो गतिविधि हेर्ने तपाईंको माग अस्वीकृत भयो"
+    "auditDeclined": "पुरानो गतिविधि हेर्ने तपाईंको माग अस्वीकृत भयो",
+    "auditAlert": "{{name}} ले {{what}}",
+    "auditAlertBody": "गतिविधि अभिलेखमा लेखियो।",
+    "auditRepeatedSignIn_one": "{{email}} मा {{count}} पटक साइन इन असफल",
+    "auditRepeatedSignIn_other": "{{email}} मा {{count}} पटक साइन इन असफल",
+    "auditRepeatedBody": "१५ मिनेटभित्र। तपाईं होइन भने पासवर्ड बदल्नुहोस् र साइन इन भएका उपकरण जाँच्नुहोस्।"
   },
   "askAi": {
     "open": "विद्यालयबारे सोध्नुहोस्",
@@ -3439,6 +3444,22 @@
         "access_changed": "समूह कसले हेर्ने भनी बदल्नुभयो",
         "older_records_requested": "पुरानो गतिविधि हेर्न माग्नुभयो",
         "older_records_decided": "पुरानो गतिविधिको माग टुङ्ग्याउनुभयो"
+      },
+      "views": {
+        "student_profile": "विद्यार्थीको पूरा प्रोफाइल खोल्नुभयो",
+        "staff_profile": "शिक्षक वा कर्मचारीको प्रोफाइल खोल्नुभयो",
+        "report_card": "रिपोर्ट कार्ड खोल्नुभयो",
+        "class_report_cards": "कक्षाका रिपोर्ट कार्ड खोल्नुभयो",
+        "receipt": "रसिद डाउनलोड गर्नुभयो",
+        "expense_bill": "खर्चको बिल खोल्नुभयो",
+        "ledger_exported": "खाताबही निर्यात गर्नुभयो",
+        "report": "विद्यालयको प्रतिवेदन खोल्नुभयो",
+        "activity_log": "गतिविधि अभिलेख हेर्नुभयो"
+      },
+      "security": {
+        "access_refused": "पहुँच अस्वीकृत भयो",
+        "sign_in_failed": "साइन इन असफल भयो",
+        "repeated_sign_in_failures": "एउटै खातामा बारम्बार साइन इन असफल"
       }
     },
     "allEvents": "सबै गतिविधि",
@@ -3589,7 +3610,9 @@
       "calendar": "पात्रो र कक्षोन्नति",
       "school": "विद्यालय सेटिङ",
       "ai": "एआई",
-      "audit": "गतिविधि अभिलेख"
+      "audit": "गतिविधि अभिलेख",
+      "views": "हेरिएका रेकर्ड",
+      "security": "सुरक्षा"
     },
     "table": {
       "student_attendance": "हाजिरी",
@@ -3715,6 +3738,9 @@
     "hiddenRecords_one": "तपाईंको नभएको कक्षाको {{n}} रेकर्ड देखाइएको छैन",
     "hiddenRecords_other": "तपाईंको नभएका कक्षाका {{n}} रेकर्ड देखाइएका छैनन्",
     "andOthers_one": "र अरू {{count}} जना",
-    "andOthers_other": "र अरू {{count}} जना"
+    "andOthers_other": "र अरू {{count}} जना",
+    "triedEmail": "{{email}} प्रयास गरियो",
+    "triedTimes_one": "{{email}} मा {{count}} पटक असफल प्रयास",
+    "triedTimes_other": "{{email}} मा {{count}} पटक असफल प्रयास"
   }
 }

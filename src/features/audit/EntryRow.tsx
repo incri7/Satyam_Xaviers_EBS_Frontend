@@ -7,7 +7,7 @@ import { useDateFormat } from '../../hooks/useDateFormat';
 import type { AuditEntry } from '../../api/services/audit.service';
 import { cn } from '../../utils/cn';
 import { deviceName } from '../account/device';
-import { QUIET_FIELDS, changeLines, eventLabel, fieldLabel, formatValue, recordCount, roleLabel, tableLabel } from './format';
+import { QUIET_FIELDS, changeLines, detailLine, eventLabel, fieldLabel, formatValue, recordCount, roleLabel, tableLabel } from './format';
 
 /**
  * One entry of the activity log: who, what, about whom, when. Opening it
@@ -24,6 +24,7 @@ export function EntryRow({ entry, onPerson, onStudent, onRecord }: {
     const df = useDateFormat();
     const [open, setOpen] = useState(false);
     const students = Object.entries(entry.params.students ?? {});
+    const detail = detailLine(t, entry);
     const shown = students.slice(0, 3);
     const count = recordCount(entry);
     const who = entry.actor_name ?? t('audit.system');
@@ -55,6 +56,7 @@ export function EntryRow({ entry, onPerson, onStudent, onRecord }: {
                         ))}
                         {students.length > 3 && <span className="text-ink-2"> {t('audit.andOthers', { count: students.length - 3 })}</span>}
                     </p>
+                    {detail && <p className="break-all type-caption text-ink-2">{detail}</p>}
                     <p className="flex flex-wrap items-center gap-x-2 type-caption text-muted">
                         <span title={df.dateTime(entry.occurred_at)}>{df.relative(entry.occurred_at)}</span>
                         {entry.ip_address && (

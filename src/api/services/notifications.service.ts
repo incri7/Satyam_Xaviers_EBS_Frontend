@@ -14,7 +14,7 @@ export type FeedKind =
     | 'leave.requested' | 'leave.decided'
     | 'attendance.absent' | 'attendance.unmarked' | 'welfare.flag'
     | 'fee.reminder' | 'fee.paid'
-    | 'audit.archive_requested' | 'audit.archive_decided'
+    | 'audit.archive_requested' | 'audit.archive_decided' | 'audit.alert'
     | 'notice';
 
 export interface Feed {
