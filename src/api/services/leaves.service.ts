@@ -241,6 +241,11 @@ export const leavesService = {
         return response.data;
     },
 
+    /** Take back a request that is still waiting. Only its applicant can. */
+    withdrawLeave: async (leaveId: number): Promise<void> => {
+        await api.post(`leaves/${leaveId}/withdraw`);
+    },
+
     getChildLeaves: async (studentId: number): Promise<LeaveListResponse> => {
         const response = await api.get(`leaves/my-child/${studentId}`);
         return response.data;

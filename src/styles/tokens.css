@@ -181,6 +181,7 @@
   --animate-drift-a: sx-drift-a 18s var(--ease-sx) infinite alternate;
   --animate-drift-b: sx-drift-b 24s var(--ease-sx) infinite alternate;
   --animate-shimmer: sx-shimmer 1.4s ease-in-out infinite;
+  --animate-pop: sx-pop 520ms var(--ease-sx-spring) both;
 
   @keyframes sx-shake {
     20%, 60% { transform: translateX(-4px); }
@@ -195,6 +196,10 @@
   }
   @keyframes sx-drift-b {
     to { transform: translate(18%, -12%) scale(0.9); }
+  }
+  @keyframes sx-pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: none; }
   }
   @keyframes sx-shimmer {
     from { background-position: 100% 0; }

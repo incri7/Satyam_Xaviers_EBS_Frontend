@@ -36,6 +36,11 @@ export interface TimetableSlotUpdate {
 }
 
 export const timetableService = {
+    /** The signed-in teacher's own periods; day 0 is Monday. */
+    getMine: async (dayOfWeek?: number): Promise<TimetableSlot[]> => {
+        const response = await api.get<TimetableSlot[]>('timetable/me', { params: dayOfWeek === undefined ? undefined : { day_of_week: dayOfWeek } });
+        return response.data;
+    },
     getSlots: async (params: { class_id?: number; section_id?: number }): Promise<TimetableSlot[]> => {
         const response = await api.get<TimetableSlot[]>('timetable/', { params });
         return response.data;

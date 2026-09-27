@@ -120,6 +120,24 @@ export function formatDateTime(
 }
 
 /**
+ * Clock time, "9:15 AM": a Date, an ISO timestamp, or a timetable "HH:MM[:SS]".
+ * In Nepali the digits change and AM/PM become bihana/diuso.
+ */
+export function formatClock(value: Date | string | null | undefined, lang: DateLang = 'ne', fallback = ''): string {
+    if (!value) return fallback;
+    let h: number, m: number;
+    const hm = typeof value === 'string' ? /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value) : null;
+    if (hm) { h = Number(hm[1]); m = Number(hm[2]); } else {
+        const d = parseDate(value);
+        if (!d) return fallback;
+        h = d.getHours(); m = d.getMinutes();
+    }
+    const clock = `${h % 12 || 12}:${String(m).padStart(2, '0')}`;
+    if (lang === 'ne') return `${h < 12 ? 'बिहान' : h < 17 ? 'दिउँसो' : 'बेलुका'} ${toNepaliDigits(clock)}`;
+    return `${clock} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+/**
  * Gregorian ISO — the one place a Western date is still correct: CSV and
  * Excel columns another system has to parse. Never use this for anything a
  * person reads on screen.

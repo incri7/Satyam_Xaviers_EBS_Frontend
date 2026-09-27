@@ -69,6 +69,28 @@ export interface DailyAttendanceSummaryResponse {
     totals: AttendanceTotals;
 }
 
+export interface UnmarkedSection {
+    section_id: number;
+    section_name: string;
+    class_id: number;
+    class_name: string;
+    class_teacher_name: string | null;
+}
+
+export interface MyRegister {
+    section_id: number;
+    section_name: string;
+    class_id: number;
+    class_name: string | null;
+    roll_count: number;
+    marked: boolean;
+    marked_at: string | null;
+    present: number;
+    absent: number;
+    on_leave: number;
+    on_leave_names: string[];
+}
+
 export const attendanceService = {
     createAttendance: async (record: AttendanceRecord): Promise<AttendanceEntry> => {
         const response = await api.post<AttendanceEntry>('attendance/student-attendance', record);
@@ -119,9 +141,18 @@ export const attendanceService = {
         expected: number;
         sections_total: number;
         sections_marked: number;
+        on_leave: number;
+        /** Sections whose register is not saved yet, with their class teacher. */
+        unmarked_sections: UnmarkedSection[];
         by_status: Record<string, number>;
     }> => {
         const response = await api.get('attendance/student-attendance/today-summary');
+        return response.data;
+    },
+
+    /** The teacher's own register(s) for today: roll, marked or not, who is on leave. */
+    getMyRegister: async (): Promise<MyRegister[]> => {
+        const response = await api.get<MyRegister[]>('attendance/student-attendance/my-register');
         return response.data;
     },
 

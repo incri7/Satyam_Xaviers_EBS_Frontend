@@ -50,6 +50,9 @@ export interface MarksProgressEntry {
     total_enrolled: number;
     marks_entered: number;
     completion_pct: number;
+    /** The subject teacher of that class, when one is assigned. */
+    teacher_id?: number | null;
+    teacher_name?: string | null;
 }
 
 export interface MarksProgressResponse {

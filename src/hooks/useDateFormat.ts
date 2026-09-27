@@ -11,6 +11,7 @@ import {
     formatDate,
     formatDateTime,
     formatRelative,
+    formatClock,
     formatISODate,
     bsYear,
     dayOfMonth,
@@ -35,6 +36,8 @@ export function useDateFormat() {
             /** Gregorian ISO — for CSV columns other systems parse. */
             iso: (v: DateInput) => formatISODate(v),
             relative: (v: DateInput) => formatRelative(v, lang),
+            /** Clock time, "9:15 AM"; also takes a timetable "HH:MM:SS". */
+            time: (v: Date | string | null | undefined, fallback = '') => formatClock(v, lang, fallback),
             /** Day number alone — the calendar-tile look on notice cards. */
             day: (v: DateInput) => dayOfMonth(v, lang),
             /** Abbreviated month — pairs with day() on those tiles. */

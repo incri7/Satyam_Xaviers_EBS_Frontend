@@ -59,7 +59,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     { id: 'attendance', group: 'teaching', icon: ClipboardCheck, labelKey: 'attendance', href: '/attendance', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
     { id: 'marks', group: 'teaching', icon: BookMarked, labelKey: 'marks', href: '/marks', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
-    { id: 'assignments', group: 'teaching', icon: ClipboardList, labelKey: 'assignments', href: '/assignments', roles: ['admin', 'principal', 'coordinator', 'teacher', 'student'] },
+    { id: 'assignments', group: 'teaching', icon: ClipboardList, labelKey: 'assignments', href: '/assignments', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
     { id: 'timetable', group: 'teaching', icon: CalendarClock, labelKey: 'timetable', href: '/timetable', roles: ['admin', 'principal', 'coordinator'] },
     { id: 'classes', group: 'teaching', icon: GraduationCap, labelKey: 'classes', href: '/academics', roles: ['admin', 'principal', 'coordinator'] },
 

@@ -1,4 +1,5 @@
 import { api } from '../axios';
+import type { WeekDay } from './parent.service';
 
 export interface AssignmentSummary {
     id: number;
@@ -7,6 +8,7 @@ export interface AssignmentSummary {
     subject_name: string;
     due_date: string;
     submission_status: 'pending' | 'submitted' | 'graded' | 'missing';
+    grade: string | null;
 }
 
 export interface MarkTrendEntry {
@@ -18,6 +20,20 @@ export interface MarkTrendEntry {
     trend: 'up' | 'down' | 'stable' | 'first';
 }
 
+export interface TodaySlot {
+    period_number: number;
+    subject_name: string;
+    teacher_name: string | null;
+    start_time: string | null;
+    end_time: string | null;
+}
+
+export interface ExamAverage {
+    exam_id: number;
+    exam_name: string;
+    percent: number | null;
+}
+
 export interface StudentHomeData {
     student_id: number;
     student_name: string;
@@ -26,11 +42,21 @@ export interface StudentHomeData {
     section_name: string | null;
     academic_year: string | null;
     today_status: string;
+    marked_at: string | null;
+    today_timetable: TodaySlot[];
+    /** This school year, on school days: present (half days count half) of attendance_total. */
     attendance_present: number;
     attendance_total: number;
     attendance_pct: number;
+    attendance_absent: number;
+    attendance_leave: number;
+    week: WeekDay[];
+    /** Missing work first, then due in the next seven days. */
     pending_assignments: AssignmentSummary[];
+    latest_exam_name: string | null;
     recent_marks: MarkTrendEntry[];
+    /** Average per exam, oldest first. */
+    exam_trend: ExamAverage[];
 }
 
 export const studentService = {

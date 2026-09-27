@@ -1,320 +1,319 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Sidebar } from '../../components/layout/Sidebar';
-import { DashboardHeader } from '../../components/layout/DashboardHeader';
-import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
-import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowRight, CheckCircle2, FileSpreadsheet, Lock, Plus, Receipt, RotateCcw, Send } from 'lucide-react';
+
 import {
-    AlertCircle, CheckCircle2, Loader2, Send, TrendingDown, FileBarChart2, ChevronRight
-} from 'lucide-react';
-import { cn } from '../../utils/cn';
-import { LeaveBalanceCard } from '../../components/leaves/LeaveBalanceCard';
-import { useDateFormat } from '../../hooks/useDateFormat';
+    Badge, Banner, Button, Card, CardHeader, FilterChips, IconButton, Person, Skeleton,
+    Table, TableCard, THead, Td, Th, Tr,
+} from '../../design-system';
+import { AppPage } from '../../components/layout/AppPage';
+import { RecordPaymentModal } from '../../components/finances/RecordPaymentModal';
+import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
+import { useMonthlyReport, useOutstanding } from '../../features/dashboard/queries';
+import { HeroChip, HeroSkeleton, HomeHero } from '../../features/home/HomeHero';
+import { LeaveBalanceMini } from '../../features/home/LeaveBalanceMini';
+import { HomeGreeting, InlineEmpty, InlineError, ItemRow, RowsSkeleton } from '../../features/home/parts';
 import { errorText } from '../../features/people/format';
-import { useWelcome } from '../../features/shell/identity';
-import { bsYearMonth } from '../../utils/nepaliDate';
+import { useDateFormat } from '../../hooks/useDateFormat';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
+import { formatCount, formatRs } from '../../utils/money';
+import { isoLocal } from '../../utils/nepaliDate';
+import { cn } from '../../utils/cn';
 
-const RISK_STYLE: Record<string, string> = {
-    High: 'bg-red-100 text-red-700',
-    Medium: 'bg-amber-100 text-amber-700',
-    Low: 'bg-slate-100 text-slate-600',
-};
+type Risk = 'all' | OutstandingEntry['risk'];
+const RISKS = ['High', 'Medium', 'Low'] as const;
+const riskTone = (r: string) => (r === 'High' ? 'bad' : r === 'Medium' ? 'warn' : 'neutral') as 'bad' | 'warn' | 'neutral';
+const ROWS = 7;
 
-/** Rows shown on the home preview — the full list lives on /finances/outstanding. */
-const PREVIEW_SIZE = 10;
-
-const AccountantHome: React.FC = () => {
-    const { t, i18n } = useTranslation();
+/**
+ * Figma E01 Accountant home: today's takings and the month's collection
+ * against what is due, then the outstanding list as the main surface with a
+ * one-tap reminder, reversals, today's receipts and the accountant's own leave.
+ *
+ * Adapted: there is no reversal-request workflow in the API (the accountant
+ * reverses directly from the ledger), so "Reversal requests" shows this
+ * month's reversals instead. "Expected" for the month is what was collected
+ * plus what is still owed. Takings refresh every minute: the fee.paid event
+ * only reaches parents.
+ */
+export default function AccountantHome() {
+    const { t } = useTranslation();
     const df = useDateFormat();
-    const [reminderSuccess, setReminderSuccess] = useState('');
-    const [reminderError, setReminderError] = useState('');
-    const [selectedIds, setSelectedIds] = useState<number[]>([]);
-    const [sendingId, setSendingId] = useState<number | null>(null);
+    const { lang } = df;
+    const navigate = useNavigate();
+    const can = usePermissionsStore((s) => s.hasPermission);
+    const canRecord = can('payments', 'create');
+    const [paying, setPaying] = useState(false);
+    const [today] = useState(() => isoLocal(new Date()));
 
-    const today = new Date();
-    const locale = i18n.language === 'ne' ? 'ne-NP' : 'en-US';
-    const todayLabel = df.date(today, 'long');
-
-    // Home shows a short preview; the full, searchable list lives on
-    // /finances/outstanding. Counts come from the server's total_count so they
-    // stay correct regardless of how many rows this preview renders.
-    const { data: outstanding, isLoading } = useQuery({
-        queryKey: ['finances', 'outstanding', 'preview'],
-        queryFn: () => financesService.getOutstanding({ limit: PREVIEW_SIZE }),
+    const takings = useQuery({
+        queryKey: ['finances', 'ledger', { kind: 'income', start_date: today, end_date: today, sort_by: 'date', sort_dir: 'desc', limit: 50 }],
+        queryFn: () => financesService.getLedger({ kind: 'income', start_date: today, end_date: today, sort_by: 'date', sort_dir: 'desc', limit: 50 }),
+        refetchInterval: 60 * 1000,
     });
-
-    const { data: highRisk } = useQuery({
-        queryKey: ['finances', 'outstanding', 'high-risk-count'],
-        queryFn: () => financesService.getOutstanding({ limit: 1, risk: 'High' }),
+    const month = useMonthlyReport(0);
+    const lastMonth = useMonthlyReport(1);
+    const monthReversals = useQuery({
+        queryKey: ['finances', 'ledger', 'month-reversals', month.data?.start_date],
+        queryFn: () => financesService.getLedger({ kind: 'income', start_date: month.data!.start_date, end_date: today, sort_by: 'amount', sort_dir: 'asc', limit: 20 }),
+        select: (res) => res.entries.filter((e) => Number(e.amount) < 0),
+        enabled: !!month.data,
+        staleTime: 2 * 60 * 1000,
     });
+    const outstanding = useOutstanding();
 
-    const { data: monthlyReport } = useQuery({
-        queryKey: ['finances', 'monthly-report', bsYearMonth().year, bsYearMonth().month],
-        queryFn: () => financesService.getMonthlyReport(bsYearMonth().year, bsYearMonth().month),
-    });
-
-    const reminderMutation = useMutation({
-        mutationFn: (studentIds?: number[]) => financesService.sendBulkReminders(studentIds),
-        onSuccess: (data) => {
-            setReminderSuccess(data.message);
-            setReminderError('');
-            setSelectedIds([]);
-            setSendingId(null);
-            setTimeout(() => setReminderSuccess(''), 5000);
-        },
-        onError: (err) => {
-            setReminderError(errorText(err, t('common.error')));
-            setSendingId(null);
-        },
-    });
-
-    const entries = outstanding?.entries ?? [];
-    const totalOutstanding = outstanding?.total_outstanding ?? 0;
-    const familiesDue = outstanding?.total_count ?? 0;
-    const highRiskCount = highRisk?.total_count ?? 0;
-    const welcome = useWelcome();
-    const allSelected = entries.length > 0 && selectedIds.length === entries.length;
-
-    const toggleSelected = (studentId: number) => {
-        setSelectedIds((prev) =>
-            prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
-        );
-    };
-
-    const toggleSelectAll = () => {
-        setSelectedIds(allSelected ? [] : entries.map((e) => e.student_id));
-    };
-
-    const sendToOne = (studentId: number) => {
-        setSendingId(studentId);
-        reminderMutation.mutate([studentId]);
-    };
-
-    const riskLabel = (risk: string) => {
-        if (risk === 'High') return t('home.accountant.riskHigh');
-        if (risk === 'Medium') return t('home.accountant.riskMedium');
-        if (risk === 'Low') return t('home.accountant.riskLow');
-        return risk;
-    };
+    const day = takings.data;
+    const receipts = day?.entries ?? [];
+    const reversalsToday = receipts.filter((e) => Number(e.amount) < 0).length;
+    const last = receipts.find((e) => Number(e.amount) > 0);
+    const m = month.data;
+    const collected = Number(m?.total_collected ?? 0);
+    const expected = collected + Number(m?.outstanding_balance ?? 0);
+    const monthName = df.date(new Date(), 'monthYear').split(' ')[0];
+    const lastPct = lastMonth.data && Number(lastMonth.data.total_collected) + Number(lastMonth.data.outstanding_balance) > 0
+        ? Math.round((Number(lastMonth.data.total_collected) / (Number(lastMonth.data.total_collected) + Number(lastMonth.data.outstanding_balance))) * 100) : null;
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden lg:pl-[260px]">
-                <DashboardHeader />
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
-                    {/* Greeting */}
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{welcome.greeting}, {welcome.name}</h1>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">{welcome.role} · {todayLabel}</p>
-                    </div>
+        <AppPage title={t('home.title')}>
+            <HomeGreeting />
+            {outstanding.isError && (
+                <Banner tone="bad" title={t('home.a.owedErrorTitle')}
+                    action={<Button variant="quiet" size="sm" onClick={() => void outstanding.refetch()}>{t('classesPage.action.retry')}</Button>}>
+                    {t('home.a.owedErrorBody')}
+                </Banner>
+            )}
 
-                    {/* Summary cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4">
-                            <p className="text-xs font-bold text-red-500 uppercase tracking-wide">{t('home.accountant.totalOutstanding')}</p>
-                            <p className="text-2xl font-bold text-red-700 mt-1">
-                                Rs {Number(totalOutstanding).toLocaleString()}
-                            </p>
-                        </div>
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('home.accountant.familiesDue')}</p>
-                            <p className="text-2xl font-bold text-slate-900 mt-1">{familiesDue}</p>
-                        </div>
-                        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
-                            <p className="text-xs font-bold text-red-500 uppercase tracking-wide">{t('home.accountant.highRisk')}</p>
-                            <p className="text-2xl font-bold text-red-700 mt-1">{highRiskCount}</p>
-                        </div>
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide">{t('home.accountant.thisMonth')}</p>
-                            <p className="text-2xl font-bold text-emerald-700 mt-1">
-                                Rs {monthlyReport ? Number(monthlyReport.total_collected).toLocaleString() : '–'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {reminderSuccess && (
-                        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-700 font-medium text-sm">
-                            <CheckCircle2 className="w-5 h-5 shrink-0" />
-                            {reminderSuccess}
-                        </div>
-                    )}
-                    {reminderError && (
-                        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 font-medium text-sm">
-                            <AlertCircle className="w-5 h-5 shrink-0" />
-                            {reminderError}
-                        </div>
-                    )}
-
-                    {/* Outstanding table */}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            {takings.isPending ? <HeroSkeleton label={t('home.a.heroLabel')} /> : (
+                <HomeHero label={t('home.a.heroLabel')}
+                    side={
+                        <div className="flex flex-col gap-2.5 rounded-2xl bg-[#0B1A3D]/35 p-3.5 ring-1 ring-inset ring-white/14 lg:w-[400px] lg:p-[18px]">
                             <div className="flex items-center gap-2">
-                                <TrendingDown className="w-5 h-5 text-red-500" />
-                                <h2 className="font-bold text-slate-800">{t('home.accountant.outstandingBalances')}</h2>
-                                <Link
-                                    to="/finances/outstanding"
-                                    className="inline-flex items-center gap-0.5 text-sm font-semibold text-brand hover:underline ml-1"
-                                >
-                                    {t('outstanding.viewAll')}
-                                    <ChevronRight className="w-4 h-4" />
-                                </Link>
+                                <p className="flex-1 type-small-semibold">{t('home.a.target', { month: monthName })}</p>
+                                {m && <span className="type-small-semibold text-[#9BE8C6]">{formatCount(expected ? Math.round((collected / expected) * 100) : 0, lang)}%</span>}
                             </div>
-                            <button
-                                onClick={() => reminderMutation.mutate(selectedIds.length > 0 ? selectedIds : undefined)}
-                                disabled={reminderMutation.isPending || entries.length === 0}
-                                className="inline-flex shrink-0 items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-sm font-semibold whitespace-nowrap rounded-lg shadow-sm hover:opacity-95 transition-all disabled:opacity-50"
-                            >
-                                {reminderMutation.isPending && sendingId === null ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Send className="w-4 h-4" />
-                                )}
-                                {selectedIds.length > 0
-                                    ? `${t('home.accountant.sendSelected')} (${selectedIds.length})`
-                                    : `${t('home.accountant.sendReminders')}${familiesDue ? ` (${familiesDue})` : ''}`}
-                            </button>
-                        </div>
-
-                        {isLoading && (
-                            <div className="flex items-center justify-center py-16">
-                                <Loader2 className="w-8 h-8 text-brand animate-spin" />
-                            </div>
-                        )}
-
-                        {!isLoading && entries.length === 0 && (
-                            <div className="py-16 text-center">
-                                <CheckCircle2 className="w-12 h-12 text-emerald-300 mx-auto mb-3" />
-                                <p className="font-bold text-slate-400">{t('home.accountant.allClear')}</p>
-                            </div>
-                        )}
-
-                        {entries.length > 0 && (
-                            <div className="divide-y divide-slate-50">
-                                <div className="hidden md:flex items-center gap-2 px-5 py-2 text-xs font-bold text-slate-400 uppercase tracking-wide bg-slate-50">
-                                    <input
-                                        type="checkbox"
-                                        checked={allSelected}
-                                        onChange={toggleSelectAll}
-                                        className="w-4 h-4 rounded border-slate-300 shrink-0"
-                                        aria-label={t('home.accountant.selectAll')}
-                                    />
-                                    <div className="grid grid-cols-12 gap-2 flex-1">
-                                        <span className="col-span-4">{t('home.accountant.student')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.assigned')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.paid')}</span>
-                                        <span className="col-span-2 text-right">{t('home.accountant.balance')}</span>
-                                        <span className="col-span-2 text-center">{t('home.accountant.risk')}</span>
+                            {month.isPending ? <><Skeleton className="h-6 w-48 bg-white/14" /><Skeleton className="h-2.5 w-full bg-white/14" /></> : month.isError ? (
+                                <p className="type-caption text-white/80">{t('home.a.targetError')}</p>
+                            ) : m && (
+                                <>
+                                    <p className="type-small text-white/70"><span className="type-figure-m text-white lg:type-figure-l">{formatRs(collected, lang)}</span> {t('home.a.ofExpected', { amount: formatRs(expected, lang) })}</p>
+                                    <div className="h-2 overflow-hidden rounded-full bg-white/18" role="img" aria-label={t('home.a.target', { month: monthName })}>
+                                        <div className="h-full rounded-full bg-white transition-[width] duration-700" style={{ width: `${expected ? Math.min(100, (collected / expected) * 100) : 0}%` }} />
                                     </div>
-                                    <span className="w-8 shrink-0" />
-                                </div>
-                                {entries.map((entry: OutstandingEntry) => (
-                                    <div key={entry.student_id} className="flex items-center gap-2 px-5 py-3.5">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(entry.student_id)}
-                                            onChange={() => toggleSelected(entry.student_id)}
-                                            className="w-4 h-4 rounded border-slate-300 shrink-0"
-                                            aria-label={`${t('home.accountant.select')} ${entry.student_name}`}
-                                        />
-                                        <div className="grid grid-cols-12 gap-2 items-center flex-1 min-w-0">
-                                            <div className="col-span-12 md:col-span-4">
-                                                <p className="font-bold text-slate-800 text-sm">{entry.student_name}</p>
-                                                <p className="text-xs text-slate-500 font-medium">{entry.admission_no}</p>
-                                            </div>
-                                            <div className="col-span-4 md:col-span-2 text-right">
-                                                <p className="text-sm font-semibold text-slate-600">
-                                                    Rs {Number(entry.total_assigned).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-4 md:col-span-2 text-right">
-                                                <p className="text-sm font-semibold text-emerald-600">
-                                                    Rs {Number(entry.total_paid).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-4 md:col-span-2 text-right">
-                                                <p className="text-sm font-bold text-red-700">
-                                                    Rs {Number(entry.balance).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="col-span-12 md:col-span-2 flex md:justify-center">
-                                                <span className={cn(
-                                                    'text-xs font-bold px-2.5 py-1 rounded-lg',
-                                                    RISK_STYLE[entry.risk] ?? 'bg-slate-100 text-slate-600'
-                                                )}>
-                                                    {riskLabel(entry.risk)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => sendToOne(entry.student_id)}
-                                            disabled={reminderMutation.isPending}
-                                            className="w-8 h-8 shrink-0 inline-flex items-center justify-center rounded-lg text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
-                                            title={t('home.accountant.sendReminderTo', { name: entry.student_name })}
-                                        >
-                                            {reminderMutation.isPending && sendingId === entry.student_id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <Send className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <LeaveBalanceCard />
-
-                    {/* Monthly report */}
-                    {monthlyReport && (
-                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <FileBarChart2 className="w-5 h-5 text-brand" />
-                                <h2 className="font-bold text-slate-800">
-                                    {new Date(monthlyReport.year, monthlyReport.month - 1).toLocaleString(locale, {
-                                        month: 'long', year: 'numeric',
-                                    })} — {t('home.accountant.summary')}
-                                </h2>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div className="text-center">
-                                    <p className="text-lg font-bold text-slate-900">
-                                        Rs {Number(monthlyReport.total_collected).toLocaleString()}
+                                    <p className="type-caption text-white/78">
+                                        {collected === 0 ? t('home.a.targetEmpty') : lastPct !== null ? t('home.a.lastMonth', { pct: formatCount(lastPct, lang) }) : t('home.a.receiptsThisMonth', { count: m.transaction_count, n: formatCount(m.transaction_count, lang) })}
                                     </p>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{t('home.accountant.collected')}</p>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-lg font-bold text-slate-900">{monthlyReport.transaction_count}</p>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{t('home.accountant.transactions')}</p>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-lg font-bold text-slate-900">
-                                        {monthlyReport.first_receipt ?? '–'} → {monthlyReport.last_receipt ?? '–'}
+                                    <p className="flex items-center gap-1.5 border-t border-white/14 pt-2 type-caption text-white/86">
+                                        {m.receipt_gaps.length ? <AlertTriangle size={14} className="shrink-0 text-sx-gold" aria-hidden /> : <CheckCircle2 size={14} className="shrink-0 text-[#9BE8C6]" aria-hidden />}
+                                        <span className="truncate">
+                                            {!m.first_receipt ? t('home.a.noReceiptsMonth', { month: monthName })
+                                                : m.receipt_gaps.length ? t('home.a.gaps', { count: m.receipt_gaps.length, n: formatCount(m.receipt_gaps.length, lang), list: m.receipt_gaps.slice(0, 3).join(', ') })
+                                                    : t('home.a.noGaps', { first: m.first_receipt, last: m.last_receipt })}
+                                        </span>
                                     </p>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">{t('home.accountant.receiptRange')}</p>
-                                </div>
-                                <div className="text-center">
-                                    {monthlyReport.receipt_gaps.length === 0 ? (
-                                        <>
-                                            <p className="text-lg font-bold text-emerald-600">{t('home.accountant.noReceiptGaps')}</p>
-                                            <p className="text-xs text-slate-500 font-medium mt-0.5">{t('home.accountant.receiptGaps')}</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <p className="text-lg font-bold text-red-600">{monthlyReport.receipt_gaps.length}</p>
-                                            <p className="text-xs text-red-500 font-medium mt-0.5">{t('home.accountant.receiptGaps')}</p>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
+                                </>
+                            )}
                         </div>
+                    }>
+                    <HeroChip dot={receipts.length ? 'ok' : 'warn'}>{t('home.a.collectedToday')}</HeroChip>
+                    {takings.isError ? (
+                        <p className="type-body text-white/86">{t('home.a.takingsError')}</p>
+                    ) : (
+                        <>
+                            <p className="flex flex-wrap items-baseline gap-2.5">
+                                <span className="type-figure-l lg:type-figure-xl">{formatRs(day?.total_income ?? 0, lang)}</span>
+                                <span className="type-h3 text-white/72">{receipts.length ? t('home.a.fromReceipts', { count: day?.total_count ?? 0, n: formatCount(day?.total_count ?? 0, lang) }) : t('home.a.noReceiptsYet')}</span>
+                            </p>
+                            <p className="type-body text-white/86">
+                                {last ? t('home.a.lastOne', { receipt: last.reference, name: last.party, amount: formatRs(last.amount, lang), method: t(`financePage.method.${last.method}`, { defaultValue: last.method }) }) : t('home.a.emptyBody')}
+                                {reversalsToday > 0 && ` ${t('home.a.reversalsToday', { count: reversalsToday, n: formatCount(reversalsToday, lang) })}`}
+                            </p>
+                        </>
                     )}
+                    <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap">
+                        {canRecord && <Button variant="white" leftIcon={Plus} onClick={() => setPaying(true)}>{t('home.a.record')}</Button>}
+                        <Button variant="glass" leftIcon={FileSpreadsheet} className="max-sm:hidden" onClick={() => navigate('/finances/ledger')}>{t('home.a.openLedger')}</Button>
+                    </div>
+                </HomeHero>
+            )}
+
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
+                <div className="flex min-w-0 flex-col gap-4">
+                    <Outstanding q={outstanding} canRemind={canRecord} />
+                    <div className="max-lg:hidden"><LeaveBalanceMini /></div>
                 </div>
-            </main>
+                <div className="flex min-w-0 flex-col gap-4">
+                    <Reversals q={monthReversals} loading={month.isPending || monthReversals.isPending} />
+                    <RecentReceipts q={takings} canRecord={canRecord} onRecord={() => setPaying(true)} />
+                    <div className="lg:hidden"><LeaveBalanceMini /></div>
+                </div>
+            </div>
+
+            {canRecord && <RecordPaymentModal isOpen={paying} onClose={() => setPaying(false)} />}
+        </AppPage>
+    );
+}
+
+function Outstanding({ q, canRemind }: { q: ReturnType<typeof useOutstanding>; canRemind: boolean }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const navigate = useNavigate();
+    const [risk, setRisk] = useState<Risk>('all');
+    const [sendingId, setSendingId] = useState<number | null>(null);
+    const remind = useMutation({
+        mutationFn: (ids?: number[]) => financesService.sendBulkReminders(ids),
+        onSettled: () => setSendingId(null),
+    });
+    const all = useMemo(() => [...(q.data?.entries ?? [])].sort((a, b) => b.days_overdue - a.days_overdue), [q.data]);
+    const counts = useMemo(() => Object.fromEntries(RISKS.map((r) => [r, all.filter((e) => e.risk === r).length])), [all]);
+    const rows = (risk === 'all' ? all : all.filter((e) => e.risk === risk)).slice(0, ROWS);
+    const total = q.data?.total_count ?? 0;
+    const sub = q.isPending ? undefined : q.isError ? t('home.a.couldNotLoad') : total === 0 ? t('home.a.nobodyOwes')
+        : t('home.a.owedSub', { count: total, n: formatCount(total, lang), amount: formatRs(q.data?.total_outstanding ?? 0, lang) });
+    const chips = [
+        { value: 'all' as Risk, label: t('home.a.all'), count: formatCount(total, lang) },
+        ...RISKS.map((r) => ({ value: r as Risk, label: t(`outstandingPage.risk.${r}`), count: formatCount(counts[r] ?? 0, lang) })),
+    ];
+    const remindAll = canRemind && total > 0 && (
+        <Button leftIcon={Send} loading={remind.isPending && sendingId === null} disabled={remind.isPending} onClick={() => remind.mutate(undefined)} className="max-md:w-full">
+            {t('home.a.remindAll', { count: total, n: formatCount(total, lang) })}
+        </Button>
+    );
+    const sendOne = (id: number) => { setSendingId(id); remind.mutate([id]); };
+    const footer = total > 0 && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 md:px-[18px]">
+            <span className="flex-1 type-small text-muted">{t('home.a.showing', { a: formatCount(rows.length, lang), b: formatCount(risk === 'all' ? total : counts[risk] ?? 0, lang) })}</span>
+            <Button variant="ghost" size="sm" rightIcon={ArrowRight} className="text-primary-text" onClick={() => navigate('/finances/outstanding')}>{t('home.a.openOutstanding')}</Button>
         </div>
     );
-};
+    const body = q.isError ? <InlineError title={t('home.a.listError')} onRetry={() => void q.refetch()} />
+        : !q.isPending && total === 0 ? <InlineEmpty icon={CheckCircle2} title={t('home.a.paidUp')}>{t('home.a.paidUpBody')}</InlineEmpty> : null;
 
-export default AccountantHome;
+    return (
+        <>
+            {remind.isSuccess && <Banner tone="ok" title={t('home.p.reminded')}>{remind.data?.message}</Banner>}
+            {remind.isError && <Banner tone="bad" title={t('home.p.remindFailed')}>{errorText(remind.error, t('peoplePage.error.body'))}</Banner>}
+
+            <TableCard className="max-md:hidden" title={t('home.a.owedTitle')} subtitle={sub} action={remindAll || undefined} footer={body ? undefined : footer || undefined}>
+                {body ? <div className="p-4">{body}</div> : (
+                    <>
+                        <div className="px-[18px] pb-3"><FilterChips aria-label={t('home.a.byRisk')} items={chips} value={risk} onChange={setRisk} /></div>
+                        <Table aria-label={t('home.a.owedTitle')}>
+                            <THead>
+                                <Th>{t('financePage.col.student')}</Th>
+                                <Th>{t('home.p.col.overdue')}</Th>
+                                <Th>{t('home.p.col.risk')}</Th>
+                                <Th className="text-right">{t('home.p.col.balance')}</Th>
+                                {canRemind && <Th className="w-12"><span className="sr-only">{t('home.a.remind')}</span></Th>}
+                            </THead>
+                            <tbody>
+                                {q.isPending ? Array.from({ length: 5 }, (_, i) => (
+                                    <Tr key={i}><Td colSpan={canRemind ? 5 : 4}><Skeleton className="h-9" /></Td></Tr>
+                                )) : rows.map((r) => (
+                                    <Tr key={r.student_id}>
+                                        <Td><Link to={`/people/students/${r.student_id}`} className="outline-none hover:underline"><Person name={r.student_name} sub={[r.class_name, r.admission_no].filter(Boolean).join(', ')} /></Link></Td>
+                                        <Td className="type-small text-ink-2">{t('home.p.days', { count: r.days_overdue, n: formatCount(r.days_overdue, lang) })}</Td>
+                                        <Td><Badge tone={riskTone(r.risk)} dot>{t(`outstandingPage.risk.${r.risk}`)}</Badge></Td>
+                                        <Td className="text-right type-body-semibold tabular-nums text-ink">{formatRs(r.balance, lang)}</Td>
+                                        {canRemind && (
+                                            <Td>
+                                                <IconButton icon={Send} label={t('home.a.remindOne', { name: r.student_name })} size={32}
+                                                    className="bg-primary-soft text-primary-text" disabled={remind.isPending} onClick={() => sendOne(r.student_id)} />
+                                            </Td>
+                                        )}
+                                    </Tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </>
+                )}
+            </TableCard>
+
+            <Card className="gap-2.5 md:hidden">
+                <CardHeader title={t('home.a.owedTitle')} subtitle={sub} />
+                {body ?? (
+                    <>
+                        <FilterChips aria-label={t('home.a.byRisk')} items={chips} value={risk} onChange={setRisk} />
+                        {q.isPending ? <RowsSkeleton rows={4} /> : (
+                            <ul>
+                                {rows.slice(0, 4).map((r) => (
+                                    <li key={r.student_id} className="flex items-center gap-2.5 border-b border-line-subtle py-2.5 last:border-b-0">
+                                        <div className="min-w-0 flex-1"><Person name={r.student_name} sub={`${r.class_name ?? '—'}, ${t('home.p.days', { count: r.days_overdue, n: formatCount(r.days_overdue, lang) })}`} /></div>
+                                        <div className="flex shrink-0 flex-col items-end gap-1">
+                                            <span className="type-body-semibold tabular-nums text-ink">{formatRs(r.balance, lang)}</span>
+                                            <Badge tone={riskTone(r.risk)}>{t(`outstandingPage.risk.${r.risk}`)}</Badge>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {remindAll}
+                        {total > 0 && <Button variant="ghost" size="sm" rightIcon={ArrowRight} className="text-primary-text" onClick={() => navigate('/finances/outstanding')}>{t('home.a.seeAll', { n: formatCount(total, lang) })}</Button>}
+                    </>
+                )}
+            </Card>
+        </>
+    );
+}
+
+function Reversals({ q, loading }: { q: { data?: { id: number; reference: string; party: string; amount: number; date: string }[]; isError: boolean; refetch: () => unknown }; loading: boolean }) {
+    const { t } = useTranslation();
+    const df = useDateFormat();
+    const list = q.data ?? [];
+    return (
+        <Card className="gap-2.5">
+            <CardHeader title={t('home.a.reversals')} subtitle={loading ? undefined : list.length ? t('home.a.reversalsSub', { count: list.length, n: formatCount(list.length, df.lang) }) : t('home.a.noReversals')}
+                action={list.length > 0 && <Badge tone="warn">{formatCount(list.length, df.lang)}</Badge>} />
+            {loading ? <RowsSkeleton rows={2} /> : q.isError ? <InlineError title={t('home.a.reversalsError')} onRetry={() => void q.refetch()} /> : list.length > 0 && (
+                <ul>
+                    {list.slice(0, 3).map((r) => (
+                        <ItemRow key={r.id} icon={RotateCcw} tone="warn" title={`${r.reference || `#${r.id}`}, ${formatRs(r.amount, df.lang)}`}
+                            sub={`${r.party || '—'}, ${df.date(r.date)}`} />
+                    ))}
+                </ul>
+            )}
+            <p className="flex items-start gap-2 rounded-row bg-surface-2 px-3 py-2.5 type-caption text-ink-2">
+                <Lock size={14} className="mt-0.5 shrink-0 text-muted" aria-hidden />{t('home.a.immutable')}
+            </p>
+        </Card>
+    );
+}
+
+function RecentReceipts({ q, canRecord, onRecord }: { q: { data?: { entries: { id: number; reference: string; party: string; amount: number; method: string }[] }; isPending: boolean; isError: boolean; refetch: () => unknown }; canRecord: boolean; onRecord: () => void }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const navigate = useNavigate();
+    const list = q.data?.entries ?? [];
+    return (
+        <Card className="gap-1">
+            <CardHeader title={t('home.a.recent')} subtitle={q.isPending ? undefined : list.length ? t('home.a.today') : t('home.a.noneToday')}
+                action={list.length > 0 && <Button variant="ghost" size="sm" className="text-primary-text max-sm:hidden" onClick={() => navigate('/finances/ledger')}>{t('home.a.allPayments')}</Button>} />
+            {q.isPending ? <RowsSkeleton rows={4} /> : q.isError ? <InlineError title={t('home.a.takingsError')} onRetry={() => void q.refetch()} /> : list.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-3 text-center">
+                    <span className="grid size-10 place-items-center rounded-[12px] bg-primary-soft text-primary-text"><Receipt size={18} aria-hidden /></span>
+                    <p className="max-w-[260px] type-small text-muted">{t('home.a.receiptsEmpty')}</p>
+                    {canRecord && <Button variant="secondary" size="sm" leftIcon={Plus} onClick={onRecord}>{t('home.a.record')}</Button>}
+                </div>
+            ) : (
+                <ul>
+                    {list.slice(0, 5).map((r) => {
+                        const neg = Number(r.amount) < 0;
+                        return (
+                            <li key={r.id} className="flex items-center gap-2.5 border-b border-line-subtle py-2.5 last:border-b-0">
+                                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                    <span className="flex items-center gap-1.5 type-small-semibold text-ink">{r.reference || `#${r.id}`}{neg && <Badge tone="bad">{t('home.a.reversal')}</Badge>}</span>
+                                    <span className="truncate type-caption text-muted">{r.party}</span>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                                    <span className={cn('type-small-semibold tabular-nums', neg ? 'text-bad' : 'text-ink')}>{formatRs(r.amount, lang)}</span>
+                                    <span className="type-caption text-muted">{t(`financePage.method.${r.method}`, { defaultValue: r.method })}</span>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </Card>
+    );
+}

@@ -10,6 +10,15 @@ export interface AcademicYear {
     working_days_count: number | null;
 }
 
+/** A run of calendar days or a term boundary, from /academic-calendar/upcoming. */
+export interface UpcomingEvent {
+    start: string;
+    end: string;
+    /** holiday | exam_day | half_day | term_break | emergency_closure | working_day | term_start | term_end */
+    kind: string;
+    label: string | null;
+}
+
 export interface HolidayEntry {
     date: string;
     label: string;
@@ -117,6 +126,11 @@ export const academicCalendarService = {
         const res = await api.get('academic-calendar/terms', {
             params: yearId ? { year_id: yearId } : undefined,
         });
+        return res.data;
+    },
+
+    getUpcoming: async (days = 90, limit = 6): Promise<UpcomingEvent[]> => {
+        const res = await api.get('academic-calendar/upcoming', { params: { days, limit } });
         return res.data;
     },
 

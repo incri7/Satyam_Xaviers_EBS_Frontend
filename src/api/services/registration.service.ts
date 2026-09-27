@@ -4,6 +4,9 @@ export interface TokenInfo {
     valid: boolean;
     student_name: string;
     student_id: number;
+    class_name: string | null;
+    section_name: string | null;
+    school_phone: string | null;
 }
 
 export interface ParentRegisterIn {
