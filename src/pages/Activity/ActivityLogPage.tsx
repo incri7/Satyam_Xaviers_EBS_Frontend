@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, ArrowLeft, History, Layers, Lock, RotateCw, Settings2, X } from 'lucide-react';
 
 import {
-    Badge, Banner, Button, Card, CardHeader, EmptyState, SegmentedControl, SelectField, Skeleton, TextField,
+    Badge, Banner, Button, Card, CardHeader, EmptyState, SearchField, SegmentedControl, SelectField, Skeleton, TextField,
 } from '../../design-system';
 import { AppPage, PageBar } from '../../components/layout/AppPage';
 import { Pagination } from '../../components/common/Pagination';
@@ -15,11 +15,14 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { EntryRow } from '../../features/audit/EntryRow';
 import { RequestOlderDialog } from '../../features/audit/RequestOlderDialog';
-import { PERIODS, eventLabel, periodRange, scopeLabel, type Period } from '../../features/audit/format';
+import { PERIODS, eventLabel, periodRange, roleLabel, scopeLabel, type Period } from '../../features/audit/format';
+import { formatCount } from '../../utils/money';
 import { isoLocal } from '../../utils/nepaliDate';
 import { cn } from '../../utils/cn';
 
 const PAGE_SIZE = 50;
+const ROLES = ['admin', 'principal', 'coordinator', 'accountant', 'teacher', 'staff', 'parent', 'student'];
+type Filter = { kind: 'person' | 'student' | 'record'; id: string; name: string; table?: string };
 const EVERYTHING = 0; // admin's view of every event, outside any bucket
 
 /**
@@ -45,7 +48,11 @@ export default function ActivityLogPage() {
     const [period, setPeriod] = useState<Period>('week');
     const [custom, setCustom] = useState({ start: today, end: today });
     const [event, setEvent] = useState('');
-    const [person, setPerson] = useState<{ id: number; name: string } | null>(null);
+    const [filters, setFilters] = useState<Filter[]>([]);
+    const [searchInput, setSearchInput] = useState('');
+    const [search, setSearch] = useState('');
+    const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+    const [roleFilter, setRoleFilter] = useState('');
     const [page, setPage] = useState(1);
     const [asking, setAsking] = useState(false);
     const [sent, setSent] = useState(false);
@@ -62,12 +69,29 @@ export default function ActivityLogPage() {
         return isoLocal(d);
     })() : null;
 
+    // Typing a name is one request, not one per letter.
+    useEffect(() => {
+        const id = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
+    const pick = (kind: Filter['kind']) => filters.find((f) => f.kind === kind);
+    const person = pick('person');
+    const student = pick('student');
+    const record = pick('record');
+    const addFilter = (f: Filter) => { setFilters((fs) => [...fs.filter((x) => x.kind !== f.kind), f]); setPage(1); };
+
     const events = useQuery({
-        queryKey: ['audit', 'events', bucketId, range.start, range.end, event, person?.id, page],
+        queryKey: ['audit', 'events', bucketId, range.start, range.end, event, filters, search, sort, roleFilter, page],
         queryFn: () => auditService.getEvents({
             bucket_id: bucketId && bucketId !== EVERYTHING ? bucketId : undefined,
             start_date: range.start, end_date: range.end,
-            event: event || undefined, actor_user_id: person?.id,
+            event: event || undefined,
+            actor_user_id: person ? Number(person.id) : undefined,
+            student_id: student ? Number(student.id) : undefined,
+            table: record?.table, record_id: record?.id,
+            actor_role: roleFilter || undefined,
+            search: search || undefined, sort,
             skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE,
         }),
         enabled: bucketId !== null && range.start <= range.end,
@@ -83,6 +107,7 @@ export default function ActivityLogPage() {
     const choose = (id: number) => { setPicked(id); setEvent(''); reset(); };
 
     const total = events.data?.total_count ?? 0;
+    const shared = (events.data?.scope ?? bucket?.scope ?? 'all') !== 'own_actions';
     const totalPages = Math.ceil(total / PAGE_SIZE);
     const openRequests = (requests.data ?? []).filter((r) => r.bucket_id === bucketId && r.status !== 'rejected');
 
@@ -140,6 +165,16 @@ export default function ActivityLogPage() {
                                 <SelectField label={t('audit.event')} value={event} onChange={(e) => { setEvent(e.target.value); reset(); }} containerClassName="min-w-[220px]"
                                     options={[{ value: '', label: t('audit.allEvents') }, ...bucketEvents.map((k) => ({ value: k, label: eventLabel(t, k, labels.get(k)) }))]} />
                             )}
+                            {shared && (
+                                <SelectField label={t('audit.role')} value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); reset(); }} containerClassName="min-w-[160px]"
+                                    options={[{ value: '', label: t('audit.allRoles') }, ...ROLES.map((r) => ({ value: r, label: roleLabel(t, r) }))]} />
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <SearchField value={searchInput} onChange={setSearchInput} placeholder={shared ? t('audit.search') : t('audit.searchOwn')}
+                                clearLabel={t('common.clear')} containerClassName="min-w-0 flex-1 sm:max-w-[360px]" />
+                            <SegmentedControl size="sm" value={sort} onChange={(v) => { setSort(v); reset(); }} aria-label={t('audit.sort')}
+                                options={[{ value: 'newest', label: t('audit.newest') }, { value: 'oldest', label: t('audit.oldest') }]} />
                         </div>
                         {period === 'custom' && (
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -156,11 +191,15 @@ export default function ActivityLogPage() {
                                 {windowStart && ` ${t('audit.windowNote', { date: df.date(windowStart) })}`}
                             </p>
                         )}
-                        {person && (
-                            <button type="button" onClick={() => { setPerson(null); reset(); }}
-                                className="flex w-fit items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 type-caption-semibold text-primary-text">
-                                {t('audit.byPerson', { name: person.name })}<X size={13} aria-hidden />
-                            </button>
+                        {filters.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {filters.map((f) => (
+                                    <button key={f.kind} type="button" onClick={() => { setFilters((fs) => fs.filter((x) => x.kind !== f.kind)); reset(); }}
+                                        className="flex w-fit items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1 type-caption-semibold text-primary-text">
+                                        {t(`audit.filterChip.${f.kind}`, { name: f.name })}<X size={13} aria-hidden />
+                                    </button>
+                                ))}
+                            </div>
                         )}
                     </Card>
 
@@ -178,7 +217,9 @@ export default function ActivityLogPage() {
 
                     <Card className="gap-3">
                         <CardHeader title={bucketId === EVERYTHING ? t('audit.everything') : bucket?.name ?? t('audit.title')}
-                            subtitle={events.data ? t('audit.entryCount', { count: total, n: total }) : undefined} />
+                            subtitle={events.data ? (events.data.total_capped
+                                ? t('audit.entryCountCapped', { n: formatCount(total) })
+                                : t('audit.entryCount', { count: total, n: formatCount(total) })) : undefined} />
                         {needsRequest && bucket && windowStart ? (
                             <EmptyState icon={Lock} title={t('audit.olderTitle')}
                                 action={<Button leftIcon={History} onClick={() => { setSent(false); setAsking(true); }}>{t('audit.request.open')}</Button>}>
@@ -197,7 +238,9 @@ export default function ActivityLogPage() {
                             <ul className="flex flex-col divide-y divide-line-subtle">
                                 {events.data.entries.map((e) => (
                                     <EntryRow key={e.id} entry={e}
-                                        onPerson={events.data.scope === 'own_actions' ? undefined : (id, name) => { setPerson({ id, name }); reset(); }} />
+                                        onPerson={events.data.scope === 'own_actions' ? undefined : (id, name) => addFilter({ kind: 'person', id: String(id), name })}
+                                        onStudent={(id, name) => addFilter({ kind: 'student', id: String(id), name })}
+                                        onRecord={(table, id, name) => addFilter({ kind: 'record', table, id, name })} />
                                 ))}
                             </ul>
                         )}

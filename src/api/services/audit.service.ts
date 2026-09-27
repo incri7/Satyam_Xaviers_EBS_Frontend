@@ -66,6 +66,8 @@ export interface AuditEntry {
     params: { students?: Record<string, string>; more?: Record<string, number>; [k: string]: unknown };
     student_ids: number[];
     class_ids: number[];
+    /** Records in this entry from classes the viewer does not have. */
+    hidden_records?: number;
     ip_address?: string | null;
     user_agent?: string | null;
     path?: string | null;
@@ -75,6 +77,8 @@ export interface AuditEntry {
 export interface AuditPage {
     entries: AuditEntry[];
     total_count: number;
+    /** More than total_count match; the count stops there to stay fast. */
+    total_capped: boolean;
     scope: AuditScope;
     window_start: string | null;
 }
@@ -84,9 +88,17 @@ export interface AuditEventQuery {
     start_date?: string;
     end_date?: string;
     event?: string;
+    category?: string;
     actor_user_id?: number;
+    actor_role?: string;
     student_id?: number;
     class_id?: number;
+    /** With record_id: one record's whole history. */
+    table?: string;
+    record_id?: string;
+    /** Who did it, or a student's name. */
+    search?: string;
+    sort?: 'newest' | 'oldest';
     skip?: number;
     limit?: number;
 }

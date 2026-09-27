@@ -3444,7 +3444,6 @@
     "allEvents": "All events",
     "from": "From",
     "to": "To",
-    "byPerson": "By {{name}}",
     "scope": {
       "all": "Everything",
       "own_classes": "Own classes",
@@ -3698,6 +3697,24 @@
       "day_type": "Day type",
       "is_working_day": "School day",
       "events": "Events"
-    }
+    },
+    "role": "Done by",
+    "allRoles": "Anyone",
+    "search": "Search by person or student name",
+    "searchOwn": "Search by student name",
+    "sort": "Order",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "filterChip": {
+      "person": "By {{name}}",
+      "student": "About {{name}}",
+      "record": "History of {{name}}"
+    },
+    "recordHistory": "History of this record",
+    "entryCountCapped": "More than {{n}} entries; narrow the dates or filters to see a count",
+    "hiddenRecords_one": "{{n}} record from a class you do not have is not shown",
+    "hiddenRecords_other": "{{n}} records from classes you do not have are not shown",
+    "andOthers_one": "and {{count}} other",
+    "andOthers_other": "and {{count}} others"
   }
 }
