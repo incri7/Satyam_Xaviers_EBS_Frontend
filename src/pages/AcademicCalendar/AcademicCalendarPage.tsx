@@ -10,6 +10,7 @@ import { MonthPreview } from '../../features/calendar/MonthPreview';
 import { PRESET_2083, SATURDAY, WEEK_ORDER, countDays, eachDay, expandHolidays, type HolidayRange } from '../../features/calendar/days';
 import { errorText } from '../../features/people/format';
 import { useDateFormat } from '../../hooks/useDateFormat';
+import { DaysEditor } from '../../features/calendar/DaysEditor';
 import { academicYearLabel, currentAcademicYear } from '../../utils/academicYear';
 import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
@@ -123,7 +124,7 @@ const AcademicCalendarPage: React.FC = () => {
         <div key="year" className="flex flex-col gap-4">
             {year ? <Banner tone="info" title={t('calendarPage.yearExists', { name: academicYearLabel(year.name, lang) })}>{t('calendarPage.yearExistsBody')}</Banner> : null}
             <SelectField label={t('calendarPage.yearName')} value={name} disabled={!!year} onChange={(e) => { const b = boundsOf(e.target.value); setName(e.target.value); if (b) { setStart(b.start); setEnd(b.end); } }} hint={t('calendarPage.yearNameHint')}
-                options={(year && !yearChoices.includes(name) ? [name, ...yearChoices] : yearChoices).map((y) => ({ value: y, label: `${academicYearLabel(y, lang)} (${y})` }))} />
+                options={(year && !yearChoices.includes(name) ? [name, ...yearChoices] : yearChoices).map((y) => ({ value: y, label: academicYearLabel(y, lang) }))} />
             <FormRow>
                 <TextField label={t('academicCalendar.startDate')} type="date" value={start} disabled={!!year} onChange={(e) => setStart(e.target.value)} hint={start ? df.date(start, 'long') : t('calendarPage.startHint')}
                     error={tried && !start ? t('calendarPage.startError') : undefined} />
@@ -245,6 +246,8 @@ const AcademicCalendarPage: React.FC = () => {
                     </ul>
                 </Card>
             )}
+
+            {(years.data ?? []).some((y) => y.is_current && y.working_days_count) && <DaysEditor />}
 
             <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
                 <Card className="gap-4">

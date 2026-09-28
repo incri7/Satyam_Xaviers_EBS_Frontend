@@ -119,7 +119,7 @@ function FeeCard({ q }: { q: ReturnType<typeof useChildFees> }) {
     const { id } = useChildParam();
     const due = Number(q.data?.total_due ?? 0);
     const billed = (q.data?.fees ?? []).reduce((s, f) => s + Number(f.amount), 0);
-    const paid = (q.data?.fees ?? []).reduce((s, f) => s + Math.min(Number(f.paid_amount), Number(f.amount)), 0);
+    const paid = Math.min(Number(q.data?.total_paid ?? 0), billed);
     const heads = (q.data?.fees ?? []).filter((f) => Number(f.balance) > 0).map((f) => f.fee_name);
     return (
         <Card className="gap-3">

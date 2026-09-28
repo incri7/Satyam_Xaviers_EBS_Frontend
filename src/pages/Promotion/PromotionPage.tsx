@@ -211,7 +211,7 @@ const PromotionPage: React.FC = () => {
                             <div className="flex flex-wrap items-end gap-3">
                                 <SelectField label={t('promotionPage.target')} value={targetName} placeholder={t('peopleForms.choose')} containerClassName="w-full sm:w-[260px]"
                                     hint={targets.length ? undefined : t('promotionPage.noTarget')} onChange={(e) => setTarget(e.target.value)}
-                                    options={targets.map((y) => ({ value: y.name, label: `${academicYearLabel(y.name, lang)} (${y.name})` }))} />
+                                    options={targets.map((y) => ({ value: y.name, label: academicYearLabel(y.name, lang) }))} />
                                 <p className={cn('flex-1 type-small', unready.length ? 'text-warn' : 'text-ink-2')}>
                                     {unready.length ? t('promotionPage.unready', { count: unready.length, n: formatCount(unready.length, lang) }) : t('promotionPage.allReady', { n: formatCount(rows.length, lang) })}
                                 </p>

@@ -183,6 +183,10 @@ export interface StudentProfile {
         balance: number;
         ledger: {
             fee_structure_id: number;
+            assignment_id: number | null;
+            unit_amount: number;
+            periods: number;
+            scholarship: number;
             name: string;
             frequency: string;
             assigned: number;

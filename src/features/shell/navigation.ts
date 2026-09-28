@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom';
 import {
     Award,
     BookMarked,
+    Building2,
+    CalendarCheck,
     CalendarClock,
     CalendarDays,
     ClipboardCheck,
@@ -59,6 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     { id: 'attendance', group: 'teaching', icon: ClipboardCheck, labelKey: 'attendance', href: '/attendance', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
     { id: 'marks', group: 'teaching', icon: BookMarked, labelKey: 'marks', href: '/marks', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
+    { id: 'exams', group: 'teaching', icon: CalendarCheck, labelKey: 'exams', href: '/exams', roles: ['admin', 'principal', 'coordinator'] },
     { id: 'assignments', group: 'teaching', icon: ClipboardList, labelKey: 'assignments', href: '/assignments', roles: ['admin', 'principal', 'coordinator', 'teacher'] },
     { id: 'timetable', group: 'teaching', icon: CalendarClock, labelKey: 'timetable', href: '/timetable', roles: ['admin', 'principal', 'coordinator'] },
     { id: 'classes', group: 'teaching', icon: GraduationCap, labelKey: 'classes', href: '/academics', roles: ['admin', 'principal', 'coordinator'] },
@@ -71,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
     { id: 'outstanding', group: 'finance', icon: TrendingDown, labelKey: 'outstanding', href: '/finances/outstanding', roles: ['admin', 'principal', 'accountant'] },
     { id: 'ledger', group: 'finance', icon: FileSpreadsheet, labelKey: 'ledger', href: '/finances/ledger', roles: ['admin', 'principal', 'accountant'] },
 
+    { id: 'schoolDetails', group: 'school', icon: Building2, labelKey: 'schoolDetails', href: '/settings/school', roles: ['admin', 'principal'] },
     { id: 'calendar', group: 'school', icon: CalendarDays, labelKey: 'calendar', href: '/academic-calendar', roles: ['admin', 'principal'] },
     { id: 'promotion', group: 'school', icon: Award, labelKey: 'promotion', href: '/promotion', roles: ['admin', 'principal'] },
     { id: 'access', group: 'school', icon: Shield, labelKey: 'access', href: '/settings/permissions', roles: ['admin'] },

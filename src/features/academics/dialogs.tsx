@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { BookMarked, Check, UserCheck, UserX } from 'lucide-react';
 
-import { Avatar, Banner, Button, Checkbox, Dialog, Skeleton } from '../../design-system';
+import { Avatar, Banner, Button, Checkbox, Dialog, Skeleton, TextField } from '../../design-system';
 import { academicsService } from '../../api/services/academics.service';
 import { errorText } from '../people/format';
 import { cn } from '../../utils/cn';
@@ -114,7 +114,18 @@ export function ManageSubjectsDialog({
     const queryClient = useQueryClient();
     const [picked, setPicked] = useState<Set<number>>(() => new Set(currentIds));
     const [error, setError] = useState<string | null>(null);
+    const [newName, setNewName] = useState('');
     const subjects = useQuery({ queryKey: ['subjects', 'all'], queryFn: () => academicsService.getSubjects(), enabled: open });
+    // A subject the school does not have yet: made here and ticked for this class.
+    const create = useMutation({
+        mutationFn: () => academicsService.createSubject(newName.trim()),
+        onSuccess: (s) => {
+            queryClient.invalidateQueries({ queryKey: ['subjects'] });
+            setPicked((prev) => new Set(prev).add(s.id));
+            setNewName('');
+        },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+    });
 
     const save = useMutation({
         mutationFn: () => academicsService.setClassSubjects(classId, [...picked]),
@@ -163,6 +174,11 @@ export function ManageSubjectsDialog({
                         </div>
                     ))}
             </div>
+            <form className="flex items-end gap-2 border-t border-line-subtle pt-3" onSubmit={(e) => { e.preventDefault(); if (newName.trim()) { setError(null); create.mutate(); } }}>
+                <TextField label={t('academicsManage.newSubject')} placeholder={t('academicsManage.newSubjectPlaceholder')} value={newName}
+                    onChange={(e) => setNewName(e.target.value)} maxLength={100} containerClassName="flex-1" />
+                <Button type="submit" variant="quiet" loading={create.isPending} disabled={!newName.trim()}>{t('academicsManage.add')}</Button>
+            </form>
         </Dialog>
     );
 }

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Landmark } from 'lucide-react';
 
-import { Banner, Button, Dialog, FormRow, SegmentedControl, TextField } from '../../design-system';
+import { Banner, Button, Checkbox, Dialog, FormRow, SegmentedControl, TextField } from '../../design-system';
 import { academicsService } from '../../api/services/academics.service';
 import { financesService } from '../../api/services/finances.service';
 import { errorText } from '../../features/people/format';
@@ -41,6 +41,9 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
     const [frequency, setFrequency] = useState<FeeFrequency>('monthly');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
+    // Charge the new fee to the students already in those classes. On for
+    // recurring fees; a one-time fee (admission) is usually for new students only.
+    const [chargeNow, setChargeNow] = useState(true);
     const [tried, setTried] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,7 +55,7 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
 
     const close = () => {
         setName(''); setType(''); setAmount(''); setAllClasses(false); setPicked(classId ? [classId] : []);
-        setFrequency('monthly'); setFrom(''); setTo(''); setTried(false); setError(null);
+        setFrequency('monthly'); setFrom(''); setTo(''); setTried(false); setError(null); setChargeNow(true);
         onClose();
     };
 
@@ -74,7 +77,8 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
         let firstError: unknown = null;
         for (const id of targets) {
             try {
-                await financesService.createFeeStructure({ ...base, class_id: id });
+                const fee = await financesService.createFeeStructure({ ...base, class_id: id });
+                if (id !== undefined && chargeNow && frequency !== 'one_time') await financesService.chargeFeeToClass(fee.id, { class_id: id });
             } catch (err) {
                 if (id !== undefined) failed.push(id);
                 firstError ??= err;
@@ -82,6 +86,8 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
         }
         setBusy(false);
         queryClient.invalidateQueries({ queryKey: ['fee-structures'] });
+        queryClient.invalidateQueries({ queryKey: ['fee-reach'] });
+        queryClient.invalidateQueries({ queryKey: ['finances'] });
         if (!firstError) return close();
         if (!allClasses) setPicked(failed);
         const names = failed.map((id) => classList.find((c) => c.id === id)?.name).filter(Boolean).join(', ');
@@ -148,6 +154,14 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
                 <TextField label={t('financePage.newFee.to')} optional={t('peopleForms.optional')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
                     hint={to ? df.date(to) : undefined} error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
             </FormRow>
+
+            {!allClasses && (
+                <Checkbox checked={chargeNow && frequency !== 'one_time'} disabled={frequency === 'one_time'} onChange={(e) => setChargeNow(e.target.checked)}
+                    label={<span className="flex flex-col">
+                        <span className="type-small-semibold text-ink">{t('financePage.newFee.chargeNow')}</span>
+                        <span className="type-caption text-muted">{frequency === 'one_time' ? t('financePage.newFee.chargeNowOneTime') : t('financePage.newFee.chargeNowHint')}</span>
+                    </span>} />
+            )}
 
             {summary && <Banner tone="info" title={summary}>{t('financePage.newFee.summaryBody')}</Banner>}
         </Dialog>

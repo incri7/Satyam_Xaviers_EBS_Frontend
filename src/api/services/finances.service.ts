@@ -18,6 +18,8 @@ export interface OutstandingEntry {
     days_overdue: number;
     risk: 'High' | 'Medium' | 'Low';
     class_name: string | null;
+    /** Scholarship taken off the charges so far. */
+    scholarship?: number | string;
 }
 
 export interface OutstandingResponse {
@@ -105,6 +107,28 @@ export interface MonthlyReport {
     generated_at: string;
 }
 
+export interface StudentDueLine {
+    fee_structure_id: number;
+    assignment_id: number | null;
+    name: string;
+    frequency: string;
+    unit_amount: number | string;
+    periods: number;
+    due: number | string;
+    scholarship: number | string;
+    paid: number | string;
+    balance: number | string;
+}
+
+export interface StudentDues {
+    student_id: number;
+    class_name: string | null;
+    lines: StudentDueLine[];
+    balance: number | string;
+    credit: number | string;
+    other_paid: number | string;
+}
+
 export const financesService = {
     // Fee Structures
     getFeeStructures: async (activeOnly: boolean = false): Promise<FeeStructure[]> => {
@@ -142,6 +166,34 @@ export const financesService = {
     /** Newest first. Without a student, `limit` (max 500) pages through all payments. */
     listPayments: async (studentId?: number, page: { skip?: number; limit?: number } = {}): Promise<Payment[]> => {
         const response = await api.get('finances/payments', { params: { student_id: studentId, ...page } });
+        return response.data;
+    },
+    /** Charge one fee to every student in a class, or in one of its sections. */
+    chargeFeeToClass: async (feeId: number, body: { class_id: number; section_id?: number }): Promise<{ added: number; already: number; enrolled: number }> => {
+        const response = await api.post(`finances/fee-structures/${feeId}/charge`, body);
+        return response.data;
+    },
+    /** For each fee a class can pay: how many of its students are charged it. */
+    getFeeReach: async (classId: number): Promise<{ fee_structure_id: number; charged: number; enrolled: number }[]> => {
+        const response = await api.get('finances/fee-structures/reach', { params: { class_id: classId } });
+        return response.data;
+    },
+    /** Stop charging a fee to one student (refused once money is held against it). */
+    removeStudentFee: async (assignmentId: number): Promise<void> => {
+        await api.delete(`finances/student-fees/${assignmentId}`);
+    },
+    /** The school year month by month: fees that fell due and money taken. */
+    getYearReport: async (bsYear?: number): Promise<{
+        bs_year: number;
+        months: { bs_month: number; start: string; end: string; charged: number | string; collected: number | string }[];
+        charged: number | string; collected: number | string; outstanding: number | string;
+    }> => {
+        const response = await api.get('finances/reports/year', { params: bsYear ? { bs_year: bsYear } : undefined });
+        return response.data;
+    },
+    /** The fees charged to one student, each with what is left to pay. */
+    getStudentDues: async (studentId: number): Promise<StudentDues> => {
+        const response = await api.get(`finances/student-dues/${studentId}`);
         return response.data;
     },
     recordPayment: async (data: PaymentCreate): Promise<Payment> => {

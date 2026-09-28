@@ -1,9 +1,9 @@
 import { useId, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Ban, ChevronRight, Landmark, Pencil, Plus, RotateCw } from 'lucide-react';
+import { AlertCircle, Ban, ChevronRight, Landmark, Pencil, Plus, RotateCw, UserPlus } from 'lucide-react';
 
-import { ActionMenu, Badge, Button, Card, CardHeader, EmptyState, FilterChips, Skeleton } from '../../design-system';
+import { ActionMenu, Badge, Banner, Button, Card, CardHeader, Dialog, EmptyState, FilterChips, SelectField, Skeleton } from '../../design-system';
 import { useConfirmDialog } from '../common/useConfirmDialog';
 import { academicsService } from '../../api/services/academics.service';
 import { financesService } from '../../api/services/finances.service';
@@ -133,7 +133,15 @@ function ClassFees({ classId, className, fees, schoolWide, onAdd }: {
     const [confirmUI, confirm] = useConfirmDialog();
     const [noticeUI, notify] = useNotice();
     const [editing, setEditing] = useState<FeeStructure | null>(null);
+    const [charging, setCharging] = useState<FeeStructure | null>(null);
     const s = summariseFees(fees);
+    // How many of the class's students each fee reaches.
+    const reach = useQuery({
+        queryKey: ['fee-reach', classId],
+        queryFn: () => financesService.getFeeReach(classId),
+        staleTime: 60 * 1000,
+    });
+    const reachOf = (id: number) => reach.data?.find((r) => r.fee_structure_id === id);
 
     const deactivate = useMutation({
         mutationFn: financesService.deactivateFeeStructure,
@@ -161,9 +169,20 @@ function ClassFees({ classId, className, fees, schoolWide, onAdd }: {
                 <span className="truncate type-caption text-muted">
                     {[t(`financePage.freq.${f.frequency}`), scope, f.fee_type, f.valid_from ? t('financePage.fees.from', { date: df.date(f.valid_from) }) : null].filter(Boolean).join(', ')}
                 </span>
+                {f.is_active && reachOf(f.id) && reachOf(f.id)!.enrolled > 0 && (() => {
+                    const r = reachOf(f.id)!;
+                    const short = f.class_id != null && r.charged < r.enrolled;
+                    return (
+                        <span className={cn('type-caption', short ? 'text-warn' : 'text-muted')}>
+                            {t('financePage.fees.reach', { a: formatCount(r.charged, lang), b: formatCount(r.enrolled, lang), name: className })}
+                            {short && ` ${t('financePage.fees.reachShort', { count: r.enrolled - r.charged, n: formatCount(r.enrolled - r.charged, lang) })}`}
+                        </span>
+                    );
+                })()}
             </span>
             <span className={cn('shrink-0 type-body-semibold tabular-nums', f.is_active ? 'text-ink' : 'text-muted line-through')}>{formatRs(f.amount, lang)}</span>
             <ActionMenu label={t('financePage.payments.more')} items={[
+                { label: t('financePage.fees.chargeTo', { name: className }), icon: UserPlus, onSelect: () => setCharging(f), hidden: !f.is_active || !can('finances', 'create') },
                 { label: t('financePage.fees.edit'), icon: Pencil, onSelect: () => setEditing(f), hidden: !can('finances', 'update') },
                 { label: t('financePage.fees.stop'), icon: Ban, tone: 'bad', onSelect: () => askDeactivate(f), hidden: !f.is_active || !can('finances', 'delete') },
             ]} />
@@ -218,7 +237,58 @@ function ClassFees({ classId, className, fees, schoolWide, onAdd }: {
                 </Card>
             )}
 
+            {charging && <ChargeDialog fee={charging} classId={classId} className={className} reach={reachOf(charging.id)}
+                onDone={(res) => { setCharging(null); notify({ tone: 'ok', title: t('financePage.fees.charged', { count: res.added, n: formatCount(res.added, lang), name: charging.name }) }); }}
+                onClose={() => setCharging(null)} />}
             {editing && <EditFeeDialog key={editing.id} fee={editing} scope={editing.class_id == null ? t('financePage.fees.allClassesShort') : className} onClose={() => setEditing(null)} />}
         </div>
+    );
+}
+
+/** Charge one fee to a whole class, or to one of its sections. */
+function ChargeDialog({ fee, classId, className, reach, onDone, onClose }: {
+    fee: FeeStructure;
+    classId: number;
+    className: string;
+    reach?: { charged: number; enrolled: number };
+    onDone: (res: { added: number; already: number; enrolled: number }) => void;
+    onClose: () => void;
+}) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const queryClient = useQueryClient();
+    const [sectionId, setSectionId] = useState('');
+    const sections = useQuery({ queryKey: ['sections', classId], queryFn: () => academicsService.getSections({ class_id: classId, limit: 100 }) });
+    const charge = useMutation({
+        mutationFn: () => financesService.chargeFeeToClass(fee.id, { class_id: classId, section_id: sectionId ? Number(sectionId) : undefined }),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ['fee-reach'] });
+            queryClient.invalidateQueries({ queryKey: ['finances'] });
+            onDone(res);
+        },
+    });
+    const missing = reach ? reach.enrolled - reach.charged : undefined;
+    const list = sections.data?.sections ?? [];
+    return (
+        <Dialog open onClose={onClose} dismissible={!charge.isPending} icon={UserPlus}
+            title={t('financePage.fees.chargeTitle', { name: fee.name })}
+            subtitle={t('financePage.fees.chargeSub', { amount: formatRs(fee.amount, lang), often: t(`financePage.freq.${fee.frequency}`) })}
+            closeLabel={t('common.close')}
+            footer={<>
+                <Button variant="quiet" onClick={onClose} disabled={charge.isPending}>{t('classesPage.dialog.cancel')}</Button>
+                <Button leftIcon={UserPlus} loading={charge.isPending} onClick={() => charge.mutate()}>{t('financePage.fees.chargeButton')}</Button>
+            </>}>
+            {charge.isError && <Banner tone="bad" title={t('financePage.fees.chargeFailed')}>{errorText(charge.error, t('peoplePage.error.body'))}</Banner>}
+            <SelectField label={t('financePage.fees.chargeWho')} value={sectionId} onChange={(e) => setSectionId(e.target.value)}
+                options={[{ value: '', label: t('financePage.fees.wholeClass', { name: className }) },
+                    ...list.map((s) => ({ value: String(s.id), label: t('financePage.fees.sectionOnly', { name: `${className} ${s.name}` }) }))]} />
+            {!sectionId && missing !== undefined && (
+                <p className="type-small text-ink-2">
+                    {missing > 0 ? t('financePage.fees.willCharge', { count: missing, n: formatCount(missing, lang), already: formatCount(reach!.charged, lang) })
+                        : t('financePage.fees.allCharged', { n: formatCount(reach!.enrolled, lang) })}
+                </p>
+            )}
+            <p className="type-caption text-muted">{t('financePage.fees.chargeNote')}</p>
+        </Dialog>
     );
 }

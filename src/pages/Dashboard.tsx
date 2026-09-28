@@ -11,6 +11,8 @@ import { QuickActions } from '../features/dashboard/QuickActions';
 import { EnrolmentTrendCard } from '../features/dashboard/EnrolmentTrendCard';
 import { AttendanceByClassCard } from '../features/dashboard/AttendanceByClassCard';
 import { FeeCollectionCard } from '../features/dashboard/FeeCollectionCard';
+import { FeeYearCard } from '../features/dashboard/FeeYearCard';
+import { SetupChecklistCard } from '../features/dashboard/SetupChecklistCard';
 import { RecentNoticesCard } from '../features/dashboard/RecentNoticesCard';
 import { useStudentCount } from '../features/dashboard/queries';
 import { useWelcome } from '../features/shell/identity';
@@ -41,6 +43,8 @@ const Dashboard = () => {
 
                         <QuickActions />
 
+                        <SetupChecklistCard />
+
                         <AccessControl id="enrollment_trends">
                             <div className="grid gap-3.5 lg:grid-cols-2">
                                 <EnrolmentTrendCard />
@@ -50,6 +54,7 @@ const Dashboard = () => {
                                 <FeeCollectionCard />
                                 <RecentNoticesCard />
                             </div>
+                            <FeeYearCard />
                         </AccessControl>
                     </div>
                 </div>

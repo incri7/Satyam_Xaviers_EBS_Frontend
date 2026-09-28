@@ -60,11 +60,22 @@ export interface Payment {
     receipt_no?: string;
     transaction_id?: string;
     received_by_user_id?: number;
+    /** What it was for: one line per fee on the receipt. */
+    lines?: PaymentLine[];
+}
+
+/** One fee paid on a receipt. */
+export interface PaymentLine {
+    fee_structure_id: number;
+    fee_name?: string | null;
+    amount: number;
 }
 
 export interface PaymentCreate {
     student_id: number;
     fee_structure_id?: number;
+    /** Several fees on one receipt; the amount is their total. */
+    lines?: PaymentLine[];
     amount: number;
     method: PaymentMethod;
     paid_at: string;

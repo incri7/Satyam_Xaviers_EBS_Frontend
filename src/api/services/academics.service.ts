@@ -103,6 +103,12 @@ export const academicsService = {
         return response.data;
     },
 
+    /** End an enrolment with the reason, or make it current again. */
+    changeEnrollmentStatus: async (id: number, body: { status: string; note?: string; ended_on?: string }): Promise<Enrollment> => {
+        const response = await api.patch<Enrollment>(`academics/enrollments/${id}/status`, body);
+        return response.data;
+    },
+
     deleteEnrollment: async (id: number): Promise<void> => {
         await api.delete(`academics/enrollments/${id}`);
     },

@@ -23,6 +23,10 @@ export interface Enrollment {
   section_id: number | null;
   academic_year: string;
   is_active: boolean;
+  /** active, promoted, repeating, graduated, transferred or left. */
+  status?: string;
+  status_note?: string | null;
+  ended_on?: string | null;
   created_at: string;
   updated_at: string;
   class_?: Class;

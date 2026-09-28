@@ -94,9 +94,14 @@ export interface MarksResponse {
 export interface FeeRecord {
     fee_name: string;
     frequency: string;
+    /** Charged so far this school year, after any scholarship. */
     amount: number | string;
     paid_amount: number | string;
     balance: number | string;
+    /** One period's charge, and how many periods have fallen due (6 x Rs 3,300). */
+    unit_amount: number | string | null;
+    periods: number;
+    scholarship: number | string;
 }
 
 export interface PaymentHistoryEntry {
@@ -113,6 +118,10 @@ export interface FeeBalanceResponse {
     fees: FeeRecord[];
     total_due: number | string;
     payment_history: PaymentHistoryEntry[];
+    /** Paid this school year; the part made against no charged fee; paid ahead. */
+    total_paid: number | string;
+    other_paid: number | string;
+    credit: number | string;
 }
 
 export const parentService = {

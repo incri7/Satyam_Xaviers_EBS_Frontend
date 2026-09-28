@@ -54,6 +54,8 @@ export const peopleService = {
         filter_by_status?: string;
         class_id?: number;
         section_id?: number;
+        /** Current students with no current enrolment. */
+        unenrolled?: boolean;
         gender?: string;
         sort_by?: 'name' | 'admission_no' | 'dob' | 'gender' | 'status' | 'admission_date';
         sort_dir?: 'asc' | 'desc';

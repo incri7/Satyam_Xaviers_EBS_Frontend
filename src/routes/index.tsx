@@ -18,6 +18,8 @@ import LedgerPage from '../pages/Finances/LedgerPage';
 import CommunicationPage from '../pages/CommunicationPage';
 import AttendancePage from '../pages/Attendance/AttendancePage';
 import MarksPage from '../pages/Marks/MarksPage';
+import ExamsPage from '../pages/Exams/ExamsPage';
+import SchoolSettingsPage from '../pages/Settings/SchoolSettingsPage';
 import AssignmentsPage from '../pages/Assignments/AssignmentsPage';
 import TeacherHome from '../pages/Home/TeacherHome';
 import ParentHome from '../pages/Home/ParentHome';
@@ -129,6 +131,14 @@ export const router = createBrowserRouter([
             },
 
             // ── Teaching ───────────────────────────────────────────────
+            {
+                element: <RoleRoute roles={['principal', 'coordinator']} />,
+                children: [{ path: '/exams', element: <ExamsPage /> }],
+            },
+            {
+                element: <RoleRoute roles={['principal']} />,
+                children: [{ path: '/settings/school', element: <SchoolSettingsPage /> }],
+            },
             {
                 element: <RoleRoute roles={['teacher', 'principal', 'coordinator']} />,
                 children: [

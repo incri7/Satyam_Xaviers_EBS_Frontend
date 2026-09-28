@@ -241,6 +241,19 @@ export function bsYearMonth(offset = 0, now: Date = new Date()): { year: number;
 }
 
 /** The school's year, Baisakh to Chaitra, as English dates (YYYY-MM-DD). */
+/** First and last day of a BS month (month 1 = Baisakh), as ISO dates. */
+export function bsMonthBounds(bsYear: number, bsMonth: number): { start: string; end: string } | null {
+    try {
+        const start = new NepaliDate(bsYear, bsMonth - 1, 1).toJsDate();
+        const next = bsMonth === 12 ? new NepaliDate(bsYear + 1, 0, 1) : new NepaliDate(bsYear, bsMonth, 1);
+        const end = next.toJsDate();
+        end.setDate(end.getDate() - 1);
+        return { start: isoLocal(start), end: isoLocal(end) };
+    } catch {
+        return null;
+    }
+}
+
 export function bsYearBounds(bsYear: number): { start: string; end: string } | null {
     try {
         const start = new NepaliDate(bsYear, 0, 1).toJsDate();

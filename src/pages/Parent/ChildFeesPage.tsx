@@ -11,7 +11,7 @@ import { useChildFees } from '../../features/parent/queries';
 import { errorText } from '../../features/people/format';
 import { useChildParam } from '../../features/parent/helpers';
 import { useDateFormat } from '../../hooks/useDateFormat';
-import { formatRs } from '../../utils/money';
+import { formatCount, formatRs } from '../../utils/money';
 import { cn } from '../../utils/cn';
 
 /**
@@ -63,7 +63,9 @@ function BalanceHero({ data }: { data: FeeBalanceResponse }) {
                     <span className="grid size-8 place-items-center rounded-full bg-white/20"><Check size={18} aria-hidden /></span>
                     <h2 className="type-h1">{t('childPage.noFeesDue')}</h2>
                 </div>
-                <p className="type-body text-white/88">{t('childPage.everythingPaid')}</p>
+                <p className="type-body text-white/88">
+                    {Number(data.credit) > 0 ? t('childPage.paidAhead', { amount: formatRs(data.credit, lang) }) : t('childPage.everythingPaid')}
+                </p>
             </section>
         );
     }
@@ -79,6 +81,12 @@ function BalanceHero({ data }: { data: FeeBalanceResponse }) {
                             <span className="shrink-0 type-small-semibold">{formatRs(f.balance, lang)}</span>
                         </li>
                     ))}
+                    {Number(data.other_paid) > 0 && (
+                        <li className="flex justify-between gap-3 border-t border-white/14 pt-2">
+                            <span className="min-w-0 truncate type-small text-white/88">{t('childPage.otherPaid')}</span>
+                            <span className="shrink-0 type-small-semibold">−{formatRs(data.other_paid, lang)}</span>
+                        </li>
+                    )}
                 </ul>
             )}
         </section>
@@ -150,7 +158,13 @@ function FeeLines({ data, loading }: { data?: FeeBalanceResponse; loading: boole
     const { lang } = useDateFormat();
     const fees = data?.fees ?? [];
     const billed = fees.reduce((s, f) => s + Number(f.amount), 0);
-    const paid = fees.reduce((s, f) => s + Math.min(Number(f.paid_amount), Number(f.amount)), 0);
+    const paid = Math.min(Number(data?.total_paid ?? 0), billed);
+    const often = (f: FeeRecord) => {
+        const kind = t(`childPage.often.${f.frequency}`, { defaultValue: f.frequency });
+        return f.periods > 1 && f.unit_amount != null ? t('childPage.periodsOf', { kind, n: formatCount(f.periods, lang), amount: formatRs(f.unit_amount, lang) }) : kind;
+    };
+    const scholarship = (f: FeeRecord) => Number(f.scholarship) > 0
+        && <span className="block type-caption text-ok">{t('childPage.scholarshipOff', { amount: formatRs(f.scholarship, lang) })}</span>;
     const status = (f: FeeRecord) => Number(f.balance) <= 0
         ? <Badge tone="ok">{t('childPage.paidInFull')}</Badge>
         : Number(f.paid_amount) > 0 ? <Badge tone="warn">{t('childPage.partPaid', { amount: formatRs(f.balance, lang) })}</Badge>
@@ -187,9 +201,9 @@ function FeeLines({ data, loading }: { data?: FeeBalanceResponse; loading: boole
                             : fees.map((f, i) => (
                                 <Tr key={`${f.fee_name}-${i}`} className={cn(Number(f.balance) > 0 && 'bg-warn-soft/40')}>
                                     <Td className="type-body-semibold text-ink">{f.fee_name}</Td>
-                                    <Td className="type-small text-ink-2">{t(`childPage.often.${f.frequency}`, { defaultValue: f.frequency })}</Td>
+                                    <Td className="type-small text-ink-2">{often(f)}{scholarship(f)}</Td>
                                     <Td className="text-right type-body-semibold tabular-nums text-ink">{formatRs(f.amount, lang)}</Td>
-                                    <Td className="text-right tabular-nums text-ink-2">{formatRs(Math.min(Number(f.paid_amount), Number(f.amount)), lang)}</Td>
+                                    <Td className="text-right tabular-nums text-ink-2">{formatRs(f.paid_amount, lang)}</Td>
                                     <Td>{status(f)}</Td>
                                 </Tr>
                             ))}
@@ -205,7 +219,8 @@ function FeeLines({ data, loading }: { data?: FeeBalanceResponse; loading: boole
                             <li key={`${f.fee_name}-${i}`} className="flex items-center gap-2.5 border-t border-line-subtle py-2.5">
                                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                                     <p className="type-body-semibold text-ink">{f.fee_name}</p>
-                                    <p className="type-caption text-muted">{t(`childPage.often.${f.frequency}`, { defaultValue: f.frequency })}</p>
+                                    <p className="type-caption text-muted">{often(f)}</p>
+                                    {scholarship(f)}
                                 </div>
                                 <div className="flex shrink-0 flex-col items-end gap-1">
                                     <span className="type-body-semibold text-ink">{formatRs(f.amount, lang)}</span>

@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
     AlertCircle, CalendarDays, CheckCircle2, ChevronDown, ClipboardList, Droplet, GraduationCap,
-    MapPin, Mail, Pencil, Phone, Receipt, RotateCw, Umbrella, Users, Wallet,
+    MapPin, Mail, Pencil, Phone, Plus, Receipt, RotateCw, Trash2, Umbrella, Users, Wallet,
 } from 'lucide-react';
 
-import { Badge, Button, Card, CardHeader, EmptyState, Skeleton, Tabs, type TabItem } from '../../design-system';
+import { Badge, Banner, Button, Card, CardHeader, Dialog, EmptyState, IconButton, SelectField, Skeleton, Tabs, type TabItem } from '../../design-system';
+import { financesService } from '../../api/services/finances.service';
+import { useConfirmDialog } from '../../components/common/useConfirmDialog';
+import { useFeeStructures } from '../../features/finance/queries';
+import { errorText } from '../../features/people/format';
+import { useNotice } from '../../features/people/useNotice';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { AppPage } from '../../components/layout/AppPage';
 import { AccessControl } from '../../components/AccessControl';
 import { EditStudentModal } from '../../components/people/EditStudentModal';
@@ -31,7 +37,9 @@ const DAY_TONE: Record<string, string> = {
 const StudentDetailPage = () => {
     const { studentId } = useParams();
     const { t } = useTranslation();
-    const [tab, setTab] = useState<Tab>('overview');
+    // ?tab=fees opens straight on a tab (the payment form links here).
+    const [params] = useSearchParams();
+    const [tab, setTab] = useState<Tab>(() => (['overview', 'attendance', 'marks', 'fees', 'guardians'].includes(params.get('tab') ?? '') ? params.get('tab') as Tab : 'overview'));
     const [editing, setEditing] = useState(false);
     const id = Number(studentId);
 
@@ -241,39 +249,85 @@ function ExamRow({ exam, open, onToggle }: { exam: ExamResult; open: boolean; on
 function Fees({ data }: { data: StudentProfile }) {
     const { t } = useTranslation();
     const df = useDateFormat();
+    const queryClient = useQueryClient();
+    const can = usePermissionsStore((s) => s.hasPermission);
+    const [confirmUI, confirm] = useConfirmDialog();
+    const [noticeUI, notify] = useNotice();
+    const [adding, setAdding] = useState(false);
     const { fees } = data;
     const last = fees.payments.find((p) => p.amount > 0);
+    const refresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['student-profile', data.student.id] });
+        queryClient.invalidateQueries({ queryKey: ['finances'] });
+        queryClient.invalidateQueries({ queryKey: ['fee-reach'] });
+    };
+    const remove = useMutation({
+        mutationFn: (assignmentId: number) => financesService.removeStudentFee(assignmentId),
+        onSuccess: refresh,
+        onError: (err) => notify({ tone: 'bad', title: t('profilePage.feeRemoveFailed'), body: errorText(err, t('peoplePage.error.body')) }),
+    });
+    const askRemove = (l: StudentProfile['fees']['ledger'][number]) => confirm({
+        title: t('profilePage.feeRemoveTitle', { name: l.name }),
+        body: t('profilePage.feeRemoveBody', { student: data.student.first_name }),
+        confirmLabel: t('profilePage.feeRemove'),
+        onConfirm: () => remove.mutate(l.assignment_id!),
+    });
+    const often = (l: StudentProfile['fees']['ledger'][number]) => {
+        const kind = t(`childPage.often.${l.frequency}`, { defaultValue: l.frequency });
+        return l.periods > 1 ? t('childPage.periodsOf', { kind, n: formatCount(l.periods, df.lang), amount: formatRs(l.unit_amount, df.lang) }) : kind;
+    };
     return (
         <Card className="gap-2.5">
-            <CardHeader title={t('profile.feeLedger')} subtitle={last?.paid_at ? t('profilePage.lastPayment', { amount: formatRs(last.amount, df.lang), date: df.date(last.paid_at, 'medium') }) : undefined} />
-            <div className="-mx-5 overflow-x-auto">
-                <table className="w-full min-w-[460px] text-left">
-                    <thead className="border-y border-line-subtle bg-surface-2">
-                        <tr className="type-caption text-muted">
-                            <th className="px-5 py-2">{t('profile.feeHead')}</th>
-                            <th className="px-3 py-2 text-right">{t('profile.assigned')}</th>
-                            <th className="px-3 py-2 text-right">{t('profile.paid')}</th>
-                            <th className="px-5 py-2 text-right">{t('profile.balance')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {fees.ledger.map((l) => (
-                            <tr key={l.fee_structure_id} className="border-b border-line-subtle type-small">
-                                <td className="px-5 py-3"><span className="font-medium text-ink">{l.name}</span> <span className="text-muted">{l.frequency}</span></td>
-                                <td className="px-3 py-3 text-right tabular-nums text-ink-2">{formatRs(l.assigned, df.lang)}</td>
-                                <td className="px-3 py-3 text-right tabular-nums text-ok">{formatRs(l.paid, df.lang)}</td>
-                                <td className={cn('px-5 py-3 text-right font-semibold tabular-nums', l.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(l.balance, df.lang)}</td>
+            {confirmUI}
+            {noticeUI}
+            <CardHeader title={t('profile.feeLedger')} subtitle={last?.paid_at ? t('profilePage.lastPayment', { amount: formatRs(last.amount, df.lang), date: df.date(last.paid_at, 'medium') }) : undefined}
+                action={can('finances', 'create') && <Button variant="quiet" size="sm" leftIcon={Plus} onClick={() => setAdding(true)}>{t('profilePage.feeAdd')}</Button>} />
+            {fees.ledger.length === 0 ? (
+                <EmptyState icon={Wallet} title={t('profilePage.noFees')}
+                    action={can('finances', 'create') && <Button variant="quiet" size="sm" leftIcon={Plus} onClick={() => setAdding(true)}>{t('profilePage.feeAdd')}</Button>}>
+                    {t('profilePage.noFeesBody')}
+                </EmptyState>
+            ) : (
+                <div className="-mx-5 overflow-x-auto">
+                    <table className="w-full min-w-[460px] text-left">
+                        <thead className="border-y border-line-subtle bg-surface-2">
+                            <tr className="type-caption text-muted">
+                                <th className="px-5 py-2">{t('profile.feeHead')}</th>
+                                <th className="px-3 py-2 text-right">{t('profile.assigned')}</th>
+                                <th className="px-3 py-2 text-right">{t('profile.paid')}</th>
+                                <th className="px-3 py-2 text-right">{t('profile.balance')}</th>
+                                <th className="w-12 pr-3"><span className="sr-only">{t('classesPage.col.actions')}</span></th>
                             </tr>
-                        ))}
-                        <tr className="type-small-semibold">
-                            <td className="px-5 py-2.5 text-ink">{t('profilePage.total')}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-ink">{formatRs(fees.total_assigned, df.lang)}</td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-ok">{formatRs(fees.total_paid, df.lang)}</td>
-                            <td className={cn('px-5 py-2.5 text-right tabular-nums', fees.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(fees.balance, df.lang)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            {fees.ledger.map((l) => (
+                                <tr key={l.fee_structure_id} className="border-b border-line-subtle type-small">
+                                    <td className="px-5 py-3">
+                                        <span className="block font-medium text-ink">{l.name}</span>
+                                        <span className="block type-caption text-muted">{often(l)}{l.scholarship > 0 && `, ${t('childPage.scholarshipOff', { amount: formatRs(l.scholarship, df.lang) })}`}</span>
+                                    </td>
+                                    <td className="px-3 py-3 text-right tabular-nums text-ink-2">{formatRs(l.assigned, df.lang)}</td>
+                                    <td className="px-3 py-3 text-right tabular-nums text-ok">{formatRs(l.paid, df.lang)}</td>
+                                    <td className={cn('px-3 py-3 text-right font-semibold tabular-nums', l.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(l.balance, df.lang)}</td>
+                                    <td className="pr-3">
+                                        {can('finances', 'delete') && l.assignment_id && (
+                                            <IconButton icon={Trash2} size={32} variant="ghost" label={t('profilePage.feeRemoveLabel', { name: l.name })} onClick={() => askRemove(l)} />
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            <tr className="type-small-semibold">
+                                <td className="px-5 py-2.5 text-ink">{t('profilePage.total')}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-ink">{formatRs(fees.total_assigned, df.lang)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums text-ok">{formatRs(fees.total_paid, df.lang)}</td>
+                                <td className={cn('px-3 py-2.5 text-right tabular-nums', fees.balance > 0 ? 'text-bad' : 'text-muted')}>{formatRs(fees.balance, df.lang)}</td>
+                                <td />
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {adding && <AddFeeDialog data={data} onClose={() => setAdding(false)} onAdded={() => { setAdding(false); refresh(); }} />}
             {fees.payments.length > 0 && (
                 <div className="flex flex-col">
                     <p className="mt-2 mb-1 type-caption-semibold text-muted">{t('profile.payments')}</p>
@@ -292,6 +346,45 @@ function Fees({ data }: { data: StudentProfile }) {
                 </div>
             )}
         </Card>
+    );
+}
+
+/** Charge one more fee to this student: their class's fees and the school-wide ones. */
+function AddFeeDialog({ data, onClose, onAdded }: { data: StudentProfile; onClose: () => void; onAdded: () => void }) {
+    const { t } = useTranslation();
+    const { lang } = useDateFormat();
+    const fees = useFeeStructures(true);
+    const [feeId, setFeeId] = useState('');
+    const have = new Set(data.fees.ledger.map((l) => l.fee_structure_id));
+    const classId = data.enrollment?.class_id;
+    const options = (fees.data ?? [])
+        .filter((f) => f.is_active && !have.has(f.id) && (f.class_id == null || f.class_id === classId))
+        .sort((a, b) => Number(a.class_id == null) - Number(b.class_id == null) || a.name.localeCompare(b.name));
+    const add = useMutation({
+        mutationFn: () => financesService.assignFeeToStudent({ student_id: data.student.id, fee_structure_id: Number(feeId) }),
+        onSuccess: onAdded,
+    });
+    return (
+        <Dialog open onClose={onClose} dismissible={!add.isPending} icon={Wallet}
+            title={t('profilePage.feeAddTitle', { name: data.student.first_name })}
+            subtitle={data.enrollment?.class_name ? t('profilePage.feeAddSub', { name: data.enrollment.class_name }) : undefined}
+            closeLabel={t('common.close')}
+            footer={<>
+                <Button variant="quiet" onClick={onClose} disabled={add.isPending}>{t('classesPage.dialog.cancel')}</Button>
+                <Button leftIcon={Plus} loading={add.isPending} disabled={!feeId} onClick={() => add.mutate()}>{t('profilePage.feeAdd')}</Button>
+            </>}>
+            {add.isError && <Banner tone="bad" title={t('profilePage.feeAddFailed')}>{errorText(add.error, t('peoplePage.error.body'))}</Banner>}
+            {fees.isPending ? <Skeleton className="h-12" /> : options.length === 0 ? (
+                <p className="type-small text-muted">{t('profilePage.feeNoneLeft')}</p>
+            ) : (
+                <SelectField label={t('profilePage.feeWhich')} value={feeId} placeholder={t('profilePage.feePick')} onChange={(e) => setFeeId(e.target.value)}
+                    options={options.map((f) => ({
+                        value: String(f.id),
+                        label: `${f.name} · ${formatRs(f.amount, lang)} · ${t(`financePage.freq.${f.frequency}`)}${f.class_id == null ? ` · ${t('financePage.fees.allClassesShort')}` : ''}`,
+                    }))} />
+            )}
+            <p className="type-caption text-muted">{t('profilePage.feeAddNote')}</p>
+        </Dialog>
     );
 }
 

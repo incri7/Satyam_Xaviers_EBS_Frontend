@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, ArrowLeft, CheckCircle2, Layers, Loader2, RotateCw, Send, TrendingDown, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, FileSpreadsheet, Layers, Loader2, RotateCw, Send, TrendingDown, X } from 'lucide-react';
 
 import {
     Badge, Button, Card, Checkbox, EmptyState, FilterChips, IconButton, ListCard, Person, SearchField, Skeleton,
@@ -14,7 +14,8 @@ import { Pagination } from '../../components/common/Pagination';
 import { SelectMenu } from '../../components/common/SelectMenu';
 import { useConfirmDialog } from '../../components/common/useConfirmDialog';
 import { KpiCard } from '../../features/dashboard/KpiCard';
-import { financesService, type OutstandingEntry } from '../../api/services/finances.service';
+import { downloadSheet, fetchAll } from '../../utils/exportSheet';
+import { financesService, type OutstandingEntry, type OutstandingResponse } from '../../api/services/finances.service';
 import { academicsService } from '../../api/services/academics.service';
 import { useListControls } from '../../features/people/useListControls';
 import { useNotice } from '../../features/people/useNotice';
@@ -58,15 +59,26 @@ export default function OutstandingFeesPage() {
         }),
         placeholderData: (prev) => prev,
     });
-    // School-wide figures and the count behind each risk chip, unaffected by the filters.
-    const [whole, ...byRisk] = useQueries({
+    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), staleTime: 5 * 60 * 1000 });
+    // The cards and the count behind each risk chip follow the class and
+    // search chosen (the whole school with neither); risk narrows only the list.
+    const scoped = { class_id: classId ? Number(classId) : undefined, search: list.search || undefined };
+    const [scope, ...byRisk] = useQueries({
         queries: [undefined, ...RISKS].map((r) => ({
-            queryKey: ['finances', 'outstanding', 'count', r ?? 'all'],
-            queryFn: () => financesService.getOutstanding({ limit: 1, risk: r }),
+            queryKey: ['finances', 'outstanding', 'count', r ?? 'all', scoped],
+            queryFn: () => financesService.getOutstanding({ limit: 1, risk: r, ...scoped }),
             staleTime: 30 * 1000,
+            placeholderData: (prev: OutstandingResponse | undefined) => prev,
         })),
     });
-    const classes = useQuery({ queryKey: ['classes', 'all'], queryFn: () => academicsService.getClasses({ limit: 100 }), staleTime: 5 * 60 * 1000 });
+    // "Remind all" reaches every family that owes, so its count stays school-wide.
+    const whole = useQuery({
+        queryKey: ['finances', 'outstanding', 'count', 'all', {}],
+        queryFn: () => financesService.getOutstanding({ limit: 1 }),
+        staleTime: 30 * 1000,
+    });
+    const scopedByFilter = !!(classId || list.search);
+    const className = classId ? (classes.data?.classes ?? []).find((c) => String(c.id) === classId)?.name : undefined;
 
     const remind = useMutation({
         mutationFn: (ids?: number[]) => financesService.sendBulkReminders(ids),
@@ -77,6 +89,26 @@ export default function OutstandingFeesPage() {
     const sendOne = (e: OutstandingEntry) => { setSendingTo(e.student_id); remind.mutate([e.student_id]); };
     const sendSelected = () => { setSendingTo('many'); remind.mutate(selected); };
     const everyone = whole.data?.total_count ?? 0;
+    const [exporting, setExporting] = useState(false);
+    const exportSheet = async () => {
+        setExporting(true);
+        try {
+            const all = await fetchAll((offset, limit) => financesService.getOutstanding({
+                limit, offset, search: list.search || undefined, risk: risk === ALL ? undefined : risk,
+                class_id: classId ? Number(classId) : undefined,
+            }).then((r) => ({ items: r.entries, total: r.total_count })), 500);
+            await downloadSheet(`outstanding-fees-${new Date().toISOString().slice(0, 10)}`, t('outstandingPage.title'),
+                [t('financePage.col.student'), t('exportSheet.admissionNo'), t('outstandingPage.class'), t('exportSheet.charged'), t('exportSheet.scholarship'),
+                    t('exportSheet.paid'), t('outstandingPage.balance'), t('exportSheet.daysOverdue'), t('outstandingPage.riskLabel')],
+                all.map((e) => [e.student_name, e.admission_no, e.class_name, Number(e.total_assigned), Number(e.scholarship ?? 0), Number(e.total_paid),
+                    Number(e.balance), e.days_overdue, t(`outstandingPage.risk.${e.risk}`)]));
+        } catch (err) {
+            notify({ tone: 'bad', title: t('exportSheet.failed'), body: errorText(err, t('peoplePage.error.body')) });
+        } finally {
+            setExporting(false);
+        }
+    };
+    const inScope = scope.data?.total_count ?? 0;
     const askRemindAll = () =>
         confirm({
             title: t('outstandingPage.remindAllTitle', { n: formatCount(everyone, lang) }),
@@ -145,13 +177,14 @@ export default function OutstandingFeesPage() {
             {noticeUI}
 
             <div className="grid min-w-0 gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-4">
-                <CollectedCard status={whole.isPending ? 'loading' : whole.isError ? 'error' : 'ready'} collected={Number(whole.data?.total_collected ?? 0)}
-                    raised={Number(whole.data?.total_raised ?? 0)} onRetry={() => void whole.refetch()} />
-                <KpiCard icon={TrendingDown} tone="bad" label={t('outstandingPage.outstanding')} long
-                    status={whole.isPending ? 'loading' : whole.isError ? 'error' : 'ready'} onRetry={() => void whole.refetch()}
-                    value={formatRs(whole.data?.total_outstanding ?? 0, lang)}
-                    sub={<span>{everyone > 0
-                        ? t('outstandingPage.average', { count: everyone, n: formatCount(everyone, lang), avg: formatRs(Number(whole.data?.total_outstanding ?? 0) / everyone, lang) })
+                <CollectedCard status={scope.isPending ? 'loading' : scope.isError ? 'error' : 'ready'} collected={Number(scope.data?.total_collected ?? 0)}
+                    raised={Number(scope.data?.total_raised ?? 0)} onRetry={() => void scope.refetch()}
+                    scopeLabel={scopedByFilter ? (className ? t('outstandingPage.forClass', { name: className }) : t('outstandingPage.forSearch')) : undefined} />
+                <KpiCard icon={TrendingDown} tone="bad" label={className ? t('outstandingPage.outstandingIn', { name: className }) : t('outstandingPage.outstanding')} long
+                    status={scope.isPending ? 'loading' : scope.isError ? 'error' : 'ready'} onRetry={() => void scope.refetch()}
+                    value={formatRs(scope.data?.total_outstanding ?? 0, lang)}
+                    sub={<span>{inScope > 0
+                        ? t('outstandingPage.average', { count: inScope, n: formatCount(inScope, lang), avg: formatRs(Number(scope.data?.total_outstanding ?? 0) / inScope, lang) })
                         : t('outstandingPage.allClear')}</span>} />
             </div>
 
@@ -160,6 +193,7 @@ export default function OutstandingFeesPage() {
                 <SearchField value={list.searchInput} onChange={list.setSearchInput} placeholder={t('outstandingPage.search')} clearLabel={t('common.clear')} containerClassName="md:w-[280px]" />
                 <SelectMenu value={classId} onChange={list.filter(setClassId)} label={t('outstandingPage.class')} icon={<Layers />}
                     options={[{ value: '', label: t('classesPage.enrolments.allClasses') }, ...(classes.data?.classes ?? []).map((c) => ({ value: String(c.id), label: c.name }))]} />
+                <Button variant="quiet" size="sm" leftIcon={FileSpreadsheet} loading={exporting} disabled={!data?.total_count} onClick={() => void exportSheet()}>{t('exportSheet.button')}</Button>
             </Toolbar>
 
             {selected.length > 0 && (
@@ -242,7 +276,7 @@ export default function OutstandingFeesPage() {
 }
 
 /** Figma E07 "Collected so far": taken against raised, as one bar. */
-function CollectedCard({ status, collected, raised, onRetry }: { status: 'loading' | 'error' | 'ready'; collected: number; raised: number; onRetry: () => void }) {
+function CollectedCard({ status, collected, raised, onRetry, scopeLabel }: { status: 'loading' | 'error' | 'ready'; collected: number; raised: number; onRetry: () => void; scopeLabel?: string }) {
     const { t } = useTranslation();
     const { lang } = useDateFormat();
     const titleId = useId();
@@ -261,7 +295,7 @@ function CollectedCard({ status, collected, raised, onRetry }: { status: 'loadin
             ) : (
                 <>
                     <div className="flex flex-col gap-0.5">
-                        <h2 id={titleId} className="type-small-medium text-ink-2">{t('outstandingPage.collected')}</h2>
+                        <h2 id={titleId} className="type-small-medium text-ink-2">{t('outstandingPage.collected')}{scopeLabel && <span className="text-muted">, {scopeLabel}</span>}</h2>
                         <p className="flex flex-wrap items-baseline gap-x-2 type-figure-m text-ink lg:type-figure-l">
                             {formatRs(collected, lang)}
                             <span className="type-small text-muted">{t('outstandingPage.ofRaised', { amount: formatRs(raised, lang) })}</span>

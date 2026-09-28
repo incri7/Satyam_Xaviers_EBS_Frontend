@@ -144,6 +144,12 @@ export const academicCalendarService = {
         return res.data;
     },
 
+    /** The calendar's days between two dates (at most two months). */
+    listDays: async (start: string, end: string): Promise<{ date: string; day_type: string; label: string | null; is_working_day: boolean }[]> => {
+        const res = await api.get('academic-calendar/days', { params: { start, end } });
+        return res.data;
+    },
+
     patchDay: async (date: string, dayType: string, label?: string) => {
         const res = await api.patch(`academic-calendar/days/${date}`, { day_type: dayType, label });
         return res.data;

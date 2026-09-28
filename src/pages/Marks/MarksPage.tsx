@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, BookMarked, CheckCircle2, CircleDashed, FileSpreadsheet, FileText, GraduationCap, Layers, NotebookPen, Save } from 'lucide-react';
 
@@ -57,6 +58,7 @@ const MarksPage: React.FC = () => {
     const academicYear = currentAcademicYear();
 
     const { user } = useAuthStore();
+    const navigate = useNavigate();
     const isTeacher = user?.role === 'teacher';
 
     const { data: examsData } = useQuery({ queryKey: ['exams', academicYear], queryFn: () => examsService.listExams({ academic_year: academicYear }) });
@@ -298,7 +300,10 @@ const MarksPage: React.FC = () => {
             ) : needsSubject ? (
                 <Card><EmptyState icon={BookMarked} title={t('marks.chooseSubject')}>{t('marks.chooseSubjectWhy')}</EmptyState></Card>
             ) : marksError ? (
-                <Card><EmptyState icon={AlertTriangle} tone="bad" title={t('marksPage.noPaper')}>{t('marksPage.noPaperBody')}</EmptyState></Card>
+                <Card><EmptyState icon={AlertTriangle} tone="bad" title={t('marksPage.noPaper')}
+                    action={['admin', 'principal', 'coordinator'].includes(user?.role ?? '') && <Button variant="quiet" size="sm" onClick={() => navigate('/exams')}>{t('marksPage.openExams')}</Button>}>
+                    {t('marksPage.noPaperBody')}
+                </EmptyState></Card>
             ) : (
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
                     <Card className="gap-0 overflow-hidden p-0">

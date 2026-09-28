@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Calendar, Filter, Layers, Pencil, RotateCw, Trash2, UserCheck, X } from 'lucide-react';
+import { AlertCircle, Calendar, FileSpreadsheet, Filter, Layers, LogOut, Pencil, RotateCcw, RotateCw, UserCheck, X } from 'lucide-react';
 
 import {
     ActionMenu, Badge, Button, EmptyState, IconButton, ListCard, ListRow, Person, SearchField, Skeleton, SortTh,
@@ -12,6 +12,9 @@ import { AccessControl } from '../AccessControl';
 import { Pagination } from '../common/Pagination';
 import { SelectMenu } from '../common/SelectMenu';
 import { useConfirmDialog } from '../common/useConfirmDialog';
+import { EndEnrolmentDialog } from '../../features/academics/manage';
+import { downloadSheet, fetchAll } from '../../utils/exportSheet';
+import { formatDate } from '../../utils/nepaliDate';
 import { EditEnrollmentModal } from './EditEnrollmentModal';
 import { academicsService } from '../../api/services/academics.service';
 import { academicYearLabel, academicYearOptions, currentAcademicYear } from '../../utils/academicYear';
@@ -49,6 +52,8 @@ export function EnrollmentManagement() {
     const [classId, setClassId] = useState('');
     const [status, setStatus] = useState<'active' | 'all'>('active');
     const [editing, setEditing] = useState<Enrollment | null>(null);
+    const [ending, setEnding] = useState<Enrollment | null>(null);
+    const [exporting, setExporting] = useState(false);
 
     const setYear = (y: string) => {
         setYearState(y);
@@ -74,8 +79,8 @@ export function EnrollmentManagement() {
     });
     const rows: Enrollment[] = data?.enrollments ?? [];
 
-    const remove = useMutation({
-        mutationFn: academicsService.deleteEnrollment,
+    const reopen = useMutation({
+        mutationFn: (id: number) => academicsService.changeEnrollmentStatus(id, { status: 'active' }),
         onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['enrollments'] }); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
         onError: (err) => notify({ tone: 'bad', title: t('classesPage.dialog.failed'), body: errorText(err, t('peoplePage.error.body')) }),
     });
@@ -85,13 +90,33 @@ export function EnrollmentManagement() {
     const className = (e: Enrollment) => e.class_?.name || `#${e.class_id}`;
     const sectionName = (e: Enrollment) => e.section?.name || null;
 
-    const askRemove = (e: Enrollment) =>
+    const askReopen = (e: Enrollment) =>
         confirm({
-            title: t('confirm.deleteEnrollment.title'),
-            body: t('confirm.deleteEnrollment.body', { student: studentName(e), class: className(e) }),
-            confirmLabel: t('confirm.deleteEnrollment.action'),
-            onConfirm: () => remove.mutate(e.id),
+            title: t('academicsManage.reopenTitle', { name: studentName(e) }),
+            body: t('academicsManage.reopenBody', { class: className(e) }),
+            confirmLabel: t('academicsManage.reopen'),
+            onConfirm: () => reopen.mutate(e.id),
         });
+
+    // The whole list for these filters, not the page on screen.
+    const exportSheet = async () => {
+        setExporting(true);
+        try {
+            const all = await fetchAll((skip, limit) => academicsService.getEnrollments({
+                academic_year: year, skip, limit, search: list.search || undefined,
+                class_id: classId ? Number(classId) : undefined, include_inactive: status === 'all',
+                sort_by: list.sort.by ?? 'class', sort_dir: list.sort.dir,
+            }).then((r) => ({ items: r.enrollments, total: r.total_count })));
+            await downloadSheet(`enrolments-${academicYearLabel(year, 'en')}`, t('classesPage.tabs.enrolments'),
+                [t('classesPage.col.student'), t('exportSheet.admissionNo'), t('classesPage.col.class'), t('classesPage.col.section'), t('classesPage.col.year'), t('classesPage.col.status'), t('exportSheet.endedOn'), t('exportSheet.note')],
+                all.map((e) => [studentName(e), e.student?.admission_no, className(e), sectionName(e), academicYearLabel(e.academic_year, 'en'),
+                    t(`enrolStatus.${e.status ?? (e.is_active ? 'active' : 'left')}`), e.ended_on ? formatDate(e.ended_on, 'en', 'medium') : '', e.status_note]));
+        } catch (err) {
+            notify({ tone: 'bad', title: t('exportSheet.failed'), body: errorText(err, t('peoplePage.error.body')) });
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const filtered = Boolean(list.search || classId || status === 'all');
     const clear = () => { list.resetSearch(); setClassId(''); setStatus('active'); };
@@ -99,9 +124,13 @@ export function EnrollmentManagement() {
     const title = total === undefined ? t('classesPage.tabs.enrolments') : t('classesPage.enrolments.count', { count: total, n: formatCount(total, lang) });
     const clearButton = filtered ? <Button variant="ghost" size="sm" leftIcon={X} onClick={clear}>{t('common.clearFilters')}</Button> : undefined;
 
-    const statusBadge = (e: Enrollment) => (
-        <Badge tone={e.is_active ? 'ok' : 'neutral'} dot>{e.is_active ? t('classesPage.enrolments.active') : t('classesPage.enrolments.inactive')}</Badge>
-    );
+    const STATUS_TONE: Record<string, 'ok' | 'brand' | 'warn' | 'info' | 'neutral' | 'bad'> = {
+        active: 'ok', promoted: 'brand', repeating: 'warn', graduated: 'info', transferred: 'neutral', left: 'bad',
+    };
+    const statusBadge = (e: Enrollment) => {
+        const s = e.status ?? (e.is_active ? 'active' : 'left');
+        return <Badge tone={STATUS_TONE[s] ?? 'neutral'} dot>{t(`enrolStatus.${s}`, { defaultValue: s })}</Badge>;
+    };
     const sectionChip = (e: Enrollment) =>
         sectionName(e) ? <span className="inline-grid h-6 min-w-6 place-items-center rounded-[8px] bg-sunken px-1.5 type-caption-semibold text-ink-2">{sectionName(e)}</span> : <span className="text-muted">—</span>;
 
@@ -133,6 +162,7 @@ export function EnrollmentManagement() {
                     <SelectMenu value={status} onChange={list.filter((v: string) => setStatus(v as 'active' | 'all'))} label={t('classesPage.col.status')} icon={<Filter />}
                         options={[{ value: 'active', label: t('classesPage.enrolments.activeOnly') }, { value: 'all', label: t('classesPage.enrolments.allStatuses') }]} />
                 </div>
+                <Button variant="quiet" size="sm" leftIcon={FileSpreadsheet} loading={exporting} disabled={!data?.total_count} onClick={() => void exportSheet()}>{t('exportSheet.button')}</Button>
             </Toolbar>
 
             {/* md and up: table */}
@@ -161,7 +191,8 @@ export function EnrollmentManagement() {
                                             <IconButton icon={Pencil} label={t('classesPage.enrolments.edit')} onClick={() => setEditing(e)} />
                                         </AccessControl>
                                         <ActionMenu label={t('classesPage.enrolments.more')} items={[
-                                            { label: t('classesPage.enrolments.remove'), icon: Trash2, tone: 'bad', onSelect: () => askRemove(e), hidden: !can('enrollments', 'delete') },
+                                            { label: t('academicsManage.endAction'), icon: LogOut, onSelect: () => setEnding(e), hidden: !e.is_active || !can('enrollments', 'update') },
+                                            { label: t('academicsManage.reopen'), icon: RotateCcw, onSelect: () => askReopen(e), hidden: e.is_active || !can('enrollments', 'update') },
                                         ]} />
                                     </div>
                                 </Td>
@@ -195,6 +226,7 @@ export function EnrollmentManagement() {
             </div>
 
             {editing && <EditEnrollmentModal key={editing.id} isOpen onClose={() => setEditing(null)} enrollmentData={editing} />}
+            {ending && <EndEnrolmentDialog enrolment={ending} studentName={studentName(ending)} onClose={() => setEnding(null)} />}
         </div>
     );
 }

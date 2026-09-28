@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
-    AlertCircle, AlertTriangle, BookMarked, CalendarClock, ChevronRight, Info, Layers, Pencil, Plus, RotateCw, UserCheck,
+    AlertCircle, AlertTriangle, BookMarked, CalendarClock, ChevronRight, Info, Layers, Pencil, Plus, RotateCw, Trash2, UserCheck,
 } from 'lucide-react';
 
 import {
-    Badge, Button, Card, CardHeader, EmptyState, IconButton, IconTile, ListCard, ListRow, Meter, Person, SearchField,
+    ActionMenu, Badge, Button, Card, CardHeader, EmptyState, IconButton, IconTile, ListCard, ListRow, Meter, Person, SearchField,
     Skeleton, Table, TableCard, TableMessage, TableSkeletonRows, THead, Td, Th, Tr,
 } from '../../design-system';
 import { Toolbar } from '../layout/AppPage';
@@ -19,7 +19,10 @@ import { academicsService, type ClassDetail, type ClassSubjectRow } from '../../
 import { STAGES, seatTone, useClassOverview, type ClassOverview, type Stage } from '../../features/academics/queries';
 import { ManageSubjectsDialog, PickTeacherDialog } from '../../features/academics/dialogs';
 import { CreateSectionModal } from './CreateSectionModal';
-import { CreateEnrollmentModal } from './CreateEnrollmentModal';
+import { BulkEnrolDialog, EditSectionDialog, RenameClassDialog } from '../../features/academics/manage';
+import { useConfirmDialog } from '../common/useConfirmDialog';
+import { useNotice } from '../../features/people/useNotice';
+import { usePermissionsStore } from '../../store/usePermissionsStore';
 import { errorText } from '../../features/people/format';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatCount } from '../../utils/money';
@@ -42,6 +45,7 @@ export function AcademicsExplorer() {
                 className={view.className}
                 onBack={() => setView({ level: 'classes' })}
                 onOpenSection={(sectionId) => setView({ level: 'section', classId: view.classId, className: view.className, sectionId })}
+                onRenamed={(name) => setView({ level: 'class', classId: view.classId, className: name })}
             />
         );
     }
@@ -363,13 +367,29 @@ function useClassTeacherPicker(classId: number, className: string) {
 }
 
 // ── F09: one class ───────────────────────────────────────────────────────────
-function ClassPage({ classId, className, onBack, onOpenSection }: { classId: number; className: string; onBack: () => void; onOpenSection: (sectionId: number) => void }) {
+function ClassPage({ classId, className, onBack, onOpenSection, onRenamed }: { classId: number; className: string; onBack: () => void; onOpenSection: (sectionId: number) => void; onRenamed?: (name: string) => void }) {
     const { t } = useTranslation();
     const { lang } = useDateFormat();
     const subjects = useClassSubjects(classId);
     const { detail, open: pickTeacher, ui: teacherUi } = useClassTeacherPicker(classId, className);
     const [adding, setAdding] = useState(false);
+    const [renaming, setRenaming] = useState(false);
+    const [editingSection, setEditingSection] = useState<ClassDetail['sections'][number] | null>(null);
+    const [confirmUI, confirm] = useConfirmDialog();
+    const [noticeUI, notify] = useNotice();
+    const queryClient = useQueryClient();
+    const can = usePermissionsStore((s) => s.hasPermission);
     const n = (v: number) => formatCount(v, lang);
+    const removeClass = useMutation({
+        mutationFn: () => academicsService.deleteClass(classId),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['classes'] }); onBack(); },
+        onError: (err) => notify({ tone: 'bad', title: t('academicsManage.deleteClassFailed'), body: errorText(err, t('peoplePage.error.body')) }),
+    });
+    const removeSection = useMutation({
+        mutationFn: (id: number) => academicsService.deleteSection(id),
+        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['class-detail', classId] }); queryClient.invalidateQueries({ queryKey: ['sections'] }); },
+        onError: (err) => notify({ tone: 'bad', title: t('academicsManage.deleteSectionFailed'), body: errorText(err, t('peoplePage.error.body')) }),
+    });
 
     const sections = detail.data?.sections ?? [];
     const students = sections.reduce((s, x) => s + x.enrolled_count, 0);
@@ -404,8 +424,19 @@ function ClassPage({ classId, className, onBack, onOpenSection }: { classId: num
                         )}
                     </div>
                 </div>
-                <div className="flex shrink-0 gap-2 max-md:[&>*]:flex-1">{addSection}</div>
+                <div className="flex shrink-0 gap-2 max-md:[&>*]:flex-1">
+                    {addSection}
+                    <ActionMenu label={t('academicsManage.more')} items={[
+                        { label: t('academicsManage.renameClass'), icon: Pencil, onSelect: () => setRenaming(true), hidden: !can('classes', 'update') },
+                        { label: t('academicsManage.deleteClass'), icon: Trash2, tone: 'bad', hidden: !can('classes', 'delete'), onSelect: () => confirm({
+                            title: t('academicsManage.deleteClassTitle', { name: className }), body: t('academicsManage.deleteClassBody'),
+                            confirmLabel: t('academicsManage.deleteClass'), onConfirm: () => removeClass.mutate(),
+                        }) },
+                    ]} />
+                </div>
             </header>
+            {confirmUI}
+            {noticeUI}
 
             {detail.isError ? (
                 <Card><EmptyState icon={AlertCircle} tone="bad" title={t('classesPage.detail.notFound')} action={<Button variant="quiet" size="sm" leftIcon={RotateCw} onClick={() => void detail.refetch()}>{t('classesPage.action.retry')}</Button>} /></Card>
@@ -432,6 +463,13 @@ function ClassPage({ classId, className, onBack, onOpenSection }: { classId: num
                                                 <p className="type-caption text-muted">{t('classesPage.card.students', { count: s.enrolled_count, n: n(s.enrolled_count) })}</p>
                                             </div>
                                             {tone !== 'ok' && <Badge tone={tone} dot>{tone === 'bad' ? t('classesPage.detail.full') : t('classesPage.detail.pctFull', { pct: n(pct) })}</Badge>}
+                                            <ActionMenu label={t('academicsManage.more')} items={[
+                                                { label: t('academicsManage.editSectionShort'), icon: Pencil, onSelect: () => setEditingSection(s), hidden: !can('sections', 'update') },
+                                                { label: t('academicsManage.deleteSection'), icon: Trash2, tone: 'bad', hidden: !can('sections', 'delete'), onSelect: () => confirm({
+                                                    title: t('academicsManage.deleteSectionTitle', { name: `${className} ${s.name}` }), body: t('academicsManage.deleteSectionBody'),
+                                                    confirmLabel: t('academicsManage.deleteSection'), onConfirm: () => removeSection.mutate(s.id),
+                                                }) },
+                                            ]} />
                                         </header>
                                         <div className="flex items-center gap-2.5 rounded-row bg-surface-2 px-3 py-2.5">
                                             <span className="min-w-0 flex-1">
@@ -472,6 +510,8 @@ function ClassPage({ classId, className, onBack, onOpenSection }: { classId: num
             {adding && (
                 <CreateSectionModal isOpen onClose={() => setAdding(false)} classId={classId} className={className} suggestedName={nextLetter} suggestedSeats={seatDefault} />
             )}
+            {renaming && <RenameClassDialog classId={classId} name={className} onClose={() => setRenaming(false)} onDone={(name) => { setRenaming(false); onRenamed?.(name); }} />}
+            {editingSection && <EditSectionDialog section={editingSection} className={className} onClose={() => setEditingSection(null)} />}
         </div>
     );
 }
@@ -594,7 +634,7 @@ function SectionPage({
             </div>
 
             {teacherUi}
-            {enrolling && <CreateEnrollmentModal isOpen onClose={() => setEnrolling(false)} classId={classId} sectionId={sectionId} />}
+            {enrolling && <BulkEnrolDialog classId={classId} sectionId={sectionId} sectionLabel={`${className} ${section?.name ?? ''}`.trim()} onClose={() => setEnrolling(false)} />}
         </div>
     );
 }
