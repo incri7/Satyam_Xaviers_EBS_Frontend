@@ -1,6 +1,6 @@
 import { useState, type BaseSyntheticEvent } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Info, Mail } from 'lucide-react';
 
@@ -26,6 +26,10 @@ const LoginPage = () => {
     const { t } = useTranslation();
     const { login } = useAuth();
     const navigate = useNavigate();
+    const [params] = useSearchParams();
+    // Back to where sign-in was asked for (a family link); a path in this app only.
+    const next = params.get('next');
+    const back = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
     const [serverError, setServerError] = useState<SignInError | null>(null);
 
     const {
@@ -56,7 +60,7 @@ const LoginPage = () => {
                 if (token) deviceService.registerToken(token).catch(() => {});
             });
 
-            navigate(response.user.must_change_password === true ? '/reset-password' : homeForRole(response.user.role));
+            navigate(response.user.must_change_password === true ? '/reset-password' : back ?? homeForRole(response.user.role));
         } catch (err) {
             const e = getSignInError(err, t);
             setServerError(e);

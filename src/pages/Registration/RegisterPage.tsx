@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { isAxiosError } from 'axios';
-import { ArrowRight, BellRing, Check, CheckCircle2, Loader2, Phone, Smartphone, XCircle } from 'lucide-react';
+import { ArrowRight, BellRing, Check, CheckCircle2, Link2, Loader2, Phone, Smartphone, XCircle } from 'lucide-react';
 
 import { Avatar, Banner, Button, PasswordField, TextField } from '../../design-system';
 import { AuthLayout } from '../../features/auth/AuthLayout';
@@ -44,6 +44,9 @@ export default function RegisterPage() {
     const status = isAxiosError(info.error) ? info.error.response?.status : undefined;
     const deadLink = status === 404 || status === 410;
     const child = info.data?.student_name.split(' ')[0];
+    // A parent already signed in (a brother or sister is at the school) adds
+    // this child to their account; registering again would clash on the number.
+    const signedInParent = useAuthStore((s) => s.isAuthenticated && s.user?.role === 'parent');
 
     return (
         <AuthLayout compactBand purpose={t('register.purpose')} panelFooter={<MorningProof child={child} />}>
@@ -57,6 +60,8 @@ export default function RegisterPage() {
                 <LinkProblem dead={deadLink} onRetry={() => void info.refetch()} />
             ) : done ? (
                 <Ready info={info.data} phone={done.phone} name={done.name} />
+            ) : signedInParent ? (
+                <ClaimChild token={token!} info={info.data} />
             ) : (
                 <RegisterForm token={token!} info={info.data} onDone={setDone} />
             )}
@@ -68,6 +73,7 @@ function RegisterForm({ token, info, onDone }: { token: string; info: TokenInfo;
     const { t } = useTranslation();
     const setAuth = useAuthStore((s) => s.setAuth);
     const [banner, setBanner] = useState<string | null>(null);
+    const [taken, setTaken] = useState(false);
     const { register, handleSubmit, control, getValues, trigger, setError, formState: { errors, isSubmitting } } = useForm<Values>({
         defaultValues: { first_name: '', last_name: '', phone: '', password: '', confirm: '' },
     });
@@ -95,7 +101,10 @@ function RegisterForm({ token, info, onDone }: { token: string; info: TokenInfo;
         } catch (err) {
             const code = isAxiosError(err) ? err.response?.status : undefined;
             const detail = isAxiosError(err) ? JSON.stringify(err.response?.data ?? '') : '';
-            if (code === 400 && /phone/i.test(detail)) setError('phone', { message: t('register.phoneTaken') }, { shouldFocus: true });
+            if (code === 409 || (code === 400 && /phone/i.test(detail))) {
+                setError('phone', { message: t('register.phoneTaken') }, { shouldFocus: true });
+                setTaken(true);
+            }
             else if (code === 422 && /phone/i.test(detail)) setError('phone', { message: t('register.phoneInvalid') }, { shouldFocus: true });
             else if (code === 422 && /password/i.test(detail)) setError('password', { message: t('auth.setPassword.validation.newInvalid') }, { shouldFocus: true });
             else if (code === 404 || code === 410) setBanner(t('register.linkUsedBody'));
@@ -120,6 +129,12 @@ function RegisterForm({ token, info, onDone }: { token: string; info: TokenInfo;
             </div>
 
             {banner && <Banner tone="bad" title={t('register.registerFailed')}>{banner}</Banner>}
+            {taken && (
+                <Banner tone="info" title={t('register.takenTitle')}
+                    action={<Link to={`/login?next=${encodeURIComponent(`/register/${token}`)}`} className="rounded-sm type-small-semibold text-primary-text outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus/60">{t('register.signIn')}</Link>}>
+                    {t('register.takenBody', { child: info.student_name.split(' ')[0] })}
+                </Banner>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
                 <TextField label={t('register.firstName')} placeholder={t('register.optional')} autoComplete="given-name" maxLength={100}
@@ -189,6 +204,48 @@ function Ready({ info, phone, name }: { info: TokenInfo; phone: string; name: st
             </dl>
             <Button size="lg" fullWidth rightIcon={ArrowRight} onClick={() => navigate('/home/parent', { replace: true })}>{t('register.openApp')}</Button>
             <p className="flex items-start gap-2.5 type-small text-muted"><Smartphone size={18} className="shrink-0" aria-hidden />{t('register.tip')}</p>
+        </div>
+    );
+}
+
+/** Signed in as a parent: one tap adds the child to the account. */
+function ClaimChild({ token, info }: { token: string; info: TokenInfo }) {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const child = info.student_name.split(' ')[0];
+    const childLine = [info.student_name, [info.class_name, info.section_name].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const claim = useMutation({
+        mutationFn: () => registrationService.claimChild(token),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['parent'] }),
+    });
+
+    if (claim.isSuccess) {
+        return (
+            <div className="flex flex-col gap-4 lg:gap-[18px]">
+                <span className="grid size-16 animate-pop place-items-center rounded-[20px] bg-ok-soft text-ok"><CheckCircle2 size={32} aria-hidden /></span>
+                <div className="flex flex-col gap-1.5">
+                    <h1 className="type-h2 text-ink lg:type-h1">{claim.data.already_linked ? t('register.claim.alreadyTitle', { child }) : t('register.claim.doneTitle', { child })}</h1>
+                    <p className="type-body text-muted">{t('register.claim.doneBody', { child })}</p>
+                </div>
+                <Button size="lg" fullWidth rightIcon={ArrowRight} onClick={() => navigate('/home/parent', { replace: true })}>{t('register.openApp')}</Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-4 lg:gap-[18px]">
+            <div className="flex flex-col gap-1.5">
+                <h1 className="type-h2 text-ink lg:type-h1">{t('register.claim.title', { child })}</h1>
+                <p className="type-body text-muted">{t('register.claim.body')}</p>
+            </div>
+            <div className="flex items-center gap-3 rounded-row bg-primary-soft px-3.5 py-3 ring-1 ring-inset ring-primary-soft-line">
+                <Avatar name={info.student_name} size={40} />
+                <p className="min-w-0 flex-1 type-body-semibold text-ink">{childLine}</p>
+            </div>
+            {claim.isError && <Banner tone="bad" title={t('register.claim.failed')}>{errorText(claim.error, t('register.registerFailed'))}</Banner>}
+            <Button size="lg" fullWidth leftIcon={Link2} loading={claim.isPending} onClick={() => claim.mutate()}>{t('register.claim.action', { child })}</Button>
+            <p className="text-center type-caption text-muted">{t('register.claim.notYou')}</p>
         </div>
     );
 }

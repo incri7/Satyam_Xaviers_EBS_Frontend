@@ -1264,6 +1264,18 @@
       "yourChild": "Your child",
       "markedAt": "{{child}}, marked at 9:42 AM",
       "note": "If your child is marked absent, you get an SMS and an app notification within a minute."
+    },
+    "takenTitle": "Already using the app?",
+    "takenBody": "Sign in with your account, then this page adds {{child}} to it.",
+    "claim": {
+      "title": "Add {{child}} to your account",
+      "body": "You are signed in. {{child}} will appear next to your other children, with attendance, marks and fees.",
+      "action": "Add {{child}}",
+      "notYou": "Not your child? Close this page and call the school office.",
+      "failed": "Could not add the child",
+      "doneTitle": "{{child}} is added",
+      "alreadyTitle": "{{child}} was already on your account",
+      "doneBody": "You will find {{child}} on your home screen."
     }
   },
   "common": {
@@ -1804,13 +1816,15 @@
       "studentMore": "Another child in the same family",
       "parent": "Who the school contacts about {{name}}",
       "parentMany": "Who the school contacts about these children",
-      "review": "Check everything before saving"
+      "review": "Check everything before saving",
+      "existing": "Find the child already at the school: a brother or sister, or the child of a second parent."
     },
     "field": {
       "class": "Class",
       "mobile": "Mobile number",
       "email": "Email",
-      "relationshipTo": "Relationship to {{name}}"
+      "relationshipTo": "Relationship to {{name}}",
+      "existing": "Student"
     },
     "hint": {
       "mobile": "Their sign-in and SMS number",
@@ -1835,7 +1849,8 @@
       "noClass": "No class yet",
       "edit": "Edit",
       "remove": "Remove",
-      "addChild": "Add another child"
+      "addChild": "Add another child",
+      "atSchool": "Already at the school"
     },
     "action": {
       "cancel": "Cancel",
@@ -1863,7 +1878,13 @@
       "admissionDate": "Enter the admission date.",
       "mobile": "Enter a 10-digit mobile number, or one starting with +.",
       "email": "Enter an email address.",
-      "emailInvalid": "That does not look like an email address."
+      "emailInvalid": "That does not look like an email address.",
+      "pickStudent": "Pick a student first"
+    },
+    "mode": {
+      "label": "New student or already at the school",
+      "new": "New student",
+      "existing": "Already at this school"
     }
   },
   "addChild": {
@@ -1892,7 +1913,8 @@
       "add": "Add child",
       "adding": "Adding",
       "done": "Done",
-      "another": "Add another child"
+      "another": "Add another child",
+      "link": "Link to this parent"
     },
     "done": {
       "title": "Child added",
@@ -4741,5 +4763,38 @@
     "scholarship": "Scholarship",
     "paid": "Paid",
     "daysOverdue": "Days overdue"
+  },
+  "guardians": {
+    "add": "Add guardian",
+    "noneBody": "Link a parent or guardian so the school can reach the family and they can follow this child in the app.",
+    "noLogin": "No login",
+    "actionsFor": "Actions for {{name}}",
+    "makeMain": "Make main contact",
+    "changeRelationship": "Change relationship",
+    "unlink": "Unlink",
+    "mainNoLogin": "Cannot sign in yet, so absence texts reach nobody. Send a family link or make another guardian the main contact.",
+    "failed": "That did not save",
+    "mainDone": "{{name}} is now the main contact",
+    "linkDone": "{{name}} is now linked to {{child}}",
+    "unlinkDone": "{{name}} is no longer linked to {{child}}",
+    "unlinkTitle": "Unlink {{name}}?",
+    "unlinkBody": "{{name}} will no longer see {{child}} in the app. Their account and any other children stay as they are.",
+    "unlinkMainBody": "{{name}} is the main contact. Another guardian of {{child}} takes over, and {{name}} will no longer see {{child}} in the app.",
+    "unlinkLastBody": "{{name}} is {{child}}'s only guardian. Nobody will get absence texts or fee reminders for {{child}} until you link someone else.",
+    "addTitle": "Add a guardian for {{child}}",
+    "addSubtitle": "A parent with another child here is already on the register.",
+    "mode": {
+      "register": "Already on the register",
+      "new": "New guardian"
+    },
+    "who": "Guardian",
+    "link": "Link guardian",
+    "registerNew": "Register a new guardian",
+    "newBody": "Register the guardian with their phone and email. {{child}} is filled in for you, and they get a login.",
+    "makeMainToo": "Make them the main contact",
+    "mainNow": "Main contact now: {{name}}. Leave unticked to keep them.",
+    "mainNobody": "Nobody is the main contact yet, so they will be.",
+    "relationshipTitle": "How is {{name}} related?",
+    "save": "Save"
   }
 }

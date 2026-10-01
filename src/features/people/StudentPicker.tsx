@@ -20,6 +20,8 @@ export function StudentPicker({
     error,
     trailing,
     enabled = true,
+    describe = (s) => s.admission_no,
+    exclude = [],
 }: {
     label: string;
     value: Student | null;
@@ -27,6 +29,10 @@ export function StudentPicker({
     error?: string;
     trailing?: ReactNode;
     enabled?: boolean;
+    /** The line under a name; the admission number unless given. */
+    describe?: (student: Student) => string | undefined;
+    /** Students not to offer, e.g. ones already picked. */
+    exclude?: number[];
 }) {
     const { t } = useTranslation();
     const [input, setInput] = useState('');
@@ -42,14 +48,14 @@ export function StudentPicker({
         queryFn: () => peopleService.getStudents({ search, limit: 8 }),
         enabled: enabled && !value && search.length >= 2,
     });
-    const results: Student[] = students.data?.students ?? [];
+    const results: Student[] = (students.data?.students ?? []).filter((s: Student) => !exclude.includes(s.id));
 
     return (
         <div className="flex flex-col gap-1.5">
             <p className="type-small-semibold text-ink">{label}</p>
             {value ? (
                 <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
-                    <span className="min-w-0 flex-1"><Person name={fullName(value)} sub={value.admission_no} /></span>
+                    <span className="min-w-0 flex-1"><Person name={fullName(value)} sub={describe(value)} /></span>
                     {trailing}
                     <Button variant="ghost" size="sm" onClick={() => onChange(null)}>{t('classesPage.enrol.change')}</Button>
                 </div>
@@ -68,7 +74,7 @@ export function StudentPicker({
                             results.map((s) => (
                                 <button key={s.id} type="button" onClick={() => { onChange(s); setInput(''); }}
                                     className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface px-3.5 py-2 text-left outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-focus/60">
-                                    <span className="min-w-0 flex-1"><Person name={fullName(s)} sub={s.admission_no} /></span>
+                                    <span className="min-w-0 flex-1"><Person name={fullName(s)} sub={describe(s)} /></span>
                                 </button>
                             ))
                         )}

@@ -39,6 +39,10 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          // The app is one 2.1 MB script; above the 2 MiB default it is left
+          // out of the offline cache and offline attendance stops opening.
+          // Splitting the bundle by route would bring it back under.
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           runtimeCaching: [
             {
               urlPattern: /^https?:\/\/.*\/api\/.*/i,

@@ -18,12 +18,13 @@ import {
     TextField,
 } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
-import type { Parent } from '../../types/people';
+import type { Parent, Student } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
 import { cn } from '../../utils/cn';
-import { errorText, fullName } from '../../features/people/format';
+import { errorText, fullName, studentWithGuardians } from '../../features/people/format';
 import { bloodGroupOptions, genderOptions } from '../../features/people/options';
+import { StudentPicker } from '../../features/people/StudentPicker';
 
 interface AddStudentToParentModalProps {
     isOpen: boolean;
@@ -52,7 +53,8 @@ const emptyChild = (): ChildDraft => ({
 
 /**
  * Add a child to a family already on the register: pick the parent, then
- * enter the child (POST /people/students with parent_id).
+ * enter a new child (POST /people/students with parent_id) or pick one
+ * already at the school (POST /people/students/{id}/guardians).
  *
  * The old version posted camelCase fields and gender "male", which the API
  * rejects, so it could never succeed; this sends the API's own field names.
@@ -68,6 +70,9 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
     const [relationship, setRelationship] = useState<Relationship>('father');
     const [error, setError] = useState<string | null>(null);
     const [addedName, setAddedName] = useState('');
+    const [mode, setMode] = useState<'new' | 'existing'>('new');
+    const [picked, setPicked] = useState<Student | null>(null);
+    const [pickError, setPickError] = useState<string | undefined>();
 
     const form = useForm<ChildDraft>({ defaultValues: emptyChild() });
     const { errors } = form.formState;
@@ -92,6 +97,9 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
         setParent(null);
         setRelationship('father');
         setError(null);
+        setMode('new');
+        setPicked(null);
+        setPickError(undefined);
         form.reset(emptyChild());
     };
     const close = () => { reset(); onClose(); };
@@ -120,7 +128,27 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
         onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
-    const busy = mutation.isPending;
+    const link = useMutation({
+        mutationFn: (st: Student) => peopleService.addGuardian(st.id, { parent_id: parent!.id, relationship_type: relationship }),
+        onSuccess: (_, st) => {
+            ['students', 'parents'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+            queryClient.invalidateQueries({ queryKey: ['student-profile', st.id] });
+            setAddedName(fullName(st));
+            setPicked(null);
+            setStep('done');
+        },
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+    });
+
+    const submitChild = (e: React.FormEvent<HTMLFormElement>) => {
+        setError(null);
+        if (mode === 'new') return void form.handleSubmit((c) => mutation.mutate(c))(e);
+        e.preventDefault();
+        if (!picked) { setPickError(t('registerFamily.error.pickStudent')); return; }
+        link.mutate(picked);
+    };
+
+    const busy = mutation.isPending || link.isPending;
     const opt = t('peopleForms.optional');
     const results: Parent[] = parents.data?.parents ?? [];
 
@@ -137,7 +165,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                 closeLabel={t('common.close')}
                 footer={
                     <>
-                        <Button variant="quiet" leftIcon={Plus} onClick={() => { form.reset(emptyChild()); setError(null); setStep(1); }}>{t('addChild.action.another')}</Button>
+                        <Button variant="quiet" leftIcon={Plus} onClick={() => { form.reset(emptyChild()); setPicked(null); setError(null); setStep(1); }}>{t('addChild.action.another')}</Button>
                         <Button onClick={close}>{t('addChild.action.done')}</Button>
                     </>
                 }
@@ -156,7 +184,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
             subtitle={step === 0 ? t('addChild.subtitle.parent') : t('addChild.subtitle.child', { name: parent ? parent.first_name : '' })}
             closeLabel={t('common.close')}
             stepper={<Stepper label={t('addChild.title')} current={step} steps={[t('addChild.steps.parent'), t('addChild.steps.child')]} />}
-            onSubmit={step === 1 ? form.handleSubmit((c) => { setError(null); mutation.mutate(c); }) : undefined}
+            onSubmit={step === 1 ? submitChild : undefined}
             footer={
                 step === 0 ? (
                     <>
@@ -166,7 +194,11 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                 ) : (
                     <>
                         <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(0)} disabled={busy} className="sm:mr-auto">{t('addChild.action.back')}</Button>
-                        <Button type="submit" leftIcon={Plus} loading={busy}>{busy ? t('addChild.action.adding') : t('addChild.action.add')}</Button>
+                        {mode === 'new' ? (
+                            <Button type="submit" leftIcon={Plus} loading={busy}>{busy ? t('addChild.action.adding') : t('addChild.action.add')}</Button>
+                        ) : (
+                            <Button type="submit" leftIcon={Link2} loading={busy}>{t('addChild.action.link')}</Button>
+                        )}
                     </>
                 )
             }
@@ -239,6 +271,18 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                             options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
                         />
                     </div>
+                    <SegmentedControl<'new' | 'existing'>
+                        aria-label={t('registerFamily.mode.label')}
+                        value={mode}
+                        onChange={(m) => { setMode(m); setPickError(undefined); setError(null); }}
+                        className="w-full [&>*]:flex-1"
+                        options={[{ value: 'new', label: t('registerFamily.mode.new') }, { value: 'existing', label: t('registerFamily.mode.existing') }]}
+                    />
+                    {mode === 'existing' && (
+                        <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
+                            error={pickError} describe={studentWithGuardians} />
+                    )}
+                    {mode === 'new' && (<>
                     <FormRow>
                         <TextField label={t('peopleForms.label.firstName')} autoComplete="off" error={errors.first_name?.message}
                             {...form.register('first_name', { required: t('registerFamily.error.firstName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
@@ -261,6 +305,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                     </FormRow>
                     {/* POST /people/students links the parent but does not enrol. */}
                     <Banner tone="info" title={t('addChild.enrolNote')} />
+                    </>)}
                 </>
             )}
         </Dialog>

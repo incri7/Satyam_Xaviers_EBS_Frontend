@@ -286,6 +286,8 @@ export interface UnifiedRegistrationCreate {
     user_in: UserUnifiedCreate;
     parent_in: ParentUnifiedCreate;
     students_in: StudentCreate[];
+    /** Children already at the school, linked to this guardian. */
+    existing_students?: { student_id: number; relationship_type?: string }[];
 }
 
 export interface UnifiedRegistrationResponse {

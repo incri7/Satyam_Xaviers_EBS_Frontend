@@ -163,15 +163,7 @@ export interface StudentProfile {
         section_name: string | null;
         academic_year: string | null;
     } | null;
-    guardians: {
-        parent_id: number;
-        name: string;
-        relationship: string | null;
-        is_primary_contact: boolean;
-        phone: string | null;
-        email: string | null;
-        occupation: string | null;
-    }[];
+    guardians: Guardian[];
     results: {
         exams: ExamResult[];
         exams_taken: number;
@@ -225,6 +217,19 @@ export interface StudentProfile {
         }[];
     };
     leave: { pending_count: number; requests: LeaveRequest[] };
+}
+
+/** A guardian of a student; the main contact gets the absence SMS. */
+export interface Guardian {
+    parent_id: number;
+    name: string;
+    relationship: string | null;
+    is_primary_contact: boolean;
+    phone: string | null;
+    email: string | null;
+    occupation: string | null;
+    /** Has an account, so can be sent an SMS and see the child in the app. */
+    has_login: boolean;
 }
 
 export const profilesService = {

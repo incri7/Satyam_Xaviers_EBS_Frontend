@@ -24,6 +24,12 @@ export interface ParentRegisterOut {
     role: string;
 }
 
+export interface ClaimOut {
+    student_id: number;
+    student_name: string;
+    already_linked: boolean;
+}
+
 export interface RegistrationTokenRead {
     token: string;
     student_id: number;
@@ -45,6 +51,12 @@ export const registrationService = {
 
     completeRegistration: async (token: string, data: ParentRegisterIn): Promise<ParentRegisterOut> => {
         const res = await api.post(`/register/${token}`, data);
+        return res.data;
+    },
+
+    /** Signed in as a parent: add this link's child to the account. */
+    claimChild: async (token: string): Promise<ClaimOut> => {
+        const res = await api.post(`/register/${token}/claim`);
         return res.data;
     },
 };

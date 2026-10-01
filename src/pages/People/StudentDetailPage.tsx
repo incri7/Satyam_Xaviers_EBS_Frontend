@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
     AlertCircle, CalendarDays, CheckCircle2, ChevronDown, ClipboardList, Droplet, GraduationCap,
-    MapPin, Mail, Pencil, Phone, Plus, Receipt, RotateCw, Trash2, Umbrella, Users, Wallet,
+    MapPin, Pencil, Phone, Plus, Receipt, RotateCw, Trash2, Umbrella, Wallet,
 } from 'lucide-react';
 
 import { Badge, Banner, Button, Card, CardHeader, Dialog, EmptyState, IconButton, SelectField, Skeleton, Tabs, type TabItem } from '../../design-system';
@@ -20,6 +20,7 @@ import { EditStudentModal } from '../../components/people/EditStudentModal';
 import { profilesService, type ExamResult, type StudentProfile } from '../../api/services/profiles.service';
 import { peopleService } from '../../api/services/people.service';
 import { KpiCard } from '../../features/dashboard/KpiCard';
+import { GuardiansCard } from '../../features/people/GuardiansCard';
 import { ProfileHeader, ProfileHeaderSkeleton } from '../../features/people/ProfileHeader';
 import { StudentStatusBadge } from '../../features/people/shared';
 import { useDateFormat } from '../../hooks/useDateFormat';
@@ -131,7 +132,7 @@ const StudentDetailPage = () => {
                             <Fees data={data} />
                         </div>
                         <div className="flex min-w-0 flex-col gap-3.5">
-                            <Guardians data={data} />
+                            <GuardiansCard data={data} />
                             <Attendance data={data} />
                             <Assignments data={data} />
                             <Leave data={data} />
@@ -141,7 +142,7 @@ const StudentDetailPage = () => {
                 {tab === 'attendance' && <Attendance data={data} />}
                 {tab === 'marks' && <Results data={data} />}
                 {tab === 'fees' && <Fees data={data} />}
-                {tab === 'guardians' && <Guardians data={data} />}
+                {tab === 'guardians' && <GuardiansCard data={data} />}
             </div>
 
             {editing && record && <EditStudentModal student={record} isOpen onClose={() => setEditing(false)} />}
@@ -385,45 +386,6 @@ function AddFeeDialog({ data, onClose, onAdded }: { data: StudentProfile; onClos
             )}
             <p className="type-caption text-muted">{t('profilePage.feeAddNote')}</p>
         </Dialog>
-    );
-}
-
-function Guardians({ data }: { data: StudentProfile }) {
-    const { t } = useTranslation();
-    return (
-        <Card>
-            <CardHeader title={t('profile.guardians')} />
-            {data.guardians.length === 0 ? (
-                <p className="py-4 text-center type-small text-muted">{t('profile.noGuardians')}</p>
-            ) : (
-                <ul className="flex flex-col gap-2">
-                    {data.guardians.map((g) => (
-                        <li key={g.parent_id} className="flex flex-col gap-2 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-3">
-                            <div className="flex items-center gap-2">
-                                <Users size={16} className="shrink-0 text-muted" aria-hidden />
-                                <span className="min-w-0 flex-1 truncate type-body-semibold text-ink">{g.name}</span>
-                                {g.is_primary_contact && <Badge tone="brand">{t('profile.primary')}</Badge>}
-                            </div>
-                            <p className="type-caption text-muted">
-                                {[g.relationship ? t(`registerFamily.relationship.${g.relationship}`, { defaultValue: g.relationship }) : null, g.occupation].filter(Boolean).join(', ')}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {g.phone && (
-                                    <a href={`tel:${g.phone}`} className="inline-flex h-[34px] items-center gap-1.5 rounded-full bg-surface px-3 type-label-s text-ink ring-1 ring-inset ring-line outline-none hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60">
-                                        <Phone size={14} aria-hidden /> {g.phone}
-                                    </a>
-                                )}
-                                {g.email && (
-                                    <a href={`mailto:${g.email}`} className="inline-flex h-[34px] min-w-0 items-center gap-1.5 rounded-full bg-surface px-3 type-label-s text-ink ring-1 ring-inset ring-line outline-none hover:bg-sunken focus-visible:ring-3 focus-visible:ring-focus/60">
-                                        <Mail size={14} aria-hidden /> <span className="truncate">{g.email}</span>
-                                    </a>
-                                )}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </Card>
     );
 }
 

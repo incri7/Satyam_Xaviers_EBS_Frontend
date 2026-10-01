@@ -4,6 +4,9 @@ import type {
     UnifiedRegistrationCreate, UnifiedRegistrationResponse,
     UserRegistrationCreate, UserRegistrationResponse, StudentCreate
 } from '../../types/people';
+import type { Guardian } from './profiles.service';
+
+export type GuardianRelationship = 'father' | 'mother' | 'guardian' | 'other';
  
 export const peopleService = {
     // Shared Registration
@@ -73,6 +76,21 @@ export const peopleService = {
     },
     getStudentSummary: async (id: number): Promise<StudentSummary> => {
         const response = await api.get(`people/students/${id}/summary`);
+        return response.data;
+    },
+    /** Link a guardian already on the register to a student. */
+    addGuardian: async (studentId: number, data: { parent_id: number; relationship_type?: GuardianRelationship; is_primary_contact?: boolean }): Promise<Guardian[]> => {
+        const response = await api.post(`people/students/${studentId}/guardians`, data);
+        return response.data;
+    },
+    /** Change the relationship, or make this guardian the main contact. */
+    updateGuardian: async (studentId: number, parentId: number, data: { relationship_type?: GuardianRelationship | null; is_primary_contact?: true }): Promise<Guardian[]> => {
+        const response = await api.patch(`people/students/${studentId}/guardians/${parentId}`, data);
+        return response.data;
+    },
+    /** Unlink: the guardian and their account stay, without this child. */
+    removeGuardian: async (studentId: number, parentId: number): Promise<Guardian[]> => {
+        const response = await api.delete(`people/students/${studentId}/guardians/${parentId}`);
         return response.data;
     },
     createStudent: async (data: StudentCreate) => {

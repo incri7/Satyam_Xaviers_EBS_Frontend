@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -17,19 +17,35 @@ import {
 } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import { academicsService } from '../../api/services/academics.service';
-import type { StudentCreate } from '../../types/people';
+import type { Student, StudentCreate } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
-import { errorText } from '../../features/people/format';
+import { errorText, fullName, studentWithGuardians } from '../../features/people/format';
+import { StudentPicker } from '../../features/people/StudentPicker';
 import { bloodGroupOptions, genderOptions } from '../../features/people/options';
 
 interface RegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
+    /** Registering a guardian for this student, already at the school
+        (from their profile): starts on the guardian step. */
+    withStudent?: { id: number; name: string; sub?: string };
 }
 
 type Relationship = 'father' | 'mother' | 'guardian' | 'other';
 const RELATIONSHIPS: Relationship[] = ['father', 'mother', 'guardian', 'other'];
+
+/** A child already at the school, linked rather than created. */
+interface ExistingChild {
+    kind: 'existing';
+    id: number;
+    name: string;
+    sub?: string;
+    relationship: Relationship;
+}
+type ChildEntry = ({ kind: 'new' } & ChildDraft) | ExistingChild;
+
+const firstOf = (c: ChildEntry) => (c.kind === 'new' ? c.first_name : c.name.split(' ')[0]);
 
 interface ChildDraft {
     first_name: string;
@@ -81,14 +97,19 @@ const fourYearsAgo = () => {
  * Figma H07 "Register student": Student → Parent → Review, in one request
  * (POST /people/register/parent-student) that creates the parent's account,
  * the parent record and each child. A family with several children adds them
- * from the Review step.
+ * from the Review step. A child may be one already at the school: the new
+ * guardian is linked to them instead (a mother registered after the father).
  */
-export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
+export function RegistrationModal({ isOpen, onClose, withStudent }: RegistrationModalProps) {
     const { t } = useTranslation();
     const df = useDateFormat();
     const queryClient = useQueryClient();
-    const [step, setStep] = useState<0 | 1 | 2 | 'done'>(0);
-    const [children, setChildren] = useState<ChildDraft[]>([]);
+    const startChildren = (): ChildEntry[] => (withStudent ? [{ kind: 'existing', id: withStudent.id, name: withStudent.name, sub: withStudent.sub, relationship: 'guardian' }] : []);
+    const [step, setStep] = useState<0 | 1 | 2 | 'done'>(withStudent ? 1 : 0);
+    const [children, setChildren] = useState<ChildEntry[]>(startChildren);
+    const [mode, setMode] = useState<'new' | 'existing'>('new');
+    const [picked, setPicked] = useState<Student | null>(null);
+    const [pickError, setPickError] = useState<string | undefined>();
     const [editing, setEditing] = useState<number | null>(null);
     const [parent, setParent] = useState<ParentDraft>(emptyParent);
     const [error, setError] = useState<string | null>(null);
@@ -108,8 +129,11 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
     const className = (id: string) => classes.find((c) => String(c.id) === id)?.name;
 
     const reset = () => {
-        setStep(0);
-        setChildren([]);
+        setStep(withStudent ? 1 : 0);
+        setChildren(startChildren());
+        setMode('new');
+        setPicked(null);
+        setPickError(undefined);
         setEditing(null);
         setParent(emptyParent);
         setError(null);
@@ -135,7 +159,8 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
                     phone: parent.phone.replace(/[\s-]/g, ''),
                     email: parent.email.trim(),
                 },
-                students_in: children.map((c): StudentCreate => ({
+                existing_students: children.flatMap((c) => (c.kind === 'existing' ? [{ student_id: c.id, relationship_type: c.relationship }] : [])),
+                students_in: children.flatMap((c) => (c.kind === 'new' ? [c] : [])).map((c): StudentCreate => ({
                     first_name: c.first_name.trim(),
                     middle_name: c.middle_name || undefined,
                     last_name: c.last_name.trim(),
@@ -161,21 +186,35 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
     });
 
     // ---- step actions -------------------------------------------------
-    const saveChild = childForm.handleSubmit((draft) => {
-        const next = editing === null ? [...children, draft] : children.map((c, i) => (i === editing ? draft : c));
+    const saveNewChild = childForm.handleSubmit((draft) => {
+        const entry: ChildEntry = { kind: 'new', ...draft };
+        const next = editing === null ? [...children, entry] : children.map((c, i) => (i === editing ? entry : c));
         setChildren(next);
         setEditing(null);
         // A second child, or an edit, goes straight back to the review.
         setStep(parent.first_name ? 2 : 1);
     });
+    const saveChild = (e: FormEvent<HTMLFormElement>) => {
+        if (mode === 'new' || editing !== null) return void saveNewChild(e);
+        e.preventDefault();
+        if (!picked) { setPickError(t('registerFamily.error.pickStudent')); return; }
+        setChildren([...children, { kind: 'existing', id: picked.id, name: fullName(picked), sub: studentWithGuardians(picked), relationship: 'guardian' }]);
+        setPicked(null);
+        setPickError(undefined);
+        setStep(parent.first_name ? 2 : 1);
+    };
 
     const saveParent = parentForm.handleSubmit((draft) => {
         setParent(draft);
         setStep(2);
     });
 
-    const editChild = (i: number) => { setEditing(i); childForm.reset(children[i]); setStep(0); };
-    const addChild = () => { setEditing(null); childForm.reset(emptyChild()); setStep(0); };
+    const editChild = (i: number) => {
+        const c = children[i];
+        if (c.kind !== 'new') return;
+        setEditing(i); setMode('new'); childForm.reset(c); setStep(0);
+    };
+    const addChild = () => { setEditing(null); setPicked(null); childForm.reset(emptyChild()); setStep(0); };
     const removeChild = (i: number) => {
         const next = children.filter((_, j) => j !== i);
         setChildren(next);
@@ -184,7 +223,7 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
     const setRelationship = (i: number, r: Relationship) =>
         setChildren((list) => list.map((c, j) => (j === i ? { ...c, relationship: r } : c)));
 
-    const firstChildName = children[0]?.first_name || childFirstName;
+    const firstChildName = (children[0] && firstOf(children[0])) || childFirstName;
     const busy = mutation.isPending;
     const opt = t('peopleForms.optional');
     const ce = childForm.formState.errors;
@@ -214,7 +253,8 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
 
     const subtitle =
         step === 0
-            ? (children.length > 0 && editing === null ? t('registerFamily.subtitle.studentMore') : t('registerFamily.subtitle.student'))
+            ? (mode === 'existing' && editing === null ? t('registerFamily.subtitle.existing')
+                : children.length > 0 && editing === null ? t('registerFamily.subtitle.studentMore') : t('registerFamily.subtitle.student'))
             : step === 1
                 ? children.length > 1 ? t('registerFamily.subtitle.parentMany') : t('registerFamily.subtitle.parent', { name: firstChildName })
                 : t('registerFamily.subtitle.review');
@@ -231,7 +271,11 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
             </>
         ) : step === 1 ? (
             <>
-                <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(parent.first_name ? 2 : 0)} className="sm:mr-auto">{t('registerFamily.action.back')}</Button>
+                {parent.first_name || !withStudent ? (
+                    <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(parent.first_name ? 2 : 0)} className="sm:mr-auto">{t('registerFamily.action.back')}</Button>
+                ) : (
+                    <Button variant="quiet" onClick={close} className="sm:mr-auto">{t('registerFamily.action.cancel')}</Button>
+                )}
                 <Button type="submit">{t('registerFamily.action.continueReview')}</Button>
             </>
         ) : (
@@ -263,7 +307,21 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
             onSubmit={step === 0 ? saveChild : step === 1 ? saveParent : undefined}
             footer={footer}
         >
-            {step === 0 && (
+            {step === 0 && editing === null && (
+                <SegmentedControl<'new' | 'existing'>
+                    aria-label={t('registerFamily.mode.label')}
+                    value={mode}
+                    onChange={(m) => { setMode(m); setPickError(undefined); }}
+                    className="w-full [&>*]:flex-1"
+                    options={[{ value: 'new', label: t('registerFamily.mode.new') }, { value: 'existing', label: t('registerFamily.mode.existing') }]}
+                />
+            )}
+            {step === 0 && mode === 'existing' && editing === null && (
+                <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
+                    error={pickError} describe={studentWithGuardians}
+                    exclude={children.flatMap((c) => (c.kind === 'existing' ? [c.id] : []))} />
+            )}
+            {step === 0 && (mode === 'new' || editing !== null) && (
                 <>
                     <FormRow>
                         <TextField label={t('peopleForms.label.firstName')} autoComplete="off" error={ce.first_name?.message}
@@ -296,9 +354,9 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
                 <>
                     {children.map((c, i) => (
                         <div key={i} className="flex flex-col gap-2">
-                            <p className="type-small-semibold text-ink">{t('registerFamily.field.relationshipTo', { name: c.first_name })}</p>
+                            <p className="type-small-semibold text-ink">{t('registerFamily.field.relationshipTo', { name: firstOf(c) })}</p>
                             <SegmentedControl<Relationship>
-                                aria-label={t('registerFamily.field.relationshipTo', { name: c.first_name })}
+                                aria-label={t('registerFamily.field.relationshipTo', { name: firstOf(c) })}
                                 value={c.relationship}
                                 onChange={(r) => setRelationship(i, r)}
                                 className="w-full [&>*]:flex-1"
@@ -342,13 +400,15 @@ export function RegistrationModal({ isOpen, onClose }: RegistrationModalProps) {
                         {children.map((c, i) => (
                             <li key={i} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
                                 <div className="flex min-w-0 flex-1 flex-col gap-px">
-                                    <span className="truncate type-small-semibold text-ink">{[c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ')}</span>
+                                    <span className="truncate type-small-semibold text-ink">{c.kind === 'new' ? [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ') : c.name}</span>
                                     <span className="truncate type-caption text-muted">
-                                        {[className(c.class_id) ?? t('registerFamily.review.noClass'), t('registerFamily.review.born', { date: df.date(c.dob, 'medium') }), t(`registerFamily.relationship.${c.relationship}`)].join(', ')}
+                                        {c.kind === 'new'
+                                            ? [className(c.class_id) ?? t('registerFamily.review.noClass'), t('registerFamily.review.born', { date: df.date(c.dob, 'medium') }), t(`registerFamily.relationship.${c.relationship}`)].join(', ')
+                                            : [t('registerFamily.review.atSchool'), c.sub, t(`registerFamily.relationship.${c.relationship}`)].filter(Boolean).join(', ')}
                                     </span>
                                 </div>
-                                <Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => editChild(i)}>{t('registerFamily.review.edit')}</Button>
-                                <Button variant="ghost" size="sm" leftIcon={Trash2} onClick={() => removeChild(i)} aria-label={`${t('registerFamily.review.remove')} ${c.first_name}`} className="text-bad">
+                                {c.kind === 'new' && <Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => editChild(i)}>{t('registerFamily.review.edit')}</Button>}
+                                <Button variant="ghost" size="sm" leftIcon={Trash2} onClick={() => removeChild(i)} aria-label={`${t('registerFamily.review.remove')} ${firstOf(c)}`} className="text-bad">
                                     <span className="max-sm:sr-only">{t('registerFamily.review.remove')}</span>
                                 </Button>
                             </li>
