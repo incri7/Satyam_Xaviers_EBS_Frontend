@@ -10,13 +10,11 @@ export type GuardianRelationship = 'father' | 'mother' | 'guardian' | 'other';
  
 export const peopleService = {
     // Shared Registration
+    // The error is left whole: the form needs its status and fields (a
+    // likely duplicate, a field to mark), not a string made from it.
     registerParentStudent: async (data: UnifiedRegistrationCreate): Promise<UnifiedRegistrationResponse> => {
-        try {
-            const response = await api.post<UnifiedRegistrationResponse>('people/register/parent-student', data);
-            return response.data;
-        } catch (error) {
-            throw errorDetail(error) || 'Registration failed';
-        }
+        const response = await api.post<UnifiedRegistrationResponse>('people/register/parent-student', data);
+        return response.data;
     },
 
     // Parents

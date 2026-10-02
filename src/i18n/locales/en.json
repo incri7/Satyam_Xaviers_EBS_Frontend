@@ -1896,7 +1896,7 @@
     },
     "subtitle": {
       "parent": "For a family already on the register",
-      "child": "The new child of {{name}}"
+      "child": "A new child for {{name}}"
     },
     "search": "Search parent by name, phone or email",
     "searchHint": "Type at least two letters to search.",
@@ -1905,7 +1905,7 @@
     "parentLabel": "Parent",
     "change": "Change",
     "admissionNo": "Admission no.",
-    "admissionNoHint": "Leave blank to number it later",
+    "admissionNoHint": "Leave blank to give the next number automatically.",
     "action": {
       "cancel": "Cancel",
       "back": "Back",
@@ -4796,5 +4796,41 @@
     "mainNobody": "Nobody is the main contact yet, so they will be.",
     "relationshipTitle": "How is {{name}} related?",
     "save": "Save"
+  },
+  "errors": {
+    "server": "Something went wrong on our side. Nothing was saved; try again in a moment.",
+    "unexpected": "That did not work. Check the details and try again."
+  },
+  "peopleRules": {
+    "nameTooLong": "Names can be up to {{n}} characters.",
+    "tooYoung": "A student must be at least {{n}} years old.",
+    "tooOld": "A student can be at most {{n}} years old.",
+    "admittedFuture": "The admission date cannot be in the future.",
+    "admittedTooEarly": "The admission date must be at least {{n}} years after the date of birth.",
+    "section": "Section",
+    "classHint": "Leave empty to enrol them later.",
+    "classFirst": "Choose a class first",
+    "onlySection": "The class's only section",
+    "sectionRequired": "Choose a section, so the child is on the attendance register.",
+    "discardTitle": "Discard this registration?",
+    "discardBody": "What you have entered is not saved and will be lost.",
+    "discard": "Discard",
+    "keepEditing": "Keep editing",
+    "relationshipOf": "This guardian is {{child}}'s",
+    "relationshipFrom": "{{parent}} is the child's",
+    "relationshipRequired": "Choose how they are related.",
+    "duplicateTitle": "This child may already be registered",
+    "registerAnyway": "Register anyway",
+    "addAnyway": "Add anyway",
+    "review": {
+      "admitted": "admitted {{date}}",
+      "blood": "blood group {{group}}",
+      "onRegister": "Guardian on the register",
+      "noNewAccount": "no new account"
+    },
+    "matchTitle": "{{name}} is already on the register",
+    "matchBody": "Use them, and the children are added to their account. No second account.",
+    "matchUse": "Use this parent",
+    "doneExisting": "The children are now with {{name}}. No new account was made."
   }
 }

@@ -78,8 +78,15 @@ const PATTERNS: Record<DateStyle, string> = {
  * Gregorian date is shown rather than an empty cell — a visibly wrong-looking
  * date is easier to notice and report than a blank one.
  */
+// The converter's range is 1 Baisakh 2000 (14 April 1943) to 30 Chaitra
+// 2090 (13 April 2034). Outside it, it usually throws, but very old dates
+// wrap round instead: 1 January 1900 came out as Shravan 2043.
+const BS_FIRST = new Date(1943, 3, 14);
+const BS_LAST = new Date(2034, 3, 13, 23, 59, 59);
+
 function bsFormat(d: Date, pattern: string, lang: DateLang): string {
     try {
+        if (d < BS_FIRST || d > BS_LAST) throw new RangeError('outside the BS converter');
         return new NepaliDate(d).format(pattern, lang === 'ne' ? 'np' : 'en');
     } catch {
         return d.toLocaleDateString('en-GB', {

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Check, CheckCircle2, Link2, Loader2, Plus, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Link2, Plus } from 'lucide-react';
 
 import {
     Avatar,
@@ -10,8 +10,6 @@ import {
     Button,
     Dialog,
     FormRow,
-    Person,
-    SearchField,
     SegmentedControl,
     SelectField,
     Stepper,
@@ -21,10 +19,13 @@ import { peopleService } from '../../api/services/people.service';
 import type { Parent, Student } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
-import { cn } from '../../utils/cn';
-import { errorText, fullName, studentWithGuardians } from '../../features/people/format';
+import { useConfirmDialog } from '../common/useConfirmDialog';
+import { errorText, fieldErrors, fullName, possibleDuplicate, studentWithGuardians } from '../../features/people/format';
 import { bloodGroupOptions, genderOptions } from '../../features/people/options';
 import { StudentPicker } from '../../features/people/StudentPicker';
+import { ParentPicker } from '../../features/people/ParentPicker';
+import { ClassSectionFields } from '../../features/people/ClassSectionFields';
+import { NAME_MAX, dobBounds, optionalName, requiredName, tidy, validAdmission, validDob } from '../../features/people/rules';
 
 interface AddStudentToParentModalProps {
     isOpen: boolean;
@@ -33,7 +34,6 @@ interface AddStudentToParentModalProps {
 
 type Relationship = 'father' | 'mother' | 'guardian' | 'other';
 const RELATIONSHIPS: Relationship[] = ['father', 'mother', 'guardian', 'other'];
-const NAME = /^[A-Za-z\s'.-]{2,}$/;
 
 interface ChildDraft {
     first_name: string;
@@ -42,115 +42,148 @@ interface ChildDraft {
     dob: string;
     gender: string;
     blood_group: string;
+    class_id: string;
+    section_id: string;
     admission_date: string;
     admission_no: string;
 }
 
 const emptyChild = (): ChildDraft => ({
-    first_name: '', middle_name: '', last_name: '', dob: '', gender: '', blood_group: '',
+    first_name: '', middle_name: '', last_name: '', dob: '', gender: '', blood_group: '', class_id: '', section_id: '',
     admission_date: formatISODate(new Date()), admission_no: '',
 });
 
 /**
  * Add a child to a family already on the register: pick the parent, then
- * enter a new child (POST /people/students with parent_id) or pick one
- * already at the school (POST /people/students/{id}/guardians).
- *
- * The old version posted camelCase fields and gender "male", which the API
- * rejects, so it could never succeed; this sends the API's own field names.
+ * enter a new child (POST /people/students with parent_id, enrolled in the
+ * class and section given) or pick one already at the school
+ * (POST /people/students/{id}/guardians). The same fields and rules as
+ * Register student.
  */
 export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentModalProps) {
     const { t } = useTranslation();
     const df = useDateFormat();
     const queryClient = useQueryClient();
+    const [confirmUI, confirm] = useConfirmDialog();
     const [step, setStep] = useState<0 | 1 | 'done'>(0);
-    const [searchInput, setSearchInput] = useState('');
-    const [search, setSearch] = useState('');
     const [parent, setParent] = useState<Parent | null>(null);
-    const [relationship, setRelationship] = useState<Relationship>('father');
+    // No default: staff choose. "Father" by default recorded mothers as fathers.
+    const [relationship, setRelationship] = useState<Relationship | ''>('');
+    const [relError, setRelError] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [duplicate, setDuplicate] = useState<string | null>(null);
     const [addedName, setAddedName] = useState('');
     const [mode, setMode] = useState<'new' | 'existing'>('new');
     const [picked, setPicked] = useState<Student | null>(null);
     const [pickError, setPickError] = useState<string | undefined>();
+    const sending = useRef(false);
 
     const form = useForm<ChildDraft>({ defaultValues: emptyChild() });
     const { errors } = form.formState;
-    const dobValue = useWatch({ control: form.control, name: 'dob' });
-    const admittedValue = useWatch({ control: form.control, name: 'admission_date' });
-
-    useEffect(() => {
-        const id = setTimeout(() => setSearch(searchInput.trim()), 300);
-        return () => clearTimeout(id);
-    }, [searchInput]);
-
-    const parents = useQuery({
-        queryKey: ['parents', 'pick', search],
-        queryFn: () => peopleService.getParents({ search, limit: 8 }),
-        enabled: isOpen && search.length >= 2,
-    });
+    const [dobValue, admittedValue, classId, sectionId] = useWatch({ control: form.control, name: ['dob', 'admission_date', 'class_id', 'section_id'] });
+    const born = dobBounds();
+    const parentName = parent ? fullName(parent) : '';
 
     const reset = () => {
         setStep(0);
-        setSearchInput('');
-        setSearch('');
         setParent(null);
-        setRelationship('father');
+        setRelationship('');
+        setRelError(false);
         setError(null);
+        setDuplicate(null);
         setMode('new');
         setPicked(null);
         setPickError(undefined);
         form.reset(emptyChild());
     };
     const close = () => { reset(); onClose(); };
+    const started = step === 1 && (form.formState.isDirty || !!picked || !!relationship);
+    const requestClose = () => {
+        if (!started) return close();
+        confirm({
+            title: t('peopleRules.discardTitle'),
+            body: t('peopleRules.discardBody'),
+            confirmLabel: t('peopleRules.discard'),
+            cancelLabel: t('peopleRules.keepEditing'),
+            tone: 'danger',
+            onConfirm: close,
+        });
+    };
 
-    const mutation = useMutation({
-        mutationFn: (c: ChildDraft) =>
+    const refresh = (studentId?: number) => {
+        ['students', 'parents'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+        queryClient.invalidateQueries({ queryKey: ['people-count'] });
+        if (studentId) queryClient.invalidateQueries({ queryKey: ['student-profile', studentId] });
+    };
+    const failed = (err: unknown) => {
+        const dup = possibleDuplicate(err);
+        if (dup) return setDuplicate(dup.message);
+        // A field the server refused is marked on the field itself.
+        const fields = fieldErrors(err);
+        const known = Object.keys(fields).filter((f) => f in emptyChild());
+        known.forEach((f) => form.setError(f as keyof ChildDraft, { message: fields[f] }));
+        if (known.length === 0) setError(errorText(err, t('peoplePage.error.body')));
+    };
+
+    const create = useMutation({
+        mutationFn: ({ c, allowDuplicate }: { c: ChildDraft; allowDuplicate: boolean }) =>
             peopleService.createStudent({
-                first_name: c.first_name.trim(),
-                middle_name: c.middle_name || undefined,
-                last_name: c.last_name.trim(),
+                first_name: tidy(c.first_name),
+                middle_name: tidy(c.middle_name) || undefined,
+                last_name: tidy(c.last_name),
                 dob: c.dob,
                 gender: c.gender,
                 blood_group: c.blood_group || undefined,
                 admission_date: c.admission_date,
-                admission_no: c.admission_no || undefined,
+                admission_no: c.admission_no.trim() || undefined,
+                class_id: c.class_id ? Number(c.class_id) : undefined,
+                section_id: c.section_id ? Number(c.section_id) : undefined,
                 parent_id: parent?.id,
-                relationship_type: relationship,
+                relationship_type: relationship || undefined,
                 is_primary_contact: true,
+                allow_duplicate: allowDuplicate,
             }),
-        onSuccess: (_, c) => {
-            queryClient.invalidateQueries({ queryKey: ['students'] });
-            queryClient.invalidateQueries({ queryKey: ['people-count'] });
-            setAddedName(`${c.first_name} ${c.last_name}`.trim());
+        onSuccess: (st: Student, { c }) => {
+            refresh(st?.id);
+            setAddedName(tidy(`${c.first_name} ${c.last_name}`));
             setStep('done');
         },
-        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+        onError: failed,
+        onSettled: () => { sending.current = false; },
     });
 
     const link = useMutation({
-        mutationFn: (st: Student) => peopleService.addGuardian(st.id, { parent_id: parent!.id, relationship_type: relationship }),
+        mutationFn: (st: Student) => peopleService.addGuardian(st.id, { parent_id: parent!.id, relationship_type: relationship || undefined }),
         onSuccess: (_, st) => {
-            ['students', 'parents'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
-            queryClient.invalidateQueries({ queryKey: ['student-profile', st.id] });
+            refresh(st.id);
             setAddedName(fullName(st));
             setPicked(null);
             setStep('done');
         },
-        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+        onError: failed,
+        onSettled: () => { sending.current = false; },
     });
 
-    const submitChild = (e: React.FormEvent<HTMLFormElement>) => {
-        setError(null);
-        if (mode === 'new') return void form.handleSubmit((c) => mutation.mutate(c))(e);
-        e.preventDefault();
-        if (!picked) { setPickError(t('registerFamily.error.pickStudent')); return; }
-        link.mutate(picked);
-    };
+    const busy = create.isPending || link.isPending;
 
-    const busy = mutation.isPending || link.isPending;
-    const opt = t('peopleForms.optional');
-    const results: Parent[] = parents.data?.parents ?? [];
+    const submitChild = (e: FormEvent<HTMLFormElement>, allowDuplicate = false) => {
+        e.preventDefault();
+        setError(null);
+        setDuplicate(null);
+        if (!relationship) setRelError(true);
+        if (mode === 'existing') {
+            if (!picked) setPickError(t('registerFamily.error.pickStudent'));
+            if (!picked || !relationship || sending.current) return;
+            sending.current = true;
+            return link.mutate(picked);
+        }
+        void form.handleSubmit((c) => {
+            // A second click in the same instant used to add the child twice.
+            if (!relationship || sending.current) return;
+            sending.current = true;
+            create.mutate({ c, allowDuplicate });
+        })(e);
+    };
 
     if (step === 'done') {
         return (
@@ -161,11 +194,11 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                 icon={CheckCircle2}
                 iconTone="ok"
                 title={t('addChild.done.title')}
-                subtitle={t('addChild.done.body', { child: addedName, parent: parent ? fullName(parent) : '' })}
+                subtitle={t('addChild.done.body', { child: addedName, parent: parentName })}
                 closeLabel={t('common.close')}
                 footer={
                     <>
-                        <Button variant="quiet" leftIcon={Plus} onClick={() => { form.reset(emptyChild()); setPicked(null); setError(null); setStep(1); }}>{t('addChild.action.another')}</Button>
+                        <Button variant="quiet" leftIcon={Plus} onClick={() => { form.reset(emptyChild()); setPicked(null); setRelationship(''); setRelError(false); setError(null); setStep(1); }}>{t('addChild.action.another')}</Button>
                         <Button onClick={close}>{t('addChild.action.done')}</Button>
                     </>
                 }
@@ -174,140 +207,123 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
     }
 
     return (
-        <Dialog
-            open={isOpen}
-            onClose={close}
-            dismissible={!busy}
-            icon={Link2}
-            eyebrow={t('addChild.eyebrow', { n: step + 1 })}
-            title={t('addChild.title')}
-            subtitle={step === 0 ? t('addChild.subtitle.parent') : t('addChild.subtitle.child', { name: parent ? parent.first_name : '' })}
-            closeLabel={t('common.close')}
-            stepper={<Stepper label={t('addChild.title')} current={step} steps={[t('addChild.steps.parent'), t('addChild.steps.child')]} />}
-            onSubmit={step === 1 ? submitChild : undefined}
-            footer={
-                step === 0 ? (
-                    <>
-                        <Button variant="quiet" onClick={close} className="sm:mr-auto">{t('addChild.action.cancel')}</Button>
-                        <Button disabled={!parent} onClick={() => setStep(1)}>{t('addChild.action.next')}</Button>
-                    </>
-                ) : (
-                    <>
-                        <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(0)} disabled={busy} className="sm:mr-auto">{t('addChild.action.back')}</Button>
-                        {mode === 'new' ? (
-                            <Button type="submit" leftIcon={Plus} loading={busy}>{busy ? t('addChild.action.adding') : t('addChild.action.add')}</Button>
-                        ) : (
-                            <Button type="submit" leftIcon={Link2} loading={busy}>{t('addChild.action.link')}</Button>
-                        )}
-                    </>
-                )
-            }
-        >
-            {step === 0 && (
-                <>
-                    <SearchField value={searchInput} onChange={setSearchInput} placeholder={t('addChild.search')} clearLabel={t('common.clear')} />
-                    <div role="listbox" aria-label={t('addChild.steps.parent')} className="flex min-h-[180px] flex-col">
-                        {search.length < 2 ? (
-                            <p className="flex flex-1 items-center justify-center gap-2 px-4 text-center type-small text-muted">
-                                <Search size={16} aria-hidden /> {t('addChild.searchHint')}
-                            </p>
-                        ) : parents.isPending ? (
-                            <p className="flex flex-1 items-center justify-center gap-2 type-small text-muted">
-                                <Loader2 size={16} className="animate-spin" aria-hidden /> {t('addChild.searching')}
-                            </p>
-                        ) : parents.isError ? (
-                            <Banner tone="bad" title={t('addChild.error.search')} />
-                        ) : results.length === 0 ? (
-                            <p className="flex flex-1 items-center justify-center px-4 text-center type-small text-muted">{t('addChild.noMatch')}</p>
-                        ) : (
-                            <ul className="flex flex-col gap-1.5">
-                                {results.map((p) => {
-                                    const on = parent?.id === p.id;
-                                    return (
-                                        <li key={p.id}>
-                                            <button
-                                                type="button"
-                                                role="option"
-                                                aria-selected={on}
-                                                onClick={() => setParent(p)}
-                                                className={cn(
-                                                    'flex w-full items-center gap-3 rounded-row border px-3.5 py-2.5 text-left outline-none transition-colors',
-                                                    'focus-visible:ring-3 focus-visible:ring-focus/60',
-                                                    on ? 'border-primary bg-primary-soft' : 'border-line-subtle bg-surface hover:bg-surface-2',
-                                                )}
-                                            >
-                                                <span className="min-w-0 flex-1">
-                                                    <Person name={fullName(p)} sub={[p.phone || p.user?.phone, p.email || p.user?.email].filter(Boolean).join(', ') || p.occupation} />
-                                                </span>
-                                                {on && <Check size={18} className="shrink-0 text-primary" aria-hidden />}
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </div>
-                </>
-            )}
+        <>
+            {confirmUI}
+            <Dialog
+                open={isOpen}
+                onClose={requestClose}
+                dismissible={!busy}
+                icon={Link2}
+                eyebrow={t('addChild.eyebrow', { n: step + 1 })}
+                title={t('addChild.title')}
+                subtitle={step === 0 ? t('addChild.subtitle.parent') : t('addChild.subtitle.child', { name: parentName })}
+                closeLabel={t('common.close')}
+                stepper={<Stepper label={t('addChild.title')} current={step} steps={[t('addChild.steps.parent'), t('addChild.steps.child')]} />}
+                onSubmit={step === 1 ? (e) => submitChild(e) : (e) => { e.preventDefault(); if (parent) setStep(1); }}
+                footer={
+                    step === 0 ? (
+                        <>
+                            <Button variant="quiet" onClick={close} className="sm:mr-auto">{t('addChild.action.cancel')}</Button>
+                            <Button type="submit" disabled={!parent}>{t('addChild.action.next')}</Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="quiet" leftIcon={ArrowLeft} onClick={() => setStep(0)} disabled={busy} className="sm:mr-auto">{t('addChild.action.back')}</Button>
+                            {mode === 'new' ? (
+                                <Button type="submit" leftIcon={Plus} loading={busy} disabled={!!duplicate}>{busy ? t('addChild.action.adding') : t('addChild.action.add')}</Button>
+                            ) : (
+                                <Button type="submit" leftIcon={Link2} loading={busy}>{t('addChild.action.link')}</Button>
+                            )}
+                        </>
+                    )
+                }
+            >
+                {step === 0 && <ParentPicker label={t('addChild.steps.parent')} value={parent} onChange={setParent} />}
 
-            {step === 1 && parent && (
-                <>
-                    {error && <Banner tone="bad" title={t('addChild.error.title')}>{error}</Banner>}
-                    <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
-                        <Avatar name={fullName(parent)} size={34} />
-                        <div className="flex min-w-0 flex-1 flex-col">
-                            <span className="type-caption text-muted">{t('addChild.parentLabel')}</span>
-                            <span className="truncate type-small-semibold text-ink">{fullName(parent)}</span>
+                {step === 1 && parent && (
+                    <>
+                        {error && <Banner tone="bad" title={t('addChild.error.title')}>{error}</Banner>}
+                        {duplicate && (
+                            <Banner tone="warn" title={t('peopleRules.duplicateTitle')}
+                                action={<Button variant="quiet" size="sm" loading={busy} onClick={() => { setDuplicate(null); void form.handleSubmit((c) => { if (sending.current) return; sending.current = true; create.mutate({ c, allowDuplicate: true }); })(); }}>{t('peopleRules.addAnyway')}</Button>}>
+                                {duplicate}
+                            </Banner>
+                        )}
+                        <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
+                            <Avatar name={parentName} size={34} />
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <span className="type-caption text-muted">{t('addChild.parentLabel')}</span>
+                                <span className="truncate type-small-semibold text-ink">{parentName}</span>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setStep(0)}>{t('addChild.change')}</Button>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setStep(0)}>{t('addChild.change')}</Button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        <p className="type-small-semibold text-ink">{t('registerFamily.field.relationshipTo', { name: parent.first_name })}</p>
-                        <SegmentedControl<Relationship>
-                            aria-label={t('registerFamily.field.relationshipTo', { name: parent.first_name })}
-                            value={relationship}
-                            onChange={setRelationship}
+                        <SegmentedControl<'new' | 'existing'>
+                            aria-label={t('registerFamily.mode.label')}
+                            value={mode}
+                            onChange={(m) => { setMode(m); setPickError(undefined); setError(null); setDuplicate(null); }}
                             className="w-full [&>*]:flex-1"
-                            options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
+                            options={[{ value: 'new', label: t('registerFamily.mode.new') }, { value: 'existing', label: t('registerFamily.mode.existing') }]}
                         />
-                    </div>
-                    <SegmentedControl<'new' | 'existing'>
-                        aria-label={t('registerFamily.mode.label')}
-                        value={mode}
-                        onChange={(m) => { setMode(m); setPickError(undefined); setError(null); }}
-                        className="w-full [&>*]:flex-1"
-                        options={[{ value: 'new', label: t('registerFamily.mode.new') }, { value: 'existing', label: t('registerFamily.mode.existing') }]}
-                    />
-                    {mode === 'existing' && (
-                        <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
-                            error={pickError} describe={studentWithGuardians} />
-                    )}
-                    {mode === 'new' && (<>
-                    <FormRow>
-                        <TextField label={t('peopleForms.label.firstName')} autoComplete="off" error={errors.first_name?.message}
-                            {...form.register('first_name', { required: t('registerFamily.error.firstName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
-                        <TextField label={t('peopleForms.label.lastName')} autoComplete="off" error={errors.last_name?.message}
-                            {...form.register('last_name', { required: t('registerFamily.error.lastName'), pattern: { value: NAME, message: t('registerFamily.error.name') } })} />
-                    </FormRow>
-                    <FormRow>
-                        <TextField type="date" label={t('peopleForms.label.dob')} error={errors.dob?.message} hint={dobValue ? df.date(dobValue, 'medium') : undefined}
-                            {...form.register('dob', { required: t('registerFamily.error.dob') })} />
-                        <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={errors.gender?.message}
-                            {...form.register('gender', { required: t('registerFamily.error.gender') })} />
-                    </FormRow>
-                    <FormRow>
-                        <TextField type="date" label={t('peopleForms.label.admissionDate')} error={errors.admission_date?.message} hint={admittedValue ? df.date(admittedValue, 'medium') : undefined}
-                            {...form.register('admission_date', { required: t('registerFamily.error.admissionDate') })} />
-                        <TextField label={t('addChild.admissionNo')} optional={opt} hint={t('addChild.admissionNoHint')} {...form.register('admission_no')} />
-                    </FormRow>
-                    <FormRow>
-                        <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...form.register('blood_group')} />
-                    </FormRow>
-                    {/* POST /people/students links the parent but does not enrol. */}
-                    <Banner tone="info" title={t('addChild.enrolNote')} />
-                    </>)}
-                </>
-            )}
-        </Dialog>
+                        <div className="flex flex-col gap-2">
+                            <p className="type-small-semibold text-ink">{t('peopleRules.relationshipFrom', { parent: parentName })}</p>
+                            <SegmentedControl<Relationship>
+                                aria-label={t('peopleRules.relationshipFrom', { parent: parentName })}
+                                value={relationship as Relationship}
+                                onChange={(r) => { setRelationship(r); setRelError(false); }}
+                                className="w-full [&>*]:flex-1"
+                                options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
+                            />
+                            {relError && !relationship && <p role="alert" className="type-caption text-bad">{t('peopleRules.relationshipRequired')}</p>}
+                        </div>
+                        {mode === 'existing' && (
+                            <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
+                                error={pickError} describe={studentWithGuardians} />
+                        )}
+                        {mode === 'new' && (
+                            <>
+                                <FormRow>
+                                    <TextField label={t('peopleForms.label.firstName')} autoComplete="off" maxLength={NAME_MAX} error={errors.first_name?.message}
+                                        {...form.register('first_name', { validate: requiredName(t, 'first') })} />
+                                    <TextField label={t('peopleForms.label.middleName')} optional={t('peopleForms.optional')} autoComplete="off" maxLength={NAME_MAX} error={errors.middle_name?.message}
+                                        {...form.register('middle_name', { validate: optionalName(t) })} />
+                                </FormRow>
+                                <FormRow>
+                                    <TextField label={t('peopleForms.label.lastName')} autoComplete="off" maxLength={NAME_MAX} error={errors.last_name?.message}
+                                        {...form.register('last_name', { validate: requiredName(t, 'last') })} />
+                                    <TextField type="date" min={born.min} max={born.max} label={t('peopleForms.label.dob')} error={errors.dob?.message}
+                                        hint={dobValue ? df.date(dobValue, 'medium') : undefined}
+                                        {...form.register('dob', { validate: validDob(t), onChange: () => { if (form.getValues('admission_date')) void form.trigger('admission_date'); } })} />
+                                </FormRow>
+                                <FormRow>
+                                    <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={errors.gender?.message}
+                                        {...form.register('gender', { required: t('registerFamily.error.gender') })} />
+                                    <SelectField label={t('peopleForms.label.bloodGroup')} optional={t('peopleForms.optional')} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...form.register('blood_group')} />
+                                </FormRow>
+                                <input type="hidden" {...form.register('section_id', {
+                                    validate: (v) => !form.getValues('class_id') || !!v || t('peopleRules.sectionRequired'),
+                                })} />
+                                <ClassSectionFields
+                                    enabled={isOpen}
+                                    classId={classId}
+                                    sectionId={sectionId}
+                                    sectionError={errors.section_id?.message}
+                                    onChange={(n) => {
+                                        form.setValue('class_id', n.class_id, { shouldDirty: true });
+                                        form.setValue('section_id', n.section_id, { shouldDirty: true, shouldValidate: !!errors.section_id });
+                                    }}
+                                />
+                                <FormRow>
+                                    <TextField type="date" max={formatISODate(new Date())} label={t('peopleForms.label.admissionDate')} error={errors.admission_date?.message}
+                                        hint={admittedValue ? df.date(admittedValue, 'medium') : undefined}
+                                        {...form.register('admission_date', { validate: validAdmission(t, () => form.getValues('dob')) })} />
+                                    <TextField label={t('addChild.admissionNo')} optional={t('peopleForms.optional')} hint={t('addChild.admissionNoHint')} maxLength={50}
+                                        error={errors.admission_no?.message} {...form.register('admission_no')} />
+                                </FormRow>
+                            </>
+                        )}
+                    </>
+                )}
+            </Dialog>
+        </>
     );
 }

@@ -274,17 +274,23 @@ export interface StudentCreate {
     admission_no?: string;
     admission_date: string;
     class_id?: number;
+    /** Left out, a class with one section puts the child in it. */
+    section_id?: number;
     parent_id?: number;
     relationship_type?: string;
     is_primary_contact?: boolean;
+    /** Save although a student with this name and date of birth exists. */
+    allow_duplicate?: boolean;
     city?: string;
     state?: string;
     pincode?: string;
 }
 
 export interface UnifiedRegistrationCreate {
-    user_in: UserUnifiedCreate;
-    parent_in: ParentUnifiedCreate;
+    /** A new guardian (user_in and parent_in), or one on the register (existing_parent_id). */
+    user_in?: UserUnifiedCreate;
+    parent_in?: ParentUnifiedCreate;
+    existing_parent_id?: number;
     students_in: StudentCreate[];
     /** Children already at the school, linked to this guardian. */
     existing_students?: { student_id: number; relationship_type?: string }[];

@@ -9,6 +9,7 @@ import { peopleService } from '../../api/services/people.service';
 import type { Student, StudentUpdate } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText, fullName } from '../../features/people/format';
+import { NAME_MAX, dobBounds, optionalName, requiredName, validAdmission, validDob } from '../../features/people/rules';
 import { bloodGroupOptions, blanksToNull, genderOptions, studentStatusOptions } from '../../features/people/options';
 
 interface EditStudentModalProps {
@@ -78,12 +79,12 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
 
             <FormSection title={t('peopleForms.section.personal')}>
                 <FormRow>
-                    <TextField label={t('peopleForms.label.firstName')} error={errors.first_name?.message} {...register('first_name', { required: t('peopleForms.error.firstName') })} />
-                    <TextField label={t('peopleForms.label.middleName')} optional={opt} {...register('middle_name')} />
+                    <TextField label={t('peopleForms.label.firstName')} maxLength={NAME_MAX} error={errors.first_name?.message} {...register('first_name', { validate: requiredName(t, 'first') })} />
+                    <TextField label={t('peopleForms.label.middleName')} optional={opt} maxLength={NAME_MAX} error={errors.middle_name?.message} {...register('middle_name', { validate: optionalName(t) })} />
                 </FormRow>
                 <FormRow>
-                    <TextField label={t('peopleForms.label.lastName')} error={errors.last_name?.message} {...register('last_name', { required: t('peopleForms.error.lastName') })} />
-                    <TextField type="date" label={t('peopleForms.label.dob')} hint={bs(dobValue)} {...register('dob')} />
+                    <TextField label={t('peopleForms.label.lastName')} maxLength={NAME_MAX} error={errors.last_name?.message} {...register('last_name', { validate: requiredName(t, 'last') })} />
+                    <TextField type="date" min={dobBounds().min} max={dobBounds().max} label={t('peopleForms.label.dob')} hint={bs(dobValue)} error={errors.dob?.message} {...register('dob', { validate: (v) => !v || validDob(t)(v) })} />
                 </FormRow>
                 <FormRow>
                     <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...register('gender')} />
@@ -94,7 +95,7 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
             <FormSection title={t('peopleForms.section.school')}>
                 <FormRow>
                     <SelectField label={t('peopleForms.label.status')} options={studentStatusOptions(t)} {...register('status')} />
-                    <TextField type="date" label={t('peopleForms.label.admissionDate')} hint={bs(admittedValue)} {...register('admission_date')} />
+                    <TextField type="date" label={t('peopleForms.label.admissionDate')} hint={bs(admittedValue)} error={errors.admission_date?.message} {...register('admission_date', { validate: (v) => !v || validAdmission(t, () => dobValue)(v) })} />
                 </FormRow>
             </FormSection>
 
