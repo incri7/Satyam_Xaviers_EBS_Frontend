@@ -2,7 +2,7 @@ import { useState, type BaseSyntheticEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Info, Mail } from 'lucide-react';
+import { Info, UserRound } from 'lucide-react';
 
 import { Banner, Button, Checkbox, IconTile, PasswordField, TextField } from '../design-system';
 import { AuthLayout } from '../features/auth/AuthLayout';
@@ -20,6 +20,13 @@ interface SignInValues {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** An e-mail, or a Nepali mobile however it is typed (98…, +977 98…). */
+const isSignInId = (v: string) => {
+    const s = v.trim();
+    if (s.includes('@')) return EMAIL_PATTERN.test(s);
+    return /^[\d\s+()-]+$/.test(s) && /^(977)?9[678]\d{8}$/.test(s.replace(/\D/g, ''));
+};
 
 /** Figma: A01 Sign in. */
 const LoginPage = () => {
@@ -88,20 +95,21 @@ const LoginPage = () => {
                     </Banner>
                 )}
 
+                {/* An e-mail or a mobile number: a parent who registered from
+                    the family link has only a number. */}
                 <TextField
-                    label={t('auth.email')}
-                    type="email"
-                    inputMode="email"
+                    label={t('auth.signInId.label')}
+                    type="text"
                     autoComplete="username"
                     autoCapitalize="none"
                     spellCheck={false}
-                    leftIcon={Mail}
-                    placeholder={t('auth.emailPlaceholder')}
+                    leftIcon={UserRound}
+                    placeholder={t('auth.signInId.placeholder')}
                     disabled={isSubmitting}
                     error={errors.email?.message}
                     {...register('email', {
-                        required: t('auth.validation.emailRequired'),
-                        pattern: { value: EMAIL_PATTERN, message: t('auth.validation.emailInvalid') },
+                        required: t('auth.signInId.required'),
+                        validate: (v) => isSignInId(v) || t('auth.signInId.invalid'),
                         onChange: clearServerError,
                     })}
                 />

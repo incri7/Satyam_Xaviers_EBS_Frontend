@@ -57,7 +57,7 @@
     "errorValidation": "Validation error occurred.",
     "errorGeneral": "An error occurred.",
     "title": "Sign in",
-    "subtitle": "Use the email and password the school gave you.",
+    "subtitle": "Use your email or mobile number, and the password you were given.",
     "email": "Email",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
@@ -76,7 +76,7 @@
       "passwordRequired": "Enter your password."
     },
     "errors": {
-      "invalidTitle": "That email and password don’t match.",
+      "invalidTitle": "Those details don’t match an account.",
       "invalidBody": "Check both and try again, or reset your password.",
       "passwordHint": "Passwords are case sensitive. Check that Caps Lock is off.",
       "offlineTitle": "Can’t reach the school server.",
@@ -97,7 +97,7 @@
     },
     "firstTime": {
       "title": "First time signing in?",
-      "body": "Use the email and temporary password from the school office. You will choose your own password right after."
+      "body": "Use the email or mobile number and temporary password from the school office. You will choose your own password right after."
     },
     "setPassword": {
       "back": {
@@ -170,6 +170,12 @@
         "resetBody": "Any other sessions were signed out. Sign in with your new password.",
         "signIn": "Sign in"
       }
+    },
+    "signInId": {
+      "label": "Email or mobile number",
+      "placeholder": "name@satyamxavier.edu.np or 98XXXXXXXX",
+      "required": "Enter your email or mobile number.",
+      "invalid": "Enter an email address, or a 10-digit mobile number starting with 96, 97 or 98."
     }
   },
   "dashboard": {
