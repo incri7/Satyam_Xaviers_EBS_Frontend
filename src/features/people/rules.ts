@@ -74,3 +74,14 @@ export const mobileDigits = (v?: string | null) => {
 
 export const validMobile = (t: TFunction) => (v?: string | null) =>
     (/^[\d\s+()-]+$/.test(v ?? '') && /^9[678]\d{8}$/.test(mobileDigits(v))) || t('registerFamily.error.mobile');
+
+/** A name in Nepali, optional: Devanagari letters and signs only (not its
+    digits or danda), as the server checks. */
+const NEPALI_NAME = /^[\u0900-\u0963\u0970-\u097F][\u0900-\u0963\u0970-\u097F\u200C\u200D\s.]*$/;
+export const NEPALI_NAME_MAX = 200;
+export const validNepaliName = (t: TFunction) => (v?: string | null) => {
+    const s = tidy(v ?? '');
+    if (!s) return true;
+    if (s.length > NEPALI_NAME_MAX) return t('peopleRules.nameTooLong', { n: NEPALI_NAME_MAX });
+    return NEPALI_NAME.test(s) || t('peopleRules.nepaliNameInvalid');
+};

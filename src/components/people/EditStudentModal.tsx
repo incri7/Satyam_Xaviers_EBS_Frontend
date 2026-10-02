@@ -10,7 +10,7 @@ import type { Student, StudentUpdate } from '../../types/people';
 import { errorText, fullName } from '../../features/people/format';
 import { BsDateField } from '../common/BsDateField';
 import { formatISODate } from '../../utils/nepaliDate';
-import { NAME_MAX, dobBounds, optionalName, requiredName, validAdmission, validDob } from '../../features/people/rules';
+import { NAME_MAX, NEPALI_NAME_MAX, dobBounds, optionalName, requiredName, validAdmission, validDob, validNepaliName } from '../../features/people/rules';
 import { bloodGroupOptions, blanksToNull, genderOptions, studentStatusOptions } from '../../features/people/options';
 
 interface EditStudentModalProps {
@@ -32,6 +32,7 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
         reset({
             first_name: student.first_name,
             middle_name: student.middle_name ?? '',
+            name_nepali: student.name_nepali ?? '',
             last_name: student.last_name,
             dob: student.dob ?? '',
             gender: student.gender ?? '',
@@ -85,6 +86,8 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
                     <TextField label={t('peopleForms.label.lastName')} maxLength={NAME_MAX} error={errors.last_name?.message} {...register('last_name', { validate: requiredName(t, 'last') })} />
                     <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...register('gender')} />
                 </FormRow>
+                <TextField label={t('peopleRules.nameNepali')} optional={opt} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
+                    hint={t('peopleRules.nameNepaliHint')} error={errors?.name_nepali?.message} {...register('name_nepali', { validate: validNepaliName(t) })} />
                 <input type="hidden" {...register('dob', { validate: (v) => !v || validDob(t)(v) })} />
                 <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={dobBounds().min} max={dobBounds().max} error={errors.dob?.message}
                     onChange={(v) => setValue('dob', v, { shouldDirty: true, shouldValidate: true })} />

@@ -9,6 +9,7 @@ import { peopleService } from '../../api/services/people.service';
 import type { Parent, ParentUpdate } from '../../types/people';
 import { errorText, fullName } from '../../features/people/format';
 import { blanksToNull } from '../../features/people/options';
+import { NAME_MAX, NEPALI_NAME_MAX, optionalName, requiredName, validNepaliName } from '../../features/people/rules';
 
 interface EditParentModalProps {
     parent: Parent;
@@ -27,6 +28,7 @@ export function EditParentModal({ parent, isOpen, onClose }: EditParentModalProp
         reset({
             first_name: parent.first_name,
             middle_name: parent.middle_name ?? '',
+            name_nepali: parent.name_nepali ?? '',
             last_name: parent.last_name,
             occupation: parent.occupation ?? '',
             national_id: parent.national_id ?? '',
@@ -70,13 +72,15 @@ export function EditParentModal({ parent, isOpen, onClose }: EditParentModalProp
 
             <FormSection title={t('peopleForms.section.personal')}>
                 <FormRow>
-                    <TextField label={t('peopleForms.label.firstName')} error={errors.first_name?.message} {...register('first_name', { required: t('peopleForms.error.firstName') })} />
-                    <TextField label={t('peopleForms.label.middleName')} optional={opt} {...register('middle_name')} />
+                    <TextField label={t('peopleForms.label.firstName')} maxLength={NAME_MAX} error={errors.first_name?.message} {...register('first_name', { validate: requiredName(t, 'first') })} />
+                    <TextField label={t('peopleForms.label.middleName')} optional={opt} maxLength={NAME_MAX} error={errors.middle_name?.message} {...register('middle_name', { validate: optionalName(t) })} />
                 </FormRow>
                 <FormRow>
-                    <TextField label={t('peopleForms.label.lastName')} error={errors.last_name?.message} {...register('last_name', { required: t('peopleForms.error.lastName') })} />
+                    <TextField label={t('peopleForms.label.lastName')} maxLength={NAME_MAX} error={errors.last_name?.message} {...register('last_name', { validate: requiredName(t, 'last') })} />
                     <TextField label={t('peopleForms.label.occupation')} optional={opt} {...register('occupation')} />
                 </FormRow>
+                <TextField label={t('peopleRules.nameNepali')} optional={opt} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
+                    hint={t('peopleRules.nameNepaliHint')} error={errors.name_nepali?.message} {...register('name_nepali', { validate: validNepaliName(t) })} />
                 <TextField label={t('peopleForms.label.nationalId')} optional={opt} {...register('national_id')} />
             </FormSection>
 

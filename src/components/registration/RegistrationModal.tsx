@@ -27,7 +27,7 @@ import { ClassSectionFields } from '../../features/people/ClassSectionFields';
 import { useClasses } from '../../features/people/useClasses';
 import { bloodGroupOptions, genderOptions } from '../../features/people/options';
 import {
-    NAME_MAX, dobBounds, mobileDigits, optionalName, requiredName, tidy, validAdmission, validDob, validMobile,
+    NAME_MAX, NEPALI_NAME_MAX, dobBounds, mobileDigits, optionalName, requiredName, tidy, validAdmission, validDob, validMobile, validNepaliName,
 } from '../../features/people/rules';
 
 interface RegistrationModalProps {
@@ -58,6 +58,7 @@ interface ChildDraft {
     first_name: string;
     middle_name: string;
     last_name: string;
+    name_nepali: string;
     dob: string;
     gender: string;
     blood_group: string;
@@ -72,6 +73,7 @@ interface ChildDraft {
 interface ParentDraft {
     first_name: string;
     last_name: string;
+    name_nepali: string;
     occupation: string;
     phone: string;
     email: string;
@@ -84,10 +86,10 @@ interface ParentDraft {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const emptyChild = (): ChildDraft => ({
-    first_name: '', middle_name: '', last_name: '', dob: '', gender: '', blood_group: '', class_id: '', section_id: '', section_name: '',
+    first_name: '', middle_name: '', last_name: '', name_nepali: '', dob: '', gender: '', blood_group: '', class_id: '', section_id: '', section_name: '',
     admission_date: formatISODate(new Date()), relationship: '',
 });
-const emptyParent: ParentDraft = { first_name: '', last_name: '', occupation: '', phone: '', email: '', national_id: '', address_line: '', city: '', state: '' };
+const emptyParent: ParentDraft = { first_name: '', last_name: '', name_nepali: '', occupation: '', phone: '', email: '', national_id: '', address_line: '', city: '', state: '' };
 
 /**
  * Figma H07 "Register student": Student → Parent → Review, in one request
@@ -188,6 +190,7 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                 parent_in: {
                     first_name: tidy(parent.first_name),
                     last_name: tidy(parent.last_name),
+                    name_nepali: tidy(parent.name_nepali) || undefined,
                     occupation: parent.occupation.trim() || undefined,
                     national_id: parent.national_id.trim() || undefined,
                     address_line: parent.address_line.trim() || undefined,
@@ -206,6 +209,7 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                     first_name: tidy(c.first_name),
                     middle_name: tidy(c.middle_name) || undefined,
                     last_name: tidy(c.last_name),
+                    name_nepali: tidy(c.name_nepali) || undefined,
                     dob: c.dob,
                     gender: c.gender,
                     blood_group: c.blood_group || undefined,
@@ -394,6 +398,8 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                             <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={ce.gender?.message}
                                 {...childForm.register('gender', { required: t('registerFamily.error.gender') })} />
                         </FormRow>
+                        <TextField label={t('peopleRules.nameNepali')} optional={opt} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
+                            hint={t('peopleRules.nameNepaliHint')} error={ce?.name_nepali?.message} {...childForm.register('name_nepali', { validate: validNepaliName(t) })} />
                         <input type="hidden" {...childForm.register('dob', { validate: validDob(t) })} />
                         <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={born.min} max={born.max} error={ce.dob?.message}
                             onChange={(v) => {
@@ -443,6 +449,8 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                             <TextField label={t('peopleForms.label.lastName')} autoComplete="off" maxLength={NAME_MAX} error={pe.last_name?.message}
                                 {...parentForm.register('last_name', { validate: requiredName(t, 'last') })} />
                         </FormRow>
+                        <TextField label={t('peopleRules.nameNepali')} optional={opt} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
+                            hint={t('peopleRules.nameNepaliHint')} error={pe?.name_nepali?.message} {...parentForm.register('name_nepali', { validate: validNepaliName(t) })} />
                         {matched && (
                             <Banner tone="info" title={t('peopleRules.matchTitle', { name: fullName(matched) })}
                                 action={<Button variant="quiet" size="sm" onClick={() => chooseExisting(matched)}>{t('peopleRules.matchUse')}</Button>}>
@@ -485,7 +493,7 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                             {children.map((c, i) => (
                                 <li key={i} className="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0">
                                     <div className="flex min-w-0 flex-1 flex-col gap-px">
-                                        <span className="truncate type-small-semibold text-ink">{nameOf(c)}</span>
+                                        <span className="truncate type-small-semibold text-ink">{nameOf(c)}{c.kind === 'new' && c.name_nepali.trim() ? <span lang="ne" className="font-normal text-ink-2"> · {tidy(c.name_nepali)}</span> : null}</span>
                                         <span className="type-caption text-muted">
                                             {c.kind === 'new'
                                                 ? [
@@ -520,7 +528,7 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                             <li className="flex items-center gap-3 py-1">
                                 <IconTile icon={Phone} tone="brand" size={34} />
                                 <div className="flex min-w-0 flex-col gap-px">
-                                    <span className="truncate type-small-semibold text-ink">{draftName}</span>
+                                    <span className="truncate type-small-semibold text-ink">{draftName}{parent.name_nepali.trim() ? <span lang="ne" className="font-normal text-ink-2"> · {tidy(parent.name_nepali)}</span> : null}</span>
                                     <span className="type-caption text-muted">
                                         {[`+977-${mobileDigits(parent.phone)}`, parent.email, parent.occupation, parent.national_id,
                                             [parent.address_line, parent.city, parent.state].map((x) => x.trim()).filter(Boolean).join(', ')].filter(Boolean).join(' · ')}

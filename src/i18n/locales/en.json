@@ -4855,7 +4855,10 @@
     "matchUse": "Use this parent",
     "doneExisting": "The children are now with {{name}}. No new account was made.",
     "childrenOf": "Children: {{names}}",
-    "noChildrenYet": "No children linked yet"
+    "noChildrenYet": "No children linked yet",
+    "nameNepali": "Name in Nepali",
+    "nameNepaliHint": "In Devanagari, e.g. राम शर्मा. Receipts and certificates print the English name.",
+    "nepaliNameInvalid": "Write the name in Nepali (Devanagari) letters."
   },
   "bsDate": {
     "year": "Year",

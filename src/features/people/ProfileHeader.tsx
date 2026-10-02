@@ -18,6 +18,7 @@ export function ProfileHeader({
     crumb,
     crumbTo,
     name,
+    nameNepali,
     badge,
     line,
     meta,
@@ -26,6 +27,8 @@ export function ProfileHeader({
     crumb: string;
     crumbTo: string;
     name: string;
+    /** The name in Devanagari, under the English one. */
+    nameNepali?: string | null;
     badge?: ReactNode;
     line?: ReactNode;
     meta: ProfileMeta[];
@@ -49,6 +52,7 @@ export function ProfileHeader({
                             <h1 className="type-h2 text-ink">{name}</h1>
                             {badge}
                         </div>
+                        {nameNepali && <p lang="ne" className="type-body-semibold text-ink-2">{nameNepali}</p>}
                         {line && <p className="type-body text-ink-2">{line}</p>}
                         {meta.length > 0 && (
                             <dl className="mt-2 flex flex-wrap gap-x-[18px] gap-y-2">

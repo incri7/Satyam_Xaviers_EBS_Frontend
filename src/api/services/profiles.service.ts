@@ -145,6 +145,7 @@ export interface StudentProfile {
     student: {
         id: number;
         name: string;
+        name_nepali?: string | null;
         first_name: string | null;
         last_name: string | null;
         admission_no: string | null;

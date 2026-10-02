@@ -25,7 +25,7 @@ import { bloodGroupOptions, genderOptions } from '../../features/people/options'
 import { StudentPicker } from '../../features/people/StudentPicker';
 import { ParentPicker } from '../../features/people/ParentPicker';
 import { ClassSectionFields } from '../../features/people/ClassSectionFields';
-import { NAME_MAX, dobBounds, optionalName, requiredName, tidy, validAdmission, validDob } from '../../features/people/rules';
+import { NAME_MAX, NEPALI_NAME_MAX, dobBounds, optionalName, requiredName, tidy, validAdmission, validDob, validNepaliName } from '../../features/people/rules';
 
 interface AddStudentToParentModalProps {
     isOpen: boolean;
@@ -39,6 +39,7 @@ interface ChildDraft {
     first_name: string;
     middle_name: string;
     last_name: string;
+    name_nepali: string;
     dob: string;
     gender: string;
     blood_group: string;
@@ -49,7 +50,7 @@ interface ChildDraft {
 }
 
 const emptyChild = (): ChildDraft => ({
-    first_name: '', middle_name: '', last_name: '', dob: '', gender: '', blood_group: '', class_id: '', section_id: '',
+    first_name: '', middle_name: '', last_name: '', name_nepali: '', dob: '', gender: '', blood_group: '', class_id: '', section_id: '',
     admission_date: formatISODate(new Date()), admission_no: '',
 });
 
@@ -130,6 +131,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                 first_name: tidy(c.first_name),
                 middle_name: tidy(c.middle_name) || undefined,
                 last_name: tidy(c.last_name),
+                name_nepali: tidy(c.name_nepali) || undefined,
                 dob: c.dob,
                 gender: c.gender,
                 blood_group: c.blood_group || undefined,
@@ -292,6 +294,8 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                                     <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={errors.gender?.message}
                                         {...form.register('gender', { required: t('registerFamily.error.gender') })} />
                                 </FormRow>
+                                <TextField label={t('peopleRules.nameNepali')} optional={t('peopleForms.optional')} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
+                                    hint={t('peopleRules.nameNepaliHint')} error={errors?.name_nepali?.message} {...form.register('name_nepali', { validate: validNepaliName(t) })} />
                                 <input type="hidden" {...form.register('dob', { validate: validDob(t) })} />
                                 <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={born.min} max={born.max} error={errors.dob?.message}
                                     onChange={(v) => {

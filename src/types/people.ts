@@ -3,6 +3,8 @@ export interface Parent {
     first_name: string;
     middle_name?: string;
     last_name: string;
+    /** In Devanagari, beside the English name. */
+    name_nepali?: string | null;
     occupation?: string;
     phone?: string | null;
     email?: string | null;
@@ -25,6 +27,8 @@ export interface Student {
     first_name: string;
     middle_name?: string;
     last_name: string;
+    /** In Devanagari, beside the English name. */
+    name_nepali?: string | null;
     dob: string;
     gender: string;
     blood_group: string;
@@ -157,6 +161,7 @@ export interface ParentUpdate {
     first_name?: string;
     middle_name?: string;
     last_name?: string;
+    name_nepali?: string;
     occupation?: string;
     address_line?: string;
     city?: string;
@@ -169,6 +174,7 @@ export interface StudentUpdate {
     first_name?: string;
     middle_name?: string;
     last_name?: string;
+    name_nepali?: string;
     dob?: string;
     gender?: string;
     blood_group?: string;
@@ -246,6 +252,7 @@ export interface ParentUnifiedCreate {
     first_name: string;
     last_name: string;
     middle_name?: string;
+    name_nepali?: string;
     occupation?: string;
     address_line?: string;
     city?: string;
@@ -270,6 +277,7 @@ export interface StudentCreate {
     first_name: string;
     last_name: string;
     middle_name?: string;
+    name_nepali?: string;
     dob: string;
     gender: string;
     blood_group?: string;

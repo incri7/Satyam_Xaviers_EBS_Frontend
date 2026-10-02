@@ -99,6 +99,7 @@ const StudentDetailPage = () => {
                 crumb={t('profilePage.crumbStudents')}
                 crumbTo="/people"
                 name={student.name}
+                nameNepali={student.name_nepali}
                 badge={<StudentStatusBadge status={student.status} />}
                 line={[classLine, student.admission_no].filter(Boolean).join(', ')}
                 meta={[
