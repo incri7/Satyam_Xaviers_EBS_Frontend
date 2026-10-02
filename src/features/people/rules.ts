@@ -85,3 +85,8 @@ export const validNepaliName = (t: TFunction) => (v?: string | null) => {
     if (s.length > NEPALI_NAME_MAX) return t('peopleRules.nameTooLong', { n: NEPALI_NAME_MAX });
     return NEPALI_NAME.test(s) || t('peopleRules.nepaliNameInvalid');
 };
+
+/** Staff and teachers: born 16 to 75 years ago. */
+export const staffDobBounds = () => ({ min: yearsBefore(75), max: yearsBefore(16) });
+/** Joined in the last 50 years, or up to a year ahead (starting next term). */
+export const joinDateBounds = () => ({ min: yearsBefore(50), max: yearsBefore(-1) });

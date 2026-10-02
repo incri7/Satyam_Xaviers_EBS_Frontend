@@ -14,6 +14,7 @@ import { isoLocal } from '../../utils/nepaliDate';
 import type { Enrollment } from '../../types/academic';
 import type { Student } from '../../types/people';
 
+import { BsDateField } from '../../components/common/BsDateField';
 /** Why an enrolment ended; "active" is the current one. */
 export const ENDINGS = ['promoted', 'repeating', 'graduated', 'transferred', 'left'] as const;
 
@@ -76,7 +77,6 @@ export function EditSectionDialog({ section, className, onClose }: {
 /** End an enrolment, saying why: promoted, repeating, graduated, transferred, left. */
 export function EndEnrolmentDialog({ enrolment, studentName, onClose }: { enrolment: Enrollment; studentName: string; onClose: () => void }) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const qc = useQueryClient();
     const [status, setStatus] = useState<(typeof ENDINGS)[number]>('transferred');
     const [date, setDate] = useState(isoLocal(new Date()));
@@ -96,7 +96,7 @@ export function EndEnrolmentDialog({ enrolment, studentName, onClose }: { enrolm
             <FormRow>
                 <SelectField label={t('academicsManage.why')} value={status} onChange={(e) => setStatus(e.target.value as (typeof ENDINGS)[number])}
                     options={ENDINGS.map((s) => ({ value: s, label: t(`enrolStatus.${s}`) }))} />
-                <TextField type="date" label={t('academicsManage.on')} value={date} max={isoLocal(new Date())} onChange={(e) => setDate(e.target.value)} hint={date ? df.date(date) : undefined} />
+                <BsDateField label={t('academicsManage.on')} value={date} max={isoLocal(new Date())} onChange={(v) => setDate(v)} />
             </FormRow>
             <TextAreaField label={t('academicsManage.note')} optional={t('peopleForms.optional')} rows={2} maxLength={255} value={note} onChange={(e) => setNote(e.target.value)}
                 placeholder={t('academicsManage.notePlaceholder')} />

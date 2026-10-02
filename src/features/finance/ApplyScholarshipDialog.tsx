@@ -14,6 +14,7 @@ import type { Student } from '../../types/people';
 import { SCHOLARSHIP_TYPES, TIMES_A_YEAR, encodeReason, type ScholarshipType } from './format';
 import { useFeeStructures } from './queries';
 
+import { BsDateField } from '../../components/common/BsDateField';
 /**
  * Figma H04 "Apply scholarship": a discount on one fee for one student,
  * as a percentage or a fixed amount, with dates and a reason. The type
@@ -154,9 +155,9 @@ export function ApplyScholarshipDialog({ student: preset, onClose, onDone }: {
             )}
 
             <FormRow>
-                <TextField label={t('financePage.scholarships.from')} optional={t('peopleForms.optional')} type="date" value={from} onChange={(e) => setFrom(e.target.value)} hint={from ? df.date(from) : undefined} />
-                <TextField label={t('financePage.scholarships.until')} optional={t('peopleForms.optional')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
-                    hint={to ? df.date(to) : t('financePage.scholarships.noEnd')} error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
+                <BsDateField label={t('financePage.scholarships.from')} optional={t('peopleForms.optional')} value={from} onChange={(v) => setFrom(v)} />
+                <BsDateField label={t('financePage.scholarships.until')} optional={t('peopleForms.optional')} value={to} min={from || undefined} onChange={(v) => setTo(v)}
+                    hint={to ? undefined : t('financePage.scholarships.noEnd')} error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
             </FormRow>
             <TextAreaField label={t('financePage.scholarships.reason')} rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
                 placeholder={t('financePage.scholarships.reasonHint')} error={tried && !reason.trim() ? t('financePage.scholarships.reasonError') : undefined} />

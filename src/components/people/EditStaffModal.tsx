@@ -7,10 +7,11 @@ import { Briefcase, Phone } from 'lucide-react';
 import { Banner, Button, Dialog, FormRow, FormSection, SelectField, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import type { Staff, StaffUpdate } from '../../types/people';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText, fullName } from '../../features/people/format';
 import { bloodGroupOptions, blanksToNull, genderOptions } from '../../features/people/options';
 
+import { BsDateField } from '../common/BsDateField';
+import { joinDateBounds, staffDobBounds } from '../../features/people/rules';
 interface EditStaffModalProps {
     staff: Staff;
     isOpen: boolean;
@@ -20,10 +21,9 @@ interface EditStaffModalProps {
 /** Edit an office or support staff record. */
 export function EditStaffModal({ staff, isOpen, onClose }: EditStaffModalProps) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
-    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StaffUpdate>();
+    const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<StaffUpdate>();
     const dobValue = useWatch({ control, name: 'dob' });
     const joinedValue = useWatch({ control, name: 'join_date' });
 
@@ -55,7 +55,6 @@ export function EditStaffModal({ staff, isOpen, onClose }: EditStaffModalProps) 
         onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
-    const bs = (v?: string) => (v ? df.date(v, 'medium') : undefined);
     const opt = t('peopleForms.optional');
     const saving = mutation.isPending;
 
@@ -84,7 +83,9 @@ export function EditStaffModal({ staff, isOpen, onClose }: EditStaffModalProps) 
                     <TextField label={t('peopleForms.label.lastName')} optional={opt} {...register('last_name')} />
                 </FormRow>
                 <FormRow>
-                    <TextField type="date" label={t('peopleForms.label.dob')} optional={opt} hint={bs(dobValue)} {...register('dob')} />
+                    <input type="hidden" {...register('dob')} />
+                    <BsDateField label={t('peopleForms.label.dob')} optional={opt} value={dobValue} min={staffDobBounds().min} max={staffDobBounds().max}
+                        onChange={(v) => setValue('dob', v, { shouldDirty: true })} />
                     <SelectField label={t('peopleForms.label.gender')} optional={opt} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...register('gender')} />
                 </FormRow>
             </FormSection>
@@ -95,7 +96,9 @@ export function EditStaffModal({ staff, isOpen, onClose }: EditStaffModalProps) 
                     <TextField label={t('peopleForms.label.staffCode')} optional={opt} {...register('staff_code')} />
                 </FormRow>
                 <FormRow>
-                    <TextField type="date" label={t('peopleForms.label.joinDate')} optional={opt} hint={bs(joinedValue)} {...register('join_date')} />
+                    <input type="hidden" {...register('join_date')} />
+                    <BsDateField label={t('peopleForms.label.joinDate')} optional={opt} value={joinedValue} min={joinDateBounds().min} max={joinDateBounds().max}
+                        onChange={(v) => setValue('join_date', v, { shouldDirty: true })} />
                     <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...register('blood_group')} />
                 </FormRow>
             </FormSection>

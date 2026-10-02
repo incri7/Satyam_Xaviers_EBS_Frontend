@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, CheckCircle2, ClipboardCheck, History, Layers, MessageSquare, Save, Users, WifiOff } from 'lucide-react';
 
-import { Banner, Button, Card, CardHeader, EmptyState, FilterChips, Meter, SegmentedControl, Skeleton, Tabs, TextField } from '../../design-system';
+import { Banner, Button, Card, CardHeader, EmptyState, FilterChips, Meter, SegmentedControl, Skeleton, Tabs } from '../../design-system';
 import { AppPage, PageBar, Toolbar } from '../../components/layout/AppPage';
 import { SelectMenu } from '../../components/common/SelectMenu';
 import { academicsService } from '../../api/services/academics.service';
@@ -23,6 +23,7 @@ import { HistoryDays, HistoryTotals } from '../../features/attendance/HistoryDay
 import { STATUSES, STATUS_KEY } from '../../features/attendance/status';
 import type { Student } from '../../types/people';
 
+import { BsDateField } from '../../components/common/BsDateField';
 type Period = 'day' | 'week' | 'month' | 'term' | 'custom';
 type Filter = 'all' | AttendanceStatus | 'none';
 
@@ -318,9 +319,9 @@ const AttendancePage: React.FC = () => {
                             options={(['day', 'week', 'month', 'term', 'custom'] as Period[]).map((p) => ({ value: p, label: t(`attendancePage.period.${p}`) }))} />
                     </div>
                     {period === 'custom' && (
-                        <div className="flex gap-2">
-                            <TextField label={t('attendancePage.from')} type="date" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} containerClassName="w-[170px]" />
-                            <TextField label={t('attendancePage.to')} type="date" value={customEnd} min={customStart} max={today} onChange={(e) => setCustomEnd(e.target.value)} containerClassName="w-[170px]" />
+                        <div className="flex flex-wrap gap-3">
+                            <BsDateField compact label={t('attendancePage.from')} value={customStart} max={customEnd} onChange={(v) => setCustomStart(v)} />
+                            <BsDateField compact label={t('attendancePage.to')} value={customEnd} min={customStart} max={today} onChange={(v) => setCustomEnd(v)} />
                         </div>
                     )}
                     <p className="type-small text-muted md:ml-auto">

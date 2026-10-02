@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, CalendarPlus, Plane, RotateCw, Send } from 'lucide-react';
 
-import { Badge, Banner, Button, Card, CardHeader, EmptyState, FilterChips, FormRow, Meter, SegmentedControl, Skeleton, TextAreaField, TextField } from '../../design-system';
+import { Badge, Banner, Button, Card, CardHeader, EmptyState, FilterChips, FormRow, Meter, SegmentedControl, Skeleton, TextAreaField } from '../../design-system';
 import { AppPage } from '../../components/layout/AppPage';
 import { leavesService, type LeaveRead, type LeaveStatus, type LeaveType } from '../../api/services/leaves.service';
 import { COUNTED, LEAVE_TYPES, LIMITED, STATUS_TONE, leaveDays, remaining } from '../../features/leave/format';
@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatCount } from '../../utils/money';
 
+import { BsDateField } from '../../components/common/BsDateField';
 type Filter = 'all' | LeaveStatus;
 
 /**
@@ -110,10 +111,10 @@ const TeacherLeavePage: React.FC = () => {
                         </div>
                     </div>
                     <FormRow>
-                        <TextField label={t('leaves.from')} type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (to && e.target.value > to) setTo(e.target.value); }}
-                            hint={from ? df.date(from, 'long') : undefined} error={tried && !from ? t('leavePage.mine.pickFrom') : undefined} />
-                        <TextField label={t('leaves.to')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
-                            hint={to ? df.date(to, 'long') : undefined} error={tried && (!to || (from && to < from)) ? t('leavePage.mine.pickTo') : undefined} />
+                        <BsDateField label={t('leaves.from')} value={from} onChange={(v) => { setFrom(v); if (to && v > to) setTo(v); }}
+                            error={tried && !from ? t('leavePage.mine.pickFrom') : undefined} />
+                        <BsDateField label={t('leaves.to')} value={to} min={from || undefined} onChange={(v) => setTo(v)}
+                            error={tried && (!to || (from && to < from)) ? t('leavePage.mine.pickTo') : undefined} />
                     </FormRow>
                     {days > 0 && (
                         <Banner tone={blocked ? 'bad' : after != null && after < 0 ? 'warn' : 'info'} icon={CalendarPlus}

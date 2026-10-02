@@ -12,6 +12,7 @@ import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatRs } from '../../utils/money';
 import type { PaymentMethod } from '../../types/finance';
 
+import { BsDateField } from '../common/BsDateField';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -142,8 +143,8 @@ export function RecordExpenseModal({ isOpen, onClose }: Props) {
                         <TextField label={t('financePage.record.amount')} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))}
                             endAdornment={<span className="type-small text-muted">Rs</span>}
                             error={tried && !amountOk ? t('financePage.record.amountError') : undefined} />
-                        <TextField label={t('financePage.expense.date')} type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)}
-                            hint={date ? df.date(date) : undefined}
+                        <BsDateField label={t('financePage.expense.date')} value={date} max={today} onChange={(v) => setDate(v)}
+                           
                             error={tried && (!date || date > today) ? t('financePage.record.dateError') : undefined} />
                     </FormRow>
                     <div className="flex flex-col gap-2">

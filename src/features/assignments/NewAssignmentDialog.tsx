@@ -7,10 +7,10 @@ import { Banner, Button, Dialog, FormRow, SelectField, TextAreaField, TextField 
 import { assignmentsService } from '../../api/services/assignments.service';
 import { academicsService } from '../../api/services/academics.service';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { isoLocal } from '../../utils/nepaliDate';
 import { errorText } from '../people/format';
 
+import { BsDateField } from '../../components/common/BsDateField';
 /**
  * Figma H06 "New assignment": what to do, for which class and subject, and
  * when it is due. Teachers pick only among the classes and subjects they
@@ -21,7 +21,6 @@ import { errorText } from '../people/format';
  */
 export function NewAssignmentDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const isTeacher = useAuthStore((s) => s.user?.role) === 'teacher';
     const [form, setForm] = useState({ title: '', description: '', class_id: '', section_id: '', subject_id: '', due_date: '', teacher_id: '' });
@@ -103,8 +102,8 @@ export function NewAssignmentDialog({ onClose, onCreated }: { onClose: () => voi
             <FormRow>
                 <SelectField label={t('assignments.subject')} value={subjectId} placeholder={t('peopleForms.choose')} disabled={isTeacher && !classId} error={err('subject', 'assignmentsPage.new.subjectError')}
                     onChange={(e) => set({ subject_id: e.target.value })} options={subjects.map((s) => ({ value: s.id, label: s.name }))} />
-                <TextField label={t('assignments.dueDate')} type="date" value={form.due_date} min={today} onChange={(e) => set({ due_date: e.target.value })}
-                    hint={form.due_date ? df.date(form.due_date, 'long') : undefined} error={err('due', 'assignmentsPage.new.dueError')} />
+                <BsDateField label={t('assignments.dueDate')} value={form.due_date} min={today} onChange={(v) => set({ due_date: v })}
+                    error={err('due', 'assignmentsPage.new.dueError')} />
             </FormRow>
             {!isTeacher && (
                 <SelectField label={t('assignments.teacher')} value={form.teacher_id} placeholder={t('peopleForms.choose')} error={err('teacher', 'assignmentsPage.new.teacherError')}

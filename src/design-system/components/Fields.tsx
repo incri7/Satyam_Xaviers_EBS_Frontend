@@ -2,6 +2,7 @@ import { useId, type ComponentPropsWithRef, type ReactNode } from 'react';
 import { AlertCircle, ChevronDown, type LucideIcon } from 'lucide-react';
 
 import { cn } from '../../utils/cn';
+import { fieldBox } from './fieldBox';
 
 /**
  * Form fields that sit beside TextField in dialogs: a native select (the
@@ -37,16 +38,6 @@ function FieldFrame({ label, hint, error, optional, id, children, className }: F
     );
 }
 
-const box = (error?: string, disabled?: boolean) =>
-    cn(
-        'rounded-field border-[1.5px] bg-surface font-ui text-base font-medium text-ink outline-none md:text-sm',
-        'transition-[border-color,box-shadow] duration-150 ease-sx',
-        disabled
-            ? 'border-line-subtle bg-sunken text-muted'
-            : error
-              ? 'border-bad shadow-[0_0_0_4px_rgb(216_53_42/0.14)]'
-              : 'border-line focus:border-sx-blue-500 focus:shadow-[0_0_0_4px_rgb(44_107_192/0.18)]',
-    );
 
 export interface SelectFieldProps extends Omit<ComponentPropsWithRef<'select'>, 'size'> {
     label: string;
@@ -72,7 +63,7 @@ export function SelectField({ label, hint, error, optional, leftIcon: Icon, plac
                     disabled={disabled}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error || hint ? `${fieldId}-message` : undefined}
-                    className={cn(box(error, disabled), 'h-[46px] w-full appearance-none pr-9', Icon ? 'pl-9' : 'pl-3', className)}
+                    className={cn(fieldBox(error, disabled), 'h-[46px] w-full appearance-none pr-9', Icon ? 'pl-9' : 'pl-3', className)}
                     {...rest}
                 >
                     {placeholder !== undefined && <option value="">{placeholder}</option>}
@@ -105,7 +96,7 @@ export function TextAreaField({ label, hint, error, optional, containerClassName
                 disabled={disabled}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error || hint ? `${fieldId}-message` : undefined}
-                className={cn(box(error, disabled), 'w-full resize-y px-3 py-2.5 leading-5 placeholder:font-normal placeholder:text-muted', className)}
+                className={cn(fieldBox(error, disabled), 'w-full resize-y px-3 py-2.5 leading-5 placeholder:font-normal placeholder:text-muted', className)}
                 {...rest}
             />
         </FieldFrame>

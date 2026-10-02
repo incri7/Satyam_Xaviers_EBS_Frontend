@@ -7,10 +7,11 @@ import { Phone, UserPlus } from 'lucide-react';
 import { Banner, Button, Dialog, FormRow, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import type { StaffCreate } from '../../types/people';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText } from '../../features/people/format';
 import { withoutBlanks } from '../../features/people/options';
 
+import { BsDateField } from '../common/BsDateField';
+import { joinDateBounds } from '../../features/people/rules';
 interface AddStaffModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -22,10 +23,9 @@ interface AddStaffModalProps {
  */
 export function AddStaffModal({ isOpen, onClose }: AddStaffModalProps) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
-    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StaffCreate>();
+    const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<StaffCreate>();
     const joinedValue = useWatch({ control, name: 'join_date' });
 
     const close = () => { reset(); setError(null); onClose(); };
@@ -71,7 +71,9 @@ export function AddStaffModal({ isOpen, onClose }: AddStaffModalProps) {
                 <TextField type="tel" inputMode="tel" leftIcon={Phone} label={t('peopleForms.label.phone')} optional={opt} {...register('phone')} />
             </FormRow>
             <FormRow>
-                <TextField type="date" label={t('peopleForms.label.joinDate')} optional={opt} hint={joinedValue ? df.date(joinedValue, 'medium') : undefined} {...register('join_date')} />
+                <input type="hidden" {...register('join_date')} />
+                    <BsDateField label={t('peopleForms.label.joinDate')} optional={opt} value={joinedValue} min={joinDateBounds().min} max={joinDateBounds().max}
+                        onChange={(v) => setValue('join_date', v, { shouldDirty: true })} />
                 <TextField label={t('peopleForms.label.staffCode')} optional={opt} {...register('staff_code')} />
             </FormRow>
             <TextField label={t('peopleForms.label.address')} optional={opt} {...register('address_line')} />

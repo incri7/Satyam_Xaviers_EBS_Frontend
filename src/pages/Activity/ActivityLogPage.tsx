@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, ArrowLeft, History, Layers, Lock, RotateCw, Settings2, X } from 'lucide-react';
 
 import {
-    Badge, Banner, Button, Card, CardHeader, EmptyState, SearchField, SegmentedControl, SelectField, Skeleton, TextField,
+    Badge, Banner, Button, Card, CardHeader, EmptyState, SearchField, SegmentedControl, SelectField, Skeleton,
 } from '../../design-system';
 import { AppPage, PageBar } from '../../components/layout/AppPage';
 import { Pagination } from '../../components/common/Pagination';
@@ -20,6 +20,7 @@ import { formatCount } from '../../utils/money';
 import { isoLocal } from '../../utils/nepaliDate';
 import { cn } from '../../utils/cn';
 
+import { BsDateField } from '../../components/common/BsDateField';
 const PAGE_SIZE = 50;
 const ROLES = ['admin', 'principal', 'coordinator', 'accountant', 'teacher', 'staff', 'parent', 'student'];
 type Filter = { kind: 'person' | 'student' | 'record'; id: string; name: string; table?: string };
@@ -178,10 +179,10 @@ export default function ActivityLogPage() {
                         </div>
                         {period === 'custom' && (
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <TextField type="date" label={t('audit.from')} value={custom.start} max={custom.end}
-                                    onChange={(e) => { setCustom((c) => ({ ...c, start: e.target.value })); reset(); }} hint={df.date(custom.start)} />
-                                <TextField type="date" label={t('audit.to')} value={custom.end} min={custom.start} max={today}
-                                    onChange={(e) => { setCustom((c) => ({ ...c, end: e.target.value })); reset(); }} hint={df.date(custom.end)} />
+                                <BsDateField label={t('audit.from')} value={custom.start} max={custom.end}
+                                    onChange={(v) => { setCustom((c) => ({ ...c, start: v })); reset(); }} />
+                                <BsDateField label={t('audit.to')} value={custom.end} min={custom.start} max={today}
+                                    onChange={(v) => { setCustom((c) => ({ ...c, end: v })); reset(); }} />
                             </div>
                         )}
                         {bucket && (

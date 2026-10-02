@@ -3,11 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { History } from 'lucide-react';
 
-import { Banner, Button, Dialog, TextAreaField, TextField } from '../../design-system';
+import { Banner, Button, Dialog, TextAreaField } from '../../design-system';
 import { auditService } from '../../api/services/audit.service';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText } from '../people/format';
 
+import { BsDateField } from '../../components/common/BsDateField';
 /**
  * Activity older than three months opens on request: the person says which
  * dates and why, and admin approves or declines. An approved range stays
@@ -59,10 +60,10 @@ export function RequestOlderDialog({ bucketId, bucketName, start, end, windowSta
             </>}>
             {error && <Banner tone="bad" title={t('audit.request.failed')}>{error}</Banner>}
             <div className="grid gap-3 sm:grid-cols-2">
-                <TextField type="date" label={t('audit.from')} value={from} max={windowStart} onChange={(e) => setFrom(e.target.value)}
-                    hint={from ? df.date(from) : undefined} error={tried && datesError ? datesError : undefined} />
-                <TextField type="date" label={t('audit.to')} value={to} min={from} onChange={(e) => setTo(e.target.value)}
-                    hint={to ? df.date(to) : undefined} />
+                <BsDateField label={t('audit.from')} value={from} max={windowStart} onChange={(v) => setFrom(v)}
+                    error={tried && datesError ? datesError : undefined} />
+                <BsDateField label={t('audit.to')} value={to} min={from} onChange={(v) => setTo(v)}
+                    />
             </div>
             <TextAreaField label={t('audit.request.reason')} rows={3} value={reason} onChange={(e) => setReason(e.target.value)}
                 placeholder={t('audit.request.reasonHint')} error={tried && reasonError ? reasonError : undefined} />

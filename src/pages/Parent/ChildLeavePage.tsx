@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, CheckCircle2, Clock, Info, Send, X, XCircle, type LucideIcon } from 'lucide-react';
 
-import { Badge, Banner, Button, Card, CardHeader, FilterChips, IconTile, TextAreaField, TextField, type BadgeTone, type IconTileTone } from '../../design-system';
+import { Badge, Banner, Button, Card, CardHeader, FilterChips, IconTile, TextAreaField, type BadgeTone, type IconTileTone } from '../../design-system';
 import { AppPage } from '../../components/layout/AppPage';
 import { leavesService, type LeaveRead } from '../../api/services/leaves.service';
 import { InlineEmpty, InlineError, RowsSkeleton } from '../../features/home/parts';
@@ -15,6 +15,7 @@ import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatCount } from '../../utils/money';
 import { isoLocal } from '../../utils/nepaliDate';
 
+import { BsDateField } from '../../components/common/BsDateField';
 /**
  * The reason goes first in the request's text, "Family event: cousin's
  * wedding", because the API has only sick and casual leave for students.
@@ -125,12 +126,12 @@ function AskForm({ existing }: { existing: LeaveRead[] }) {
                 {sent && <Banner tone="ok" title={t('childPage.leaveForm.sentTitle')}>{t('childPage.leaveForm.sentBody')}</Banner>}
                 {send.isError && <Banner tone="bad" title={t('childPage.leaveForm.failed')}>{errorText(send.error, t('parent.failedSubmit'))}</Banner>}
                 <div className="grid grid-cols-2 gap-3">
-                    <TextField type="date" label={t('childPage.leaveForm.from')} value={start} min={earliest}
-                        hint={start ? df.date(start, 'long') : undefined}
-                        onChange={(e) => { setStart(e.target.value); if (!end || end < e.target.value) setEnd(e.target.value); }} />
-                    <TextField type="date" label={t('childPage.leaveForm.to')} value={end} min={start || earliest}
-                        hint={end ? df.date(end, 'long') : undefined} error={dateError && end ? ' ' : undefined}
-                        onChange={(e) => setEnd(e.target.value)} />
+                    <BsDateField label={t('childPage.leaveForm.from')} value={start} min={earliest}
+                       
+                        onChange={(v) => { setStart(v); if (!end || end < v) setEnd(v); }} />
+                    <BsDateField label={t('childPage.leaveForm.to')} value={end} min={start || earliest}
+                        error={dateError && end ? ' ' : undefined}
+                        onChange={(v) => setEnd(v)} />
                 </div>
                 {dateError ? (
                     <p role="alert" className="flex items-start gap-1.5 type-small text-bad"><AlertCircle size={14} className="mt-0.5 shrink-0" aria-hidden />{dateError}</p>

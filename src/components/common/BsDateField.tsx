@@ -1,8 +1,10 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AlertCircle, ChevronDown } from 'lucide-react';
 import NepaliDate from 'nepali-date-converter';
 
-import { SelectField } from '../../design-system';
+import { fieldBox } from '../../design-system';
+import { cn } from '../../utils/cn';
 import { bsMonthBounds, isoLocal, parseDate, toNepaliDigits } from '../../utils/nepaliDate';
 
 /** The converter's range: 1 Baisakh 2000 to the end of 2090. */
@@ -41,7 +43,11 @@ const toIso = ({ y, m, d }: Bs): string => {
  * A date picked in Bikram Sambat: year, month, day. Staff typed AD dates in
  * mm/dd/yyyy and read the BS date under them; the school works in BS.
  * The value is still an AD date (YYYY-MM-DD), as the API and database keep
- * them; min and max are AD too and bound the years on offer.
+ * them; min and max are AD too and bound the years on offer (without them,
+ * ten years back and two ahead).
+ *
+ * `compact` is for filter bars and table rows: smaller boxes, and the label
+ * can be hidden (it is still read out) with `hideLabel`.
  */
 export function BsDateField({
     label,
@@ -53,7 +59,10 @@ export function BsDateField({
     hint,
     optional,
     disabled,
-    newestFirst = true,
+    newestFirst,
+    compact = false,
+    hideLabel = false,
+    className,
 }: {
     label: string;
     value: string | null | undefined;
@@ -64,8 +73,12 @@ export function BsDateField({
     hint?: string;
     optional?: string;
     disabled?: boolean;
-    /** Years from the latest down: right for recent dates, which most are. */
+    /** Years from the latest down. By default yes, except for a field that
+        only takes today or later (a notice's start, a due date). */
     newestFirst?: boolean;
+    compact?: boolean;
+    hideLabel?: boolean;
+    className?: string;
 }) {
     const { t, i18n } = useTranslation();
     const ne = i18n.language.startsWith('ne');
@@ -76,7 +89,7 @@ export function BsDateField({
     // kept here and the value is set only once all three are.
     const [parts, setParts] = useState<Bs>(() => bsOf(value));
     useEffect(() => {
-        // The form changed the value (reset, edit): follow it.
+        // The form changed the value (reset, edit, a default): follow it.
         if ((value ?? '') !== toIso(parts)) setParts(bsOf(value));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value]);
@@ -88,11 +101,16 @@ export function BsDateField({
     };
 
     const years = useMemo(() => {
-        const lo = Math.max(FIRST_BS, bsOf(min).y ?? FIRST_BS);
-        const hi = Math.min(LAST_BS, bsOf(max).y ?? LAST_BS);
+        const now = bsOf(isoLocal(new Date())).y ?? 2083;
+        let lo = Math.max(FIRST_BS, bsOf(min).y ?? now - 10);
+        let hi = Math.min(LAST_BS, bsOf(max).y ?? now + 2);
+        // A saved date outside the usual range is still shown as itself.
+        const held = bsOf(value).y;
+        if (held) { lo = Math.min(lo, held); hi = Math.max(hi, held); }
         const list = Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
-        return newestFirst ? list.reverse() : list;
-    }, [min, max, newestFirst]);
+        const desc = newestFirst ?? !(min && min >= isoLocal(new Date()));
+        return desc ? list.reverse() : list;
+    }, [min, max, newestFirst, value]);
 
     const monthName = (m: number) => {
         try {
@@ -104,25 +122,39 @@ export function BsDateField({
     // Before the month is known, every day a BS month can have (up to 32).
     const days = parts.y && parts.m ? daysIn(parts.y, parts.m) : 32;
 
+    const select = (key: 'y' | 'm' | 'd', aria: string, options: { value: number; label: string }[]) => (
+        <div className="relative min-w-0">
+            <select
+                aria-label={`${label}: ${aria}`}
+                aria-invalid={error ? true : undefined}
+                disabled={disabled}
+                value={parts[key] ?? ''}
+                onChange={(e) => set({ ...parts, [key]: Number(e.target.value) || undefined })}
+                className={cn(fieldBox(error, disabled), 'w-full appearance-none pl-3 pr-8', compact ? 'h-[38px] text-sm' : 'h-[46px]')}
+            >
+                <option value="">{aria}</option>
+                {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <ChevronDown size={15} className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted" aria-hidden />
+        </div>
+    );
+
     return (
-        <fieldset className="flex min-w-0 flex-col gap-1.5" aria-describedby={error || hint ? `${id}-msg` : undefined} disabled={disabled}>
-            <legend className="mb-1.5 type-small-semibold text-ink">
+        <fieldset className={cn('flex min-w-0 flex-col gap-1.5', className)} aria-describedby={error || hint ? `${id}-msg` : undefined}>
+            <legend className={cn('mb-1.5 type-small-semibold text-ink', hideLabel && 'sr-only')}>
                 {label}
-                {optional && <span className="ml-1.5 type-caption font-normal text-muted">{optional}</span>}
+                {optional && <span className="font-normal text-muted"> {optional}</span>}
             </legend>
-            <div className="grid grid-cols-[1.1fr_1.4fr_0.9fr] gap-2">
-                <SelectField label={t('bsDate.year')} value={parts.y ?? ''} placeholder={t('bsDate.year')}
-                    options={years.map((y) => ({ value: y, label: num(y) }))}
-                    onChange={(e) => set({ ...parts, y: Number(e.target.value) || undefined })} />
-                <SelectField label={t('bsDate.month')} value={parts.m ?? ''} placeholder={t('bsDate.month')}
-                    options={Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: monthName(i + 1) }))}
-                    onChange={(e) => set({ ...parts, m: Number(e.target.value) || undefined })} />
-                <SelectField label={t('bsDate.day')} value={parts.d ?? ''} placeholder={t('bsDate.day')}
-                    options={Array.from({ length: days }, (_, i) => ({ value: i + 1, label: num(i + 1) }))}
-                    onChange={(e) => set({ ...parts, d: Number(e.target.value) || undefined })} />
+            <div className={cn('grid gap-2', compact ? 'grid-cols-[4.5rem_6.5rem_3.75rem] gap-1.5' : 'grid-cols-[1.1fr_1.4fr_0.9fr]')}>
+                {select('y', t('bsDate.year'), years.map((y) => ({ value: y, label: num(y) })))}
+                {select('m', t('bsDate.month'), Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: monthName(i + 1) })))}
+                {select('d', t('bsDate.day'), Array.from({ length: days }, (_, i) => ({ value: i + 1, label: num(i + 1) })))}
             </div>
             {(error || hint) && (
-                <p id={`${id}-msg`} role={error ? 'alert' : undefined} className={error ? 'type-caption text-bad' : 'type-caption text-muted'}>{error || hint}</p>
+                <p id={`${id}-msg`} className={cn('flex items-start gap-1.5 type-caption', error ? 'text-bad' : 'text-muted')}>
+                    {error && <AlertCircle size={14} className="mt-px shrink-0" aria-hidden />}
+                    <span>{error || hint}</span>
+                </p>
             )}
         </fieldset>
     );

@@ -20,6 +20,7 @@ import { formatCount } from '../../utils/money';
 import { isoLocal } from '../../utils/nepaliDate';
 import { cn } from '../../utils/cn';
 
+import { BsDateField } from '../../components/common/BsDateField';
 const TYPES = ['unit_test', 'mid_term', 'final', 'other'] as const;
 type ExamType = (typeof TYPES)[number];
 
@@ -372,7 +373,7 @@ function RoutineDialog({ examId, taken, onClose, onDone }: {
                             <div className="flex flex-col gap-2.5 rounded-row bg-surface-2 p-3">
                                 <p className="type-small-semibold text-ink">{t('examsPage.sameForAll')}</p>
                                 <FormRow>
-                                    <TextField type="date" label={t('examsPage.firstDay')} value={first} onChange={(e) => setFirst(e.target.value)} hint={first ? df.date(first) : undefined} />
+                                    <BsDateField label={t('examsPage.firstDay')} value={first} onChange={(v) => setFirst(v)} />
                                     <TextField label={t('examsPage.fullMarks')} inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/[^\d.]/g, ''))} />
                                 </FormRow>
                                 <FormRow>
@@ -391,8 +392,8 @@ function RoutineDialog({ examId, taken, onClose, onDone }: {
                                                 label={<span className="type-body-semibold text-ink">{s.subject_name}</span>} />
                                             {r.include && (
                                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                                    <TextField type="date" label={t('examsPage.date')} value={r.date} onChange={(e) => setRow(s.subject_id, { date: e.target.value })}
-                                                        hint={r.date ? df.date(r.date, 'dayMonth') : undefined} error={wrong && !r.date ? t('examsPage.dateError') : undefined} />
+                                                    <BsDateField compact className="col-span-2" label={t('examsPage.date')} value={r.date} onChange={(v) => setRow(s.subject_id, { date: v })}
+                                                        error={wrong && !r.date ? t('examsPage.dateError') : undefined} />
                                                     <TextField type="time" label={t('examsPage.starts')} value={r.start} onChange={(e) => setRow(s.subject_id, { start: e.target.value })} />
                                                     <TextField type="time" label={t('examsPage.ends')} value={r.end} onChange={(e) => setRow(s.subject_id, { end: e.target.value })}
                                                         error={wrong && r.start && r.end && r.end <= r.start ? t('examsPage.endError') : undefined} />
@@ -417,7 +418,6 @@ function RoutineDialog({ examId, taken, onClose, onDone }: {
 /** Move a sitting (every section's paper together) or change its full marks. */
 function MoveDialog({ examId, sitting, onClose, onDone }: { examId: number; sitting: Sitting; onClose: () => void; onDone: () => void }) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const [date, setDate] = useState(sitting.date);
     const [start, setStart] = useState(sitting.start?.slice(0, 5) ?? '');
     const [end, setEnd] = useState(sitting.end?.slice(0, 5) ?? '');
@@ -442,7 +442,7 @@ function MoveDialog({ examId, sitting, onClose, onDone }: { examId: number; sitt
             </>}>
             {save.isError && <Banner tone="bad" title={t('examsPage.saveFailed')}>{errorText(save.error, t('peoplePage.error.body'))}</Banner>}
             <FormRow>
-                <TextField type="date" label={t('examsPage.date')} value={date} onChange={(e) => setDate(e.target.value)} hint={date ? df.date(date) : undefined} />
+                <BsDateField label={t('examsPage.date')} value={date} onChange={(v) => setDate(v)} />
                 <TextField label={t('examsPage.fullMarks')} inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/[^\d.]/g, ''))} />
             </FormRow>
             <FormRow>

@@ -16,6 +16,7 @@ import { formatCount } from '../../utils/money';
 import { cn } from '../../utils/cn';
 import { bsYearBounds } from '../../utils/nepaliDate';
 
+import { BsDateField } from '../../components/common/BsDateField';
 const STEPS = ['year', 'terms', 'holidays', 'week', 'review'] as const;
 
 /**
@@ -126,9 +127,9 @@ const AcademicCalendarPage: React.FC = () => {
             <SelectField label={t('calendarPage.yearName')} value={name} disabled={!!year} onChange={(e) => { const b = boundsOf(e.target.value); setName(e.target.value); if (b) { setStart(b.start); setEnd(b.end); } }} hint={t('calendarPage.yearNameHint')}
                 options={(year && !yearChoices.includes(name) ? [name, ...yearChoices] : yearChoices).map((y) => ({ value: y, label: academicYearLabel(y, lang) }))} />
             <FormRow>
-                <TextField label={t('academicCalendar.startDate')} type="date" value={start} disabled={!!year} onChange={(e) => setStart(e.target.value)} hint={start ? df.date(start, 'long') : t('calendarPage.startHint')}
+                <BsDateField label={t('academicCalendar.startDate')} value={start} disabled={!!year} onChange={(v) => setStart(v)} hint={start ? undefined : t('calendarPage.startHint')}
                     error={tried && !start ? t('calendarPage.startError') : undefined} />
-                <TextField label={t('academicCalendar.endDate')} type="date" value={end} min={start || undefined} disabled={!!year} onChange={(e) => setEnd(e.target.value)} hint={end ? df.date(end, 'long') : t('calendarPage.endHint')}
+                <BsDateField label={t('academicCalendar.endDate')} value={end} min={start || undefined} disabled={!!year} onChange={(v) => setEnd(v)} hint={end ? undefined : t('calendarPage.endHint')}
                     error={tried && (!end || (start && end <= start)) ? t('calendarPage.endError') : undefined} />
             </FormRow>
             {!year && <ToggleRow title={t('academicCalendar.setAsCurrent')} checked={isCurrent} onChange={setIsCurrent}>{t('calendarPage.currentBody')}</ToggleRow>}
@@ -144,10 +145,10 @@ const AcademicCalendarPage: React.FC = () => {
                         <IconButton icon={Trash2} label={t('calendarPage.removeTerm')} onClick={() => setTerms((p) => p.filter((_, j) => j !== i).map((y, j) => ({ ...y, term_number: j + 1 })))} />
                     </div>
                     <FormRow>
-                        <TextField label={t('academicCalendar.termStart')} type="date" value={x.start_date} min={yearFrom} max={yearTo}
-                            onChange={(e) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, start_date: e.target.value } : y)))} hint={x.start_date ? df.date(x.start_date) : undefined} />
-                        <TextField label={t('academicCalendar.termEnd')} type="date" value={x.end_date} min={x.start_date || yearFrom} max={yearTo}
-                            onChange={(e) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, end_date: e.target.value } : y)))} hint={x.end_date ? df.date(x.end_date) : undefined}
+                        <BsDateField label={t('academicCalendar.termStart')} value={x.start_date} min={yearFrom} max={yearTo}
+                            onChange={(v) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, start_date: v } : y)))} />
+                        <BsDateField label={t('academicCalendar.termEnd')} value={x.end_date} min={x.start_date || yearFrom} max={yearTo}
+                            onChange={(v) => setTerms((p) => p.map((y, j) => (j === i ? { ...y, end_date: v } : y)))}
                             error={tried ? termProblem(x) ?? undefined : undefined} />
                     </FormRow>
                 </div>
@@ -160,8 +161,8 @@ const AcademicCalendarPage: React.FC = () => {
             <div className="flex flex-col gap-2 rounded-row border border-line-subtle bg-surface-2 p-3">
                 <TextField label={t('calendarPage.holidayName')} value={draft.label} placeholder={t('calendarPage.holidayHint')} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))} />
                 <FormRow>
-                    <TextField label={t('leaves.from')} type="date" value={draft.from} min={yearFrom} max={yearTo} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} hint={draft.from ? df.date(draft.from) : undefined} />
-                    <TextField label={t('leaves.to')} optional={t('peopleForms.optional')} type="date" value={draft.to} min={draft.from || yearFrom} max={yearTo} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} hint={draft.to ? df.date(draft.to) : t('calendarPage.oneDay')} />
+                    <BsDateField label={t('leaves.from')} value={draft.from} min={yearFrom} max={yearTo} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} />
+                    <BsDateField label={t('leaves.to')} optional={t('peopleForms.optional')} value={draft.to} min={draft.from || yearFrom} max={yearTo} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} hint={draft.to ? undefined : t('calendarPage.oneDay')} />
                 </FormRow>
                 <Button variant="secondary" leftIcon={Plus} className="w-fit" disabled={!draft.label.trim() || !draft.from} onClick={addRange}>{t('calendarPage.addHoliday')}</Button>
             </div>

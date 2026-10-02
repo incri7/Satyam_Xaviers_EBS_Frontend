@@ -16,6 +16,7 @@ import { cn } from '../../utils/cn';
 import type { PaymentMethod } from '../../types/finance';
 import type { Student } from '../../types/people';
 
+import { BsDateField } from '../common/BsDateField';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -192,8 +193,8 @@ export function RecordPaymentModal({ isOpen, onClose }: Props) {
             )}
 
             <FormRow>
-                <TextField label={t('financePage.record.date')} type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)}
-                    hint={date ? df.date(date) : undefined}
+                <BsDateField label={t('financePage.record.date')} value={date} max={today} onChange={(v) => setDate(v)}
+                   
                     error={tried && (!date || date > today) ? t('financePage.record.dateError') : undefined} />
             </FormRow>
 

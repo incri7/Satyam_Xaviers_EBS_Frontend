@@ -8,10 +8,11 @@ import { Banner, Button, Dialog, FormRow, FormSection, SelectField, TextField } 
 import { peopleService } from '../../api/services/people.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { StaffUnifiedCreate, TeacherUnifiedCreate, UserRegistrationCreate } from '../../types/people';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText } from '../../features/people/format';
 import { bloodGroupOptions, genderOptions, withoutBlanks } from '../../features/people/options';
 
+import { BsDateField } from '../common/BsDateField';
+import { joinDateBounds, staffDobBounds } from '../../features/people/rules';
 interface WorkforceRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -60,7 +61,6 @@ export function WorkforceRegistrationModal({ isOpen, onClose, initialRole, onSuc
     // Opened from Teachers the role is fixed in the title; from User accounts it is a choice.
     const startRole = initialRole ?? 'teacher';
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const currentRole = useAuthStore((s) => s.user?.role);
     const roles = currentRole === 'admin' ? ROLES : ROLES.filter((r) => !ELEVATED.has(r));
@@ -146,7 +146,6 @@ export function WorkforceRegistrationModal({ isOpen, onClose, initialRole, onSuc
 
     const busy = mutation.isPending;
     const opt = t('peopleForms.optional');
-    const bs = (v?: string) => (v ? df.date(v, 'medium') : undefined);
 
     // Deliberately no auto-close: the admin must read and pass on the password.
     if (created) {
@@ -234,8 +233,12 @@ export function WorkforceRegistrationModal({ isOpen, onClose, initialRole, onSuc
                         <TextField label={t('peopleForms.label.staffCode')} optional={opt} {...form.register('staff_code')} />
                     </FormRow>
                     <FormRow>
-                        <TextField type="date" label={t('peopleForms.label.joinDate')} optional={opt} hint={bs(joinedValue)} {...form.register('join_date')} />
-                        <TextField type="date" label={t('peopleForms.label.dob')} optional={opt} hint={bs(dobValue)} {...form.register('dob')} />
+                        <input type="hidden" {...form.register('join_date')} />
+                    <BsDateField label={t('peopleForms.label.joinDate')} optional={opt} value={joinedValue} min={joinDateBounds().min} max={joinDateBounds().max}
+                        onChange={(v) => form.setValue('join_date', v, { shouldDirty: true })} />
+                        <input type="hidden" {...form.register('dob')} />
+                    <BsDateField label={t('peopleForms.label.dob')} optional={opt} value={dobValue} min={staffDobBounds().min} max={staffDobBounds().max}
+                        onChange={(v) => form.setValue('dob', v, { shouldDirty: true })} />
                     </FormRow>
                     <FormRow>
                         <SelectField label={t('peopleForms.label.gender')} optional={opt} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...form.register('gender')} />

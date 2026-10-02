@@ -14,6 +14,7 @@ import { formatCount, formatRs } from '../../utils/money';
 import { cn } from '../../utils/cn';
 import type { FeeFrequency } from '../../types/finance';
 
+import { BsDateField } from '../common/BsDateField';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
@@ -150,9 +151,9 @@ export function CreateFeeStructureModal({ isOpen, onClose, classId }: Props) {
             </div>
 
             <FormRow>
-                <TextField label={t('financePage.newFee.from')} optional={t('peopleForms.optional')} type="date" value={from} onChange={(e) => setFrom(e.target.value)} hint={from ? df.date(from) : undefined} />
-                <TextField label={t('financePage.newFee.to')} optional={t('peopleForms.optional')} type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)}
-                    hint={to ? df.date(to) : undefined} error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
+                <BsDateField label={t('financePage.newFee.from')} optional={t('peopleForms.optional')} value={from} onChange={(v) => setFrom(v)} />
+                <BsDateField label={t('financePage.newFee.to')} optional={t('peopleForms.optional')} value={to} min={from || undefined} onChange={(v) => setTo(v)}
+                    error={tried && !datesOk ? t('financePage.newFee.datesError') : undefined} />
             </FormRow>
 
             {!allClasses && (

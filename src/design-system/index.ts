@@ -28,4 +28,5 @@ export { ActionMenu, type ActionMenuItem } from './components/ActionMenu';
 export { EmptyState } from './components/EmptyState';
 export { TableCard, Table, THead, Th, Tr, Td, TableSkeletonRows, TableMessage, ListCard, ListRow, SortTh } from './components/DataTable';
 export { SelectField, TextAreaField, FormRow, FormSection, type SelectFieldProps, type TextAreaFieldProps } from './components/Fields';
+export { fieldBox } from './components/fieldBox';
 export { FilterChips, type FilterChip } from './components/FilterChips';

@@ -9,13 +9,13 @@ import { academicsService } from '../../api/services/academics.service';
 import { peopleService } from '../../api/services/people.service';
 import { StudentPicker } from '../people/StudentPicker';
 import { errorText } from '../people/format';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { cn } from '../../utils/cn';
 import { isoLocal } from '../../utils/nepaliDate';
 import type { Notice, NoticePriority } from '../../types/notice';
 import type { Student } from '../../types/people';
 import { COMMON_ROLES, OTHER_ROLES, PRIORITIES } from './format';
 
+import { BsDateField } from '../../components/common/BsDateField';
 type Audience = 'all' | (typeof COMMON_ROLES)[number] | 'other' | 'class' | 'student';
 
 function audienceOf(n?: Notice | null): Audience {
@@ -43,7 +43,6 @@ export function NoticeDialog({ mode, notice, onClose, onSaved }: {
     onSaved: (saved: Notice) => void;
 }) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const today = isoLocal(new Date());
     const [title, setTitle] = useState(notice?.title ?? '');
     const [body, setBody] = useState(notice?.body ?? '');
@@ -196,13 +195,13 @@ export function NoticeDialog({ mode, notice, onClose, onSaved }: {
                             <SegmentedControl options={[{ value: 'now', label: t('noticesPage.dialog.now') }, { value: 'later', label: t('noticesPage.dialog.later') }]}
                                 value={later ? 'later' : 'now'} onChange={(v) => setLater(v === 'later')} aria-label={t('noticesPage.dialog.send')} className="flex w-full [&>*]:flex-1" />
                         </div>
-                        <TextField label={t('noticesPage.dialog.until')} optional={t('peopleForms.optional')} type="date" value={until} min={later && from ? from : today}
-                            onChange={(e) => setUntil(e.target.value)} hint={until ? df.date(until) : t('noticesPage.dialog.noEnd')}
+                        <BsDateField label={t('noticesPage.dialog.until')} optional={t('peopleForms.optional')} value={until} min={later && from ? from : today}
+                            onChange={(v) => setUntil(v)} hint={until ? undefined : t('noticesPage.dialog.noEnd')}
                             error={tried && until && until < (later && from ? from : today) ? t('noticesPage.dialog.untilError') : undefined} />
                     </FormRow>
                     {later && (
-                        <TextField label={t('noticesPage.dialog.startsOn')} type="date" value={from} min={today} onChange={(e) => setFrom(e.target.value)}
-                            hint={from ? df.date(from) : undefined} error={tried && (!from || from <= today) ? t('noticesPage.dialog.fromError') : undefined} />
+                        <BsDateField label={t('noticesPage.dialog.startsOn')} value={from} min={today} onChange={(v) => setFrom(v)}
+                            error={tried && (!from || from <= today) ? t('noticesPage.dialog.fromError') : undefined} />
                     )}
                 </div>
 
