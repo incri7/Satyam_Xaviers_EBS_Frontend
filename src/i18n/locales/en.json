@@ -1378,6 +1378,11 @@
       "title": "Reactivate this account?",
       "body": "{{email}} will be able to sign in again.",
       "action": "Reactivate account"
+    },
+    "userReset": {
+      "title": "Reset the password for {{name}}?",
+      "body": "Their current password stops working and they are signed out on every device. You will see a temporary password to give them.",
+      "action": "Reset password"
     }
   },
   "ledger": {
@@ -1729,7 +1734,8 @@
       "markInactive": "Mark inactive",
       "markActive": "Mark active",
       "cannotSelf": "You can't deactivate your own account",
-      "cannotLastAdmin": "You can't deactivate the last active administrator"
+      "cannotLastAdmin": "You can't deactivate the last active administrator",
+      "resetPassword": "Reset password"
     },
     "empty": {
       "title": "Nobody matches",
@@ -1747,6 +1753,15 @@
       "linkFailed": "The registration link could not be created",
       "actionFailed": "That didn't work",
       "dismiss": "Dismiss"
+    },
+    "resetDone": {
+      "title": "Temporary password for {{name}}",
+      "body": "Read it out over the phone or hand it over in person. They will choose their own password when they sign in.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done",
+      "onceTitle": "Shown only now",
+      "onceBody": "It is not kept anywhere it can be read again. If it is lost, reset the password once more."
     }
   },
   "peopleForms": {
@@ -3500,7 +3515,8 @@
       "expiry": "The link works for 24 hours.",
       "once": "It works once. Asking again sends a new one and the old one stops working."
     },
-    "again": "Use a different email"
+    "again": "Use a different email",
+    "mobileOnly": "A reset link goes to an email address. Signed up with a mobile number? Ask the school office: they can give you a temporary password."
   },
   "profilePageMe": {
     "title": "My profile",

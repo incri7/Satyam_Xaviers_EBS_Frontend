@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Filter, Shield, UserCheck, UserCircle, UserX } from 'lucide-react';
+import { Check, Copy, Filter, KeyRound, Shield, UserCheck, UserCircle, UserX } from 'lucide-react';
 
-import { Badge, IconButton, ListRow, Person, SearchField, SortTh, THead, Td, Th, Tr } from '../../design-system';
+import { Badge, Banner, Button, Dialog, IconButton, ListRow, Person, SearchField, SortTh, THead, Td, Th, Tr } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import { AccessControl } from '../AccessControl';
@@ -67,6 +67,35 @@ export function UserManagement() {
         onError: onFail,
     });
 
+    // A temporary password the office reads out or hands over: for someone
+    // who cannot reset their own (a parent with only a mobile number, while
+    // the school has no SMS).
+    const [issued, setIssued] = useState<{ who: string; password: string } | null>(null);
+    const resetPassword = useMutation({
+        mutationFn: (u: User) => peopleService.resetUserPassword(u.id),
+        onSuccess: (res, u) => setIssued({ who: name(u), password: res.temporary_password }),
+        onError: onFail,
+    });
+    const officeRole = currentUser?.role === 'admin' || currentUser?.role === 'principal';
+    const canReset = (u: User) =>
+        officeRole && u.is_active && u.id !== currentUser?.id
+        && (currentUser?.role === 'admin' || !['admin', 'principal'].includes(u.role));
+    const resetButton = (u: User) => canReset(u) && (
+        <IconButton
+            icon={KeyRound}
+            label={t('peoplePage.row.resetPassword')}
+            onClick={() =>
+                confirm({
+                    tone: 'neutral',
+                    title: t('confirm.userReset.title', { name: name(u) }),
+                    body: t('confirm.userReset.body'),
+                    confirmLabel: t('confirm.userReset.action'),
+                    onConfirm: () => resetPassword.mutate(u),
+                })
+            }
+        />
+    );
+
     const activeAdmins = users.filter((u) => u.role === 'admin' && u.is_active).length;
     const blockReason = (u: User) =>
         u.id === currentUser?.id
@@ -75,7 +104,7 @@ export function UserManagement() {
                 ? t('peoplePage.row.cannotLastAdmin')
                 : null;
 
-    const name = (u: User) => [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.email;
+    const name = (u: User) => [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.email || u.phone || '';
     const roleLabel = (r: string) => t(`shell.roles.${r}`, { defaultValue: r });
     const youBadge = (u: User) => (u.id === currentUser?.id ? <Badge tone="brand">{t('peoplePage.value.you')}</Badge> : null);
 
@@ -120,6 +149,7 @@ export function UserManagement() {
     return (
         <>
             {confirmUI}
+            {issued && <TemporaryPasswordDialog who={issued.who} password={issued.password} onClose={() => setIssued(null)} />}
             <RegisterView<User>
                 kind="users"
                 emptyIcon={UserCircle}
@@ -175,12 +205,13 @@ export function UserManagement() {
                 }
                 row={(u) => (
                     <Tr key={u.id}>
-                        <Td><Person name={name(u)} sub={u.email} src={u.profile_image_url} trailing={youBadge(u)} /></Td>
+                        <Td><Person name={name(u)} sub={u.email || u.phone || undefined} src={u.profile_image_url} trailing={youBadge(u)} /></Td>
                         <Td className="whitespace-nowrap">{roleLabel(u.role)}</Td>
                         <Td className="whitespace-nowrap">{u.last_login ? df.dateTime(u.last_login) : t('peoplePage.value.never')}</Td>
                         <Td><ActiveBadge active={u.is_active} /></Td>
                         <Td>
                             <div className="flex justify-end gap-1.5">
+                                {resetButton(u)}
                                 <AccessControl id="users_delete">{action(u)}</AccessControl>
                             </div>
                         </Td>
@@ -192,10 +223,46 @@ export function UserManagement() {
                             <Person name={name(u)} sub={roleLabel(u.role)} src={u.profile_image_url} size={40} trailing={youBadge(u)} />
                         </span>
                         <ActiveBadge active={u.is_active} />
+                        {resetButton(u)}
                         <AccessControl id="users_delete">{action(u)}</AccessControl>
                     </ListRow>
                 )}
             />
         </>
+    );
+}
+
+/** The temporary password, once: it is not stored anywhere it can be read again. */
+function TemporaryPasswordDialog({ who, password, onClose }: { who: string; password: string; onClose: () => void }) {
+    const { t } = useTranslation();
+    const [copied, setCopied] = useState(false);
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(password);
+            setCopied(true);
+        } catch {
+            setCopied(false);
+        }
+    };
+    return (
+        <Dialog
+            open
+            size="sm"
+            onClose={onClose}
+            icon={KeyRound}
+            iconTone="ok"
+            title={t('peoplePage.resetDone.title', { name: who })}
+            subtitle={t('peoplePage.resetDone.body')}
+            closeLabel={t('common.close')}
+            footer={<Button onClick={onClose}>{t('peoplePage.resetDone.done')}</Button>}
+        >
+            <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-4 py-3">
+                <code className="min-w-0 flex-1 select-all break-all font-mono text-[22px] font-semibold tracking-wider text-ink">{password}</code>
+                <Button variant="quiet" size="sm" leftIcon={copied ? Check : Copy} onClick={() => void copy()}>
+                    {copied ? t('peoplePage.resetDone.copied') : t('peoplePage.resetDone.copy')}
+                </Button>
+            </div>
+            <Banner tone="info" title={t('peoplePage.resetDone.onceTitle')}>{t('peoplePage.resetDone.onceBody')}</Banner>
+        </Dialog>
     );
 }

@@ -77,7 +77,10 @@ const ForgotPasswordPage = () => {
                             placeholder={t('auth.emailPlaceholder')} error={errors.email?.message}
                             {...register('email', {
                                 required: t('forgotPage.emailRequired'),
-                                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: t('forgotPage.emailInvalid') },
+                                // A mobile number cannot get a link while the school has no
+                                // SMS: the office sets a temporary password instead.
+                                validate: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
+                                    || (/^[\d\s+()-]{10,}$/.test(v.trim()) ? t('forgotPage.mobileOnly') : t('forgotPage.emailInvalid')),
                             })} />
                         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>{isSubmitting ? t('forgotPage.sending') : t('forgotPage.send')}</Button>
                         <div className="rounded-row border border-line-subtle bg-surface-2 px-4 py-3">

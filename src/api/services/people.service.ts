@@ -193,6 +193,11 @@ export const peopleService = {
         const response = await api.put(`people/users/${id}`, data);
         return response.data;
     },
+    /** Admin or principal: a temporary password, shown once, that must be changed at sign-in. */
+    resetUserPassword: async (id: number): Promise<{ message: string; temporary_password: string }> => {
+        const response = await api.post(`people/users/${id}/reset-password`);
+        return response.data;
+    },
     deleteUser: async (id: number) => {
         const response = await api.delete(`people/users/${id}`);
         return response.data;
