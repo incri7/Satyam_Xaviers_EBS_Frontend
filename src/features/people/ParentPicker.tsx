@@ -45,7 +45,7 @@ export function ParentPicker({
             <p className="type-small-semibold text-ink">{label}</p>
             {value ? (
                 <div className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
-                    <span className="min-w-0 flex-1"><Person name={fullName(value)} sub={parentContact(value)} /></span>
+                    <span className="min-w-0 flex-1"><Person name={fullName(value)} sub={parentContact(value)} /><Children of={value} /></span>
                     <Button variant="ghost" size="sm" onClick={() => onChange(null)}>{t('classesPage.enrol.change')}</Button>
                 </div>
             ) : (
@@ -64,7 +64,7 @@ export function ParentPicker({
                             results.map((p) => (
                                 <button key={p.id} type="button" onClick={() => { onChange(p); setInput(''); }}
                                     className="flex items-center gap-3 rounded-row border border-line-subtle bg-surface px-3.5 py-2 text-left outline-none hover:bg-surface-2 focus-visible:ring-3 focus-visible:ring-focus/60">
-                                    <span className="min-w-0 flex-1"><Person name={fullName(p)} sub={parentContact(p)} /></span>
+                                    <span className="min-w-0 flex-1"><Person name={fullName(p)} sub={parentContact(p)} /><Children of={p} /></span>
                                 </button>
                             ))
                         )}
@@ -72,5 +72,19 @@ export function ParentPicker({
                 </>
             )}
         </div>
+    );
+}
+
+/** The family's children under the guardian, so staff can see who they are
+    picking, and do not add a child the family already has. */
+function Children({ of }: { of: Parent }) {
+    const { t } = useTranslation();
+    const kids = of.children ?? [];
+    return (
+        <p className="mt-0.5 pl-[42px] type-caption text-muted">
+            {kids.length === 0
+                ? t('peopleRules.noChildrenYet')
+                : t('peopleRules.childrenOf', { names: kids.map((k) => (k.admission_no ? `${k.name} (${k.admission_no})` : k.name)).join(', ') })}
+        </p>
     );
 }

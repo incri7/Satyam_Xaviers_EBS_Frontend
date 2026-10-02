@@ -15,6 +15,8 @@ export interface Parent {
     created_at: string;
     updated_at: string;
     user?: User;
+    /** From the parents list: who the family's children already are. */
+    children?: { id: number; name: string; admission_no?: string | null }[];
 }
 
 export interface Student {

@@ -17,9 +17,9 @@ import {
 } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import type { Parent, Student } from '../../types/people';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
 import { useConfirmDialog } from '../common/useConfirmDialog';
+import { BsDateField } from '../common/BsDateField';
 import { errorText, fieldErrors, fullName, possibleDuplicate, studentWithGuardians } from '../../features/people/format';
 import { bloodGroupOptions, genderOptions } from '../../features/people/options';
 import { StudentPicker } from '../../features/people/StudentPicker';
@@ -62,7 +62,6 @@ const emptyChild = (): ChildDraft => ({
  */
 export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentModalProps) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [confirmUI, confirm] = useConfirmDialog();
     const [step, setStep] = useState<0 | 1 | 'done'>(0);
@@ -290,15 +289,16 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                                 <FormRow>
                                     <TextField label={t('peopleForms.label.lastName')} autoComplete="off" maxLength={NAME_MAX} error={errors.last_name?.message}
                                         {...form.register('last_name', { validate: requiredName(t, 'last') })} />
-                                    <TextField type="date" min={born.min} max={born.max} label={t('peopleForms.label.dob')} error={errors.dob?.message}
-                                        hint={dobValue ? df.date(dobValue, 'medium') : undefined}
-                                        {...form.register('dob', { validate: validDob(t), onChange: () => { if (form.getValues('admission_date')) void form.trigger('admission_date'); } })} />
-                                </FormRow>
-                                <FormRow>
                                     <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={errors.gender?.message}
                                         {...form.register('gender', { required: t('registerFamily.error.gender') })} />
-                                    <SelectField label={t('peopleForms.label.bloodGroup')} optional={t('peopleForms.optional')} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...form.register('blood_group')} />
                                 </FormRow>
+                                <input type="hidden" {...form.register('dob', { validate: validDob(t) })} />
+                                <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={born.min} max={born.max} error={errors.dob?.message}
+                                    onChange={(v) => {
+                                        form.setValue('dob', v, { shouldDirty: true, shouldValidate: !!errors.dob });
+                                        if (errors.admission_date) void form.trigger('admission_date');
+                                    }} />
+                                <SelectField label={t('peopleForms.label.bloodGroup')} optional={t('peopleForms.optional')} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...form.register('blood_group')} />
                                 <input type="hidden" {...form.register('section_id', {
                                     validate: (v) => !form.getValues('class_id') || !!v || t('peopleRules.sectionRequired'),
                                 })} />
@@ -312,10 +312,11 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                                         form.setValue('section_id', n.section_id, { shouldDirty: true, shouldValidate: !!errors.section_id });
                                     }}
                                 />
+                                <input type="hidden" {...form.register('admission_date', { validate: validAdmission(t, () => form.getValues('dob')) })} />
+                                <BsDateField label={t('peopleForms.label.admissionDate')} value={admittedValue} min={dobValue || born.min} max={formatISODate(new Date())}
+                                    error={errors.admission_date?.message}
+                                    onChange={(v) => form.setValue('admission_date', v, { shouldDirty: true, shouldValidate: !!errors.admission_date })} />
                                 <FormRow>
-                                    <TextField type="date" max={formatISODate(new Date())} label={t('peopleForms.label.admissionDate')} error={errors.admission_date?.message}
-                                        hint={admittedValue ? df.date(admittedValue, 'medium') : undefined}
-                                        {...form.register('admission_date', { validate: validAdmission(t, () => form.getValues('dob')) })} />
                                     <TextField label={t('addChild.admissionNo')} optional={t('peopleForms.optional')} hint={t('addChild.admissionNoHint')} maxLength={50}
                                         error={errors.admission_no?.message} {...form.register('admission_no')} />
                                 </FormRow>

@@ -4853,6 +4853,13 @@
     "matchTitle": "{{name}} is already on the register",
     "matchBody": "Use them, and the children are added to their account. No second account.",
     "matchUse": "Use this parent",
-    "doneExisting": "The children are now with {{name}}. No new account was made."
+    "doneExisting": "The children are now with {{name}}. No new account was made.",
+    "childrenOf": "Children: {{names}}",
+    "noChildrenYet": "No children linked yet"
+  },
+  "bsDate": {
+    "year": "Year",
+    "month": "Month",
+    "day": "Day"
   }
 }

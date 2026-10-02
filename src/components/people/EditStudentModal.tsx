@@ -7,8 +7,9 @@ import { GraduationCap } from 'lucide-react';
 import { Banner, Button, Dialog, FormRow, FormSection, SelectField, TextField } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
 import type { Student, StudentUpdate } from '../../types/people';
-import { useDateFormat } from '../../hooks/useDateFormat';
 import { errorText, fullName } from '../../features/people/format';
+import { BsDateField } from '../common/BsDateField';
+import { formatISODate } from '../../utils/nepaliDate';
 import { NAME_MAX, dobBounds, optionalName, requiredName, validAdmission, validDob } from '../../features/people/rules';
 import { bloodGroupOptions, blanksToNull, genderOptions, studentStatusOptions } from '../../features/people/options';
 
@@ -21,10 +22,9 @@ interface EditStudentModalProps {
 /** Edit a student's register record (the H07 field style, one step). */
 export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalProps) {
     const { t } = useTranslation();
-    const df = useDateFormat();
     const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
-    const { register, handleSubmit, reset, control, formState: { errors } } = useForm<StudentUpdate>();
+    const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<StudentUpdate>();
     const dobValue = useWatch({ control, name: 'dob' });
     const admittedValue = useWatch({ control, name: 'admission_date' });
 
@@ -54,7 +54,6 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
         onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
 
-    const bs = (v?: string) => (v ? df.date(v, 'medium') : undefined);
     const opt = t('peopleForms.optional');
     const saving = mutation.isPending;
 
@@ -84,19 +83,20 @@ export function EditStudentModal({ student, isOpen, onClose }: EditStudentModalP
                 </FormRow>
                 <FormRow>
                     <TextField label={t('peopleForms.label.lastName')} maxLength={NAME_MAX} error={errors.last_name?.message} {...register('last_name', { validate: requiredName(t, 'last') })} />
-                    <TextField type="date" min={dobBounds().min} max={dobBounds().max} label={t('peopleForms.label.dob')} hint={bs(dobValue)} error={errors.dob?.message} {...register('dob', { validate: (v) => !v || validDob(t)(v) })} />
-                </FormRow>
-                <FormRow>
                     <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} {...register('gender')} />
-                    <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...register('blood_group')} />
                 </FormRow>
+                <input type="hidden" {...register('dob', { validate: (v) => !v || validDob(t)(v) })} />
+                <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={dobBounds().min} max={dobBounds().max} error={errors.dob?.message}
+                    onChange={(v) => setValue('dob', v, { shouldDirty: true, shouldValidate: true })} />
+                <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...register('blood_group')} />
             </FormSection>
 
             <FormSection title={t('peopleForms.section.school')}>
-                <FormRow>
-                    <SelectField label={t('peopleForms.label.status')} options={studentStatusOptions(t)} {...register('status')} />
-                    <TextField type="date" label={t('peopleForms.label.admissionDate')} hint={bs(admittedValue)} error={errors.admission_date?.message} {...register('admission_date', { validate: (v) => !v || validAdmission(t, () => dobValue)(v) })} />
-                </FormRow>
+                <SelectField label={t('peopleForms.label.status')} options={studentStatusOptions(t)} {...register('status')} />
+                <input type="hidden" {...register('admission_date', { validate: (v) => !v || validAdmission(t, () => dobValue)(v) })} />
+                <BsDateField label={t('peopleForms.label.admissionDate')} value={admittedValue} max={formatISODate(new Date())}
+                    error={errors.admission_date?.message}
+                    onChange={(v) => setValue('admission_date', v, { shouldDirty: true, shouldValidate: true })} />
             </FormSection>
 
             <FormSection title={t('peopleForms.section.contact')}>

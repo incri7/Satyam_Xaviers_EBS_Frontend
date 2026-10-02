@@ -20,6 +20,7 @@ import type { Parent, Student, StudentCreate, UnifiedRegistrationCreate } from '
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
 import { useConfirmDialog } from '../common/useConfirmDialog';
+import { BsDateField } from '../common/BsDateField';
 import { errorText, fullName, parentContact, possibleDuplicate, studentWithGuardians } from '../../features/people/format';
 import { StudentPicker } from '../../features/people/StudentPicker';
 import { ClassSectionFields } from '../../features/people/ClassSectionFields';
@@ -390,15 +391,16 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                         <FormRow>
                             <TextField label={t('peopleForms.label.lastName')} autoComplete="off" maxLength={NAME_MAX} error={ce.last_name?.message}
                                 {...childForm.register('last_name', { validate: requiredName(t, 'last') })} />
-                            <TextField type="date" min={born.min} max={born.max} label={t('peopleForms.label.dob')} error={ce.dob?.message}
-                                hint={dobValue ? df.date(dobValue, 'medium') : undefined}
-                                {...childForm.register('dob', { validate: validDob(t), onChange: () => { if (childForm.getValues('admission_date')) void childForm.trigger('admission_date'); } })} />
-                        </FormRow>
-                        <FormRow>
                             <SelectField label={t('peopleForms.label.gender')} placeholder={t('peopleForms.choose')} options={genderOptions(t)} error={ce.gender?.message}
                                 {...childForm.register('gender', { required: t('registerFamily.error.gender') })} />
-                            <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...childForm.register('blood_group')} />
                         </FormRow>
+                        <input type="hidden" {...childForm.register('dob', { validate: validDob(t) })} />
+                        <BsDateField label={t('peopleForms.label.dob')} value={dobValue} min={born.min} max={born.max} error={ce.dob?.message}
+                            onChange={(v) => {
+                                childForm.setValue('dob', v, { shouldDirty: true, shouldValidate: !!ce.dob });
+                                if (ce.admission_date) void childForm.trigger('admission_date');
+                            }} />
+                        <SelectField label={t('peopleForms.label.bloodGroup')} optional={opt} placeholder={t('peopleForms.choose')} options={bloodGroupOptions()} {...childForm.register('blood_group')} />
                         <input type="hidden" {...childForm.register('section_id', {
                             validate: (v) => !childForm.getValues('class_id') || !!v || t('peopleRules.sectionRequired'),
                         })} />
@@ -413,9 +415,10 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                                 childForm.setValue('section_name', n.section_name);
                             }}
                         />
-                        <TextField type="date" max={formatISODate(new Date())} label={t('peopleForms.label.admissionDate')} error={ce.admission_date?.message}
-                            hint={admittedValue ? df.date(admittedValue, 'medium') : undefined}
-                            {...childForm.register('admission_date', { validate: validAdmission(t, () => childForm.getValues('dob')) })} />
+                        <input type="hidden" {...childForm.register('admission_date', { validate: validAdmission(t, () => childForm.getValues('dob')) })} />
+                        <BsDateField label={t('peopleForms.label.admissionDate')} value={admittedValue} min={dobValue || born.min} max={formatISODate(new Date())}
+                            error={ce.admission_date?.message}
+                            onChange={(v) => childForm.setValue('admission_date', v, { shouldDirty: true, shouldValidate: !!ce.admission_date })} />
                     </>
                 )}
 
