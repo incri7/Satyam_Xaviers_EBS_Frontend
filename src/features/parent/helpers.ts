@@ -15,6 +15,11 @@ export function useChildren() {
     return useQuery({ queryKey: ['parent', 'my-children'], queryFn: parentService.getMyChildren, staleTime: MINUTE, select: (r) => r.children });
 }
 
+/** Children who have left the school: off the home cards, but their fees are still the family's. */
+export function useFormerChildren() {
+    return useQuery({ queryKey: ['parent', 'my-children'], queryFn: parentService.getMyChildren, staleTime: MINUTE, select: (r) => r.former ?? [] });
+}
+
 /** The school office number from the letterhead, for tel: links. */
 export function useSchoolPhone() {
     const q = useQuery({ queryKey: ['school', 'profile'], queryFn: schoolService.getProfile, staleTime: 60 * MINUTE, retry: false });

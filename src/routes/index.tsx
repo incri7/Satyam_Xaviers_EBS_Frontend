@@ -163,9 +163,10 @@ export const router = createBrowserRouter([
                 ],
             },
 
-            // ── Parent ─────────────────────────────────────────────────
+            // ── A child's pages: parents, and staff whose own child it is
+            //    (the server decides which children each account may see).
             {
-                element: <RoleRoute roles={['parent']} />,
+                element: <RoleRoute roles={['parent', 'teacher', 'staff', 'accountant', 'coordinator', 'principal']} />,
                 children: [
                     { path: '/parent/child/:studentId/dashboard', element: <ChildDashboardPage /> },
                     { path: '/parent/child/:studentId/attendance', element: <ChildAttendancePage /> },

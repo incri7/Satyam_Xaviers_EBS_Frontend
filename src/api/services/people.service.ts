@@ -1,12 +1,35 @@
 import { api, errorDetail } from '../axios';
 import type {
-    ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, StaffCreate, UserUpdate,
+    Parent, ParentUpdate, StudentUpdate, TeacherUpdate, StaffUpdate, StaffCreate, UserUpdate,
     UnifiedRegistrationCreate, UnifiedRegistrationResponse,
     UserRegistrationCreate, UserRegistrationResponse, StudentCreate
 } from '../../types/people';
 import type { Guardian } from './profiles.service';
 
-export type GuardianRelationship = 'father' | 'mother' | 'guardian' | 'other';
+export interface Sibling {
+    id: number;
+    name: string;
+    admission_no: string | null;
+    status: string | null;
+    shared_guardian_ids: number[];
+    missing_guardian_ids: number[];
+}
+
+export interface CoGuardian {
+    parent_id: number;
+    name: string;
+    relationship: string | null;
+    child_name: string | null;
+}
+
+export type GuardianRelationship =
+    | 'father' | 'mother' | 'stepfather' | 'stepmother' | 'grandfather' | 'grandmother'
+    | 'uncle' | 'aunt' | 'sibling' | 'guardian' | 'other';
+
+/** Every relationship, in the order the pickers list them. */
+export const RELATIONSHIPS: GuardianRelationship[] = [
+    'father', 'mother', 'stepfather', 'stepmother', 'grandfather', 'grandmother', 'uncle', 'aunt', 'sibling', 'guardian', 'other',
+];
  
 export const peopleService = {
     // Shared Registration
@@ -76,8 +99,28 @@ export const peopleService = {
         const response = await api.get(`people/students/${id}/summary`);
         return response.data;
     },
-    /** Link a guardian already on the register to a student. */
-    addGuardian: async (studentId: number, data: { parent_id: number; relationship_type?: GuardianRelationship; is_primary_contact?: boolean }): Promise<Guardian[]> => {
+    /** Brothers and sisters: students sharing a guardian, and which of this one's guardians each lacks. */
+    getSiblings: async (studentId: number): Promise<Sibling[]> => {
+        const response = await api.get(`people/students/${studentId}/siblings`);
+        return response.data;
+    },
+    /** The other guardians of a guardian's children (the father of an elder brother). */
+    getCoGuardians: async (parentId: number): Promise<CoGuardian[]> => {
+        const response = await api.get(`people/parents/${parentId}/co-guardians`);
+        return response.data;
+    },
+    /** A teacher or other member of staff as a guardian: their record, made from their own account. */
+    guardianForStaff: async (userId: number): Promise<Parent> => {
+        const response = await api.post(`people/parents/for-user/${userId}`);
+        return response.data;
+    },
+    /** Admin or principal: fold a duplicate record of the same guardian into this one. */
+    mergeParents: async (keepId: number, duplicateId: number): Promise<Parent> => {
+        const response = await api.post(`people/parents/${keepId}/merge`, { duplicate_id: duplicateId });
+        return response.data;
+    },
+    /** Link a guardian already on the register to a student (and, with also_student_ids, the siblings). */
+    addGuardian: async (studentId: number, data: { parent_id: number; relationship_type?: GuardianRelationship; is_primary_contact?: boolean; also_student_ids?: number[] }): Promise<Guardian[]> => {
         const response = await api.post(`people/students/${studentId}/guardians`, data);
         return response.data;
     },

@@ -15,7 +15,10 @@ import {
     Stepper,
     TextField,
 } from '../../design-system';
-import { peopleService } from '../../api/services/people.service';
+import { peopleService, type GuardianRelationship } from '../../api/services/people.service';
+import { RelationshipSelect } from '../../features/people/RelationshipSelect';
+import { TickList } from '../../features/people/TickList';
+import { ticked, useCoGuardians, useSiblings } from '../../features/people/familyQueries';
 import type { Parent, Student } from '../../types/people';
 import { formatISODate } from '../../utils/nepaliDate';
 import { useConfirmDialog } from '../common/useConfirmDialog';
@@ -32,8 +35,7 @@ interface AddStudentToParentModalProps {
     onClose: () => void;
 }
 
-type Relationship = 'father' | 'mother' | 'guardian' | 'other';
-const RELATIONSHIPS: Relationship[] = ['father', 'mother', 'guardian', 'other'];
+type Relationship = GuardianRelationship;
 
 interface ChildDraft {
     first_name: string;
@@ -77,6 +79,12 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
     const [picked, setPicked] = useState<Student | null>(null);
     const [pickError, setPickError] = useState<string | undefined>();
     const sending = useRef(false);
+    // The family around the pick: the parent's other guardians for a new
+    // child, the picked child's brothers and sisters for an existing one.
+    const coGuardians = useCoGuardians(parent?.id);
+    const siblings = useSiblings(picked?.id);
+    const [skipCo, setSkipCo] = useState<number[]>([]);
+    const [skipSib, setSkipSib] = useState<number[]>([]);
 
     const form = useForm<ChildDraft>({ defaultValues: emptyChild() });
     const { errors } = form.formState;
@@ -143,6 +151,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                 relationship_type: relationship || undefined,
                 is_primary_contact: true,
                 allow_duplicate: allowDuplicate,
+                also_parent_ids: ticked(coGuardians.map((g) => g.parent_id), skipCo),
             }),
         onSuccess: (st: Student, { c }) => {
             refresh(st?.id);
@@ -154,7 +163,10 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
     });
 
     const link = useMutation({
-        mutationFn: (st: Student) => peopleService.addGuardian(st.id, { parent_id: parent!.id, relationship_type: relationship || undefined }),
+        mutationFn: (st: Student) => peopleService.addGuardian(st.id, {
+            parent_id: parent!.id, relationship_type: relationship || undefined,
+            also_student_ids: ticked(siblings.map((s) => s.id), skipSib),
+        }),
         onSuccess: (_, st) => {
             refresh(st.id);
             setAddedName(fullName(st));
@@ -239,7 +251,7 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                     )
                 }
             >
-                {step === 0 && <ParentPicker label={t('addChild.steps.parent')} value={parent} onChange={setParent} />}
+                {step === 0 && <ParentPicker label={t('addChild.steps.parent')} value={parent} onChange={(p) => { setParent(p); setSkipCo([]); }} />}
 
                 {step === 1 && parent && (
                     <>
@@ -265,20 +277,25 @@ export function AddStudentToParentModal({ isOpen, onClose }: AddStudentToParentM
                             className="w-full [&>*]:flex-1"
                             options={[{ value: 'new', label: t('registerFamily.mode.new') }, { value: 'existing', label: t('registerFamily.mode.existing') }]}
                         />
-                        <div className="flex flex-col gap-2">
-                            <p className="type-small-semibold text-ink">{t('peopleRules.relationshipFrom', { parent: parentName })}</p>
-                            <SegmentedControl<Relationship>
-                                aria-label={t('peopleRules.relationshipFrom', { parent: parentName })}
-                                value={relationship as Relationship}
-                                onChange={(r) => { setRelationship(r); setRelError(false); }}
-                                className="w-full [&>*]:flex-1"
-                                options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
-                            />
-                            {relError && !relationship && <p role="alert" className="type-caption text-bad">{t('peopleRules.relationshipRequired')}</p>}
-                        </div>
+                        <RelationshipSelect label={t('peopleRules.relationshipFrom', { parent: parentName })} value={relationship}
+                            onChange={(r) => { setRelationship(r); setRelError(false); }}
+                            error={relError && !relationship ? t('peopleRules.relationshipRequired') : undefined} />
                         {mode === 'existing' && (
-                            <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
+                            <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); setSkipSib([]); }}
                                 error={pickError} describe={studentWithGuardians} />
+                        )}
+                        {mode === 'existing' && picked && (
+                            <TickList title={t('family.alsoSiblings', { parent: parentName })}
+                                items={siblings.map((s) => ({ id: s.id, label: s.name, sub: s.admission_no }))}
+                                skipped={skipSib} onToggle={(id) => setSkipSib((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))} />
+                        )}
+                        {mode === 'new' && (
+                            <TickList title={t('family.alsoCoGuardians')}
+                                items={coGuardians.map((g) => ({
+                                    id: g.parent_id, label: g.name,
+                                    sub: g.relationship && g.child_name ? t('family.relationOf', { relation: t(`registerFamily.relationship.${g.relationship}`), child: g.child_name }) : g.child_name,
+                                }))}
+                                skipped={skipCo} onToggle={(id) => setSkipCo((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))} />
                         )}
                         {mode === 'new' && (
                             <>

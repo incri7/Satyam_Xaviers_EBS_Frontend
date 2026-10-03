@@ -1,10 +1,15 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link2, Mail, Pencil, Phone, Star, Unlink, UserPlus, Users } from 'lucide-react';
 
 import { ActionMenu, Badge, Banner, Button, Card, CardHeader, Checkbox, Dialog, EmptyState, SegmentedControl } from '../../design-system';
-import { peopleService, type GuardianRelationship } from '../../api/services/people.service';
+import { RELATIONSHIPS, peopleService, type GuardianRelationship } from '../../api/services/people.service';
+import { RelationshipSelect } from './RelationshipSelect';
+import { TickList } from './TickList';
+import { StaffPicker } from './StaffPicker';
+import { ticked, useSiblings } from './familyQueries';
 import type { Guardian, StudentProfile } from '../../api/services/profiles.service';
 import type { Parent } from '../../types/people';
 import { useConfirmDialog } from '../../components/common/useConfirmDialog';
@@ -14,7 +19,6 @@ import { errorText } from './format';
 import { ParentPicker } from './ParentPicker';
 import { useNotice } from './useNotice';
 
-const RELATIONSHIPS: GuardianRelationship[] = ['father', 'mother', 'guardian', 'other'];
 
 /**
  * A student's guardians on their profile: who they are, who is the main
@@ -34,6 +38,7 @@ export function GuardiansCard({ data }: { data: StudentProfile }) {
     const [relating, setRelating] = useState<Guardian | null>(null);
     const student = data.student;
     const guardians = data.guardians;
+    const siblings = useSiblings(student.id, { currentOnly: false });
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: ['student-profile', student.id] });
@@ -115,6 +120,25 @@ export function GuardiansCard({ data }: { data: StudentProfile }) {
                 </ul>
             )}
 
+            {siblings.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1.5 border-t border-line-subtle pt-3">
+                    <p className="type-small-semibold text-ink">{t('family.siblingsTitle')}</p>
+                    <ul className="flex flex-col gap-1">
+                        {siblings.map((s) => (
+                            <li key={s.id} className="flex flex-wrap items-center gap-x-2 type-small">
+                                <Link to={`/people/students/${s.id}`} className="rounded-sm font-medium text-primary-text outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus/60">{s.name}</Link>
+                                <span className="text-muted">{[s.admission_no, s.status !== 'active' ? t(`peoplePage.status.${s.status}`, { defaultValue: s.status }) : null].filter(Boolean).join(', ')}</span>
+                                {s.missing_guardian_ids.length > 0 && s.status === 'active' && (
+                                    <span className="type-caption text-warn">
+                                        {t('family.missingGuardians', { names: s.missing_guardian_ids.map((id) => guardians.find((g) => g.parent_id === id)?.name).filter(Boolean).join(', ') })}
+                                    </span>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {adding && (
                 <AddGuardianDialog
                     data={data}
@@ -142,20 +166,34 @@ function AddGuardianDialog({ data, onClose, onRegisterNew, onAdded }: {
     onAdded: (name: string) => void;
 }) {
     const { t } = useTranslation();
-    const [mode, setMode] = useState<'register' | 'new'>('register');
+    // On the register, a member of staff (whose own child this is), or new.
+    const [mode, setMode] = useState<'register' | 'staff' | 'new'>('register');
+    const [staffError, setStaffError] = useState<string | null>(null);
+    const asGuardian = useMutation({
+        mutationFn: (userId: number) => peopleService.guardianForStaff(userId),
+        onSuccess: (p) => { setParent(p); setMode('register'); },
+        onError: (err) => setStaffError(errorText(err, t('peoplePage.error.body'))),
+    });
     const [parent, setParent] = useState<Parent | null>(null);
-    const [relationship, setRelationship] = useState<GuardianRelationship>('guardian');
+    // Chosen every time: a default records the wrong relationship unnoticed.
+    const [relationship, setRelationship] = useState<GuardianRelationship | ''>('');
+    const [relError, setRelError] = useState(false);
     const [main, setMain] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const student = data.student;
     const currentMain = data.guardians.find((g) => g.is_primary_contact);
+    const siblings = useSiblings(student.id);
+    const [skipped, setSkipped] = useState<number[]>([]);
+    const parentName = parent ? `${parent.first_name} ${parent.last_name ?? ''}`.trim() : '';
 
     const link = useMutation({
         mutationFn: () => peopleService.addGuardian(student.id, {
             parent_id: parent!.id,
-            relationship_type: relationship,
+            relationship_type: relationship || undefined,
             // Unticked: the server decides (main if nobody reachable is).
             is_primary_contact: main ? true : undefined,
+            // The brothers and sisters, unless unticked (a half-brother).
+            also_student_ids: ticked(siblings.map((s) => s.id), skipped),
         }),
         onSuccess: () => { onAdded(`${parent!.first_name} ${parent!.last_name ?? ''}`.trim()); onClose(); },
         onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
@@ -170,7 +208,13 @@ function AddGuardianDialog({ data, onClose, onRegisterNew, onAdded }: {
             title={t('guardians.addTitle', { child: student.first_name })}
             subtitle={t('guardians.addSubtitle')}
             closeLabel={t('common.close')}
-            onSubmit={(e) => { e.preventDefault(); if (mode === 'register' && parent) { setError(null); link.mutate(); } }}
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (mode !== 'register' || !parent) return;
+                if (!relationship) { setRelError(true); return; }
+                setError(null);
+                link.mutate();
+            }}
             footer={
                 <>
                     <Button variant="quiet" onClick={onClose} disabled={link.isPending} className="sm:mr-auto">{t('addChild.action.cancel')}</Button>
@@ -182,29 +226,33 @@ function AddGuardianDialog({ data, onClose, onRegisterNew, onAdded }: {
                 </>
             }
         >
-            <SegmentedControl<'register' | 'new'>
+            <SegmentedControl<'register' | 'staff' | 'new'>
                 aria-label={t('guardians.addTitle', { child: student.first_name })}
                 value={mode}
                 onChange={setMode}
                 className="w-full [&>*]:flex-1"
-                options={[{ value: 'register', label: t('guardians.mode.register') }, { value: 'new', label: t('guardians.mode.new') }]}
+                options={[{ value: 'register', label: t('guardians.mode.register') }, { value: 'staff', label: t('family.staff.mode') }, { value: 'new', label: t('guardians.mode.new') }]}
             />
-            {mode === 'new' ? (
+            {mode === 'staff' ? (
+                <>
+                    {staffError && <Banner tone="bad" title={t('guardians.failed')}>{staffError}</Banner>}
+                    <p className="type-small text-muted">{t('family.staff.explain', { child: student.first_name })}</p>
+                    <StaffPicker label={t('family.staff.who')} busy={asGuardian.isPending} onPick={(u) => { setStaffError(null); asGuardian.mutate(u.id); }} />
+                </>
+            ) : mode === 'new' ? (
                 <p className="type-body text-muted">{t('guardians.newBody', { child: student.first_name })}</p>
             ) : (
                 <>
                     {error && <Banner tone="bad" title={t('guardians.failed')}>{error}</Banner>}
                     <ParentPicker label={t('guardians.who')} value={parent} onChange={setParent} exclude={data.guardians.map((g) => g.parent_id)} />
-                    <div className="flex flex-col gap-2">
-                        <p className="type-small-semibold text-ink">{t('registerFamily.field.relationshipTo', { name: student.first_name })}</p>
-                        <SegmentedControl<GuardianRelationship>
-                            aria-label={t('registerFamily.field.relationshipTo', { name: student.first_name })}
-                            value={relationship}
-                            onChange={setRelationship}
-                            className="w-full [&>*]:flex-1"
-                            options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
-                        />
-                    </div>
+                    <RelationshipSelect label={t('peopleRules.relationshipFrom', { parent: parent ? `${parent.first_name} ${parent.last_name ?? ''}`.trim() : t('guardians.who') })}
+                        value={relationship} onChange={(r) => { setRelationship(r); setRelError(false); }}
+                        error={relError && !relationship ? t('peopleRules.relationshipRequired') : undefined} />
+                    {parent && (
+                        <TickList title={t('family.alsoSiblings', { parent: parentName })}
+                            items={siblings.map((s) => ({ id: s.id, label: s.name, sub: s.admission_no }))}
+                            skipped={skipped} onToggle={(id) => setSkipped((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))} />
+                    )}
                     <div className="flex flex-col gap-1">
                         <Checkbox label={t('guardians.makeMainToo')} checked={main} onChange={(e) => setMain(e.target.checked)} />
                         <p className="type-caption text-muted">
@@ -224,12 +272,12 @@ function RelationshipDialog({ studentId, guardian, onClose, onSaved }: {
     onSaved: () => void;
 }) {
     const { t } = useTranslation();
-    const [value, setValue] = useState<GuardianRelationship>(
-        RELATIONSHIPS.includes(guardian.relationship as GuardianRelationship) ? guardian.relationship as GuardianRelationship : 'guardian',
+    const [value, setValue] = useState<GuardianRelationship | ''>(
+        RELATIONSHIPS.includes(guardian.relationship as GuardianRelationship) ? guardian.relationship as GuardianRelationship : '',
     );
     const [error, setError] = useState<string | null>(null);
     const save = useMutation({
-        mutationFn: () => peopleService.updateGuardian(studentId, guardian.parent_id, { relationship_type: value }),
+        mutationFn: () => peopleService.updateGuardian(studentId, guardian.parent_id, { relationship_type: value || null }),
         onSuccess: () => { onSaved(); onClose(); },
         onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
     });
@@ -251,13 +299,7 @@ function RelationshipDialog({ studentId, guardian, onClose, onSaved }: {
             }
         >
             {error && <Banner tone="bad" title={t('guardians.failed')}>{error}</Banner>}
-            <SegmentedControl<GuardianRelationship>
-                aria-label={t('guardians.relationshipTitle', { name: guardian.name })}
-                value={value}
-                onChange={setValue}
-                className="w-full [&>*]:flex-1"
-                options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
-            />
+            <RelationshipSelect label={t('guardians.relationshipTitle', { name: guardian.name })} value={value} onChange={setValue} />
         </Dialog>
     );
 }
