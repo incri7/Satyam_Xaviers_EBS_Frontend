@@ -291,6 +291,8 @@ export interface StudentCreate {
     is_primary_contact?: boolean;
     /** Save although a student with this name and date of birth exists. */
     allow_duplicate?: boolean;
+    /** The other guardians of the parent's children, linked to this child too. */
+    also_parent_ids?: number[];
     city?: string;
     state?: string;
     pincode?: string;

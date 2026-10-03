@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Briefcase, CheckCircle2, Filter, Home, Mail, MapPin, Pencil, Phone } from 'lucide-react';
+import { Briefcase, CheckCircle2, Combine, Filter, Home, Mail, MapPin, Pencil, Phone } from 'lucide-react';
 
 import { Badge, IconButton, ListRow, Person, SearchField, SortTh, THead, Td, Th, Tr } from '../../design-system';
 import { peopleService } from '../../api/services/people.service';
@@ -14,6 +14,9 @@ import { RegisterView } from '../../features/people/RegisterView';
 import { PersonCard } from '../../features/people/PersonCard';
 import { useListControls } from '../../features/people/useListControls';
 import { fullName } from '../../features/people/format';
+import { MergeParentsDialog } from '../../features/people/MergeParentsDialog';
+import { useNotice } from '../../features/people/useNotice';
+import { useAuthStore } from '../../store/useAuthStore';
 
 type ParentSortKey = 'name' | 'occupation' | 'city';
 const COLUMNS = 5;
@@ -29,6 +32,10 @@ export function ParentManagement() {
     const [occupation, setOccupation] = useState('');
     const [status, setStatus] = useState<'' | 'active' | 'inactive'>('');
     const [editing, setEditing] = useState<Parent | null>(null);
+    const [merging, setMerging] = useState<Parent | null>(null);
+    const [noticeUI, notify] = useNotice();
+    // Merging moves logins between records: admins and principals only.
+    const canMerge = useAuthStore((s) => s.user?.role === 'admin' || s.user?.role === 'principal');
 
     const filtered = Boolean(list.search || occupation || status);
     const clearFilters = () => { list.resetSearch(); setOccupation(''); setStatus(''); };
@@ -67,10 +74,16 @@ export function ParentManagement() {
         );
 
     const edit = (p: Parent) => (
-        <AccessControl id="parents_update">
-            <IconButton icon={Pencil} label={t('peoplePage.row.edit')} onClick={() => setEditing(p)} />
-        </AccessControl>
+        <>
+            <AccessControl id="parents_update">
+                <IconButton icon={Pencil} label={t('peoplePage.row.edit')} onClick={() => setEditing(p)} />
+            </AccessControl>
+            {canMerge && <IconButton icon={Combine} label={t('family.merge.button')} onClick={() => setMerging(p)} />}
+        </>
     );
+    // Who the family is, so two records of one person are easy to spot.
+    const childrenLine = (p: Parent) =>
+        (p.children ?? []).length ? t('peopleRules.childrenOf', { names: (p.children ?? []).map((c) => c.name).join(', ') }) : null;
 
     return (
         <>
@@ -82,6 +95,7 @@ export function ParentManagement() {
                 onClearFilters={clearFilters}
                 view={view}
                 onViewChange={setView}
+                notice={noticeUI}
                 isLoading={isLoading}
                 isError={isError}
                 onRetry={() => void refetch()}
@@ -133,7 +147,7 @@ export function ParentManagement() {
                 }
                 row={(p) => (
                     <Tr key={p.id}>
-                        <Td><Person name={fullName(p)} sub={p.occupation} /></Td>
+                        <Td><Person name={fullName(p)} sub={childrenLine(p) ?? p.occupation} /></Td>
                         <Td>
                             <span className="flex flex-col gap-px">
                                 <span className="whitespace-nowrap type-small-medium text-ink">{phoneOf(p) || t('peoplePage.value.noPhone')}</span>
@@ -171,6 +185,10 @@ export function ParentManagement() {
             />
 
             {editing && <EditParentModal parent={editing} isOpen onClose={() => setEditing(null)} />}
+            {merging && (
+                <MergeParentsDialog from={merging} onClose={() => setMerging(null)}
+                    onMerged={(name) => notify({ tone: 'ok', title: t('family.merge.done', { name }) })} />
+            )}
         </>
     );
 }

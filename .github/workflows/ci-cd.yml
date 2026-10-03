@@ -1,0 +1,71 @@
+name: CI/CD
+
+# Branch strategy: feature/* -> dev -> main (production = the VM).
+# Build-checks on every PR/push to main; deploys the frontend to the DataHub
+# VM on push to main (rebuilds the frontend image, which is the real build).
+#
+# The build job is a HARD gate: a frontend that doesn't compile can't be
+# deployed (the VM's docker build would fail anyway), so deploy `needs: build`.
+# Lint is informational (continue-on-error).
+#
+# Requires repo secrets: VM_SSH_KEY (the deploy private key), VM_HOST, VM_USER
+# — same values as the backend repo (the key is already authorized on the VM).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (informational)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+  deploy:
+    name: Deploy to VM (main only)
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.VM_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync frontend code to VM
+        # No --delete: VM-only files are preserved. The frontend lives beside
+        # the backend as ~/Satyam_Xaviers_EBS_Frontend (the compose build context).
+        run: |
+          rsync -az \
+            --exclude='.git' --exclude='node_modules' --exclude='dist' \
+            --exclude='.env' --exclude='.env.production' --exclude='*.log' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/Satyam_Xaviers_EBS_Frontend/"
+
+      - name: Rebuild + restart frontend on VM
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}" \
+            'cd ~/sxebs && sudo docker compose build frontend && sudo docker compose up -d frontend && sudo docker image prune -f && sudo docker compose ps frontend'

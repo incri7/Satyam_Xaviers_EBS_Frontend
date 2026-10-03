@@ -12,7 +12,8 @@ import { InlineError, ItemRow, RowsSkeleton } from '../../features/home/parts';
 import { InfoTile, StatusPanel } from '../../features/parent/parts';
 import { useWelcome } from '../../features/shell/identity';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { childClass, childName, lookOf, useChildren, useSchoolPhone } from '../../features/parent/helpers';
+import { childClass, childName, lookOf, useChildren, useFormerChildren, useSchoolPhone } from '../../features/parent/helpers';
+import type { FormerChild } from '../../api/services/parent.service';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatCount, formatRs } from '../../utils/money';
 import { isoLocal } from '../../utils/nepaliDate';
@@ -35,6 +36,7 @@ export default function ParentHome() {
     const qc = useQueryClient();
     const welcome = useWelcome();
     const kids = useChildren();
+    const former = useFormerChildren().data ?? [];
     const phone = useSchoolPhone();
     const [pick, setPick] = useState<number | null>(null);
 
@@ -73,7 +75,7 @@ export default function ParentHome() {
                     action={<Button variant="quiet" onClick={() => void kids.refetch()}>{t('classesPage.action.retry')}</Button>}>
                     {t('parentHome.errorBody')}
                 </EmptyState>
-            ) : list.length === 0 ? <NoChildren phone={phone} /> : (
+            ) : list.length === 0 ? (former.length === 0 && <NoChildren phone={phone} />) : (
                 <>
                     {/* Phones: one child at a time, others flagged if absent */}
                     <div className="flex flex-col gap-3.5 lg:hidden">
@@ -122,8 +124,39 @@ export default function ParentHome() {
                 </>
             )}
 
+            {former.length > 0 && <FormerChildren list={former} />}
+
             {list.length > 0 && <Notices />}
         </AppPage>
+    );
+}
+
+/** Children who have left: their status, and any fee still owed with a way to see it. */
+function FormerChildren({ list }: { list: FormerChild[] }) {
+    const { t, i18n } = useTranslation();
+    return (
+        <Card>
+            <CardHeader title={t('family.formerTitle')} subtitle={t('family.formerSubtitle')} />
+            <ul className="flex flex-col gap-2">
+                {list.map((c) => {
+                    const owed = Number(c.fee_due) > 0;
+                    return (
+                        <li key={c.student_id} className="flex flex-wrap items-center gap-3 rounded-row border border-line-subtle bg-surface-2 px-3.5 py-2.5">
+                            <Avatar name={childName(c)} size={34} />
+                            <span className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate type-body-semibold text-ink">{childName(c)}</span>
+                                <span className="type-caption text-muted">{[c.admission_no, t(`peoplePage.status.${c.status}`, { defaultValue: c.status })].join(', ')}</span>
+                            </span>
+                            {owed && <span className="type-small-semibold text-bad">{t('family.stillOwed', { amount: formatRs(c.fee_due, i18n.language.startsWith('ne') ? 'ne' : 'en') })}</span>}
+                            <Link to={`/parent/child/${c.student_id}/fees`}
+                                className="rounded-sm type-small-semibold text-primary-text outline-none hover:underline focus-visible:ring-3 focus-visible:ring-focus/60">
+                                {t('family.seeFees')}
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+        </Card>
     );
 }
 

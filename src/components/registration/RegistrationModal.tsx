@@ -15,8 +15,11 @@ import {
     Stepper,
     TextField,
 } from '../../design-system';
-import { peopleService } from '../../api/services/people.service';
-import type { Parent, Student, StudentCreate, UnifiedRegistrationCreate } from '../../types/people';
+import { peopleService, type GuardianRelationship } from '../../api/services/people.service';
+import { RelationshipSelect } from '../../features/people/RelationshipSelect';
+import { TickList } from '../../features/people/TickList';
+import { ticked, useCoGuardians, useSiblings } from '../../features/people/familyQueries';
+import type { Parent, Student, StudentCreate, UnifiedRegistrationCreate, User } from '../../types/people';
 import { useDateFormat } from '../../hooks/useDateFormat';
 import { formatISODate } from '../../utils/nepaliDate';
 import { useConfirmDialog } from '../common/useConfirmDialog';
@@ -38,8 +41,7 @@ interface RegistrationModalProps {
     withStudent?: { id: number; name: string; sub?: string };
 }
 
-type Relationship = 'father' | 'mother' | 'guardian' | 'other';
-const RELATIONSHIPS: Relationship[] = ['father', 'mother', 'guardian', 'other'];
+type Relationship = GuardianRelationship;
 
 /** A child already at the school, linked rather than created. */
 interface ExistingChild {
@@ -117,6 +119,12 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
     // The number or e-mail typed belongs to a guardian on the register: the
     // children go to them, instead of failing on the last step.
     const [existingParent, setExistingParent] = useState<Parent | null>(null);
+    // The family around a pick: a child's brothers and sisters, a guardian's
+    // other guardians (for the new children). All ticked to start with.
+    const pickedSiblings = useSiblings(picked?.id);
+    const [skipSib, setSkipSib] = useState<number[]>([]);
+    const coGuardians = useCoGuardians(existingParent?.id);
+    const [skipCo, setSkipCo] = useState<number[]>([]);
     // A guardian is settled: typed in, or picked from the register.
     const hasGuardian = !!parent.first_name || !!existingParent;
     // Set the moment Register is pressed: a second click in the same instant
@@ -146,6 +154,21 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
         staleTime: 30_000,
     });
     const matched: Parent | undefined = (match.data?.parents as Parent[] | undefined)?.[0];
+    // Not a parent on the register, but a member of staff (a teacher whose
+    // child this is): use their own account, not a second one.
+    const staffMatch = useQuery({
+        queryKey: ['users', 'match', lookup],
+        queryFn: () => peopleService.getUsers({ search: lookup, limit: 3, is_active: true }),
+        enabled: step === 1 && !!lookup && !matched && !match.isPending,
+        staleTime: 30_000,
+        retry: false,
+    });
+    const matchedStaff: User | undefined = ((staffMatch.data?.users ?? []) as User[]).find((u) => !['parent', 'student'].includes(u.role));
+    const asGuardian = useMutation({
+        mutationFn: (userId: number) => peopleService.guardianForStaff(userId),
+        onSuccess: (p) => chooseExisting(p),
+        onError: (err) => setError(errorText(err, t('peoplePage.error.body'))),
+    });
     const chooseExisting = (p: Parent) => {
         if (children.some((c) => !c.relationship)) { setRelErrors(true); return; }
         setExistingParent(p);
@@ -219,6 +242,7 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                     relationship_type: c.relationship || undefined,
                     is_primary_contact: true,
                     allow_duplicate: allowDuplicate,
+                    also_parent_ids: existingParent ? ticked(coGuardians.map((g) => g.parent_id), skipCo) : undefined,
                     city: parent.city.trim() || undefined,
                     state: parent.state.trim() || undefined,
                 })),
@@ -258,8 +282,13 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
         if (mode === 'new' || editing !== null) return void saveNewChild(e);
         e.preventDefault();
         if (!picked) { setPickError(t('registerFamily.error.pickStudent')); return; }
-        setChildren([...children, { kind: 'existing', id: picked.id, name: fullName(picked), sub: studentWithGuardians(picked), relationship: '' }]);
+        const have = new Set(children.flatMap((c) => (c.kind === 'existing' ? [c.id] : [])));
+        const brothersAndSisters = pickedSiblings
+            .filter((s) => !have.has(s.id) && s.id !== picked.id && !skipSib.includes(s.id))
+            .map((s): ChildEntry => ({ kind: 'existing', id: s.id, name: s.name, sub: s.admission_no ?? undefined, relationship: '' }));
+        setChildren([...children, { kind: 'existing', id: picked.id, name: fullName(picked), sub: studentWithGuardians(picked), relationship: '' }, ...brothersAndSisters]);
         setPicked(null);
+        setSkipSib([]);
         setPickError(undefined);
         setStep(hasGuardian ? 2 : 1);
     };
@@ -380,9 +409,16 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                     />
                 )}
                 {step === 0 && mode === 'existing' && editing === null && (
-                    <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); }}
+                    <StudentPicker label={t('registerFamily.field.existing')} value={picked} onChange={(st) => { setPicked(st); setPickError(undefined); setSkipSib([]); }}
                         error={pickError} describe={studentWithGuardians}
                         exclude={children.flatMap((c) => (c.kind === 'existing' ? [c.id] : []))} />
+                )}
+                {step === 0 && mode === 'existing' && editing === null && picked && (
+                    <TickList title={t('family.alsoTheirSiblings', { child: fullName(picked) })}
+                        items={pickedSiblings
+                            .filter((s) => !children.some((c) => c.kind === 'existing' && c.id === s.id))
+                            .map((s) => ({ id: s.id, label: s.name, sub: s.admission_no }))}
+                        skipped={skipSib} onToggle={(id) => setSkipSib((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))} />
                 )}
                 {step === 0 && (mode === 'new' || editing !== null) && (
                     <>
@@ -431,17 +467,9 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                 {step === 1 && (
                     <>
                         {children.map((c, i) => (
-                            <div key={i} className="flex flex-col gap-2">
-                                <p className="type-small-semibold text-ink">{t('peopleRules.relationshipOf', { child: nameOf(c) })}</p>
-                                <SegmentedControl<Relationship>
-                                    aria-label={t('peopleRules.relationshipOf', { child: nameOf(c) })}
-                                    value={c.relationship as Relationship}
-                                    onChange={(r) => setRelationship(i, r)}
-                                    className="w-full [&>*]:flex-1"
-                                    options={RELATIONSHIPS.map((r) => ({ value: r, label: t(`registerFamily.relationship.${r}`) }))}
-                                />
-                                {relErrors && !c.relationship && <p role="alert" className="type-caption text-bad">{t('peopleRules.relationshipRequired')}</p>}
-                            </div>
+                            <RelationshipSelect key={i} label={t('peopleRules.relationshipOf', { child: nameOf(c) })} value={c.relationship}
+                                onChange={(r) => setRelationship(i, r)}
+                                error={relErrors && !c.relationship ? t('peopleRules.relationshipRequired') : undefined} />
                         ))}
                         <FormRow>
                             <TextField label={t('peopleForms.label.firstName')} autoComplete="off" maxLength={NAME_MAX} error={pe.first_name?.message}
@@ -451,6 +479,15 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                         </FormRow>
                         <TextField label={t('peopleRules.nameNepali')} optional={opt} lang="ne" autoComplete="off" maxLength={NEPALI_NAME_MAX}
                             hint={t('peopleRules.nameNepaliHint')} error={pe?.name_nepali?.message} {...parentForm.register('name_nepali', { validate: validNepaliName(t) })} />
+                        {!matched && matchedStaff && (
+                            <Banner tone="info" title={t('family.staff.matchTitle', { name: [matchedStaff.first_name, matchedStaff.last_name].filter(Boolean).join(' ') || matchedStaff.email, role: t(`shell.roles.${matchedStaff.role}`, { defaultValue: matchedStaff.role }) })}
+                                action={<Button variant="quiet" size="sm" loading={asGuardian.isPending} onClick={() => {
+                                    if (children.some((c) => !c.relationship)) { setRelErrors(true); return; }
+                                    asGuardian.mutate(matchedStaff.id);
+                                }}>{t('family.staff.matchUse')}</Button>}>
+                                {t('family.staff.matchBody')}
+                            </Banner>
+                        )}
                         {matched && (
                             <Banner tone="info" title={t('peopleRules.matchTitle', { name: fullName(matched) })}
                                 action={<Button variant="quiet" size="sm" onClick={() => chooseExisting(matched)}>{t('peopleRules.matchUse')}</Button>}>
@@ -514,6 +551,14 @@ export function RegistrationModal({ isOpen, onClose, withStudent }: Registration
                             ))}
                         </Summary>
                         <Button variant="secondary" leftIcon={Plus} onClick={addChild} className="self-start max-sm:w-full">{t('registerFamily.review.addChild')}</Button>
+                        {existingParent && children.some((c) => c.kind === 'new') && (
+                            <TickList title={t('family.alsoCoGuardians')}
+                                items={coGuardians.map((g) => ({
+                                    id: g.parent_id, label: g.name,
+                                    sub: g.relationship && g.child_name ? t('family.relationOf', { relation: t(`registerFamily.relationship.${g.relationship}`), child: g.child_name }) : g.child_name,
+                                }))}
+                                skipped={skipCo} onToggle={(id) => setSkipCo((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))} />
+                        )}
                         <Summary title={existingParent ? t('peopleRules.review.onRegister') : t('registerFamily.review.parent')}
                             action={<Button variant="ghost" size="sm" leftIcon={Pencil} onClick={() => { setExistingParent(null); setStep(1); }}>{existingParent ? t('addChild.change') : t('registerFamily.review.edit')}</Button>}>
                             {existingParent ? (

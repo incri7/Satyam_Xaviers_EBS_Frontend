@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, BookMarked, ClipboardCheck, LayoutDashboard, Umbrella, Wallet, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, BookMarked, ClipboardCheck, LayoutDashboard, Umbrella, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 
 import { CountPill, SchoolCrest } from '../../design-system';
 import { LanguageSwitch } from '../LanguageSwitch';
@@ -14,6 +14,7 @@ import { parentService } from '../../api/services/parent.service';
 import { useUiStore } from '../../store/useUiStore';
 import { hasSidebar } from '../../utils/sidebarVisibility';
 import { cn } from '../../utils/cn';
+import { homeForRole } from '../../utils/roleHome';
 
 const SCROLL_KEY = 'sidebar_scroll_top';
 export const SIDEBAR_ID = 'app-sidebar';
@@ -36,16 +37,18 @@ export function Sidebar() {
     const { isSidebarOpen, closeSidebar } = useUiStore();
     const { count: pendingLeave } = usePendingLeaveCount();
 
-    // Parents: a child-scoped menu once they open one child's pages, since
-    // attendance, marks, fees and leave only make sense per child.
-    const childMatch = role === 'parent' ? pathname.match(/^\/parent\/child\/(\d+)/) : null;
+    // A child-scoped menu once someone opens one child's pages, since
+    // attendance, marks, fees and leave only make sense per child. Parents,
+    // and staff whose own child studies here (the list is empty for others).
+    const childMatch = pathname.match(/^\/parent\/child\/(\d+)/);
     const childId = childMatch?.[1] ?? null;
     const { data: childrenData } = useQuery({
         queryKey: ['parent', 'my-children'],
         queryFn: parentService.getMyChildren,
-        enabled: role === 'parent',
+        enabled: !!role,
         staleTime: 5 * 60 * 1000,
     });
+    const staffChildren = role !== 'parent' ? childrenData?.children ?? [] : [];
     const child = childId ? childrenData?.children.find((c) => String(c.student_id) === childId) : undefined;
     const childName = child ? [child.first_name, child.last_name].filter(Boolean).join(' ') : undefined;
 
@@ -131,13 +134,13 @@ export function Sidebar() {
                     {childId ? (
                         <div className="flex flex-col gap-0.5">
                             <Link
-                                to="/home/parent"
+                                to={role === 'parent' ? '/home/parent' : homeForRole(role ?? '')}
                                 onClick={closeSidebar}
                                 className="flex items-center gap-2.5 rounded-[12px] px-2.5 py-2 outline-none hover:bg-white/8 focus-visible:ring-2 focus-visible:ring-white/60"
                             >
                                 <ArrowLeft size={18} className="shrink-0 text-white/74" aria-hidden />
                                 <span className="min-w-0">
-                                    <span className="block type-small-medium text-white/78">{t('home.parent.myChildren')}</span>
+                                    <span className="block type-small-medium text-white/78">{role === 'parent' ? t('home.parent.myChildren') : t('family.backToWork')}</span>
                                     {childName && <span className="block truncate type-caption-semibold text-white">{childName}</span>}
                                 </span>
                             </Link>
@@ -154,7 +157,8 @@ export function Sidebar() {
                             ))}
                         </div>
                     ) : (
-                        groups.map((group) => (
+                        <>
+                        {groups.map((group) => (
                             <div key={group.id} role="group" aria-labelledby={`nav-group-${group.id}`} className="flex flex-col gap-0.5">
                                 <p id={`nav-group-${group.id}`} className="px-2.5 pb-1.5 type-caption text-white/55">
                                     {t(`shell.groups.${group.id}`)}
@@ -175,7 +179,24 @@ export function Sidebar() {
                                     />
                                 ))}
                             </div>
-                        ))
+                        ))}
+                        {/* A teacher or other member of staff whose own child studies here. */}
+                        {staffChildren.length > 0 && (
+                            <div role="group" aria-labelledby="nav-group-my-children" className="flex flex-col gap-0.5">
+                                <p id="nav-group-my-children" className="px-2.5 pb-1.5 type-caption text-white/55">{t('home.parent.myChildren')}</p>
+                                {staffChildren.map((c) => (
+                                    <NavRow
+                                        key={c.student_id}
+                                        href={`/parent/child/${c.student_id}/dashboard`}
+                                        icon={Users}
+                                        label={[c.first_name, c.last_name].filter(Boolean).join(' ')}
+                                        active={false}
+                                        onNavigate={closeSidebar}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        </>
                     )}
                 </nav>
 

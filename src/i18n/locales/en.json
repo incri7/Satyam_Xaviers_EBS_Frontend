@@ -1856,7 +1856,14 @@
       "father": "Father",
       "mother": "Mother",
       "guardian": "Guardian",
-      "other": "Other"
+      "other": "Other",
+      "stepfather": "Stepfather",
+      "stepmother": "Stepmother",
+      "grandfather": "Grandfather",
+      "grandmother": "Grandmother",
+      "uncle": "Uncle",
+      "aunt": "Aunt",
+      "sibling": "Elder brother or sister"
     },
     "accountNote": {
       "title": "A parent account is created",
@@ -4864,5 +4871,43 @@
     "year": "Year",
     "month": "Month",
     "day": "Day"
+  },
+  "family": {
+    "siblingsTitle": "Brothers and sisters",
+    "missingGuardians": "not linked to {{names}}",
+    "alsoSiblings": "Also link {{parent}} to the brothers and sisters",
+    "alsoTheirSiblings": "Also add {{child}}'s brothers and sisters",
+    "alsoCoGuardians": "Also link the family's other guardians",
+    "relationOf": "{{relation}} of {{child}}",
+    "formerTitle": "Children who have left",
+    "formerSubtitle": "Their fees and records are still here.",
+    "stillOwed": "{{amount}} still due",
+    "seeFees": "See fees",
+    "merge": {
+      "button": "Merge a duplicate",
+      "title": "Merge a duplicate of {{name}}",
+      "subtitle": "The same person entered twice. One record stays, with both records' children.",
+      "which": "The other record",
+      "kept": "Stays",
+      "removed": "Merged in, then removed",
+      "swap": "Keep the other one instead",
+      "bothTitle": "Both records can sign in",
+      "bothBody": "Deactivate the account that is not theirs under User accounts, then merge.",
+      "explain": "{{removed}}'s children, login and any details {{kept}} is missing move to {{kept}}. {{removed}} is then removed.",
+      "action": "Merge",
+      "failed": "The records were not merged",
+      "done": "Merged into {{name}}"
+    },
+    "backToWork": "Back to my work",
+    "staff": {
+      "mode": "Staff member",
+      "explain": "A teacher or other member of staff whose child {{child}} is. They keep their own sign-in and see {{child}} under My children.",
+      "who": "Member of staff",
+      "search": "Search staff by name, phone or email",
+      "noMatch": "No member of staff matches.",
+      "matchTitle": "{{name}} works here ({{role}})",
+      "matchBody": "Use their own account as the guardian. No second account is made; they see the children under My children.",
+      "matchUse": "Use their account"
+    }
   }
 }

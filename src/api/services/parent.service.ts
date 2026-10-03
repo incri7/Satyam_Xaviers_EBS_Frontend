@@ -124,8 +124,18 @@ export interface FeeBalanceResponse {
     credit: number | string;
 }
 
+/** A child who has left the school: off the home, with any fees still owed. */
+export interface FormerChild {
+    student_id: number;
+    first_name: string;
+    last_name: string | null;
+    admission_no: string;
+    status: string;
+    fee_due: number | string;
+}
+
 export const parentService = {
-    getMyChildren: async (): Promise<{ children: ChildSummary[] }> => {
+    getMyChildren: async (): Promise<{ children: ChildSummary[]; former?: FormerChild[] }> => {
         const res = await api.get('/parent/my-children');
         return res.data;
     },
