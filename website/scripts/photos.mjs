@@ -29,6 +29,14 @@ for (const [name, [w, h]] of Object.entries(page)) {
 }
 await copyFile(path.join(src, 'crest.png'), path.join(out, 'crest.png'));
 
+// Every school photo at web size, for the inner pages and the gallery.
+const pOut = path.join(out, 'p');
+await mkdir(pOut, { recursive: true });
+for (const f of (await readdir(src)).filter((n) => n.endsWith('.jpg'))) {
+  await sharp(path.join(src, f)).resize(1400, 1400, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 72 })
+    .toFile(path.join(pOut, f.replace('.jpg', '.webp')));
+}
+
 // Draco decoder, served from our own origin instead of a third-party CDN.
 const draco = path.join(root, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'draco', 'gltf');
 const dracoOut = path.join(root, 'public', 'draco');

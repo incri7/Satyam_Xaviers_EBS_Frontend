@@ -6,11 +6,13 @@ export type Lang = 'en' | 'ne';
 const en = {
   school: "Satyam Xavier's",
   schoolSub: 'English Boarding School, Hetauda',
-  nav: { classes: 'Classes', parents: 'Parents', life: 'School life', admissions: 'Admissions', contact: 'Contact' },
+  nav: { classes: 'Classes', about: 'About', academics: 'Academics', life: 'School life', admissions: 'Admissions', news: 'News', contact: 'Contact' },
+  more: { life: 'More from school life', admissions: 'Everything about admissions', academics: 'How each stage learns' },
   switchTo: 'नेपाली',
   start: 'Start admission',
   call: 'Call 057-525563',
   loading: 'Building the school',
+  mood: { morning: 'Morning', day: 'Day' },
   hero: { label: 'Hetauda-4, Chisapani. Nursery to Class 10.', lines: ['Growing up in', 'Chisapani', 'since 2059.'], other: '२०५९ देखि चिसापानीमा हुर्कँदै।' },
   scroll: 'Scroll to walk in',
   floors: [
@@ -55,11 +57,13 @@ type Copy = typeof en;
 const ne: Copy = {
   school: 'सत्यम जेभियर्स',
   schoolSub: 'इङ्लिस बोर्डिङ स्कुल, हेटौंडा',
-  nav: { classes: 'कक्षाहरू', parents: 'अभिभावक', life: 'विद्यालय जीवन', admissions: 'भर्ना', contact: 'सम्पर्क' },
+  nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', academics: 'पढाइ', life: 'विद्यालय जीवन', admissions: 'भर्ना', news: 'समाचार', contact: 'सम्पर्क' },
+  more: { life: 'विद्यालय जीवन थप', admissions: 'भर्नाबारे सबै', academics: 'हरेक चरणको पढाइ' },
   switchTo: 'English',
   start: 'भर्ना सुरु गर्नुहोस्',
   call: 'फोन 057-525563',
   loading: 'विद्यालय बन्दैछ',
+  mood: { morning: 'बिहान', day: 'दिउँसो' },
   hero: { label: 'हेटौंडा-४, चिसापानी। नर्सरीदेखि कक्षा १० सम्म।', lines: ['२०५९ देखि', 'चिसापानीमा', 'हुर्कँदै।'], other: 'Growing up in Chisapani since 2059.' },
   scroll: 'भित्र जान स्क्रोल गर्नुहोस्',
   floors: [

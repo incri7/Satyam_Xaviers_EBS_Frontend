@@ -1,4 +1,4 @@
-import { use, useLayoutEffect, useMemo } from 'react';
+import { use, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
@@ -21,6 +21,26 @@ type Manifest = {
 const manifestPromise: Promise<Manifest> = fetch('/models/lightmaps/manifest.json').then((r) => r.json());
 export const useManifest = () => use(manifestPromise);
 
+const lightUrl = (m: Manifest, tier: Tier, mood: Mood, node: string) =>
+  '/models/' + m.path.replace('{tier}', tier).replace('{mood}', mood).replace('{node}', node);
+
+// Lightmaps for mood switches load outside React's suspense, so the scene on screen
+// never blanks while the other mood downloads.
+const texCache = new Map<string, Promise<THREE.Texture>>();
+const loadTex = (url: string) => {
+  if (!texCache.has(url)) texCache.set(url, new THREE.TextureLoader().loadAsync(url));
+  return texCache.get(url)!;
+};
+const loadMood = (m: Manifest, tier: Tier, mood: Mood) => Promise.all(m.nodes.map((n) => loadTex(lightUrl(m, tier, mood, n))));
+
+/** Loads a mood's lightmaps ahead of time. */
+export function preloadMood(tier: Tier, mood: Mood) {
+  manifestPromise.then((m) => loadMood(m, tier, mood)).catch(() => { /* retried on switch */ });
+}
+
+/** Fired once a requested mood is on the building, so the page can lift its dissolve. */
+export const MOOD_READY = 'sx-mood-ready';
+
 /** Class photos for the window slots, two per floor (portrait 3:4). */
 const SLOTS: Record<string, string> = {
   win_f0_a: 'ey1', win_f0_b: 'ey4',
@@ -36,20 +56,37 @@ const RISE_KEY: Record<(typeof RISERS)[number], string> = { floor_0: 'f0', floor
 export function School({ tier, mood }: { tier: Tier; mood: Mood }) {
   const manifest = useManifest();
   const { scene } = useGLTF(`/models/${tier === 'mobile' ? 'school-mobile' : 'school'}.glb`, '/draco/');
-  const lightUrls = useMemo(
-    () => manifest.nodes.map((n) => '/models/' + manifest.path.replace('{tier}', tier).replace('{mood}', mood).replace('{node}', n)),
-    [manifest, tier, mood],
-  );
+  // The first mood loads with the scene (suspense); later switches load in the background.
+  const [firstMood] = useState(mood);
+  const lightUrls = useMemo(() => manifest.nodes.map((n) => lightUrl(manifest, tier, firstMood, n)), [manifest, tier, firstMood]);
   const lightMaps = useLoader(THREE.TextureLoader, lightUrls);
   const slotMaps = useLoader(THREE.TextureLoader, SLOT_URLS);
+  const applied = useRef<Mood | null>(null);
+
+  useLayoutEffect(() => {
+    if (applied.current === null) { applyLight(lightMaps, firstMood); applied.current = firstMood; }
+  }, [lightMaps, firstMood]);
+
+  useEffect(() => {
+    if (applied.current === mood) { dispatchEvent(new Event(MOOD_READY)); return; }
+    let live = true;
+    loadMood(manifest, tier, mood).then((maps) => {
+      if (!live) return;
+      applyLight(maps, mood);
+      applied.current = mood;
+      dispatchEvent(new Event(MOOD_READY));
+    });
+    return () => { live = false; };
+  }, [mood, manifest, tier]);
 
   // Baked lighting: every material of each listed node, except glass and the photo slots.
-  useLayoutEffect(() => {
-    const intensity = manifest.moods[mood].lightMapIntensity;
+  function applyLight(maps: THREE.Texture[], which: Mood) {
+    // The day bake is brighter overall; a little less exposure keeps the yellow from bleaching.
+    const intensity = manifest.moods[which].lightMapIntensity * (which === 'day' ? 0.85 : 1);
     manifest.nodes.forEach((node, i) => {
       const obj = scene.getObjectByName(node);
       if (!obj) return;
-      const tex = lightMaps[i];
+      const tex = maps[i];
       tex.flipY = manifest.flipY;
       tex.channel = manifest.uvChannel;
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -65,7 +102,7 @@ export function School({ tier, mood }: { tier: Tier; mood: Mood }) {
         }
       }
     });
-  }, [scene, lightMaps, manifest, mood]);
+  }
 
   // Photo slots: unlit, so the children's photos keep their real colours. They fade in floor by floor.
   const slotMaterials = useMemo(() => {

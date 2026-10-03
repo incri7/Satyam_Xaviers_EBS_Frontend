@@ -1,32 +1,15 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { useProgress } from '@react-three/drei';
 import { copy, type Lang } from '../content';
 import { cam, photos, rise, flat, HERO, END, balcony, doorway, classroom, approach } from '../three/rig';
-import type { Tier } from '../three/School';
 
 gsap.registerPlugin(ScrollTrigger);
+// three.js, the model and the effects arrive in their own chunk, after the text is on screen.
 const Experience = lazy(() => import('../three/Experience'));
-
-function Loader({ onDone, label }: { onDone: () => void; label: string }) {
-  const { progress, active } = useProgress();
-  const done = useRef(false);
-  useEffect(() => {
-    if (!done.current && progress >= 100 && !active) { done.current = true; onDone(); }
-  }, [progress, active, onDone]);
-  // If the 3D scene can't load (no WebGL, slow network), the page must not wait forever.
-  useEffect(() => {
-    const id = setTimeout(() => { if (!done.current) { done.current = true; onDone(); } }, 12000);
-    return () => clearTimeout(id);
-  }, [onDone]);
-  return (
-    <div className="loader" aria-hidden="true">
-      <span>{label}</span>
-      <i style={{ transform: `scaleX(${progress / 100})` }} />
-    </div>
-  );
-}
+type Tier = 'desktop' | 'mobile';
+type Mood = 'morning' | 'day';
+const MOOD_READY = 'sx-mood-ready'; // fired by the 3D scene (three/School.tsx)
 
 export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; reduce: boolean }) {
   const t = copy[lang];
@@ -35,6 +18,40 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState(true);
   const [inside, setInside] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [mood, setMood] = useState<Mood>('morning');
+  const doneRef = useRef(false);
+  const onProgress = useCallback((p: number, done: boolean) => {
+    setProgress(p);
+    if (done && !doneRef.current) { doneRef.current = true; setReady(true); }
+  }, []);
+  // If the 3D scene can't load (no WebGL, slow network), the page must not wait forever.
+  useEffect(() => {
+    const id = setTimeout(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, 12000);
+    return () => clearTimeout(id);
+  }, []);
+  // Morning or day: the change happens behind the same dissolve the floors use.
+  const switching = useRef(false);
+  const switchMood = () => {
+    if (switching.current) return;
+    switching.current = true;
+    const next: Mood = mood === 'morning' ? 'day' : 'morning';
+    gsap.to('.dissolve', {
+      opacity: 1, duration: reduce ? 0 : 0.35, ease: 'power1.in',
+      onComplete: () => {
+        let lifted = false;
+        const lift = () => {
+          if (lifted) return;
+          lifted = true;
+          removeEventListener(MOOD_READY, lift);
+          gsap.to('.dissolve', { opacity: 0, duration: reduce ? 0 : 0.6, ease: 'power1.out', delay: 0.1, onComplete: () => { switching.current = false; } });
+        };
+        addEventListener(MOOD_READY, lift);
+        setTimeout(lift, 8000); // never leave the scene covered
+        setMood(next);
+      },
+    });
+  };
 
   // Only render the 3D scene while the story is on screen.
   useEffect(() => {
@@ -108,13 +125,24 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
   const floor = state >= 1 && state <= 4 ? t.floors[state - 1] : null;
   return (
     <section className="story" id="classes" ref={root} aria-label={t.nav.classes}>
-      <div className={'stage' + (ready ? ' ready' : '')}>
+      <div className={'stage ' + mood + (ready ? ' ready' : '')}>
         <Suspense fallback={null}>
-          <Experience tier={tier} mood="morning" reduce={reduce} active={active} />
+          <Experience tier={tier} mood={mood} reduce={reduce} active={active} onProgress={onProgress} />
         </Suspense>
         <div className={'scrim' + (state === 0 || state === 5 ? ' show' : '')} aria-hidden="true" />
-        <div className="dissolve" aria-hidden="true" />
-        {!ready && <Loader label={t.loading} onDone={() => setReady(true)} />}
+        <div className={'dissolve ' + mood} aria-hidden="true" />
+        {!ready && (
+          <div className="loader" aria-hidden="true">
+            <span>{t.loading}</span>
+            <i style={{ transform: `scaleX(${progress / 100})` }} />
+          </div>
+        )}
+        {ready && (
+          <button type="button" className="mood" onClick={switchMood} aria-pressed={mood === 'day'}>
+            <span className={mood === 'morning' ? 'on' : ''}>{t.mood.morning}</span>
+            <span className={mood === 'day' ? 'on' : ''}>{t.mood.day}</span>
+          </button>
+        )}
 
         <div className="panel">
           {state === 0 && (

@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer, Bloom, DepthOfField, Vignette, ToneMapping, SMAA } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { School, useManifest, type Mood, type Tier } from './School';
+import { useProgress } from '@react-three/drei';
+import { School, useManifest, preloadMood, type Mood, type Tier } from './School';
 import { cam, pointer } from './rig';
 
 /** A soft gradient dome: the mood's haze at the horizon, a clearer sky overhead. */
@@ -69,8 +70,24 @@ function World({ tier, mood, reduce }: { tier: Tier; mood: Mood; reduce: boolean
   );
 }
 
-export default function Experience({ tier, mood, reduce, active }: { tier: Tier; mood: Mood; reduce: boolean; active: boolean }) {
+/** Reports loading progress to the page, so the page itself needs no three.js to show its text. */
+function Progress({ onProgress }: { onProgress: (p: number, done: boolean) => void }) {
+  const { progress, active } = useProgress();
+  useEffect(() => { onProgress(progress, progress >= 100 && !active); }, [progress, active, onProgress]);
+  return null;
+}
+
+type Props = { tier: Tier; mood: Mood; reduce: boolean; active: boolean; onProgress: (p: number, done: boolean) => void };
+
+export default function Experience({ tier, mood, reduce, active, onProgress }: Props) {
+  // Warm the other mood's lightmaps once this one is on screen, so switching never blanks the scene.
+  useEffect(() => {
+    const id = setTimeout(() => preloadMood(tier, mood === 'morning' ? 'day' : 'morning'), 5000);
+    return () => clearTimeout(id);
+  }, [tier, mood]);
   return (
+    <>
+    <Progress onProgress={onProgress} />
     <Canvas
       frameloop={active ? 'always' : 'never'}
       dpr={tier === 'desktop' ? [1, 1.75] : [1, 1.5]}
@@ -81,5 +98,6 @@ export default function Experience({ tier, mood, reduce, active }: { tier: Tier;
         <World tier={tier} mood={mood} reduce={reduce} />
       </Suspense>
     </Canvas>
+    </>
   );
 }

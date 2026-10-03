@@ -3,17 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  build: {
-    target: 'es2020',
-    chunkSizeWarningLimit: 1200,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei', '@react-three/postprocessing', 'postprocessing'],
-          motion: ['gsap', 'lenis'],
-        },
-      },
-    },
-  },
+  // No manual chunks: the 3D scene is a lazy import, so three.js and its libraries land in
+  // their own chunk and load after the text. (Manual chunks pulled React internals into the
+  // 3D chunk and made the first page download all of it.)
+  build: { target: 'es2020', chunkSizeWarningLimit: 1800 },
 });

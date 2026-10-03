@@ -49,6 +49,14 @@ html:lang(ne) .wide { font-stretch: 100%; letter-spacing: 0; line-height: 1.2; }
 .scrim { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .8s;
   background: linear-gradient(90deg, rgba(236, 214, 190, .96) 0%, rgba(236, 214, 190, .82) 30%, rgba(236, 214, 190, .3) 50%, transparent 62%); }
 .scrim.show { opacity: 1; }
+.stage.day { --haze: #D3DEE6; }
+.stage.day .scrim { background: linear-gradient(90deg, rgba(222, 231, 238, .96) 0%, rgba(222, 231, 238, .82) 30%, rgba(222, 231, 238, .3) 50%, transparent 62%); }
+.stage.day .state.card { background: rgba(236, 241, 245, .82); }
+@media (max-width: 760px) { .stage.day .scrim { background: linear-gradient(0deg, rgba(222, 231, 238, .97) 0%, rgba(222, 231, 238, .85) 42%, transparent 66%); } .stage.day .state.hero { background: linear-gradient(180deg, transparent, rgba(222, 231, 238, .92) 18%); } }
+.mood { position: absolute; right: var(--gutter); top: calc(84px + env(safe-area-inset-top, 0px)); z-index: 6; display: inline-flex; padding: 4px; gap: 2px; border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, .55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); cursor: pointer; font: 500 14px var(--font); color: var(--slate); }
+.mood span { padding: 8px 14px; border-radius: 999px; transition: background .3s, color .3s; }
+.mood span.on { background: var(--ink); color: #fff; }
 @media (max-width: 760px) { .scrim { background: linear-gradient(0deg, rgba(236, 214, 190, .97) 0%, rgba(236, 214, 190, .85) 42%, transparent 66%); } }
 .dissolve { position: absolute; inset: 0; z-index: 2; background: var(--haze); opacity: 0; pointer-events: none; }
 .loader { position: absolute; inset: 0; z-index: 6; display: grid; place-content: center; justify-items: center; gap: 16px; background: var(--haze); color: var(--ink); font-stretch: 112%; font-weight: 600; font-size: 20px; transition: opacity .6s; }
