@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Satyam Xavier's, Hetauda</title>
+<meta name="description" content="Satyam Xavier's English Boarding School in Hetauda-4, Chisapani. Nursery to Class 10 since 2059 BS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wdth,wght@75..125,300..800&family=Anek+Devanagari:wdth,wght@75..125,300..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --studio:#E8EDF0; --ink:#13295B; --slate:#56627A; --wall:#F0C84B; --rail:#2D5FA6; --plaster:#FFFFFF;
+  --line:rgba(19,41,91,.14);
+  --font:"Anek Latin","Anek Devanagari",system-ui,sans-serif;
+  --ne:"Anek Devanagari","Anek Latin",system-ui,sans-serif;
+  --gutter:clamp(16px,4.5vw,72px);
+}
+*{box-sizing:border-box}
+html{background:var(--studio);color:var(--ink)}
+body{margin:0;font-family:var(--font);font-size:18px;line-height:1.55;background:var(--studio);-webkit-font-smoothing:antialiased}
+img{display:block;max-width:100%}
+a{color:inherit}
+p{margin:0}
+.ne{font-family:var(--ne)}
+:focus-visible{outline:2px solid var(--rail);outline-offset:3px;border-radius:4px}
+
+/* type roles: the width axis is the treatment */
+.wide{font-stretch:125%;font-weight:600;letter-spacing:-.025em;line-height:.95}
+.narrow{font-stretch:75%;font-weight:500;letter-spacing:.01em}
+
+/* nav */
+.nav{position:fixed;inset:0 0 auto 0;z-index:20;background:rgba(232,237,240,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px var(--gutter);padding-top:calc(16px + env(safe-area-inset-top,0px))}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand img{width:44px;height:44px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px var(--line)}
+.brand span{font-stretch:112%;font-weight:600;font-size:19px;line-height:1.05}
+.brand small{display:block;font-stretch:80%;font-weight:500;font-size:13px;color:var(--slate)}
+.nav ul{display:flex;gap:28px;margin:0;padding:0;list-style:none}
+.nav ul a{text-decoration:none;font-weight:500;font-size:16px}
+.nav ul a:hover{color:var(--rail)}
+.nav-end{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 22px;border-radius:999px;font:600 16px/1 var(--font);text-decoration:none;background:var(--ink);color:#fff;border:1.5px solid var(--ink);transition:background .2s,color .2s}
+.btn:hover{background:var(--rail);border-color:var(--rail)}
+.btn.line{background:transparent;color:var(--ink)}
+.btn.line:hover{background:var(--ink);color:#fff}
+.lang{font:500 16px var(--ne);text-decoration:none;padding:0 6px}
+@media (max-width:980px){.nav ul{display:none}}
+@media (max-width:560px){.nav-end .btn{display:none}.brand small{display:none}}
+
+/* the climb */
+.story{position:relative;height:720vh}
+.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fallback{position:absolute;right:var(--gutter);top:14vh;width:min(46vw,640px);border-radius:16px;display:none}
+.no-webgl .fallback{display:block}
+.panel{position:absolute;left:var(--gutter);top:calc(50% + 30px);transform:translateY(-50%);width:min(560px,42vw);z-index:5}
+.state{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;visibility:hidden;opacity:0}
+.state.on{visibility:visible;opacity:1}
+.state.card{padding:28px 30px 30px;border-radius:22px;background:rgba(232,237,240,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 1px 0 rgba(255,255,255,.7) inset}
+.state .label{font-size:16px;color:var(--slate);margin-bottom:14px}
+.state h1,.state h2{margin:0}
+.state h1 .ln{display:inline-block}
+.state h1{font-size:clamp(42px,min(4.9vw,10.5vh),92px)}
+.state h2{font-size:clamp(36px,min(3.9vw,8.5vh),68px)}
+.state .ne{font-size:clamp(20px,1.8vw,26px);font-weight:600;color:var(--rail);margin-top:16px;line-height:1.4}
+.state p.body{margin-top:16px;color:var(--slate);max-width:38ch}
+.state .ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.floors{position:absolute;left:var(--gutter);bottom:calc(28px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:6px;align-items:flex-end;margin:0;padding:0;list-style:none;opacity:0;visibility:hidden;transition:opacity .4s,visibility .4s}
+.floors.show{opacity:1;visibility:visible}
+.floors li{font-stretch:75%;font-weight:500;font-size:14px;color:var(--slate);padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.5);transition:background .3s,color .3s,border-color .3s}
+.floors li.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+@media (max-width:760px){
+  .story{height:640vh}
+  .panel{left:var(--gutter);right:var(--gutter);top:auto;bottom:76px;transform:none;width:auto;height:44svh}
+  .state{top:auto;bottom:0;transform:none;background:var(--studio);padding-top:12px}
+  .state h1{font-size:clamp(40px,11vw,56px)}
+  .state h2{font-size:clamp(34px,9.5vw,46px)}
+  .state p.body{font-size:16px}
+  .floors{left:var(--gutter);right:var(--gutter);overflow-x:auto}
+  .floors li{white-space:nowrap}
+}
+
+/* quiet sections */
+section.block{padding:clamp(80px,11vw,160px) var(--gutter)}
+.block h2{margin:0;font-size:clamp(38px,4.6vw,72px)}
+.block .lede{margin-top:20px;max-width:46ch;color:var(--slate);font-size:19px}
+.block .ne-line{margin-top:14px;font:600 clamp(20px,1.8vw,24px)/1.4 var(--ne);color:var(--rail)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(40px,6vw,110px);align-items:center}
+@media (max-width:860px){.split{grid-template-columns:1fr}}
+
+/* parent app moment */
+.parent{background:#fff}
+.phone{justify-self:center;width:min(340px,86vw);border-radius:44px;background:#0E1A33;padding:12px;box-shadow:0 30px 80px rgba(19,41,91,.18)}
+.screen{border-radius:34px;background:#F4F7FA;padding:22px 18px 26px;font-family:var(--font)}
+.screen .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.screen .top small{font-size:13px;color:var(--slate)}
+.screen .top b{display:block;font-size:20px;font-weight:600}
+.kid{display:flex;gap:8px;margin-bottom:14px}
+.kid span{padding:6px 12px;border-radius:999px;font-size:14px;font-weight:600;background:#fff;border:1px solid var(--line)}
+.kid span.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.present{border-radius:22px;padding:18px;background:#1E7A4F;color:#fff}
+.present small{font-size:13px;opacity:.8}
+.present b{display:block;font-stretch:112%;font-size:28px;font-weight:600;margin:4px 0 2px;line-height:1.1}
+.present .t{font-size:14px;opacity:.9}
+.week{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:14px}
+.week i{font-style:normal;text-align:center;font-size:12px;padding:6px 0;border-radius:8px;background:rgba(255,255,255,.16)}
+.week i.today{background:#fff;color:#1E7A4F;font-weight:700}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.mini div{background:#fff;border-radius:16px;padding:12px;border:1px solid var(--line)}
+.mini small{display:block;font-size:12px;color:var(--slate)}
+.mini b{font-size:18px;font-weight:600}
+.example{margin-top:12px;font-size:13px;color:#B9CDE6;text-align:center}
+
+/* result */
+.result .split{align-items:end}
+.result figure{margin:0}
+.result img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:6px}
+.result figcaption{margin-top:10px;font-size:14px;color:var(--slate)}
+.result h2{font-size:clamp(34px,3.8vw,58px)}
+
+/* school life: an editorial contact sheet */
+.life-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:clamp(12px,1.6vw,24px);margin-top:clamp(40px,5vw,72px)}
+.life-grid figure{margin:0}
+.life-grid img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+.life-grid figcaption{margin-top:10px;font-size:15px;color:var(--slate)}
+.life-grid .a{grid-column:1/8}.life-grid .a img{aspect-ratio:7/5}
+.life-grid .b{grid-column:8/13}.life-grid .b img{aspect-ratio:5/6}
+.life-grid .c{grid-column:1/5}.life-grid .c img{aspect-ratio:4/5}
+.life-grid .d{grid-column:5/9}.life-grid .d img{aspect-ratio:4/5}
+.life-grid .e{grid-column:9/13}.life-grid .e img{aspect-ratio:4/5}
+@media (max-width:760px){.life-grid .a,.life-grid .b{grid-column:1/13}.life-grid .c,.life-grid .d,.life-grid .e{grid-column:span 6}.life-grid .e{grid-column:1/13}}
+
+/* admissions */
+.admit{background:var(--wall)}
+.admit .lede{color:#4A4020}
+.steps{list-style:none;margin:clamp(40px,5vw,64px) 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(16px,2vw,28px);counter-reset:s}
+.steps li{counter-increment:s;border-top:2px solid var(--ink);padding-top:18px}
+.steps li::before{content:counter(s);display:block;font-stretch:125%;font-weight:600;font-size:44px;line-height:1;margin-bottom:12px}
+.steps b{display:block;font-size:22px;font-weight:600;margin-bottom:6px}
+.steps span{color:#4A4020}
+.admit .ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:40px}
+@media (max-width:760px){.steps{grid-template-columns:1fr}}
+
+/* footer */
+.foot{background:var(--ink);color:#fff;padding:clamp(70px,9vw,120px) var(--gutter) calc(32px + env(safe-area-inset-bottom,0px))}
+.foot .grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px}
+.foot h3{margin:0 0 12px;font-stretch:75%;font-weight:500;font-size:15px;color:#9CC3F0}
+.foot .tel{font-stretch:125%;font-weight:600;font-size:clamp(30px,3vw,44px);line-height:1;color:var(--wall)}
+.foot p{color:#DCE6F2}
+.foot a{color:#fff}
+.foot .legal{margin-top:64px;padding-top:20px;border-top:1px solid rgba(255,255,255,.15);font-size:14px;color:#9CC3F0}
+@media (max-width:760px){.foot .grid{grid-template-columns:1fr}}
+
+@media (prefers-reduced-motion:reduce){.floors li{transition:none}}
+</style>
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="#top"><img src="img/crest.png" alt=""><span>Satyam Xavier's<small>English Boarding School, Hetauda</small></span></a>
+  <ul>
+    <li><a href="#climb">Classes</a></li>
+    <li><a href="#parents">Parents</a></li>
+    <li><a href="#life">School life</a></li>
+    <li><a href="#admissions">Admissions</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <div class="nav-end"><a class="lang" href="#" lang="ne">नेपाली</a><a class="btn" href="#admissions">Start admission</a></div>
+</header>
+
+<main id="top">
+  <section class="story" id="climb" aria-label="Nursery to Class 10, floor by floor">
+    <div class="stage">
+      <canvas id="scene" aria-label="A 3D model of the school building in Chisapani" role="img"></canvas>
+      <img class="fallback" src="img/building.jpg" alt="The school building in Chisapani with pupils on every balcony">
+      <div class="panel">
+        <div class="state on" data-state="0">
+          <div class="label narrow">Hetauda-4, Chisapani. Nursery to Class 10.</div>
+          <h1 class="wide" id="heroTitle"><span class="ln">Growing up in</span><br><span class="ln">Chisapani</span><br><span class="ln">since 2059.</span></h1>
+          <p class="ne" lang="ne">२०५९ देखि चिसापानीमा हुर्कँदै।</p>
+          <div class="ctas"><a class="btn" href="#admissions">Start admission</a><a class="btn line" href="tel:057525563">Call 057-525563</a></div>
+        </div>
+        <div class="state card" data-state="1">
+          <div class="label narrow">Nursery, LKG and UKG. Ages 3 to 5.</div>
+          <h2 class="wide">Small hands, first letters.</h2>
+          <p class="ne" lang="ne">साना हात, पहिलो अक्षर।</p>
+          <p class="body">Colour, paper and song. This year our LKG and UKG children were picked for the district-level drawing competition.</p>
+        </div>
+        <div class="state card" data-state="2">
+          <div class="label narrow">Class 1 to 5.</div>
+          <h2 class="wide">Reading the world.</h2>
+          <p class="ne" lang="ne">पढ्दै, लेख्दै, संसार बुझ्दै।</p>
+          <p class="body">On newspaper day the class spreads The Kathmandu Post across the floor, finds a story and writes its own beside it.</p>
+        </div>
+        <div class="state card" data-state="3">
+          <div class="label narrow">Class 6 to 8.</div>
+          <h2 class="wide">Going deeper.</h2>
+          <p class="ne" lang="ne">अझ गहिराइमा।</p>
+          <p class="body">Group work, projects for the activity-based school exhibition, and the first turns at leading.</p>
+        </div>
+        <div class="state card" data-state="4">
+          <div class="label narrow">Class 9 and 10.</div>
+          <h2 class="wide">Ready for the SEE.</h2>
+          <p class="ne" lang="ne">SEE को तयारी।</p>
+          <p class="body">Two years of steady preparation, a trip to Chandragiri with the Himalaya behind, and a farewell the whole school turns out for.</p>
+        </div>
+        <div class="state" data-state="5">
+          <div class="label narrow">Thirteen years, one building.</div>
+          <h2 class="wide">Then out through the same gate.</h2>
+          <p class="ne" lang="ne">अनि त्यही ढोकाबाट संसारतिर।</p>
+          <div class="ctas"><a class="btn" href="#admissions">Start admission</a></div>
+        </div>
+      </div>
+      <ol class="floors" aria-label="Where you are">
+        <li data-f="1">Nursery to UKG</li><li data-f="2">Class 1 to 5</li><li data-f="3">Class 6 to 8</li><li data-f="4">Class 9 and 10</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="block parent" id="parents">
+    <div class="split">
+      <div class="phone" aria-label="Example of the parent app home screen">
+        <div class="screen">
+          <div class="top"><div><small>Friday, 9 Ashwin</small><b>Namaste</b></div><small>EN</small></div>
+          <div class="kid"><span class="on">Aarav</span><span>Riya</span></div>
+          <div class="present">
+            <small>Aarav, Class 4 A</small>
+            <b>In school today</b>
+            <div class="t">Marked present at 9:42 AM by the class teacher</div>
+            <div class="week"><i>Sun</i><i>Mon</i><i>Tue</i><i>Wed</i><i>Thu</i><i class="today">Fri</i></div>
+          </div>
+          <div class="mini"><div><small>Fee due 15 Kartik</small><b>Rs 4,500</b></div><div><small>First terminal</small><b>GPA 3.6</b></div></div>
+        </div>
+        <p class="example">Example names and figures</p>
+      </div>
+      <div>
+        <h2 class="wide">The gate, from your phone.</h2>
+        <p class="ne-line" lang="ne">बच्चा विद्यालय पुगेको, फोनमै थाहा।</p>
+        <p class="lede">When the class teacher takes attendance, the school's parent app shows it straight away: in school today, and the time. Marks, fees and notices are there too, in English or Nepali.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block result">
+    <div class="split">
+      <div>
+        <h2 class="wide">One of our students scored a 3.96 GPA and was honoured by the Ward No. 4 Office.</h2>
+        <p class="lede">We'll publish our SEE results here each year, with the school's permission and the families'.</p>
+      </div>
+      <figure><img src="img/gpa.jpg" alt="Our student receiving a certificate from the Ward No. 4 Office"><figcaption>Honoured by the Ward No. 4 Office, Hetauda</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="block life" id="life">
+    <h2 class="wide">School life, from our own page.</h2>
+    <p class="lede">Every photo here was posted by the school.</p>
+    <div class="life-grid">
+      <figure class="a"><img src="img/rice2.jpg" alt="Students planting rice in a flooded paddy"><figcaption>Asar 15, planting rice</figcaption></figure>
+      <figure class="b"><img src="img/himal.jpg" style="object-position:50% 85%" alt="Class 10 students at Chandragiri with snow mountains behind"><figcaption>Class 10 at Chandragiri</figcaption></figure>
+      <figure class="c"><img src="img/dance.jpg" alt="Students in traditional dress on stage"><figcaption>Cultural programme</figcaption></figure>
+      <figure class="d"><img src="img/medal3.jpg" alt="Two pupils showing their medals"><figcaption>Medal day</figcaption></figure>
+      <figure class="e"><img src="img/ashram.jpg" alt="Students and teachers outside Manav Sewa Ashram"><figcaption>Visiting Manav Sewa Ashram</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="block admit" id="admissions">
+    <h2 class="wide">Admissions for 2084 are open.</h2>
+    <p class="ne-line" lang="ne" style="color:var(--ink)">वि.सं. २०८४ को भर्ना खुला छ।</p>
+    <p class="lede">Nursery to Class 10. Dates and fees will be confirmed by the school office.</p>
+    <ol class="steps">
+      <li><b>Visit or call</b><span>Come to Hetauda-4, Chisapani, or call 057-525563.</span></li>
+      <li><b>Bring the documents</b><span>Birth certificate, the previous school's record and photos.</span></li>
+      <li><b>Your child joins</b><span>Meet the class teacher and get the parent app on the first day.</span></li>
+    </ol>
+    <div class="ctas"><a class="btn" href="tel:057525563">Call 057-525563</a><a class="btn line" href="#contact">Get directions</a></div>
+  </section>
+</main>
+
+<footer class="foot" id="contact">
+  <div class="grid">
+    <div><h3>Find us</h3><p>Hetauda-4, Chisapani<br>Hetauda, Makwanpur 44100</p></div>
+    <div><h3>Call or write</h3><div class="tel">057-525563</div><p style="margin-top:10px">mailme.satyamxaviers@gmail.com</p></div>
+    <div><h3>Parents and staff</h3><p><a href="#">Parent login</a><br><a href="#">Staff login</a></p></div>
+  </div>
+  <div class="legal">© 2083 BS Satyam Xavier's English Boarding School, Hetauda</div>
+</footer>
+
+<script src="textures.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canvas = document.getElementById('scene');
+  const stage = canvas.parentElement;
+  let gl = null;
+  try { gl = canvas.getContext('webgl2') || canvas.getContext('webgl'); } catch (e) {}
+  if (typeof THREE === 'undefined' || typeof gsap === 'undefined' || !gl) { document.documentElement.classList.add('no-webgl'); return; }
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------- renderer, scene, light ---------- */
+  const renderer = new THREE.WebGLRenderer({ canvas, context: gl, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const STUDIO = 0xE8EDF0;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(STUDIO);
+  scene.fog = new THREE.Fog(STUDIO, 120, 260);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d2d9, 0.78));
+  const sun = new THREE.DirectionalLight(0xfff1dc, 0.95);
+  sun.position.set(-22, 34, 26);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(innerWidth < 760 ? 1024 : 2048, innerWidth < 760 ? 1024 : 2048);
+  Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 100 });
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  scene.add(sun);
+
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 300);
+
+  /* ---------- materials: matte, like card and plaster ---------- */
+  const M = (c, r = 0.92) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0 });
+  const mat = {
+    wall: M(0xF0C84B), wallDark: M(0xE2B53B), plaster: M(0xF6F6F2), rail: M(0x2D5FA6, 0.7),
+    glass: M(0x22304D, 0.4), door: M(0x3A4A6B), ground: M(STUDIO, 1), tank: M(0x1D2026, 0.6),
+    crimson: M(0xC8283A, 0.8), blue: M(0x1F3E8A, 0.8)
+  };
+  const box = (w, h, d, m, x, y, z, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = true; b.receiveShadow = true; parent.add(b); return b; };
+
+  /* ---------- the building, from the photos ---------- */
+  const BW = 26, FH = 3.2, CD = 2.4, RD = 6, FLOORS = 4, BAYS = 6, bw = BW / BAYS;
+  const bayX = b => -BW / 2 + (b + 0.5) * bw;
+  const building = new THREE.Group(); scene.add(building);
+
+  // Shadow-only floor: the model sits on the page itself, with no horizon line.
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.ShadowMaterial({ opacity: 0.16 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  const photoMats = [];           // [floor][i]
+  const floorGroups = [];
+  const balusterGeo = new THREE.BoxGeometry(0.05, 0.95, 0.05);
+  const PHOTO_BAYS = [[1, 2], [2, 3], [3, 4], [4, 5]];
+  const PHOTOS = [['ey1', 'ey4'], ['cls2', 'write1'], ['cls3', 'cls5'], ['batch', 'himal']];
+  const loader = new THREE.TextureLoader();
+
+  for (let f = 0; f < FLOORS; f++) {
+    const g = new THREE.Group(); g.position.y = f * FH; building.add(g); floorGroups.push(g);
+    // rooms block and the corridor slab under this floor
+    box(BW, FH, RD, mat.wall, 0, FH / 2, -RD / 2, g);
+    box(BW + 0.5, 0.26, CD + RD + 0.3, mat.plaster, 0, 0.13, (CD - RD) / 2, g);
+    if (f > 0) box(BW + 0.5, 0.34, 0.12, mat.rail, 0, 0.1, CD + 0.12, g); // blue slab edge
+    // columns along the corridor
+    for (let b = 0; b <= BAYS; b++) box(0.32, FH, 0.32, mat.plaster, -BW / 2 + b * bw, FH / 2, CD - 0.16, g);
+    // doors and windows on the yellow face
+    photoMats.push([]);
+    for (let b = 0; b < BAYS; b++) {
+      const x = bayX(b);
+      box(1.0, 2.25, 0.08, mat.door, x - 1.25, 1.27, 0.04, g);
+      const isPhoto = PHOTO_BAYS[f].includes(b);
+      box(1.7, 2.05, 0.08, mat.glass, x + 0.65, 1.55, 0.04, g);
+      if (isPhoto) {
+        const key = PHOTOS[f][PHOTO_BAYS[f].indexOf(b)];
+        const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, toneMapped: false });
+        if (window.SX_TEX && SX_TEX[key]) loader.load(SX_TEX[key], t => { t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; m.map = t; m.needsUpdate = true; });
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(1.54, 2.05), m); p.position.set(x + 0.65, 1.55, 0.1); g.add(p);
+        photoMats[f].push(m);
+      }
+    }
+    // rails on the upper corridors
+    if (f > 0) {
+      box(BW, 0.08, 0.1, mat.rail, 0, 1.05, CD - 0.02, g);
+      box(BW, 0.06, 0.08, mat.rail, 0, 0.55, CD - 0.02, g);
+      const n = Math.floor(BW / 0.26);
+      const inst = new THREE.InstancedMesh(balusterGeo, mat.rail, n); inst.castShadow = true;
+      const mtx = new THREE.Matrix4();
+      for (let i = 0; i < n; i++) { mtx.makeTranslation(-BW / 2 + 0.13 + i * 0.26, 0.6, CD - 0.02); inst.setMatrixAt(i, mtx); }
+      g.add(inst);
+    }
+  }
+  // roof: slab, parapet, the black water tanks every Nepali roof has, and a flag
+  const roof = new THREE.Group(); roof.position.y = FLOORS * FH; building.add(roof);
+  box(BW + 0.5, 0.3, CD + RD + 0.3, mat.plaster, 0, 0.15, (CD - RD) / 2, roof);
+  box(BW + 0.5, 0.9, 0.18, mat.plaster, 0, 0.6, CD + 0.06, roof);
+  box(BW + 0.5, 0.9, 0.18, mat.plaster, 0, 0.6, -RD - 0.06, roof);
+  for (const x of [8.5, 10.4]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.5, 28), mat.tank); t.position.set(x, 1.05, -3.6); t.castShadow = true; roof.add(t); }
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.2, 10), mat.plaster); pole.position.set(-11.5, 2.4, -1); pole.castShadow = true; roof.add(pole);
+  const flagShape = s => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(1.35 * s, 0); sh.lineTo(0.5 * s, 0.85 * s); sh.lineTo(1.25 * s, 0.85 * s); sh.lineTo(0, 2.0 * s); sh.lineTo(0, 0); return sh; };
+  const flagB = new THREE.Mesh(new THREE.ShapeGeometry(flagShape(1.0)), new THREE.MeshStandardMaterial({ color: 0x1F3E8A, side: THREE.DoubleSide, roughness: 0.8 }));
+  const flagR = new THREE.Mesh(new THREE.ShapeGeometry(flagShape(0.86)), new THREE.MeshStandardMaterial({ color: 0xC8283A, side: THREE.DoubleSide, roughness: 0.8 }));
+  const flag = new THREE.Group(); flagB.position.set(0.05, 2.3, 0); flagR.position.set(0.1, 2.42, 0.01); flag.add(flagB, flagR); flag.scale.setScalar(0.7);
+  pole.position.set(0, 2.4, 0); flag.add(pole); flag.position.set(-11.5, 0, -4.5); roof.add(flag);
+  // stair tower at the east end
+  const tower = new THREE.Group(); building.add(tower);
+  box(3.6, FLOORS * FH + 1.6, RD + 1.2, mat.wallDark, BW / 2 + 1.8, (FLOORS * FH + 1.6) / 2, -RD / 2 + 0.6, tower);
+  for (let f = 0; f < FLOORS; f++) box(0.9, 1.6, 0.1, mat.glass, BW / 2 + 1.8, f * FH + 2.0, 1.25, tower);
+  // the gate in front, off to the west
+  const gate = new THREE.Group(); gate.position.set(5, 0, 10.5); gate.rotation.y = 0; scene.add(gate);
+  box(0.8, 3.3, 0.8, mat.wallDark, -3.4, 1.65, 0, gate); box(0.8, 3.3, 0.8, mat.wallDark, 3.4, 1.65, 0, gate);
+  box(7.8, 0.9, 0.5, mat.rail, 0, 3.75, 0, gate); box(7.8, 0.14, 0.56, mat.plaster, 0, 3.24, 0, gate);
+
+  /* ---------- camera keyframes: hero, four floors, pull back ---------- */
+  const K = [
+    { p: [-30, 15, 46], t: [1, 6.5, 0] },
+    { p: [-21, 3.6, 27], t: [-3, 2.2, 0] },
+    { p: [-16, 6.8, 26], t: [1, 5.3, 0] },
+    { p: [-11, 10, 26], t: [5, 8.5, 0] },
+    { p: [-6, 13.2, 26], t: [9, 11.7, 0] },
+    { p: [30, 26, 42], t: [0, 6.5, 0] }
+  ];
+  const cam = { px: K[0].p[0], py: K[0].p[1], pz: K[0].p[2], tx: K[0].t[0], ty: K[0].t[1], tz: K[0].t[2] };
+  const look = new THREE.Vector3();
+  let pointer = 0, turn = 0, reach = 1;
+
+  function size() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    reach = Math.min(2.4, Math.max(1, (16 / 9) / (w / h)));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // Desktop: shift the picture right so the text panel has the left. Phone: lift it above the panel.
+    if (w >= 760) camera.setViewOffset(w, h, -w * 0.2, 0, w, h);
+    else camera.setViewOffset(w, h, 0, h * 0.2, w, h);
+    camera.updateProjectionMatrix();
+  }
+  size(); addEventListener('resize', size);
+
+  if (matchMedia('(hover:hover)').matches && !reduce) addEventListener('pointermove', e => { pointer = (e.clientX / innerWidth - 0.5); });
+
+  let visible = true;
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(stage);
+  function render() {
+    if (visible) {
+      turn += (pointer * 0.12 - turn) * 0.05;
+      building.rotation.y = turn; gate.rotation.y = turn;
+      // Narrow screens see less of a wide building, so the camera stands further back.
+      camera.position.set(cam.tx + (cam.px - cam.tx) * reach, cam.ty + (cam.py - cam.ty) * reach, cam.tz + (cam.pz - cam.tz) * reach);
+      look.set(cam.tx, cam.ty, cam.tz); camera.lookAt(look);
+      flagR.rotation.y = flagB.rotation.y = Math.sin(performance.now() * 0.0015) * 0.12;
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  /* ---------- the one load moment: the building rises, floor by floor ---------- */
+  const lines = document.querySelectorAll('#heroTitle .ln');
+  if (!reduce) {
+    const parts = [...floorGroups, roof, tower];
+    parts.forEach(p => p.scale.set(1, 0.001, 1));
+    gate.scale.set(1, 0.001, 1);
+    const intro = gsap.timeline({ delay: 0.25 });
+    intro.to(floorGroups.map(g => g.scale), { y: 1, duration: 0.9, ease: 'power3.out', stagger: 0.32 }, 0)
+         .to(roof.scale, { y: 1, duration: 0.7, ease: 'power3.out' }, 1.25)
+         .to(tower.scale, { y: 1, duration: 1.6, ease: 'power2.out' }, 0.1)
+         .to(gate.scale, { y: 1, duration: 0.8, ease: 'back.out(1.6)' }, 1.5)
+         .from(lines, { yPercent: 40, opacity: 0, duration: 1, ease: 'power3.out', stagger: 0.14 }, 0.5)
+         .from('.state[data-state="0"] .label, .state[data-state="0"] .ne, .state[data-state="0"] .ctas', { opacity: 0, duration: 0.8, stagger: 0.1 }, 1.3)
+         .from('.nav', { opacity: 0, duration: 0.8 }, 1.1);
+  }
+
+  /* ---------- the climb: scroll moves the camera, floors fill with photos ---------- */
+  const states = [...document.querySelectorAll('.state')];
+  const floorsUi = [...document.querySelectorAll('.floors li')];
+  let current = 0;
+  function show(i) {
+    if (i === current) return;
+    const prev = states[current], next = states[i]; current = i;
+    const d = reduce ? 0 : 1;
+    gsap.to(prev, { opacity: 0, duration: 0.3 * d, ease: 'power2.in', overwrite: true,
+      onComplete: () => { if (states[current] !== prev) prev.classList.remove('on'); } });
+    next.classList.add('on');
+    gsap.fromTo(next, { opacity: 0 }, { opacity: 1, duration: 0.5 * d, delay: 0.15 * d, overwrite: true });
+    gsap.fromTo(next.children, { y: 18 }, { y: 0, duration: 0.6 * d, delay: 0.15 * d, stagger: 0.05 * d, ease: 'power3.out', overwrite: true });
+    floorsUi.forEach(li => li.classList.toggle('on', +li.dataset.f === i));
+    floorsUi[0].parentElement.classList.toggle('show', i >= 1 && i <= FLOORS);
+  }
+
+  const climb = gsap.timeline({ defaults: { ease: 'power2.inOut' },
+    scrollTrigger: { trigger: '.story', start: 'top top', end: 'bottom bottom', scrub: 1 } });
+  climb.to({}, { duration: 0.6 }); // hold the hero
+  const STOPS = [];
+  for (let i = 1; i < K.length; i++) {
+    climb.to(cam, { px: K[i].p[0], py: K[i].p[1], pz: K[i].p[2], tx: K[i].t[0], ty: K[i].t[1], tz: K[i].t[2], duration: 1 });
+    if (i <= FLOORS) climb.to(photoMats[i - 1], { opacity: 1, duration: 0.35, ease: 'power1.out' }, '-=0.35');
+    STOPS.push(climb.duration() - 0.5);
+    climb.to({}, { duration: 0.7 }); // hold on each floor
+  }
+  const total = climb.duration();
+  ScrollTrigger.create({ trigger: '.story', start: 'top top', end: 'bottom bottom',
+    onUpdate: s => { const t = s.progress * total; let i = 0; STOPS.forEach((st, k) => { if (t >= st) i = k + 1; }); show(i); } });
+  addEventListener('load', () => ScrollTrigger.refresh());
+})();
+</script>
+</body>
+</html>
