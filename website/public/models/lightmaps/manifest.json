@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "note": "Baked diffuse lighting (irradiance). Apply as material.lightMap on every material of the named node except those whose names start with a skipMaterials prefix. Interiors and hills are illustrative.",
+  "uvChannel": 1,
+  "flipY": false,
+  "colorSpace": "srgb",
+  "path": "lightmaps/{tier}/{mood}/{node}.webp",
+  "tiers": {
+    "desktop": "full size",
+    "mobile": "half size"
+  },
+  "skipMaterials": [
+    "glass",
+    "glass_clear",
+    "photo_slot"
+  ],
+  "nodes": [
+    "compound_wall",
+    "floor_0",
+    "floor_1",
+    "floor_2",
+    "floor_3",
+    "gate",
+    "ground",
+    "hills",
+    "interior_f0",
+    "interior_f1",
+    "interior_f2",
+    "interior_f3",
+    "roof",
+    "tower",
+    "trees",
+    "yard"
+  ],
+  "moods": {
+    "morning": {
+      "lightMapIntensity": 8.4525,
+      "background": "#F2C9A0",
+      "fog": "#E9C7A6",
+      "sunElevationDeg": 11,
+      "sunAzimuthDeg": -35
+    },
+    "day": {
+      "lightMapIntensity": 8.4359,
+      "background": "#BFD3E6",
+      "fog": "#D3DEE6",
+      "sunElevationDeg": 55,
+      "sunAzimuthDeg": -140
+    }
+  }
+}
