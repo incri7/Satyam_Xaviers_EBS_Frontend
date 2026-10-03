@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
-import { cam, photos, rise, flat, HERO, END, balcony, doorway, classroom, approach } from '../three/rig';
+import { cam, photos, rise, rail, STOP_INDEX, stopName } from '../three/rig';
 
 gsap.registerPlugin(ScrollTrigger);
 // three.js, the model and the effects arrive in their own chunk, after the text is on screen.
@@ -75,49 +75,40 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
     return () => { tl.kill(); };
   }, [ready, reduce]);
 
-  // The climb: scroll drives the camera. Floors dissolve into one another.
+  // The climb: scroll moves the camera along one continuous rail. It rests at each stop
+  // (hero, each balcony, each classroom, the end) and glides through everything between.
   useLayoutEffect(() => {
+    // Developer view: ?u=4.5 parks the camera at that point on the rail and ignores scrolling.
+    const parked = new URLSearchParams(location.search).get('u');
+    if (parked !== null) {
+      rail.u = parseFloat(parked) || 0;
+      (window as unknown as { __rail: typeof rail }).__rail = rail;
+    }
     const ctx = gsap.context(() => {
-      Object.assign(cam, flat(HERO));
-      const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } });
-      const starts: number[] = [0];
+      if (parked !== null) return;
+      rail.u = 0;
+      const tl = gsap.timeline();
       tl.to({}, { duration: 0.5 });
-      for (let f = 0; f < 4; f++) {
-        if (f > 0) {
-          tl.to('.dissolve', { opacity: 1, duration: 0.3, ease: 'power1.in' });
-          tl.set(cam, flat(approach(f)));
-          starts.push(tl.duration()); // the text changes while the screen is covered
-          tl.to('.dissolve', { opacity: 0, duration: 0.35, ease: 'power1.out' });
-        } else {
-          starts.push(tl.duration());
-        }
-        tl.to(cam, { ...flat(balcony(f)), duration: f > 0 ? 0.9 : 1.2 }, f > 0 ? '<' : '>');
-        tl.to(photos, { ['f' + f]: 1, duration: 0.4, ease: 'none' }, '-=0.45');
-        tl.to({}, { duration: 0.4 });
-        tl.to(cam, { ...flat(doorway(f)), duration: 0.7, ease: 'power1.in' });
-        tl.to(cam, { ...flat(classroom(f)), duration: 0.7, ease: 'power2.out' });
-        tl.to({}, { duration: 0.6 });
+      for (let k = 1; k < STOP_INDEX.length; k++) {
+        const from = STOP_INDEX[k - 1], to = STOP_INDEX[k];
+        tl.to(rail, { u: to, duration: Math.max(1, (to - from) * 0.55), ease: 'sine.inOut' });
+        tl.to({}, { duration: 0.7 });
       }
-      tl.to('.dissolve', { opacity: 1, duration: 0.3, ease: 'power1.in' });
-      tl.set(cam, flat({ ...END, p: [END.p[0] * 0.6, END.p[1] * 0.7, END.p[2] * 0.6] }));
-      starts.push(tl.duration());
-      tl.to('.dissolve', { opacity: 0, duration: 0.4 });
-      tl.to(cam, { ...flat(END), duration: 1.2, ease: 'power2.out' }, '<');
-      tl.to({}, { duration: 0.6 });
-
-      const total = tl.duration();
-      ScrollTrigger.create({
-        trigger: root.current, start: 'top top', end: 'bottom bottom', scrub: reduce ? true : 1, animation: tl,
-        onUpdate: (s) => {
-          const now = s.progress * total;
-          let i = 0;
-          starts.forEach((st, k) => { if (now >= st) i = k; });
-          setState(i);
-        },
-      });
+      ScrollTrigger.create({ trigger: root.current, start: 'top top', end: 'bottom bottom', scrub: reduce ? true : 0.6, animation: tl });
     }, root);
-    // The scrub keeps easing after the last scroll event, so read the camera on every tick.
-    const poll = () => setInside(cam.ext < 0.4);
+
+    // Text and window photos follow where the camera actually is on the rail.
+    const balconies = STOP_INDEX.filter((i) => stopName(i).startsWith('balcony'));
+    const endIndex = STOP_INDEX[STOP_INDEX.length - 1];
+    const poll = () => {
+      const u = rail.u;
+      let s = 0;
+      balconies.forEach((b, f) => { if (u >= b - 0.55) s = f + 1; });
+      if (u >= endIndex - 0.6) s = 5;
+      setState(s);
+      setInside(cam.ext < 0.4);
+      balconies.forEach((b, f) => { photos['f' + f] = Math.min(1, Math.max(0, (u - (b - 1)) / 0.8)); });
+    };
     gsap.ticker.add(poll);
     return () => { gsap.ticker.remove(poll); ctx.revert(); };
   }, [reduce]);
@@ -130,6 +121,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           <Experience tier={tier} mood={mood} reduce={reduce} active={active} onProgress={onProgress} />
         </Suspense>
         <div className={'scrim' + (state === 0 || state === 5 ? ' show' : '')} aria-hidden="true" />
+        <div className={'scrim-low' + (floor ? ' show' : '')} aria-hidden="true" />
         <div className={'dissolve ' + mood} aria-hidden="true" />
         {!ready && (
           <div className="loader" aria-hidden="true">
@@ -144,7 +136,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           </button>
         )}
 
-        <div className="panel">
+        <div className={'panel' + (floor ? ' low' : '')}>
           {state === 0 && (
             <div className="state hero">
               <p className="label narrow hero-fade">{t.hero.label}</p>
@@ -154,7 +146,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
             </div>
           )}
           {floor && (
-            <div className="state card" key={state}>
+            <div className="state cap" key={state}>
               <p className="label narrow">{floor.label}</p>
               <h2 className="wide">{floor.title}</h2>
               <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{floor.other}</p>

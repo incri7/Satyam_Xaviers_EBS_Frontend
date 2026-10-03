@@ -1,0 +1,23 @@
+/* Floor captions: light text at the bottom-left over a soft shadow, so the building and the
+   classrooms stay in view. They crossfade; nothing pops. */
+.panel.low { top: auto; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); transform: none; width: min(520px, 40vw); }
+.state.cap { color: #fff; animation: capIn .9s cubic-bezier(.22, 1, .36, 1) both; }
+.state.cap .label { color: rgba(255, 255, 255, .78); }
+.state.cap h2 { font-size: clamp(32px, min(3.3vw, 7.2vh), 58px); color: #fff; text-shadow: 0 2px 24px rgba(10, 20, 45, .35); }
+.state.cap .other { color: #F4D77A; margin-top: 10px; }
+.state.cap .body { color: rgba(255, 255, 255, .9); margin-top: 12px; font-size: 17px; }
+@keyframes capIn { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: none; } }
+
+.scrim-low { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 1s ease;
+  background: radial-gradient(120% 85% at 0% 100%, rgba(12, 22, 48, .72) 0%, rgba(12, 22, 48, .42) 34%, rgba(12, 22, 48, 0) 62%); }
+.scrim-low.show { opacity: 1; }
+
+.floors li { background: rgba(255, 255, 255, .16); color: rgba(255, 255, 255, .85); border-color: rgba(255, 255, 255, .28); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.floors li.on { background: #fff; color: var(--ink); border-color: #fff; }
+
+@media (max-width: 760px) {
+  .panel.low { left: var(--gutter); right: var(--gutter); width: auto; bottom: 64px; }
+  .scrim-low { background: linear-gradient(0deg, rgba(12, 22, 48, .78) 0%, rgba(12, 22, 48, .5) 34%, rgba(12, 22, 48, 0) 62%); }
+  .state.cap .body { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { .state.cap { animation: none; } }

@@ -5,6 +5,7 @@ import { Home, Layout, RootRedirect } from './App';
 import { About, Academics, AdmissionsPage, Contact, Life, News } from './pages/Inner';
 import './styles.css';
 import './pages.css';
+import './captions.css';
 
 const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },

@@ -5,7 +5,7 @@ import { EffectComposer, Bloom, DepthOfField, Vignette, ToneMapping, SMAA } from
 import { ToneMappingMode } from 'postprocessing';
 import { useProgress } from '@react-three/drei';
 import { School, useManifest, preloadMood, type Mood, type Tier } from './School';
-import { cam, pointer } from './rig';
+import { cam, pointer, rail, PATH } from './rig';
 
 /** A soft gradient dome: the mood's haze at the horizon, a clearer sky overhead. */
 function Sky({ horizon, top }: { horizon: string; top: string }) {
@@ -20,28 +20,47 @@ function Sky({ horizon, top }: { horizon: string; top: string }) {
 
 const focus = new THREE.Vector3();
 
-/** Moves the camera from the shared state every frame. */
+const smooth = (x: number) => x * x * (3 - 2 * x);
+
+/** Moves the camera along one continuous rail: a smooth curve through every point of the walk,
+    for both where the camera is and where it looks. No cuts anywhere. */
 function Rig({ reduce }: { reduce: boolean }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const size = useThree((s) => s.size);
+  const curves = useMemo(() => ({
+    p: new THREE.CatmullRomCurve3(PATH.map((s) => new THREE.Vector3(...s.p)), false, 'centripetal'),
+    t: new THREE.CatmullRomCurve3(PATH.map((s) => new THREE.Vector3(...s.t)), false, 'centripetal'),
+  }), []);
+  const pos = useRef(new THREE.Vector3());
   const look = useRef(new THREE.Vector3());
   const sway = useRef({ x: 0, y: 0 });
+  const last = PATH.length - 1;
   useFrame((_, dt) => {
+    const u = Math.min(last, Math.max(0, rail.u));
+    // getPoint (not getPointAt): the curve passes exactly through each point at whole values of u.
+    curves.p.getPoint(u / last, pos.current);
+    curves.t.getPoint(u / last, look.current);
+    const i = Math.min(last - 1, Math.floor(u)), k = smooth(u - i), a = PATH[i], b = PATH[i + 1];
+    const fov = a.fov + (b.fov - a.fov) * k, shift = a.shift + (b.shift - a.shift) * k, ext = a.ext + (b.ext - a.ext) * k;
+    cam.ext = ext;
     // Narrow screens see less of a wide building, so outside shots stand further back.
-    const reach = 1 + (Math.min(2.3, Math.max(1, (16 / 9) / (size.width / size.height))) - 1) * cam.ext;
+    const reach = 1 + (Math.min(2.3, Math.max(1, (16 / 9) / (size.width / size.height))) - 1) * ext;
     if (!reduce) {
       sway.current.x += (pointer.x - sway.current.x) * Math.min(1, dt * 2);
       sway.current.y += (pointer.y - sway.current.y) * Math.min(1, dt * 2);
     }
-    const sx = sway.current.x * 1.6 * cam.ext + sway.current.x * 0.25, sy = sway.current.y * 0.8 * cam.ext;
-    camera.position.set(cam.tx + (cam.px - cam.tx) * reach + sx, cam.ty + (cam.py - cam.ty) * reach - sy, cam.tz + (cam.pz - cam.tz) * reach);
-    look.current.set(cam.tx, cam.ty, cam.tz);
+    const sx = sway.current.x * (1.6 * ext + 0.2), sy = sway.current.y * 0.8 * ext;
+    camera.position.set(
+      look.current.x + (pos.current.x - look.current.x) * reach + sx,
+      look.current.y + (pos.current.y - look.current.y) * reach - sy,
+      look.current.z + (pos.current.z - look.current.z) * reach,
+    );
     camera.lookAt(look.current);
     focus.copy(look.current);
-    camera.fov = cam.fov;
+    camera.fov = fov;
     const w = size.width, h = size.height;
-    if (w >= 760) camera.setViewOffset(w, h, -w * cam.shift, 0, w, h);
-    else camera.setViewOffset(w, h, 0, h * 0.16 * cam.ext, w, h);
+    if (w >= 760) camera.setViewOffset(w, h, -w * shift, 0, w, h);
+    else camera.setViewOffset(w, h, 0, h * 0.16 * ext, w, h);
     camera.updateProjectionMatrix();
   });
   return null;
@@ -92,7 +111,7 @@ export default function Experience({ tier, mood, reduce, active, onProgress }: P
       frameloop={active ? 'always' : 'never'}
       dpr={tier === 'desktop' ? [1, 1.75] : [1, 1.5]}
       gl={{ antialias: false, powerPreference: 'high-performance', toneMapping: THREE.NoToneMapping }}
-      camera={{ fov: cam.fov, near: 0.1, far: 4000, position: [cam.px, cam.py, cam.pz] }}
+      camera={{ fov: PATH[0].fov, near: 0.1, far: 4000, position: PATH[0].p }}
     >
       <Suspense fallback={null}>
         <World tier={tier} mood={mood} reduce={reduce} />
