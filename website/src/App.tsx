@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
@@ -14,21 +14,12 @@ gsap.registerPlugin(ScrollTrigger);
 const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 let lenis: Lenis | null = null;
 
-/** "/" goes to the language the visitor last used. */
-export function RootRedirect() {
-  let saved = 'en';
-  try { saved = localStorage.getItem('lang') === 'ne' ? 'ne' : 'en'; } catch { /* private window */ }
-  return <Navigate to={`/${saved}`} replace />;
-}
-
 export function Layout() {
-  const { lang: raw } = useParams();
   const lang = useLang();
   const { pathname, hash } = useLocation();
 
   useEffect(() => {
     document.documentElement.lang = lang;
-    try { localStorage.setItem('lang', lang); } catch { /* private window */ }
   }, [lang]);
 
   // Smooth scroll, kept in step with ScrollTrigger.
@@ -75,7 +66,6 @@ export function Layout() {
     return () => removeEventListener('pointermove', move);
   }, []);
 
-  if (raw !== 'en' && raw !== 'ne') return <Navigate to="/en" replace />;
   return (
     <>
       <Nav />

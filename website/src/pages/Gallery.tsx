@@ -3,7 +3,7 @@ import { useLang } from '../lang';
 import { pages } from './pages';
 import { PageHead, Section, T } from './ui';
 
-/** The route: /:lang/gallery (it also replaces the old School life page). */
+/** The route: /gallery, /ne/gallery (it also replaces the old School life page). */
 export function Gallery() {
   const lang = useLang(); const g = pages[lang].gallery;
   return (

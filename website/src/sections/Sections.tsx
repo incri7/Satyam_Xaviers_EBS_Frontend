@@ -1,6 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { copy, type Lang } from '../content';
-import { otherLang, useLang } from '../lang';
+import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
 const PAGES = ['programmes', 'about', 'gallery', 'admissions', 'news', 'contact'] as const;
 
@@ -8,18 +8,18 @@ export function Nav() {
   const lang = useLang();
   const t = copy[lang];
   const { pathname, hash } = useLocation();
-  const switched = pathname.replace(/^\/(en|ne)/, '/' + otherLang(lang)) + hash;
+  const switched = switchPath(pathname, otherLang(lang)) + hash;
   return (
     <header className="nav">
-      <Link className="brand" to={`/${lang}`}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
+      <Link className="brand" to={pagePath(lang)}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
       <ul>
-        {PAGES.map((p) => <li key={p}><NavLink to={`/${lang}/${p}`}>{t.nav[p]}</NavLink></li>)}
+        {PAGES.map((p) => <li key={p}><NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink></li>)}
       </ul>
       <div className="nav-end">
         <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
         {/* The school app (parents, teachers, staff) lives on the same domain at /login: a full page load. */}
         <a className="btn line login" href="/login">{t.login}</a>
-        <Link className="btn" to={`/${lang}/admissions`}>{t.start}</Link>
+        <Link className="btn" to={pagePath(lang, 'admissions')}>{t.start}</Link>
       </div>
     </header>
   );
@@ -78,7 +78,7 @@ export function Life({ lang }: { lang: Lang }) {
           <figure className={'p' + i} key={img}><img src={`/photos/${img}.webp`} alt={alt} loading="lazy" /><figcaption>{cap}</figcaption></figure>
         ))}
       </div>
-      <p className="more"><Link className="btn line" to={`/${lang}/gallery`}>{copy[lang].more.life}</Link></p>
+      <p className="more"><Link className="btn line" to={pagePath(lang, 'gallery')}>{copy[lang].more.life}</Link></p>
     </section>
   );
 }
@@ -91,7 +91,7 @@ export function Admissions({ lang }: { lang: Lang }) {
       <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{a.other}</p>
       <p className="lede">{a.body}</p>
       <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span>{b}</span></li>)}</ol>
-      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={`/${lang}/admissions`}>{t.more.admissions}</Link><Link className="btn line" to={`/${lang}/contact`}>{a.directions}</Link></div>
+      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={pagePath(lang, 'admissions')}>{t.more.admissions}</Link><Link className="btn line" to={pagePath(lang, 'contact')}>{a.directions}</Link></div>
     </section>
   );
 }
@@ -106,7 +106,7 @@ export function Footer() {
         <div><h3>{t.write}</h3><div className="tel">057-525563</div><p>mailme.satyamxaviers@gmail.com</p></div>
         <div><h3>{t.staff}</h3><p><a href="/login">{t.parentLogin}</a><br /><a href="/login">{t.staffLogin}</a></p></div>
       </div>
-      <nav className="foot-nav" aria-label="Pages">{PAGES.map((p) => <Link key={p} to={`/${lang}/${p}`}>{copy[lang].nav[p]}</Link>)}</nav>
+      <nav className="foot-nav" aria-label="Pages">{PAGES.map((p) => <Link key={p} to={pagePath(lang, p)}>{copy[lang].nav[p]}</Link>)}</nav>
       <p className="legal">{t.legal}</p>
     </footer>
   );
