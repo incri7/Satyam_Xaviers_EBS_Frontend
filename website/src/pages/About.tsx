@@ -19,7 +19,7 @@ function Chapter({ n, title, className, children }: { n: number; title: string; 
   );
 }
 
-/** The route: /:lang/about. */
+/** The route: /about (Nepali: /ne/about). */
 export function About() {
   const lang = useLang(); const a = pages[lang].about;
   return (
