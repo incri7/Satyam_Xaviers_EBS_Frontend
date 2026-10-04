@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArrowLeft } from 'lucide-react';
 
 import { SchoolCrest } from '../../design-system';
 import { LanguageSwitch } from '../../components/LanguageSwitch';
@@ -71,16 +72,22 @@ export function AuthLayout({ children, panelFooter, chip, purpose: purposeProp, 
                             <SchoolCrest size={40} ring />
                             <p className="type-small-semibold">{schoolName}</p>
                         </div>
-                        <LanguageSwitch className="shrink-0" />
+                        <div className="flex shrink-0 items-center gap-2">
+                            <WebsiteLink tone="light" compact />
+                            <LanguageSwitch className="shrink-0" />
+                        </div>
                     </div>
                 </header>
             ) : (
                 <header className="relative overflow-hidden rounded-b-panel bg-hero px-5 pt-[max(env(safe-area-inset-top),20px)] pb-[22px] text-white md:hidden">
                     <Aurora />
                     <div className="relative flex flex-col gap-3.5">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-3">
                             <SchoolCrest size={52} ring />
-                            <LanguageSwitch />
+                            <div className="flex items-center gap-2">
+                                <WebsiteLink tone="light" />
+                                <LanguageSwitch />
+                            </div>
                         </div>
                         <p className="type-h2">{schoolName}</p>
                         <p className="type-small text-white/84">{purpose}</p>
@@ -95,14 +102,18 @@ export function AuthLayout({ children, panelFooter, chip, purpose: purposeProp, 
                     <SchoolCrest size={48} ring />
                     <p className="type-h3">{schoolName}</p>
                 </div>
-                <LanguageSwitch />
+                <div className="flex items-center gap-3">
+                    <WebsiteLink tone="light" />
+                    <LanguageSwitch />
+                </div>
             </header>
             <p className="mx-auto mt-7 hidden max-w-[640px] px-6 text-center type-body-l text-white/86 md:block lg:hidden">
                 {purpose}
             </p>
 
             <main className="relative flex flex-col md:flex-1 lg:px-10 lg:pt-7 lg:pb-9">
-                <div className="hidden justify-end lg:flex">
+                <div className="hidden items-center justify-between lg:flex">
+                    <WebsiteLink tone="dark" />
                     <LanguageSwitch />
                 </div>
                 <div className="flex flex-col md:flex-1 md:items-center md:pt-7 lg:justify-center lg:pt-0">
@@ -122,6 +133,27 @@ export function AuthLayout({ children, panelFooter, chip, purpose: purposeProp, 
                 </p>
             </main>
         </div>
+    );
+}
+
+/**
+ * Back to the school's public website, which shares the domain at "/". A plain link, not the
+ * router: the website is a separate page, served by nginx.
+ */
+function WebsiteLink({ tone, compact = false }: { tone: 'light' | 'dark'; compact?: boolean }) {
+    const { t } = useTranslation();
+    const colour = tone === 'light'
+        ? 'text-white/90 hover:text-white focus-visible:ring-white/60'
+        : 'text-primary-text hover:underline focus-visible:ring-focus/60';
+    return (
+        <a
+            href="/"
+            aria-label={compact ? t('auth.website') : undefined}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-sm type-small-semibold outline-none focus-visible:ring-3 ${colour}`}
+        >
+            <ArrowLeft aria-hidden className="size-4" />
+            {compact ? null : <span>{t('auth.website')}</span>}
+        </a>
     );
 }
 
