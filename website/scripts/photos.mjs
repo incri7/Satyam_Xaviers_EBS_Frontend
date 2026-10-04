@@ -37,6 +37,14 @@ for (const f of (await readdir(src)).filter((n) => n.endsWith('.jpg'))) {
     .toFile(path.join(pOut, f.replace('.jpg', '.webp')));
 }
 
+// Gallery thumbnails: the grid loads these; the full photo loads only when one is opened.
+const tOut = path.join(out, 't');
+await mkdir(tOut, { recursive: true });
+for (const f of (await readdir(src)).filter((n) => n.endsWith('.jpg'))) {
+  await sharp(path.join(src, f)).resize(640, 640, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 70 })
+    .toFile(path.join(tOut, f.replace('.jpg', '.webp')));
+}
+
 // Draco decoder, served from our own origin instead of a third-party CDN.
 const draco = path.join(root, 'node_modules', 'three', 'examples', 'jsm', 'libs', 'draco', 'gltf');
 const dracoOut = path.join(root, 'public', 'draco');

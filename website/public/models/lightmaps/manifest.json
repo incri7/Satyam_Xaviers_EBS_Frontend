@@ -34,16 +34,40 @@
   ],
   "moods": {
     "morning": {
-      "lightMapIntensity": 8.4525,
+      "lightMapIntensity": 8.0706,
       "background": "#F2C9A0",
       "fog": "#E9C7A6",
+      "fogNear": 400,
+      "fogFar": 7000,
+      "sky": {
+        "top": "#8FB4D9",
+        "middle": "#F3E7D2",
+        "horizon": "#F4D3B0"
+      },
+      "figureTint": [
+        1.0,
+        0.88,
+        0.76
+      ],
       "sunElevationDeg": 11,
       "sunAzimuthDeg": -35
     },
     "day": {
-      "lightMapIntensity": 8.4359,
+      "lightMapIntensity": 8.498,
       "background": "#BFD3E6",
       "fog": "#D3DEE6",
+      "fogNear": 400,
+      "fogFar": 7000,
+      "sky": {
+        "top": "#7FA9D6",
+        "middle": "#CFE0EE",
+        "horizon": "#E6EDF1"
+      },
+      "figureTint": [
+        0.96,
+        0.98,
+        1.0
+      ],
       "sunElevationDeg": 55,
       "sunAzimuthDeg": -140
     }

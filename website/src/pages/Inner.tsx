@@ -3,54 +3,21 @@ import { copy } from '../content';
 import { pages } from './pages';
 import { PageHead, Photo, Section, T } from './ui';
 
-export function About() {
-  const lang = useLang(); const a = pages[lang].about;
-  return (
-    <>
-      <PageHead title={a.title} other={a.other} intro={a.intro} photo="building" alt="The school building with pupils on every balcony" />
-      <Section title={a.milestonesTitle} className="dark">
-        <ol className="timeline">
-          {a.milestones.map(([when, what, img]) => (
-            <li key={what}>
-              <span className="when"><T>{when}</T></span>
-              <p><T>{what}</T></p>
-              {img ? <Photo name={img} alt="" ratio="4 / 3" /> : null}
-            </li>
-          ))}
-        </ol>
-      </Section>
-      <Section className="principal">
-        <div className="split">
-          <div className="portrait tbc-box"><T>{a.principalName}</T></div>
-          <div>
-            <h2 className="wide">{a.principalTitle}</h2>
-            <p className="quote"><T>{a.principal}</T></p>
-            <p className="sign"><T>{a.principalName}</T></p>
-          </div>
-        </div>
-      </Section>
-      <Section title={a.daysTitle} className="tint">
-        <div className="cards four">
-          {a.days.map(([img, h, b]) => (
-            <figure className="card" key={h}><Photo name={img} alt="" ratio="4 / 3" /><figcaption><b>{h}</b><span>{b}</span></figcaption></figure>
-          ))}
-        </div>
-      </Section>
-      <Section className="people">
-        <div className="split">
-          <div><h2 className="wide">{a.peopleTitle}</h2><p className="lede"><T>{a.people}</T></p></div>
-          <Photo name="staff" alt="Teachers and staff in front of the school" ratio="4 / 3" />
-        </div>
-      </Section>
-    </>
-  );
-}
-
 export function Academics() {
   const lang = useLang(); const a = pages[lang].academics;
   return (
     <>
       <PageHead title={a.title} other={a.other} intro={a.intro} />
+      <AcademicsBody />
+    </>
+  );
+}
+
+/** The programmes themselves: shared by the route and by the page the blackboard opens in the story. */
+export function AcademicsBody() {
+  const lang = useLang(); const a = pages[lang].academics;
+  return (
+    <>
       {a.stages.map(([name, classes, title, learn, how, [p1, p2]], i) => (
         <section className={'block stage-row' + (i % 2 ? ' flip tint' : '')} key={name}>
           <div className="stage-photos"><Photo name={p1} alt="" className="big" /><Photo name={p2} alt="" className="small" /></div>
@@ -72,31 +39,21 @@ export function Academics() {
   );
 }
 
-const GALLERY = ['rice2', 'himal', 'dance', 'medal3', 'ey1', 'cls2', 'farewell', 'ashram', 'ey4', 'write2', 'tripbus', 'dalbhat', 'celebrate', 'heart', 'cert', 'lawn', 'boat', 'medal'];
-
-export function Life() {
-  const lang = useLang(); const l = pages[lang].life;
+export function AdmissionsPage() {
+  const lang = useLang(); const a = pages[lang].admissions;
   return (
     <>
-      <PageHead title={l.title} other={l.other} intro={l.intro} photo="rice2" alt="Students planting rice on Asar 15" />
-      <Section title={l.yearTitle} className="dark">
-        <ol className="months">{l.months.map(([m, e]) => <li key={m} className={e ? 'has' : ''}><span>{m}</span>{e ? <b><T>{e}</T></b> : null}</li>)}</ol>
-      </Section>
-      <Section title={l.activitiesTitle}>
-        <dl className="activities">{l.activities.map(([h, b]) => <div key={h}><dt>{h}</dt><dd><T>{b}</T></dd></div>)}</dl>
-      </Section>
-      <Section title={l.galleryTitle} className="tint">
-        <div className="gallery">{GALLERY.map((g) => <Photo key={g} name={g} alt="" />)}</div>
-      </Section>
+      <PageHead title={a.title} other={a.other} intro={a.intro} photo="gateevent" alt="Students and teachers at the school gate" />
+      <AdmissionsBody />
     </>
   );
 }
 
-export function AdmissionsPage() {
+/** Admissions itself: shared by the route and by the page the gate sign opens in the story. */
+export function AdmissionsBody() {
   const lang = useLang(); const a = pages[lang].admissions, c = copy[lang];
   return (
     <>
-      <PageHead title={a.title} other={a.other} intro={a.intro} photo="gateevent" alt="Students and teachers at the school gate" />
       <Section title={a.stepsTitle}>
         <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span><T>{b}</T></span></li>)}</ol>
       </Section>

@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { copy, type Lang } from '../content';
 import { otherLang, useLang } from '../lang';
 
-const PAGES = ['about', 'academics', 'life', 'admissions', 'news', 'contact'] as const;
+const PAGES = ['programmes', 'about', 'gallery', 'admissions', 'news', 'contact'] as const;
 
 export function Nav() {
   const lang = useLang();
@@ -17,6 +17,8 @@ export function Nav() {
       </ul>
       <div className="nav-end">
         <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
+        {/* The school app (parents, teachers, staff) lives on the same domain at /login: a full page load. */}
+        <a className="btn line login" href="/login">{t.login}</a>
         <Link className="btn" to={`/${lang}/admissions`}>{t.start}</Link>
       </div>
     </header>
@@ -24,20 +26,22 @@ export function Nav() {
 }
 
 export function Parents({ lang }: { lang: Lang }) {
-  const t = copy[lang].parents, p = t.phone;
+  const t = copy[lang].parents, p = t.phone, kid = p.kid.split(',')[0];
   return (
     <section className="block parent" id="parents">
       <div className="split">
         <figure className="phone" aria-label={p.example}>
+          {/* The app's parent home, drawn with the app's own card styles (v3 logo blue). */}
           <div className="screen">
-            <div className="top"><div><small>{p.date}</small><b>{p.hello}</b></div><small>{lang.toUpperCase()}</small></div>
-            <div className="kid"><span className="on">{p.kid.split(',')[0]}</span><span>{lang === 'en' ? 'Riya' : 'रिया'}</span></div>
-            <div className="present">
+            <div className="top"><div><small>{p.date}</small><b>{p.hello}</b></div><span className="lng">{lang === 'en' ? 'EN' : 'ने'}</span></div>
+            <div className="kids"><span className="on"><i>{kid[0]}</i>{kid}</span><span><i>{p.other[0]}</i>{p.other}</span></div>
+            <div className="status">
               <small>{p.kid}</small>
               <b>{p.status}</b>
               <div className="t">{p.marked}</div>
+              <div className="wk">{p.week.map((d, i) => <div key={d}>{d}<i className={i === 2 ? 'a' : ''}>{i === 2 ? p.a : p.p}</i></div>)}</div>
             </div>
-            <div className="mini"><div><small>{p.fee}</small><b>{lang === 'en' ? 'Rs 4,500' : 'रु ४,५००'}</b></div><div><small>{p.exam}</small><b>GPA 3.6</b></div></div>
+            <div className="tiles"><div><small>{p.fee}</small><b>{lang === 'en' ? 'Rs 4,500' : 'रु ४,५००'}</b></div><div><small>{p.exam}</small><b>GPA 3.6</b></div></div>
           </div>
           <figcaption>{p.example}</figcaption>
         </figure>
@@ -74,7 +78,7 @@ export function Life({ lang }: { lang: Lang }) {
           <figure className={'p' + i} key={img}><img src={`/photos/${img}.webp`} alt={alt} loading="lazy" /><figcaption>{cap}</figcaption></figure>
         ))}
       </div>
-      <p className="more"><Link className="btn line" to={`/${lang}/life`}>{copy[lang].more.life}</Link></p>
+      <p className="more"><Link className="btn line" to={`/${lang}/gallery`}>{copy[lang].more.life}</Link></p>
     </section>
   );
 }
@@ -100,7 +104,7 @@ export function Footer() {
       <div className="grid">
         <div><h3>{t.find}</h3><p>{t.address[0]}<br />{t.address[1]}</p></div>
         <div><h3>{t.write}</h3><div className="tel">057-525563</div><p>mailme.satyamxaviers@gmail.com</p></div>
-        <div><h3>{t.staff}</h3><p><a href="/app/">{t.parentLogin}</a><br /><a href="/app/">{t.staffLogin}</a></p></div>
+        <div><h3>{t.staff}</h3><p><a href="/login">{t.parentLogin}</a><br /><a href="/login">{t.staffLogin}</a></p></div>
       </div>
       <nav className="foot-nav" aria-label="Pages">{PAGES.map((p) => <Link key={p} to={`/${lang}/${p}`}>{copy[lang].nav[p]}</Link>)}</nav>
       <p className="legal">{t.legal}</p>

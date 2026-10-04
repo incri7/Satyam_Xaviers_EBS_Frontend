@@ -1,4 +1,4 @@
-# School model (v2)
+# School model (v3)
 
 `build_school.py` builds the school and its setting from `website/docs/model-brief.md` and the photos in `website/refs/building/`, using Blender's engine as a Python module (no Blender interface needed). It also bakes the lighting and renders the hero stills.
 
@@ -39,6 +39,7 @@ Y up, front faces +Z, centred on the building. Scale and rotation are identity e
 | `tower` | Stair tower | Ground |
 | `gate` | Gate pillars and beam | Ground |
 | `setting` | Group: `yard`, `compound_wall`, `trees`, `ground`, `hills` (hills are **illustrative**) | World origin |
+| `students` | 20 small student figures, **illustrative**: one set of 3 low-poly variants (teal shirt; white shirt and tie with trousers; with a skirt), each drawn with `EXT_mesh_gpu_instancing` (three.js gives `InstancedMesh`). Vertex colours, no lightmap | World origin |
 
 Floor bases: `floor_0` at 0 m, `floor_1` at 4.2 m, `floor_2` at 7.4 m, `floor_3` at 10.6 m, `roof` at 13.8 m. They moved up 1 m from v1 because the photos show the ground floor on a raised base.
 
@@ -67,20 +68,41 @@ for (const node of manifest.nodes) {
   }
 }
 scene.background = new THREE.Color(mood.background);
-scene.fog = new THREE.Fog(mood.fog, 150, 2500);
+scene.fog = new THREE.Fog(mood.fog, mood.fogNear, mood.fogFar); // 400 m to 7 km keeps the hill layers
 renderer.toneMapping = THREE.AgXToneMapping;
 ```
 
+Draw `students` unlit, tinted to the mood (they carry their own soft shading in their vertex colours):
+
+```js
+gltf.scene.getObjectByName('students').traverse(o => {
+  if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(...mood.figureTint) });
+});
+```
+
+The figures stand on the corridors of floors 0 to 3 and in the yard, so when a floor grows from scale 0, fade the students in after the climb finishes. `mood.sky` gives a three-stop gradient (`top`, `middle`, `horizon`) for the page or scene background.
+
 Because the lighting is baked, the scene needs no real-time lights. Add an environment map only if you want reflections on the glass. To switch mood, swap the textures and `lightMapIntensity`. Cross-fading two maps needs a small shader change.
 
-This is checked: the build was loaded in three.js r170 in headless Chromium using exactly this code, for both tiers and both moods.
+This is checked: the build was loaded in three.js r170 in headless Chromium using exactly this code, for both tiers and both moods, including the instanced students.
 
 ## What is illustrative
 
 - **The four classrooms.** Nobody has photographed the real rooms for this, so their furniture, colours and layout are invented and labelled as such in the file (`extras.label`). Replace them once real photos exist.
 - **The hills.** A generic two-ridge silhouette standing in for the Mahabharat range behind Hetauda, not the real skyline.
 - **The moods.** The building's real orientation isn't recorded, so "morning" means a warm low sun from the front-right and "day" a soft high sun from the front-left. These are art direction, not the real sun path.
-- **Trees, gate position and compound-wall layout.** Simple stand-ins placed where they frame the building; the photos show trees and block walls around the yard but not their layout.
+- **Trees, shrubs, gate position and compound-wall layout.** Stylized stand-ins placed where they frame the building; the photos show trees and block walls around the yard but not their layout.
+- **The students.** Generic figures, not real people, placed to give a sense of life. Only their uniform colours come from the photos (teal shirts, white shirts with navy ties, navy trousers and skirts).
+- **The worn path** from the gate to the steps, and the grass at the yard's edges: the photos show a bare gravel yard with some plants at the edges, but not where people walk.
+
+## The setting's look (v3)
+
+One soft "miniature diorama" style throughout, after Igloo Inc and Jordan Breton in `docs/references.md`:
+
+- **Trees:** crowns of 10 to 14 clustered leaf blobs in five greens, darker underneath, plus shrubs along the compound wall and by the gate and steps.
+- **Ground:** the yard has one unstretched 2048 px texture over its whole area (gravel and earth, grass creeping in at the walls, a worn path from the gate to the steps); outside the wall, grass with broad tonal patches fading out at the rim.
+- **Hills:** four ridges at 1.3, 1.9, 2.7 and 3.7 km, each taller and paler, so they recede into haze.
+- **Sky (stills):** a soft three-stop gradient; the light on the building still comes from the baked physical sky.
 
 ## Matched to the photos (changed from v1)
 

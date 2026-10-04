@@ -110,7 +110,13 @@ C = {
     "book_c": "#D9A441", "book_d": "#4D7F4B",
     # setting
     "trunk": "#5B4636", "leaf_a": "#4E7A3A", "leaf_b": "#5F8F45", "leaf_c": "#3F6B33",
-    "hill_near": "#6F8B68", "hill_far": "#9FB2B5", "grass": "#7C8A5A",
+    "leaf_d": "#79A04F", "leaf_e": "#2F5A2C",
+    # four hill ridges, paler with distance (aerial perspective)
+    "hill_1": "#5F7F57", "hill_2": "#7F9A78", "hill_3": "#A1B3A2", "hill_4": "#BCC9C8",
+    "grass": "#7C8A5A", "grass_dark": "#5E7444", "grass_light": "#93A262", "grass_dry": "#A7A06E",
+    # student uniforms, from the photos: teal shirts and white shirts with navy
+    "uni_teal": "#22897F", "uni_white": "#F1F1EE", "uni_navy": "#1E2948", "skin": "#A9775A",
+    "hair": "#1A1612", "shoe": "#151515",
 }
 
 
@@ -181,28 +187,65 @@ def make_textures(folder, n):
             b[y0:y1, max(0, x - m):x + m] = np.array(rgb("#7E7A73")) * 255
     save("blocks", b)
 
-    if FORECOURT_SURFACE == "gravel":
-        g = fbm(n, 60, 0.8, 5)
-        speck = (np.random.default_rng(6).random((n, n)) > 0.93) * 0.25
-        tone = 0.75 + 0.35 * fbm(n, 2, 3.0, 7)
-        yard = np.array(rgb("#A39785"))[None, None, :] * (tone + (g - 0.5) * 0.35 + speck)[..., None]
-        save("yard", yard * 255)
-    else:  # paved: 0.5 m concrete pavers
-        p = np.array(rgb("#B9B5AC")) * 255 * (1 + (fbm(n, 20, 1.0, 8)[..., None] - 0.5) * 0.15)
-        k = n // 4
-        for i in range(0, n, k):
-            p[max(0, i - 1):i + 2] *= 0.7
-            p[:, max(0, i - 1):i + 2] *= 0.7
-        save("yard", p)
+    save("yard", yard_texture(2 * n))
 
-    # Ground beyond the compound: muted grass, alpha fades to 0 at the rim.
-    gn = 256
+    # Ground beyond the compound: grass with large tonal patches; alpha fades to 0 at the rim.
+    gn = n
     yy, xx = np.mgrid[0:gn, 0:gn]
     rr = np.hypot(xx - gn / 2 + 0.5, yy - gn / 2 + 0.5) / (gn / 2)
     alpha = np.clip((1 - rr) / 0.6, 0, 1) ** 1.5
-    grass = np.dstack([np.full((gn, gn), v * 255) for v in rgb(C["grass"])] + [alpha * 255])
-    save("ground_fade", grass, "png")
+    patches, fine = fbm(gn, 4, 3.0, 41), fbm(gn, 40, 1.2, 42)
+    grass = mix_palette(patches, [C["grass_dark"], C["grass"], C["grass_light"], C["grass_dry"]]) * (0.92 + 0.16 * fine[..., None])
+    save("ground_fade", np.dstack([grass * 255, alpha * 255]), "png")
     return paths
+
+
+def mix_palette(t, hexes):
+    """Map t in [0,1] smoothly through a list of colours."""
+    cols = np.array([rgb(h) for h in hexes])
+    x = np.clip(t, 0, 1) * (len(cols) - 1)
+    i = np.minimum(x.astype(int), len(cols) - 2)
+    f = (x - i)[..., None]
+    return cols[i] * (1 - f) + cols[i + 1] * f
+
+
+YARD_PATH = [(GATE_X, GATE_Y - 0.6), (10.2, -10.5), (7.0, -7.6), (3.8, -5.7), ((STAIR_X[0] + STAIR_X[1]) / 2, -4.8)]
+
+
+def yard_texture(n):
+    """One unique texture over the whole yard: gravel and earth (as in the photos), grass creeping in at the
+    walls, and a worn path from the gate to the steps."""
+    x0, x1, y0, y1 = YARD
+    v = 1 - (np.arange(n) + 0.5) / n
+    u = (np.arange(n) + 0.5) / n
+    X = x0 + u[None, :] * (x1 - x0)
+    Y = y0 + v[:, None] * (y1 - y0)
+    X, Y = np.broadcast_to(X, (n, n)), np.broadcast_to(Y, (n, n))
+    tone, g = fbm(n, 3, 3.0, 7), fbm(n, 90, 0.8, 5)
+    speck = (np.random.default_rng(6).random((n, n)) > 0.94) * 0.22
+    base = np.array(rgb("#A39785")) * (0.8 + 0.3 * tone + (g - 0.5) * 0.3 + speck)[..., None]
+    if FORECOURT_SURFACE == "paved":
+        base = np.array(rgb("#B9B5AC")) * (0.92 + 0.12 * tone)[..., None]
+        joints = (np.abs(((X - x0) / 0.5) % 1 - 0.5) > 0.47) | (np.abs(((Y - y0) / 0.5) % 1 - 0.5) > 0.47)
+        base[joints] *= 0.72
+    # Grass creeping in along the compound wall and in loose patches away from the building.
+    edge = np.minimum.reduce([X - x0, x1 - X, Y - y0, y1 - Y])
+    clump = fbm(n, 12, 2.0, 43)
+    grassy = np.clip((1.8 - edge) / 1.4 + (clump - 0.62) * 2.5, 0, 1)
+    grassy = np.where((X > -1) & (X < MAIN_W + TOWER_W + 1) & (Y > -CORR_D - 2.5), grassy * 0.15, grassy)
+    gcol = mix_palette(fbm(n, 20, 1.5, 44), [C["grass_dark"], C["grass"], C["grass_light"]])
+    out = base * (1 - grassy[..., None]) + gcol * grassy[..., None]
+    # Worn path: compacted, lighter earth with a soft, irregular edge.
+    d = np.full((n, n), 1e9)
+    for (ax, ay), (bx, by) in zip(YARD_PATH, YARD_PATH[1:]):
+        ex, ey = bx - ax, by - ay
+        t = np.clip(((X - ax) * ex + (Y - ay) * ey) / (ex * ex + ey * ey), 0, 1)
+        d = np.minimum(d, np.hypot(X - ax - t * ex, Y - ay - t * ey))
+    width = 0.8 + 0.25 * (fbm(n, 6, 2.5, 45) - 0.5)
+    worn = np.clip((width - d) / 0.35, 0, 1)
+    path_col = np.array(rgb("#BCA98C")) * (0.94 + 0.1 * tone)[..., None]
+    out = out * (1 - worn[..., None]) + path_col * worn[..., None]
+    return out * 255
 
 
 # ----------------------------------------------------------------- materials
@@ -252,7 +295,7 @@ def make_materials(tex):
     for k in ("fascia", "slab", "frame", "door", "room_dark", "tank", "flag_red", "concrete",
               "int_wall", "int_floor", "int_ceiling", "wood", "board", "mat_red", "mat_yellow",
               "mat_green", "mat_blue", "book_a", "book_b", "book_c", "book_d", "trunk",
-              "leaf_a", "leaf_b", "leaf_c", "hill_near", "hill_far"):
+              "leaf_a", "leaf_b", "leaf_c", "leaf_d", "leaf_e", "hill_1", "hill_2", "hill_3", "hill_4"):
         M[k] = material(k, C[k])
     M["steel"] = material("steel", C["steel"], 0.45)
     M["board"].node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.95
@@ -714,7 +757,18 @@ YARD = (-7.0, MAIN_W + TOWER_W + 7.0, GATE_Y, ROOM_D + 6.0)
 def build_setting(M):
     x0, x1, y0, y1 = YARD
     objs = {}
-    objs["yard"] = merge("yard", [box("yardslab", x0, x1, y0, y1, -0.05, 0.0, M["yard"], False, drop=("nz", "nx", "px", "ny", "py"))], P((x0 + x1) / 2, (y0 + y1) / 2, 0))
+    # The yard is one quad with planar UVs: its texture (path, grass) and its lightmap both span the whole yard.
+    bm = bmesh.new()
+    quad = bm.faces.new([bm.verts.new(P(x, y, 0.0)) for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))])
+    for name in ("UVMap", "lightmap"):
+        layer = bm.loops.layers.uv.new(name)
+        for lp, uv in zip(quad.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+            lp[layer].uv = uv
+    yard = bm_object("yard", bm, [M["yard"]])
+    o = P((x0 + x1) / 2, (y0 + y1) / 2, 0)
+    yard.data.transform(Matrix.Translation(-o))
+    yard.location = o
+    objs["yard"] = yard
     # Compound wall of concrete blocks, open at the gate.
     t, h = 0.25, 1.6
     walls = [box("cw_back", x0, x1, y1 - t, y1, 0, h, M["blocks"]),
@@ -724,26 +778,41 @@ def build_setting(M):
              box("cw_front_e", GATE_X + 3.3, x1, y0 - t / 2, y0 + t / 2, 0, h, M["blocks"])]
     objs["compound_wall"] = merge("compound_wall", walls, P((x0 + x1) / 2, (y0 + y1) / 2, 0))
 
-    # A few simple trees around the compound.
+    # Stylized trees: canopies of clustered leaf blobs in several greens (darker underneath), and shrubs.
     rng = np.random.default_rng(21)
-    leaves = [M["leaf_a"], M["leaf_b"], M["leaf_c"]]
+    light = [M["leaf_d"], M["leaf_b"], M["leaf_a"]]
+    dark = [M["leaf_a"], M["leaf_c"], M["leaf_e"]]
     tparts = []
+
+    def canopy(name, cx, cy, cz, rx, rz, blobs, rmin, rmax):
+        bm = bmesh.new()
+        mats = list(dict.fromkeys(light + dark))
+        for j in range(blobs):
+            # points spread through an ellipsoid, biased to its surface so the cluster reads as one crown
+            d = Vector(rng.normal(0, 1, 3)).normalized() * rng.uniform(0.55, 1.0)
+            c = Vector((cx + OX + d.x * rx, cy + OY + d.y * rx, cz + d.z * rz))
+            r = rng.uniform(rmin, rmax)
+            res = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r, matrix=Matrix.Translation(c))
+            pool = dark if d.z < -0.15 else light
+            idx = mats.index(pool[int(rng.integers(len(pool)))])
+            for f in {f for v in res["verts"] for f in v.link_faces}:
+                f.material_index = idx
+        for v in bm.verts:
+            v.co += Vector(rng.normal(0, rmin * 0.08, 3))
+        ob = bm_object(name, bm, mats)
+        for poly in ob.data.polygons:
+            poly.use_smooth = True
+        return ob
+
     spots = [(-4.0, -8.5, 7.0), (MAIN_W + TOWER_W + 4.0, -9.0, 8.0), (-4.5, 9.0, 8.5), (MAIN_W + TOWER_W + 3.5, 9.5, 7.5),
              (-16.0, -3.0, 9.0), (MAIN_W + 16.0, 2.0, 10.0), (4.0, 19.0, 9.5), (21.0, 21.0, 8.0), (-12.0, 14.0, 7.5)]
     for i, (tx, ty, th) in enumerate(spots):
-        tparts.append(cylinders(f"trunk{i}", [(tx, ty, 0, th * 0.55, 0.16)], M["trunk"], 8))
-        bm = bmesh.new()
-        for j in range(4):
-            off = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.4, 0.6))) * th * 0.13
-            r = th * rng.uniform(0.22, 0.3)
-            bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r,
-                                       matrix=Matrix.Translation(P(tx, ty, th * 0.68) + off) @ Matrix.Scale(1.0, 4))
-        for v in bm.verts:  # a little irregularity
-            v.co += Vector(rng.normal(0, th * 0.015, 3))
-        canopy = bm_object(f"canopy{i}", bm, [leaves[i % 3]])
-        for poly in canopy.data.polygons:
-            poly.use_smooth = True
-        tparts.append(canopy)
+        tparts.append(cylinders(f"trunk{i}", [(tx, ty, 0, th * 0.6, 0.15)], M["trunk"], 8))
+        tparts.append(canopy(f"canopy{i}", tx, ty, th * 0.7, th * 0.3, th * 0.22, int(rng.integers(10, 15)), th * 0.11, th * 0.17))
+    shrubs = [(-6.0, -11.5), (-6.2, -4.0), (-6.0, 4.0), (MAIN_W + TOWER_W + 6.1, -12.0), (MAIN_W + TOWER_W + 6.0, 1.0),
+              (GATE_X - 4.6, GATE_Y + 0.9), (GATE_X + 4.8, GATE_Y + 0.9), (STAIR_X[0] - 1.1, -CORR_D - 1.6)]
+    for i, (sx, sy) in enumerate(shrubs):
+        tparts.append(canopy(f"shrub{i}", sx, sy, 0.45, 0.55, 0.32, 5, 0.3, 0.45))
     objs["trees"] = merge("trees", tparts, P((x0 + x1) / 2, (y0 + y1) / 2, 0))
 
     # Ground beyond the compound, fading to transparent at the rim (the site's fog takes over).
@@ -764,48 +833,154 @@ def build_setting(M):
     g.location = (0, 0, 0)
     objs["ground"] = g
 
-    # Low silhouette of green hills behind (the Mahabharat range above Hetauda; illustrative shape).
+    # Layered hills behind (the Mahabharat range above Hetauda; illustrative shape): four ridges,
+    # each farther, taller and paler, so they read as receding into haze.
     hparts = []
-    for name, radius, hmin, hmax, mat, seed in (("hills_near", 1600, 140, 320, M["hill_near"], 31), ("hills_far", 2700, 330, 600, M["hill_far"], 32)):
-        n = 160
-        prof = fbm(256, 3, 3.0, seed)[0][:n]
+    ridges = ((1300, 90, 220, "hill_1", 31), (1900, 160, 360, "hill_2", 32), (2700, 260, 520, "hill_3", 33), (3700, 380, 720, "hill_4", 34))
+    for k, (radius, hmin, hmax, mat, seed) in enumerate(ridges):
+        n = 220
+        prof = fbm(512, 2.5, 3.2, seed)[0][:n]
         prof = (prof - prof.min()) / (prof.max() - prof.min())
         bm = bmesh.new()
         lo, hi = [], []
         for i in range(n):
-            a = math.radians(-35 + 250 * i / (n - 1))
+            a = math.radians(-40 + 260 * i / (n - 1))
             x, y = MAIN_W / 2 + radius * math.cos(a), radius * math.sin(a)
-            lo.append(bm.verts.new(P(x, y, -40)))
+            lo.append(bm.verts.new(P(x, y, -60)))
             hi.append(bm.verts.new(P(x, y, hmin + (hmax - hmin) * prof[i])))
         for i in range(n - 1):
             bm.faces.new((lo[i], lo[i + 1], hi[i + 1], hi[i]))
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         for fc in bm.faces:  # face the building
-            mid = fc.calc_center_median()
-            if fc.normal.dot(P(MAIN_W / 2, 0, 0) - mid) < 0:
+            if fc.normal.dot(P(MAIN_W / 2, 0, 0) - fc.calc_center_median()) < 0:
                 fc.normal_flip()
-        hparts.append(bm_object(name, bm, [mat]))
+        hparts.append(bm_object(f"ridge{k}", bm, [M[mat]]))
     objs["hills"] = merge("hills", hparts, P(MAIN_W / 2, 0, 0))
     objs["hills"]["illustrative"] = True
     objs["hills"]["label"] = "Hill silhouette (illustrative shape, not a survey of the real skyline)"
     return objs
 
 
+# ------------------------------------------------------------------- students
+# About 20 small stylized students (illustrative, not real people) in the uniforms seen in the photos:
+# teal shirts, and white shirts with a navy tie, both with navy trousers or skirts. One low-poly set:
+# three mesh variants shared by every instance, exported with EXT_mesh_gpu_instancing.
+STUDENTS = [  # (x, y, floor or None for the yard, facing in degrees from the front)
+    (5.0, None, 1, 10), (8.6, None, 1, -15), (13.0, None, 1, 5), (17.6, None, 1, 20),
+    (3.1, None, 2, -10), (10.2, None, 2, 15), (12.0, None, 2, -25), (20.2, None, 2, 0),
+    (6.3, None, 3, 12), (12.1, None, 3, -8), (15.6, None, 3, 18),
+    (8.0, None, 0, -5), (16.4, None, 0, 25),
+    (4.0, -6.0, None, 70), (4.7, -6.3, None, -110), (8.5, -9.0, None, 100), (9.2, -9.2, None, -80),
+    (14.5, -7.5, None, 30), (15.3, -7.1, None, -150), (18.0, -10.0, None, -20),
+]
+
+
+def student_mesh(name, shirt, skirt=False, tie=False):
+    """One figure about 1.45 m tall, feet at the origin, facing -Y. Colours are vertex colours with a soft
+    top-to-bottom shading baked in, so the site can draw it unlit."""
+    bm = bmesh.new()
+    part = bm.verts.layers.int.new("part")  # which colour each vertex takes, survives deletions
+    palette = []
+
+    def tag(verts, col):
+        palette.append(col)
+        for v in verts:
+            v[part] = len(palette) - 1
+
+    def cyl(z0, z1, r0, r1, col, x=0.0, y=0.0, seg=8):
+        res = bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r0, radius2=r1, depth=z1 - z0,
+                                    matrix=Matrix.Translation((x, y, (z0 + z1) / 2)))
+        tag(res["verts"], col)
+
+    def ball(z, r, col, y=0.0, cut=None):
+        res = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r, matrix=Matrix.Translation((0, y, z)))
+        tag(res["verts"], col)
+        if cut is not None:  # hair: a cap that sits higher over the forehead (-Y) than at the back
+            bmesh.ops.delete(bm, geom=[v for v in res["verts"] if v.co.z < cut - 0.45 * v.co.y], context="VERTS")
+
+    for x in (-0.07, 0.07):
+        cyl(0.0, 0.06, 0.06, 0.06, C["shoe"], x=x, y=-0.02, seg=6)
+    if skirt:
+        for x in (-0.06, 0.06):
+            cyl(0.06, 0.36, 0.045, 0.05, C["skin"], x=x, seg=6)
+        cyl(0.36, 0.68, 0.22, 0.15, C["uni_navy"])
+    else:
+        for x in (-0.07, 0.07):
+            cyl(0.06, 0.68, 0.06, 0.075, C["uni_navy"], x=x, seg=6)
+    cyl(0.66, 1.12, 0.15, 0.18, shirt)
+    for x in (-0.205, 0.205):
+        cyl(0.94, 1.1, 0.05, 0.05, shirt, x=x, seg=6)
+        cyl(0.72, 0.94, 0.04, 0.045, C["skin"], x=x, seg=6)
+    cyl(1.1, 1.17, 0.05, 0.05, C["skin"], seg=6)
+    if tie:
+        cyl(0.86, 1.1, 0.02, 0.025, C["uni_navy"], y=-0.17, seg=4)
+    ball(1.28, 0.12, C["skin"])
+    ball(1.295, 0.13, C["hair"], y=0.012, cut=1.255)
+    me = bpy.data.meshes.new(name)
+    bm.verts.index_update()
+    colours = {v.index: palette[v[part]] for v in bm.verts}
+    bm.to_mesh(me)
+    bm.free()
+    attr = me.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+    vals = np.empty((len(me.loops), 4), np.float32)
+    for i, lp in enumerate(me.loops):
+        z = me.vertices[lp.vertex_index].co.z
+        shade = 0.8 + 0.2 * min(z / 1.4, 1.0)
+        vals[i] = [*(c * shade for c in rgb(colours[lp.vertex_index])), 1.0]
+    attr.data.foreach_set("color_srgb", vals.ravel())
+    for p in me.polygons:
+        p.use_smooth = True
+    return me
+
+
+def build_students():
+    m = bpy.data.materials.new("student")
+    m.use_nodes = True
+    nt = m.node_tree
+    vc = nt.nodes.new("ShaderNodeVertexColor")
+    vc.layer_name = "Col"
+    bsdf = nt.nodes["Principled BSDF"]
+    nt.links.new(vc.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.8
+    variants = [student_mesh("student_teal", C["uni_teal"]), student_mesh("student_white", C["uni_white"], tie=True),
+                student_mesh("student_white_skirt", C["uni_white"], skirt=True, tie=True)]
+    for me in variants:
+        me.materials.append(m)
+    root = link(bpy.data.objects.new("students", None))
+    root["illustrative"] = True
+    root["label"] = "Students (illustrative figures in the school uniforms, not real people)"
+    rng = np.random.default_rng(51)
+    for i, (x, y, f, facing) in enumerate(STUDENTS):
+        if f is not None:
+            y, z = -CORR_D + 0.45, top_z(f)
+        else:
+            z = 0.0
+        ob = link(bpy.data.objects.new(f"student_{i}", variants[i % 3]))
+        ob.parent = root
+        ob.location = P(x, y, z)
+        ob.rotation_euler = (0, 0, math.radians(facing))
+        sc = rng.uniform(0.92, 1.06)
+        ob.scale = (sc, sc, sc)
+    return root
+
+
 # ------------------------------------------------------------------ lightmaps
 LM_SIZE = {"floor_0": 2048, "floor_1": 2048, "floor_2": 2048, "floor_3": 2048, "yard": 2048,
            "interior_f0": 1024, "interior_f1": 1024, "interior_f2": 1024, "interior_f3": 1024,
-           "roof": 1024, "tower": 1024, "compound_wall": 1024, "trees": 1024, "ground": 1024,
+           "roof": 1024, "tower": 1024, "compound_wall": 1024, "trees": 2048, "ground": 1024,
            "gate": 512, "hills": 512}
 
 MOODS = {
     # Warm low sun from the front-right; hazy golden sky.
     "morning": dict(elev=11, azim=-35, sun=(1.0, 0.63, 0.36), sun_strength=5.0, angle=1.5,
-                    sky_strength=0.22, still_sky_strength=0.9, dust=4.0, still_dust=1.2, air=1.2, interior=35.0,
-                    background="#F2C9A0", fog="#E9C7A6"),
+                    sky_strength=0.22, still_sky_strength=1.15, dust=4.0, still_dust=1.2, air=1.2, interior=35.0,
+                    background="#F2C9A0", fog="#E9C7A6",
+                    sky_top="#8FB4D9", sky_mid="#F3E7D2", sky_horizon="#F4D3B0", figure_tint=(1.0, 0.88, 0.76)),
     # Soft high sun from the front-left, more sky light, softer shadows.
     "day": dict(elev=55, azim=-140, sun=(1.0, 0.97, 0.92), sun_strength=3.2, angle=8.0,
-                sky_strength=0.45, still_sky_strength=0.8, dust=1.0, air=1.0, interior=25.0,
-                background="#BFD3E6", fog="#D3DEE6"),
+                sky_strength=0.45, still_sky_strength=1.1, dust=1.0, air=1.0, interior=25.0,
+                background="#BFD3E6", fog="#D3DEE6",
+                sky_top="#7FA9D6", sky_mid="#CFE0EE", sky_horizon="#E6EDF1", figure_tint=(0.96, 0.98, 1.0)),
 }
 
 
@@ -869,6 +1044,29 @@ def set_mood(name, sun, interior_lights, still=False):
     bg_cam.name = "BackgroundCamera"
     nt.links.new(sky.outputs["Color"], bg_cam.inputs["Color"])
     bg_cam.inputs["Strength"].default_value = s["still_sky_strength"] if still else s["sky_strength"]
+    # Stills show a soft two-colour gradient instead of the physical sky; the bake never sees it.
+    tc = nt.nodes.get("SkyCoord") or nt.nodes.new("ShaderNodeTexCoord")
+    tc.name = "SkyCoord"
+    sep = nt.nodes.get("SkySep") or nt.nodes.new("ShaderNodeSeparateXYZ")
+    sep.name = "SkySep"
+    rng_ = nt.nodes.get("SkyRange") or nt.nodes.new("ShaderNodeMapRange")
+    rng_.name = "SkyRange"
+    rng_.inputs["From Min"].default_value, rng_.inputs["From Max"].default_value = -0.02, 0.5
+    ramp = nt.nodes.get("SkyRamp") or nt.nodes.new("ShaderNodeValToRGB")
+    ramp.name = "SkyRamp"
+    els = ramp.color_ramp.elements
+    if len(els) < 3:
+        els.new(0.35)
+    # three stops: going straight from warm horizon to blue top passes through grey
+    els[0].color, els[1].color, els[2].color = lin(s["sky_horizon"]), lin(s["sky_mid"]), lin(s["sky_top"])
+    nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Z"], rng_.inputs["Value"])
+    nt.links.new(rng_.outputs["Result"], ramp.inputs["Fac"])
+    if still:
+        nt.links.new(ramp.outputs["Color"], bg_cam.inputs["Color"])
+        bg_cam.inputs["Strength"].default_value = s["still_sky_strength"]
+    else:
+        nt.links.new(sky.outputs["Color"], bg_cam.inputs["Color"])
     path = nt.nodes.get("LightPath") or nt.nodes.new("ShaderNodeLightPath")
     path.name = "LightPath"
     mix = nt.nodes.get("SkyMix") or nt.nodes.new("ShaderNodeMixShader")
@@ -995,7 +1193,10 @@ def write_lightmaps(results):
         manifest["moods"][mood] = {
             # three.js lights a lightmapped surface with albedo * texel * intensity / PI.
             "lightMapIntensity": round(scale * math.pi, 4),
-            "background": s["background"], "fog": s["fog"],
+            "background": s["background"], "fog": s["fog"], "fogNear": 400, "fogFar": 7000,
+            "sky": {"top": s["sky_top"], "middle": s["sky_mid"], "horizon": s["sky_horizon"]},
+            # `students` is not lightmapped: draw it unlit (MeshBasicMaterial, vertexColors) times this tint.
+            "figureTint": [round(c, 3) for c in s["figure_tint"]],
             "sunElevationDeg": s["elev"], "sunAzimuthDeg": s["azim"],
         }
         for name, a in maps.items():
@@ -1022,6 +1223,7 @@ def export(path, draco_level):
         export_extras=True, export_texcoords=True, export_image_format="AUTO",
         export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=draco_level,
         export_draco_texcoord_quantization=14, export_cameras=False, export_lights=False,
+        export_gpu_instances=True, export_vertex_color="MATERIAL",
     )
     print(f"exported {os.path.relpath(path, WEBSITE)} ({os.path.getsize(path) / 1e6:.2f} MB)", flush=True)
 
@@ -1036,7 +1238,7 @@ def render_heroes(sun, interior_lights, setting, cam):
     # Render-only ground: opaque and fading to haze, so the hills sit on land.
     setting["ground"].hide_render = True
     bm = bmesh.new()
-    bmesh.ops.create_circle(bm, cap_ends=True, segments=128, radius=3000)
+    bmesh.ops.create_circle(bm, cap_ends=True, segments=128, radius=7000)
     gmat = bpy.data.materials.new("render_ground")
     gmat.use_nodes = True
     nt = gmat.node_tree
@@ -1045,7 +1247,7 @@ def render_heroes(sun, interior_lights, setting, cam):
     tc, sep, ramp = nt.nodes.new("ShaderNodeTexCoord"), nt.nodes.new("ShaderNodeVectorMath"), nt.nodes.new("ShaderNodeValToRGB")
     sep.operation = "LENGTH"
     mp = nt.nodes.new("ShaderNodeMapRange")
-    mp.inputs["From Min"].default_value, mp.inputs["From Max"].default_value = 60, 1200
+    mp.inputs["From Min"].default_value, mp.inputs["From Max"].default_value = 60, 2500
     nt.links.new(tc.outputs["Object"], sep.inputs[0])
     nt.links.new(sep.outputs["Value"], mp.inputs["Value"])
     nt.links.new(mp.outputs["Result"], ramp.inputs["Fac"])
@@ -1089,13 +1291,13 @@ def render_heroes(sun, interior_lights, setting, cam):
         if SHOTS is not None and name not in SHOTS:
             continue
         set_mood(mood, sun, interior_lights, still=True)
-        ramp.color_ramp.elements[0].color = lin("#86906A")
+        ramp.color_ramp.elements[0].color = lin(C["grass"])
         ramp.color_ramp.elements[1].color = lin(MOODS[mood]["fog"])
         haze.outputs["RGBA"].default_value = lin(MOODS[mood]["fog"])
-        mul.inputs[1].default_value = 0.38 if mood == "morning" else 0.3  # the sky gets this much haze too
+        mul.inputs[1].default_value = 0.25 if mood == "morning" else 0.2  # the sky gets this much haze too
         cam.location = loc
         cam.data.lens = lens
-        cam.data.clip_end = 5000
+        cam.data.clip_end = 12000
         cam.rotation_euler = (target - loc).to_track_quat("-Z", "Y").to_euler()
         scene.render.filepath = os.path.join(PREVIEWS, f"{name}.png")
         bpy.ops.render.render(write_still=True)
@@ -1130,6 +1332,7 @@ def main():
         lightmapped["gate"] = build_gate(M)
         setting = build_setting(M)
         lightmapped.update(setting)
+        build_students()
         group = link(bpy.data.objects.new("setting", None))
         for key in ("yard", "compound_wall", "trees", "ground", "hills"):
             parent_to(setting[key], group)

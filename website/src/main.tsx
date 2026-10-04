@@ -2,10 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { Home, Layout, RootRedirect } from './App';
-import { About, Academics, AdmissionsPage, Contact, Life, News } from './pages/Inner';
+import { Academics, AdmissionsPage, Contact, News } from './pages/Inner';
+import { About } from './pages/About';
+import { Gallery } from './pages/Gallery';
 import './styles.css';
 import './pages.css';
-import './captions.css';
 
 const router = createBrowserRouter([
   { path: '/', element: <RootRedirect /> },
@@ -15,8 +16,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'about', element: <About /> },
-      { path: 'academics', element: <Academics /> },
-      { path: 'life', element: <Life /> },
+      { path: 'programmes', element: <Academics /> },
+      { path: 'academics', element: <Navigate to="../programmes" replace /> },
+      { path: 'gallery', element: <Gallery /> },
+      { path: 'life', element: <Navigate to="../gallery" replace /> },
       { path: 'admissions', element: <AdmissionsPage /> },
       { path: 'news', element: <News /> },
       { path: 'contact', element: <Contact /> },

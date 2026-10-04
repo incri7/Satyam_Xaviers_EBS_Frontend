@@ -5,8 +5,9 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { useLang } from './lang';
 import Story from './sections/Story';
-import { Nav, Parents, Result, Life, Admissions, Footer } from './sections/Sections';
+import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
+import { scroller } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,7 +34,10 @@ export function Layout() {
   // Smooth scroll, kept in step with ScrollTrigger.
   useEffect(() => {
     if (reduce) return;
-    lenis = new Lenis({ lerp: 0.085, smoothWheel: true });
+    // The page's one smoother: a mouse wheel's notches become one continuous glide. Slightly heavy
+    // (lerp 0.07) and finer per notch (0.85), so the camera inside the school moves like a walk.
+    lenis = new Lenis({ lerp: 0.07, wheelMultiplier: 0.85, smoothWheel: true });
+    scroller.lenis = lenis;
     lenis.on('scroll', ScrollTrigger.update);
     const tick = (time: number) => lenis!.raf(time * 1000);
     gsap.ticker.add(tick);
@@ -44,7 +48,14 @@ export function Layout() {
       if (el) { e.preventDefault(); lenis!.scrollTo(el as HTMLElement, { duration: 1.4 }); }
     };
     document.addEventListener('click', onClick);
-    return () => { document.removeEventListener('click', onClick); gsap.ticker.remove(tick); lenis!.destroy(); lenis = null; };
+    return () => { document.removeEventListener('click', onClick); gsap.ticker.remove(tick); lenis!.destroy(); lenis = scroller.lenis = null; };
+  }, []);
+
+  // Web fonts change the height of the text below the stage, so trigger positions are measured again.
+  useEffect(() => {
+    let live = true;
+    document.fonts?.ready.then(() => { if (live) ScrollTrigger.refresh(); });
+    return () => { live = false; };
   }, []);
 
   // A new page starts at the top (or at its #section).
@@ -78,12 +89,6 @@ export function Home() {
   const lang = useLang();
   const [tier] = useState(() => (matchMedia('(max-width: 760px)').matches ? 'mobile' : 'desktop') as 'mobile' | 'desktop');
   return (
-    <>
-      <Story lang={lang} tier={tier} reduce={reduce} />
-      <Parents lang={lang} />
-      <Result lang={lang} />
-      <Life lang={lang} />
-      <Admissions lang={lang} />
-    </>
+    <Story lang={lang} tier={tier} reduce={reduce} />
   );
 }
