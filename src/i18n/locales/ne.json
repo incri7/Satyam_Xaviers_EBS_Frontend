@@ -42,6 +42,7 @@
     "profile": "मेरो प्रोफाइल"
   },
   "auth": {
+    "website": "विद्यालयको वेबसाइट",
     "emailAddress": "इमेल ठेगाना",
     "emailPlaceholder": "name@satyamxavier.edu.np",
     "password": "पासवर्ड",

@@ -42,6 +42,7 @@
     "profile": "My Profile"
   },
   "auth": {
+    "website": "School website",
     "emailAddress": "Email Address",
     "emailPlaceholder": "name@satyamxavier.edu.np",
     "password": "Password",

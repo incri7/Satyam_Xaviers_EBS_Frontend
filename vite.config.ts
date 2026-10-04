@@ -45,6 +45,9 @@ export default defineConfig(({ mode }) => {
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           // The public website shares the domain (/, its pages, /ne and its files). Without this the app's
           // service worker answers those page loads with the app, for anyone who has used the app.
+          // Workbox maps an address ending in "/" to its cached index.html (the app's page), before the
+          // denylist below is consulted: so "/" opened the app for anyone who had opened the app.
+          directoryIndex: null,
           navigateFallbackDenylist: [/^\/$/, /^\/(en|ne)(\/|$)/, /^\/(programmes|about|gallery|admissions|news|contact)\/?$/, /^\/(site-assets|models|photos|draco)\//],
           runtimeCaching: [
             {
