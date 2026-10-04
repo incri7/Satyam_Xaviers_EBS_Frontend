@@ -39,6 +39,13 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
+      # The public website (website/) ships in the same image, so it is gated the same way.
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Build website (tsc + vite)
+        run: npm run build --prefix website
+
   deploy:
     name: Deploy to VM (main only)
     needs: build
@@ -60,6 +67,7 @@ jobs:
         run: |
           rsync -az \
             --exclude='.git' --exclude='node_modules' --exclude='dist' \
+            --exclude='website/model' --exclude='website/prototype' --exclude='website/refs' \
             --exclude='.env' --exclude='.env.production' --exclude='*.log' \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/Satyam_Xaviers_EBS_Frontend/"
