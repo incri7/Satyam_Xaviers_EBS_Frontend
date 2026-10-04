@@ -43,6 +43,9 @@ export default defineConfig(({ mode }) => {
           // out of the offline cache and offline attendance stops opening.
           // Splitting the bundle by route would bring it back under.
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          // The public website shares the domain (/, /en, /ne and its files). Without this the app's
+          // service worker answers those page loads with the app, for anyone who has used the app.
+          navigateFallbackDenylist: [/^\/$/, /^\/(en|ne)(\/|$)/, /^\/(site-assets|models|photos|draco)\//],
           runtimeCaching: [
             {
               urlPattern: /^https?:\/\/.*\/api\/.*/i,

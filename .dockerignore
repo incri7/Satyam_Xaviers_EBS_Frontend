@@ -4,3 +4,12 @@ dist/
 .gitignore
 .env
 *.log
+
+# The public website: its dependencies and build are made inside the image; its model sources,
+# prototype and references are not needed to build it.
+website/node_modules/
+website/dist/
+website/model/
+website/prototype/
+website/refs/
+website/docs/
