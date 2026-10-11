@@ -71,7 +71,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
    pages and the sections after the story are opaque and slide over it. */
 .stage { --haze: #E9C7A6; position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--haze); color: #fff; }
 .scene { position: relative; z-index: 1; pointer-events: none; }
-.scene-a { height: 1240vh; }    /* the real way in (four views), then the walk to the board */
+.scene-a { height: 1560vh; }    /* back to the sign, the real way in (four views), then the walk to the board */
 /* Board to book, book to laptop, laptop to gate, gate to the end. */
 .scene-b { height: 300vh; }
 .scene-c { height: 480vh; }
@@ -94,6 +94,15 @@ main > .block, .foot { position: relative; z-index: 1; }
 .stage canvas { position: absolute !important; inset: 0; }
 /* The real street (Arrival): over the 3D scene until the walk reaches the door, under the text. */
 .stage .arrival { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+/* The first scroll (SignIntro): the signboard's lettering lifts off and the board fills the screen. Each piece is
+   placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
+.sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; }
+.sign-board, .sign-part { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
+.sign-board img { display: block; width: 100%; height: 100%; }
+.sign-board-plain { position: absolute; inset: 0; background: #1f3c66; opacity: 0; }   /* the sign's blue, even, once the board is the page's cover */
+.sign-part { opacity: 0; max-width: none; }
+.scene-sign { height: 360vh; }
+.stage-who { display: block; margin: 2px 0 6px; font-size: 14px; color: var(--slate); }
 
 /* One shade behind all the text: deep navy from the bottom-left corner, like a film's lower third. */
 .shade { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -132,7 +141,8 @@ main > .block, .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .stage:not(.ready) .hero-line { transform: none; } .stage:not(.ready) .hero-fade { opacity: 1; } }
 
 @media (max-width: 760px) {
-  .scene-a { height: 1160vh; }
+  .scene-a { height: 1460vh; }
+  .scene-sign { height: 320vh; }
   .sheet { border-radius: 22px; }
   .shade { background: linear-gradient(0deg, rgb(11 26 61 / .88) 0%, rgb(11 26 61 / .6) 30%, rgb(11 26 61 / 0) 56%); }
   .copy { right: calc(var(--gutter) + 46px); width: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
-import { arrive, cam, light, photos, rise, rail, STOP, SURFACES, fitRegion, type Stop, type SurfaceId } from '../three/rig';
+import { arrive, cam, light, photos, rise, rail, sign, STOP, SURFACES, fitRegion, type Stop, type SurfaceId } from '../three/rig';
 import { coverReady, drawCoverView } from '../covers';
 import { pages } from '../pages/pages';
 import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
@@ -10,6 +10,8 @@ import { AboutBody } from '../pages/About';
 import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
 import { Arrival } from './Arrival';
+import { SignIntro } from './SignIntro';
+import { IntroBody, introHead } from '../pages/Intro';
 
 gsap.registerPlugin(ScrollTrigger);
 if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
@@ -143,28 +145,40 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         const coverOut = (tl: gsap.core.Timeline, kind: SurfaceId) =>
           tl.fromTo(`.cover-view[data-kind="${kind}"]`, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.35, ease: 'power1.inOut', immediateRender: false }, 0.001);
 
-        // Scene A: the real way in, the way the school's own people walk it: from the road's edge, down the
-        // driveway, round the corner onto the side path, to the entrance steps; then through the door into
-        // the classroom and up to the board. The arrival layer covers the 3D scene until the walk reaches the
-        // door; it keeps walking forward while it dissolves, so the entrance becomes the classroom in one move.
+        // Scene 0, the first scroll: nothing in the street moves. The school's signboard keeps its place,
+        // but its lettering lifts off piece by piece and comes round on a curve to face the viewer; then the
+        // blue board swings forward and fills the screen, the cover the first page (About us) slides over.
         rail.u = 0;
         Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0 });
+        Object.assign(sign, { lift: 0, fill: 0 });
+        const s0 = gsap.timeline({ defaults: { ease: 'none' } });
+        s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
+          .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
+          .to('.shade', { autoAlpha: 0, duration: 0.5 }, 0.3)
+          .fromTo(sign, { lift: 0 }, { lift: 1, duration: 2.4, immediateRender: false }, 0.4)
+          .fromTo(sign, { fill: 0 }, { fill: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: false }, 2.7)
+          .set({}, {}, '+=0.4');
+
+        // Scene A: back from the page to the sign, then the real way in, the way the school's own people walk
+        // it: from the road's edge, down the driveway, round the corner onto the side path, to the entrance
+        // steps; then through the door into the classroom and up to the board. The arrival layer covers the 3D
+        // scene until the walk reaches the door; it keeps walking forward while it dissolves, so the entrance
+        // becomes the classroom in one move.
         const a = gsap.timeline({ defaults: { ease: 'none' } });
+        const W0 = 2.4;      // the walk starts once the lettering is back on its board
         a.addLabel('hero', 0)
-          .to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.5)
-          .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.5)
-          .fromTo(arrive, { d0: 0 }, { d0: 1, duration: 2.0, ease: 'sine.in', immediateRender: false }, 0.3)
-          .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, 1.8)
-          .fromTo(arrive, { d1: 0 }, { d1: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, 2.0)
-          .fromTo(arrive, { v: 1 }, { v: 2, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, 3.4)
-          .fromTo(arrive, { d2: 0 }, { d2: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, 3.6)
-          .fromTo(arrive, { v: 2 }, { v: 3, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, 5.0)
-          .fromTo(arrive, { d3: 0 }, { d3: 1.3, duration: 2.6, ease: 'sine.inOut', immediateRender: false }, 5.2)
-          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 5.6)
-          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 6.9)
+          .fromTo(sign, { fill: 1 }, { fill: 0, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 0.2)
+          .fromTo(sign, { lift: 1 }, { lift: 0, duration: 1.3, immediateRender: false }, 0.9)
+          .fromTo(arrive, { d0: 0 }, { d0: 1, duration: 2.0, ease: 'sine.in', immediateRender: false }, W0 + 0.3)
+          .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 1.8)
+          .fromTo(arrive, { d1: 0 }, { d1: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 2.0)
+          .fromTo(arrive, { v: 1 }, { v: 2, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 3.4)
+          .fromTo(arrive, { d2: 0 }, { d2: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 3.6)
+          .fromTo(arrive, { v: 2 }, { v: 3, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 5.0)
+          .fromTo(arrive, { d3: 0 }, { d3: 1.3, duration: 2.6, ease: 'sine.inOut', immediateRender: false }, W0 + 5.2)
+          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, W0 + 5.6)
+          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, W0 + 6.9)
           .addLabel('room')
-          // The text shade goes before the board arrives: nothing may tint a surface at its handoff.
-          .to('.shade', { autoAlpha: 0, duration: 0.6 }, 'room-=0.6')
           .to(rail, { u: STOP.board, duration: 1.3, ease: 'power2.inOut' }, '+=0.45');
         coverIn(a, 'board').set({}, {}, '+=0.05');
 
@@ -198,9 +212,9 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         const S = scenes.current.map((el) => at(el!));
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        [a, ...walks].forEach((tl, i) => master.add(tl.duration(S[i].h), S[i].top));
-        master.add(e.duration(Math.max(1, S[4].h - vh)), S[4].top);
-        const end = S[4].top + S[4].h - vh;
+        [s0, a, ...walks].forEach((tl, i) => master.add(tl.duration(S[i].h), S[i].top));
+        master.add(e.duration(Math.max(1, S[5].h - vh)), S[5].top);
+        const end = S[5].top + S[5].h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with
         // a second catch-up tween that restarts on every wheel notch, so the camera's speed pulsed.
@@ -254,6 +268,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         </Suspense>
         <Arrival reduce={reduce} onReady={lift} />
         <div className="shade" aria-hidden="true" />
+        <SignIntro />
         {CHAPTERS.map(({ kind }) => <canvas key={kind} className="cover-view" data-kind={kind} ref={(el) => { covers.current[kind] = el; }} aria-hidden="true" />)}
         <div className="curtain" aria-hidden="true">
           <img src="/photos/crest.png" alt="" width={64} height={64} />
@@ -280,7 +295,17 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
 
       {/* Scene, page, scene, page...: each page slides up over its object's cover like a sheet, and
           at its end slides away to show the cover again, which the next scene turns back into the object. */}
-      <section className="scene scene-a" ref={sceneRef(0)} aria-label={t.nav.classes} />
+      <section className="scene scene-sign" ref={sceneRef(0)} aria-label={introHead(lang).title} />
+      {/* The first page, opened by the school's own signboard: the school introduced. */}
+      <section className="portal-page" id="intro" aria-labelledby="intro-title">
+        <div className="gap" />
+        <div className="sheet">
+          {head('intro', introHead(lang).title, introHead(lang).other, introHead(lang).lede)}
+          <IntroBody />
+        </div>
+        <div className="gap" />
+      </section>
+      <section className="scene scene-a" ref={sceneRef(1)} aria-label={t.nav.classes} />
       {CHAPTERS.map((ch, i) => (
         <div key={ch.id} className="chapter-run">
           <section className="portal-page" id={ch.id} aria-labelledby={`${ch.id}-title`}>
@@ -288,7 +313,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
             <div className="sheet">{bodies[ch.id]}</div>
             <div className="gap" />
           </section>
-          <section className={'scene scene-' + 'bcde'[i]} ref={sceneRef(i + 1)} aria-hidden="true" />
+          <section className={'scene scene-' + 'bcde'[i]} ref={sceneRef(i + 2)} aria-hidden="true" />
         </div>
       ))}
     </div>

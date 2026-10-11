@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { arrive, pointer } from '../three/rig';
+import { arrive, pointer, sign } from '../three/rig';
 
 /**
  * The arrival: the real way into the school, before the story goes inside. Renders of the real place
@@ -9,8 +9,11 @@ import { arrive, pointer } from '../three/rig';
  * of the entrance steps (IMG_3055). Scrolling (Story's timeline) walks into each view, crossfades to the
  * next, and dissolves into the classroom. About 1 MB, no three.js: it is on screen while the 3D scene loads.
  */
+/** The opening picture: its size and the point its cover-fit keeps in view. SignIntro places the signboard
+    over it with the same numbers. */
+export const STREET = { size: [1920, 1024], focus: [0.5, 0.66] } as const;
 const VIEWS = [
-  { name: 'street', focus: [0.5, 0.66], dolly: 0.55 },
+  { name: 'street', focus: STREET.focus, dolly: 0.55 },
   { name: 'driveway', focus: [0.53, 0.62], dolly: 0.6 },
   { name: 'sidepath', focus: [0.55, 0.56], dolly: 0.5 },
   { name: 'entrance', focus: [0.53, 0.6], dolly: 0.45 },
@@ -103,7 +106,9 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       const w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
       const k = reduce ? 0 : 1;
-      eased.x += (pointer.x * k - eased.x) * 0.06; eased.y += (pointer.y * k - eased.y) * 0.06;
+      // while the signboard's lettering is lifting off, the picture holds still so the board stays registered
+      const still = sign.lift > 0 || sign.fill > 0 ? 0 : 1;
+      eased.x += (pointer.x * k * still - eased.x) * 0.06; eased.y += (pointer.y * k * still - eased.y) * 0.06;
       const bind = (unit: number, t: WebGLTexture) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); };
       bind(0, a.c); bind(1, a.d); bind(2, (b ?? a).c); bind(3, (b ?? a).d);
       const j = b ? i + 1 : i;
