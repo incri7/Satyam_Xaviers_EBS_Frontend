@@ -31,7 +31,7 @@ def obj(name, me):
     o = bpy.data.objects.new(name, me); C.objects.link(o); return o
 
 # --- materials -------------------------------------------------------------------------------------------
-def pbr(name, folder, size_m, tint=None, bump=0.4):
+def pbr(name, folder, size_m, tint=None, bump=0.4, mono=False):
     """A scanned Poly Haven material, mapped in metres through the 'UVMap' layer (u, v in metres)."""
     m, nt = new_mat(name)
     uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'; uv.location = (-1100, 0)
@@ -48,7 +48,24 @@ def pbr(name, folder, size_m, tint=None, bump=0.4):
         return t
     bsdf = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0))
     d = tex('diff', False, (-600, 300)).outputs[0]
-    if tint: d = mix_col(nt, 1.0, d, srgb(tint), (-300, 300), blend='MULTIPLY')
+    if mono:   # keep the scan's pattern, not its colour: grey it, then colour it with the tint
+        bw = nt.nodes.new('ShaderNodeRGBToBW'); bw.location = (-420, 380); nt.links.new(d, bw.inputs[0])
+        g = math_node(nt, 'MULTIPLY', math_node(nt, 'POWER', bw.outputs[0], 1.4), 3.4)
+        d = mix_col(nt, 1.0, srgb(tint), srgb(tint), (-300, 380))
+        mul = nt.nodes.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'; mul.location = (-150, 380)
+        mul.inputs[0].default_value = 1.0; mul.inputs[6].default_value = srgb(tint)
+        cmb = nt.nodes.new('ShaderNodeCombineColor'); cmb.location = (-300, 250)
+        for i in range(3): nt.links.new(g, cmb.inputs[i])
+        nt.links.new(cmb.outputs[0], mul.inputs[7]); d = mul.outputs[2]
+        # fallen leaves: small dry flecks, thicker in patches (IMG_3017)
+        vor = nt.nodes.new('ShaderNodeTexVoronoi'); vor.location = (-600, 600); vor.inputs['Scale'].default_value = 9.0 * size_m
+        nt.links.new(mp.outputs[0], vor.inputs['Vector'])
+        patch = node(nt, 'ShaderNodeTexNoise', (-600, 750), Scale=0.6 * size_m, Detail=3.0); nt.links.new(mp.outputs[0], patch.inputs['Vector'])
+        leaf = math_node(nt, 'MULTIPLY', math_node(nt, 'LESS_THAN', vor.outputs['Distance'], 0.16),
+                         math_node(nt, 'GREATER_THAN', patch.outputs['Fac'], 0.47))
+        lc = mix_col(nt, vor.outputs['Color'], srgb('#6b5232'), srgb('#9a8550'), (-300, 600))
+        d = mix_col(nt, leaf, d, lc, (-50, 500))
+    elif tint: d = mix_col(nt, 1.0, d, srgb(tint), (-300, 300), blend='MULTIPLY')
     nt.links.new(d, bsdf.inputs['Base Color'])
     nt.links.new(tex('rough', True, (-600, 0)).outputs[0], bsdf.inputs['Roughness'])
     nm = nt.nodes.new('ShaderNodeNormalMap'); nm.location = (0, -300); nm.inputs['Strength'].default_value = bump
@@ -72,7 +89,7 @@ def image_mat(name, path):
     finish(nt, b.outputs[0]); return m
 
 MAT = {
-    'drive': pbr('MAT-drive_dirt', 'rocky_trail', 3.0, tint='#f3e6cf', bump=0.7),
+    'drive': pbr('MAT-drive_dirt', 'gravelly_sand', 2.0, tint='#d0b28a', bump=0.6, mono=True),   # the photos' pale tan
     'brick': pbr('MAT-brick_exposed', 'red_brick_03', 1.6, bump=0.8),
     'yellow': pbr('MAT-plaster_yellow', 'painted_plaster_wall', 2.0, tint='#e8c35a', bump=0.3),
     'block': pbr('MAT-plastered_wall_grey', 'white_plaster_02', 2.0, tint='#bdbab2', bump=0.4),
@@ -139,12 +156,12 @@ def strip(name, s0, s1, t0, t1, mat, lift=0.06, step=1.0):
     return obj(name, me)
 
 # --- the driveway and the yard in front of the school -------------------------------------------------------
-strip('GEO-driveway', -0.2, 35.0, -3.1, 5.8, MAT['drive'])
-strip('GEO-school_forecourt', 22.0, 35.0, -8.0, 10.0, MAT['drive'], lift=0.05)
+strip('GEO-driveway', -0.2, 30.5, -3.1, 5.8, MAT['drive'])
+strip('GEO-school_forecourt', 20.0, 31.0, -8.0, 9.0, MAT['drive'], lift=0.05)
 
 # --- right side: brick wall along the driveway, the signboard at its start, the gate on the road ------------------
-box('GEO-brick_wall', 2.6, 26.0, -3.35, -3.12, 0, 1.75, MAT['brick'])
-box('GEO-brick_wall_cap', 2.6, 26.0, -3.4, -3.07, 1.75, 1.82, MAT['pillar'])
+box('GEO-brick_wall', 2.6, 24.0, -3.35, -3.12, 0, 1.75, MAT['brick'])
+box('GEO-brick_wall_cap', 2.6, 24.0, -3.4, -3.07, 1.75, 1.82, MAT['pillar'])
 box('GEO-yellow_low_wall', 2.2, 3.4, -4.9, -2.2, 0, 1.05, MAT['yellow'])
 # the signboard on two black posts, facing the road (its face looks along -U); the admission board below it
 SS = 2.0
@@ -246,9 +263,9 @@ def panel_material():
     m, nt = new_mat('MAT-balcony_panel_waves')
     uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'
     sp = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(uv.outputs[0], sp.inputs[0])
-    w = math_node(nt, 'SINE', math_node(nt, 'ADD', math_node(nt, 'MULTIPLY', sp.outputs['X'], 22.0),
-                                         math_node(nt, 'MULTIPLY', math_node(nt, 'SINE', math_node(nt, 'MULTIPLY', sp.outputs['Y'], 14.0)), 1.2)))
-    c = mix_col(nt, math_node(nt, 'GREATER_THAN', w, 0.55), srgb('#e9edf1'), srgb('#4a7fbd'))
+    w = math_node(nt, 'SINE', math_node(nt, 'ADD', math_node(nt, 'MULTIPLY', sp.outputs['X'], 38.0),
+                                         math_node(nt, 'MULTIPLY', math_node(nt, 'SINE', math_node(nt, 'MULTIPLY', sp.outputs['Y'], 20.0)), 0.7)))
+    c = mix_col(nt, math_node(nt, 'GREATER_THAN', w, 0.55), srgb('#e9edf1'), srgb('#86aedb'))
     b = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=0.35)
     nt.links.new(c, b.inputs['Base Color']); finish(nt, b.outputs[0]); return m
 MAT['rail'] = railing_material(); MAT['panel'] = panel_material()
@@ -275,7 +292,7 @@ for z in (3.0, 6.0):
     balcony_road(0.6, 6.2, 15.2, z, 'panel')
     balcony_driveway(2.0, 10.5, 5.8, -1, z, 'rail')
 # the house beyond it: stacked balconies with steel railings, facing the driveway
-for z in (3.0, 6.0, 9.0):
+for z in (3.0, 6.0):
     balcony_driveway(13.2, 25.4, 6.4, -1, z, 'rail')
 
 # --- weeds and shrubs along the foot of the right-hand wall (IMG_3017) ----------------------------------------
@@ -357,9 +374,9 @@ def bus(name, s, t, length=7.6, width=2.3, facing_road=True):
     return root
 # 11 October 2026 (the client's photos): all three at the far end, facing the school; two together on the
 # left, a wide gap, one on the right. (Older Street View has one parked at the mouth.)
-bus('GEO-bus_end_a', 28.0, 4.6, facing_road=False)
-bus('GEO-bus_end_b', 29.0, 2.1, facing_road=False)
-bus('GEO-bus_end_c', 28.5, -2.0, facing_road=False)
+bus('GEO-bus_end_a', 23.6, 4.6, facing_road=False)
+bus('GEO-bus_end_b', 24.4, 2.1, facing_road=False)
+bus('GEO-bus_end_c', 23.9, -2.0, facing_road=False)
 
 # --- cameras ------------------------------------------------------------------------------------------------------
 def camera(name, s, t, h, lens, pitch=0.0, yaw=0.0):
@@ -374,5 +391,5 @@ def camera(name, s, t, h, lens, pitch=0.0, yaw=0.0):
 # Google's car camera, across the road, about 2.5 m up; the screenshot's view is about 75 degrees wide
 camera('CAM-streetview', -7.5, 0.9, 2.5, 15.5, pitch=3.0)
 # where IMG_3017 was taken: a few metres in, at eye height, a little upward (iPhone main lens = 26 mm)
-camera('CAM-img3017', 9.0, 2.6, 1.5, 24.0, pitch=9.0)
+camera('CAM-img3017', 6.5, 1.0, 1.5, 28.0, pitch=3.0)
 print('street built')

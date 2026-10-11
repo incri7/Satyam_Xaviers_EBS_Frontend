@@ -7,7 +7,7 @@ The current locked version is **v1**. Its outputs are:
 - `renders/final_v1_driveway.jpg`
 - `renders/final_v1_compare.jpg`: Google Street View and the client's video frame, each above the matching render.
 
-The website preview at `/preview` shows these renders with 2.5D depth. The images are in `website/public/models/env/`.
+The website's home page opens on these two views, moved in 2.5D (`website/src/sections/Arrival.tsx`). The images are in `website/public/models/env/`.
 
 ## Where the place is
 
@@ -41,7 +41,11 @@ The client's map pin (27.420080, 85.033653) is about 700 m off. Do not use it.
 
 The textures and trees are Poly Haven CC0.
 
-**Placeholder:** the school itself is a block in its real colours (pale yellow, slate-blue slab edges, five levels). It is to be replaced by the modelled building.
+**The school** (`env_school.py`) is modelled from the client's photos (IMG_3017, 3019, 3020, 3082–3086):
+- **Shape:** the short end faces the driveway, its front corridor about 30 m in. Four corridor levels over a semi-basement run across the front and turn down the long side round a rounded corner.
+- **Corridors:** slate-blue slab edges with rain streaks, steel railings, and thin steel posts from slab to slab.
+- **Roof:** rebar left up for a future floor, a stair head, the AC unit and the flag.
+- **Facades:** the painted storeys and the banner come from `make_school_textures.py`. The doors and windows follow the photos (window, door, window, window, door, window across the front). The interior and the back are not modelled.
 
 ## Rebuild
 
@@ -83,6 +87,8 @@ The launcher returns at once, and Blender runs in the background. Each job write
 | `env_town.py` | Haze, terrain material, buildings from OpenStreetMap (ledges, parapets, stair heads, tanks), roads |
 | `env_trees.py` | Trees and shrubs on open ground, kept off buildings, roads and the `SX_CLEAR` areas |
 | `env_street.py` | The driveway by hand: walls, sign, admission board, gate, poles and wires, balconies, trees at the mouth, buses, the two cameras |
+| `env_school.py` | The school's main block: core, corridor slabs, railings, posts, roof details, banner |
+| `make_school_textures.py` | Paints the school's storeys, slab edge, basement gate; cuts the banner from IMG_3019 (run with local Python) |
 | `build_street.py` | Settings for the street (data folder, radii, sun, per-house overrides, the school placeholder), then runs the four scripts above |
 | `job_*.py` | Headless jobs: build, render, depth |
 | `fetch/` | Data download: elevation, OpenStreetMap, satellite reference, overlay |

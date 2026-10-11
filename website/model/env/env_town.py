@@ -312,6 +312,7 @@ def build_town(max_r=650):
             if 'roof' in ov: roof = srgb(ov['roof'])
             if 'ledge' in ov: ledge_override = srgb(ov['ledge'])
         r = rnd.random()
+        if ov and 'shops' in ov: r = 0.9 if ov['shops'] else 0.1      # shutters on the ground floor
         ledge_col = tuple(c * 0.82 for c in wall[:3]) + (1.0,) if rnd.random() < 0.7 else pick(rnd, WALLS)
         if ledge_override: ledge_col = ledge_override
         small = area < 30
