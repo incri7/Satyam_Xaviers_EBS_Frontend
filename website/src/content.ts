@@ -15,7 +15,7 @@ const en = {
   loading: 'Building the school',
   mood: { morning: 'Morning', day: 'Day' },
   // The client's own line (their draft website doc, 11 October 2026), with the sentence they wrote for under it.
-  hero: { label: 'Hetauda-4, Chisapani. Since 2048 BS.', lines: ['A Place', 'to Learn.', 'A Place', 'to Become.'], other: 'सिक्ने ठाउँ। आफू बन्ने ठाउँ।',
+  hero: { label: 'Hetauda-4, Chisapani. Since 2048 BS.', lines: ['A Place', 'to Learn.', 'A Place', 'to Become.'], other: 'पढ्ने ठाउँ, अघि बढ्ने ठाउँ।',
     body: "At Satyam Xavier's, education is a journey of discovery, confidence, character, and possibility, inside the classroom and beyond it." },
   scroll: 'Scroll to walk in',
   storeys: 'Floors of the school',
@@ -69,8 +69,8 @@ const ne: Copy = {
   call: 'फोन 057-525563',
   loading: 'विद्यालय बन्दैछ',
   mood: { morning: 'बिहान', day: 'दिउँसो' },
-  hero: { label: 'हेटौंडा-४, चिसापानी। वि.सं. २०४८ देखि।', lines: ['सिक्ने ठाउँ।', 'आफू बन्ने ठाउँ।'], other: 'A Place to Learn. A Place to Become.',
-    body: 'सत्यम जेभियर्समा शिक्षा खोज, आत्मविश्वास, चरित्र र सम्भावनाको यात्रा हो, कक्षाकोठाभित्र र बाहिर पनि।' },
+  hero: { label: 'हेटौंडा-४, चिसापानी। वि.सं. २०४८ देखि।', lines: ['पढ्ने ठाउँ,', 'अघि बढ्ने ठाउँ।'], other: 'A Place to Learn. A Place to Become.',
+    body: 'सत्यम जेभियर्समा पढाइ कक्षाकोठामा मात्र सीमित छैन। यहाँ बच्चाहरू सिक्छन्, आत्मविश्वास बढाउँछन् र असल मान्छे बन्छन्।' },
   scroll: 'भित्र जान स्क्रोल गर्नुहोस्',
   storeys: 'विद्यालयका तलाहरू',
   floors: [
