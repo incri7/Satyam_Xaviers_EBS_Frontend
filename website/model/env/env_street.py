@@ -157,7 +157,7 @@ def strip(name, s0, s1, t0, t1, mat, lift=0.06, step=1.0):
 
 # --- the driveway and the yard in front of the school -------------------------------------------------------
 strip('GEO-driveway', -0.2, 30.5, -3.1, 5.8, MAT['drive'])
-strip('GEO-school_forecourt', 20.0, 31.0, -8.0, 9.0, MAT['drive'], lift=0.05)
+strip('GEO-school_forecourt', 20.0, 31.0, -3.1, 13.0, MAT['drive'], lift=0.05)
 
 # --- right side: brick wall along the driveway, the signboard at its start, the gate on the road ------------------
 # The right-hand wall: a short run of yellow plaster at the mouth, then brick deeper in (IMG_3014).
@@ -332,7 +332,7 @@ me.materials.append(MAT['tin_red']); me.materials.append(MAT['tin_under'])
 obj('GEO-cream_house_roof', me)
 # the house beyond it: stacked balconies with steel railings, facing the driveway
 for z in (3.0, 6.0):
-    balcony_driveway(13.2, 25.4, 6.4, -1, z, 'rail')
+    balcony_driveway(13.2, 19.6, 6.4, -1, z, 'rail')
 
 # --- weeds and shrubs along the foot of the right-hand wall (IMG_3017) ----------------------------------------
 import random as _r

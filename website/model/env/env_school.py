@@ -12,8 +12,11 @@ from mathutils import Vector
 ST = DATA
 SF = 30.5            # front corridor's outer edge, metres along the driveway (photo GPS: its corner is ~29 m in)
 CORR = 1.6           # corridor depth
-TL = 7.0             # the front's left end (square)
-TR = -5.0            # outer edge of the side corridor (the viewer's right)
+# The school stands left of the driveway's right-hand wall line (t = -3.3), which runs on past it: the 3 m between
+# that wall and the long side's corridor is the side path (IMG_3017: the building sits centre-left; IMG_3055).
+WALL_T = -3.3
+TL = 11.6            # the front's left end (square)
+TR = WALL_T + 2.9    # outer edge of the side corridor (the viewer's right)
 TC = TR + CORR       # the core's right wall
 SB = 60.5            # the back
 R = 1.6              # the rounded corner's radius
@@ -165,12 +168,12 @@ wall_strip('GEO-school_left_end_cap', (SF + CORR, TL), (SF, TL), 0.0, Z0, SM['pl
 
 # --- the banner on the first-floor railing (IMG_3017, IMG_3019) ---------------------------------------------------
 z = LEVELS[1]
-wall_strip('GEO-school_banner', (SF - 0.03, -0.3), (SF - 0.03, -4.3), z + 0.05, z + 1.0, SM['banner'], 1.0)
+wall_strip('GEO-school_banner', (SF - 0.03, TL - 7.3), (SF - 0.03, TL - 11.3), z + 0.05, z + 1.0, SM['banner'], 1.0)
 
 # --- the roof: rebar left up for another floor, the stair head, the AC unit, the flag -----------------------------
 roof = LEVELS[-1]
 bm = bmesh.new()
-spots = [(SF + CORR + 0.3, TL - 0.3), (SF + CORR + 0.3, TC + 0.3), (SF + CORR + 0.3, 0.8)]
+spots = [(SF + CORR + 0.3, TL - 0.3), (SF + CORR + 0.3, TC + 0.3), (SF + CORR + 0.3, TL - 6.2)]
 s = SF + CORR + 3.95
 while s < SB - 0.5:
     spots += [(s, TC + 0.3), (s, TL - 0.3)]; s += 3.95
@@ -207,13 +210,14 @@ SM['bwall'] = pbr('MAT-boundary_wall_blocks', 'concrete_wall_003', 2.0, tint='#b
 SM['ramp'] = flat('MAT-ramp_concrete', '#87847d', 0.9)
 
 # --- the side path, from the corner to the back, under the corridor's overhang, up to the boundary wall ---------
-strip('GEO-side_path', SF - 1.0, SB, -8.4, TC, MAT['drive'], lift=0.05)
-box('GEO-boundary_wall', SF - 6.0, SB, -8.7, -8.42, 0, 1.9, SM['bwall'])
-box('GEO-boundary_wall_cap', SF - 6.0, SB, -8.74, -8.38, 1.9, 1.96, SM['bwall'])
+strip('GEO-side_path', SF - 1.0, SB, WALL_T, TC, MAT['drive'], lift=0.05)
+# the boundary wall: the driveway's wall line, in concrete blocks from where the brick ends
+box('GEO-boundary_wall', 24.0, SB, WALL_T - 0.3, WALL_T - 0.05, 0, 1.9, SM['bwall'])
+box('GEO-boundary_wall_cap', 24.0, SB, WALL_T - 0.34, WALL_T - 0.01, 1.9, 1.96, SM['bwall'])
 import random as _r2
 _rr = _r2.Random(19); s_ = SF - 4.0
 while s_ < SB:                      # banana plants and bushes behind the wall
-    tree(f'GEO-behind_wall_{s_:.1f}', _rr.choice(['shrub_02_a_LOD1', 'shrub_02_c_LOD1']), s_, -9.6 - _rr.uniform(0, 1.2),
+    tree(f'GEO-behind_wall_{s_:.1f}', _rr.choice(['shrub_02_a_LOD1', 'shrub_02_c_LOD1']), s_, WALL_T - 1.2 - _rr.uniform(0, 1.2),
          _rr.uniform(1.8, 2.6), _rr.uniform(0, 6.28))
     s_ += _rr.uniform(2.0, 3.5)
 
@@ -269,6 +273,6 @@ mesh('GEO-ramp', lambda bm, uvl: quad(bm, uvl, P(RS0, RT0, 0.02), P(RS0, RT1, 0.
 wall_strip('GEO-school_basement_gate_deep', (RS1 - 0.02, GATE_T + 1.55), (RS1 - 0.02, GATE_T - 1.55), -DEPTH, 0.95, SM['gate'], 1.0)
 
 # --- the walk's two new views: round the corner onto the side path; at the foot of the entrance steps ------------
-camera('CAM-sidepath', SF - 1.5, -6.7, 1.55, 22.0, pitch=4.0, yaw=-6.0)
-camera('CAM-entrance', S_ENT - 0.3, -8.0, 1.6, 20.0, pitch=10.0, yaw=-90.0)
+camera('CAM-sidepath', SF - 2.0, WALL_T + 1.2, 1.55, 22.0, pitch=4.0, yaw=-4.0)
+camera('CAM-entrance', S_ENT - 0.3, WALL_T + 0.25, 1.6, 16.0, pitch=12.0, yaw=-90.0)
 print('school built')

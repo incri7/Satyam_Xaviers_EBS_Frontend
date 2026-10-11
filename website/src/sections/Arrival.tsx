@@ -14,7 +14,7 @@ const VIEWS = [
   { name: 'driveway', focus: [0.53, 0.62], dolly: 0.6 },
   { name: 'sidepath', focus: [0.55, 0.56], dolly: 0.5 },
   { name: 'entrance', focus: [0.53, 0.6], dolly: 0.45 },
-].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10120031.webp`, depth: `/models/env/${w.name}_depth_10120031.png` }));
+].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10120049.webp`, depth: `/models/env/${w.name}_depth_10120049.png` }));
 const DOLLY = ['d0', 'd1', 'd2', 'd3'] as const;
 
 const VERT = `attribute vec2 p; varying vec2 v; void main() { v = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
