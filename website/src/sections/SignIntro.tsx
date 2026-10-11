@@ -15,71 +15,90 @@ import RENDER from './signRender.json';  // from model/env/make_sign_from_render
  * itself (model/env/make_sign_from_render.py), so the first frame of the scroll changes nothing; the letters
  * simply begin to come away, each casting a shadow on the board as it rises, and the board left behind keeps a
  * faint trace of the paint. In flight each piece crossfades into the sign redrawn clean: the same composition
- * and words as the real board (IMG_3014), in crisp type with a sign-painter's hard shadow. Each piece is its own <svg>, warped by a CSS matrix3d from
+ * and words as the real board (IMG_3014), in its own colours and proportions, in crisp type. Each piece is its own <svg>, warped by a CSS matrix3d from
  * four corners, so it can sit on the board in perspective and end flat on the screen. Board units: 1600 x 860,
  * the squared-up photo the 3D board is textured with.
  */
 type P = [number, number];
 const BW = 1600, BH = 860;
-const INK = '#0E2A5C', WHITE = '#F6F2E7', MARIGOLD = '#F4B63F';
+// The sign's own colours, measured on the client's photo of it (data/street/sign_board.jpg): a navy board that
+// deepens into its shaded end; off-white lettering, lighter at the top of each letter; the Devanagari name in a
+// gold that is pale at the top of the letters and deeper at their foot; a dark painted shadow on the lower left.
+const SHADOW = '#081428';
 const DISPLAY = '"Bricolage Grotesque", "Mukta", system-ui, sans-serif';
 
-/** Painted lettering: the words, and the same words a few units down-right in ink, as a sign painter shadows. */
-function Painted({ children, fill = WHITE, dx = 4, dy = 5 }: { children: ReactNode; fill?: string; dx?: number; dy?: number }) {
+/** The paint, shared by every piece: two gradients and a faint mottle, so the letters read as brushwork. */
+const PaintDefs = () => (
+  <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+    <defs>
+      <linearGradient id="sx-white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#E3E5E1" /><stop offset="1" stopColor="#B9BDB9" /></linearGradient>
+      <linearGradient id="sx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#DCC07C" /><stop offset=".55" stopColor="#C9A24F" /><stop offset="1" stopColor="#9F7F3A" /></linearGradient>
+      <filter id="sx-paint" x="-2%" y="-2%" width="104%" height="104%">
+        <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="1" seed="11" result="n" />
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -.28 1.06" result="a" />
+        <feComposite in="SourceGraphic" in2="a" operator="in" />
+      </filter>
+    </defs>
+  </svg>
+);
+/** Painted lettering: the words, and the same words a few units down and to the left in shadow, as on the sign. */
+function Painted({ children, fill = 'url(#sx-white)', dx = -3, dy = 4 }: { children: ReactNode; fill?: string; dx?: number; dy?: number }) {
   return (
     <>
-      <g fill={INK} color={INK} transform={`translate(${dx} ${dy})`}>{children}</g>
-      <g fill={fill} color={fill}>{children}</g>
+      <g fill={SHADOW} color={SHADOW} transform={`translate(${dx} ${dy})`}>{children}</g>
+      <g fill={fill} color="#D7DAD6" filter="url(#sx-paint)">{children}</g>
     </>
   );
 }
-/** Sign-painter capitals: each word's first letter a size up. */
+/** The sign's capitals: each word's first letter a size up. */
 const Caps = ({ words, size }: { words: string[]; size: number }) => (
   <>{words.map((w, i) => (
-    <tspan key={i}><tspan fontSize={size * 1.28}>{w[0]}</tspan>{w.slice(1)}{i < words.length - 1 ? ' ' : ''}</tspan>
+    <tspan key={i}><tspan fontSize={size * 1.3}>{w[0]}</tspan>{w.slice(1)}{i < words.length - 1 ? '\u00a0' : ''}</tspan>
   ))}</>
 );
 const Phone = ({ x, y, number }: { x: number; y: number; number: string }) => (
   <>
-    <path transform={`translate(${x} ${y - 50}) scale(2.3)`} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinejoin="round"
+    <path transform={`translate(${x} ${y - 56}) scale(2.5)`} fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinejoin="round"
       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    <text x={x + 72} y={y} fontSize={52} fontWeight={700} letterSpacing={1.5}>{number}</text>
+    <text x={x + 76} y={y} fontSize={58} fontWeight={800} fontStretch="85%" textLength={300} lengthAdjust="spacingAndGlyphs">{number}</text>
   </>
 );
 
-/** The pieces: each a box on the board (board units) and what is painted in it. Order is lift order. */
+/** The pieces, laid out where they are on the real board (measured on the squared-up photo, 1600 x 860).
+    Each is a box on the board and what is painted in it; order is lift order. */
 const PIECES: { name: string; box: [number, number, number, number]; paint: ReactNode }[] = [
-  { name: 'phone_l', box: [44, 36, 500, 100], paint: <Painted><Phone x={60} y={108} number="057-525563" /></Painted> },
+  { name: 'phone_l', box: [40, 40, 420, 90], paint: <Painted><Phone x={52} y={112} number="057-525563" /></Painted> },
   {
-    name: 'arch', box: [40, 70, 1520, 680],
+    // the arch: as wide and as high as the painted one, its letters' foot on an ellipse round the crest
+    name: 'arch', box: [0, 40, 1600, 700],
     paint: (
       <>
-        <path id="sx-arch" d="M 150 705 A 650 565 0 0 1 1450 705" fill="none" />
+        <path id="sx-arch" d="M 70 742 A 730 568 0 0 1 1530 742" fill="none" />
         <Painted>
-          {/* the arc is about 1,910 units long; a fixed length keeps every letter on it, in any font */}
-          <text fontSize={76} fontWeight={800}>
-            <textPath href="#sx-arch" startOffset="50%" textAnchor="middle" textLength={1780} lengthAdjust="spacingAndGlyphs"><Caps size={76} words={['SATYAM', "XAVIER'S", 'SECONDARY', 'BOARDING', 'SCHOOL']} /></textPath>
+          {/* the arc is about 2,050 units long; a fixed length keeps every letter on it, in any font */}
+          <text fontSize={102} fontWeight={800} fontStretch="80%">
+            <textPath href="#sx-arch" startOffset="50%" textAnchor="middle" textLength={1980} lengthAdjust="spacingAndGlyphs"><Caps size={102} words={['SATYAM', "XAVIER'S", 'SECONDARY', 'BOARDING', 'SCHOOL']} /></textPath>
           </text>
         </Painted>
       </>
     ),
   },
   {
-    name: 'crest', box: [600, 220, 400, 400],
+    name: 'crest', box: [612, 220, 360, 360],
     paint: (
       <>
-        <circle cx={800} cy={420} r={186} fill={INK} transform="translate(5 6)" />
-        <circle cx={800} cy={420} r={186} fill={WHITE} />
-        <image href="/photos/crest.png" x={624} y={244} width={352} height={352} />
+        <circle cx={789} cy={404} r={172} fill={SHADOW} />
+        <circle cx={792} cy={400} r={172} fill="#ECEDE8" stroke="#0A1830" strokeWidth={4} />
+        <image href="/photos/crest.png" x={632} y={240} width={320} height={320} />
       </>
     ),
   },
-  { name: 'hetauda', box: [240, 470, 380, 100], paint: <Painted><text x={430} y={545} fontSize={60} fontWeight={800} textAnchor="middle" letterSpacing={2}>HETAUDA-4</text></Painted> },
-  { name: 'chisapani', box: [980, 470, 380, 100], paint: <Painted><text x={1170} y={545} fontSize={60} fontWeight={800} textAnchor="middle" letterSpacing={2}>CHISAPANI</text></Painted> },
-  { name: 'phone_r', box: [1100, 36, 460, 100], paint: <Painted><Phone x={1116} y={108} number="057-523452" /></Painted> },
+  { name: 'hetauda', box: [250, 490, 345, 70], paint: <Painted><text x={422} y={549} fontSize={72} fontWeight={800} fontStretch="85%" textAnchor="middle" textLength={318} lengthAdjust="spacingAndGlyphs">HETAUDA-4</text></Painted> },
+  { name: 'chisapani', box: [978, 494, 335, 70], paint: <Painted><text x={1145} y={554} fontSize={72} fontWeight={800} fontStretch="85%" textAnchor="middle" textLength={312} lengthAdjust="spacingAndGlyphs">CHISAPANI</text></Painted> },
+  { name: 'phone_r', box: [1150, 36, 440, 90], paint: <Painted><Phone x={1162} y={112} number="057-523452" /></Painted> },
   {
-    name: 'nepali', box: [110, 650, 1380, 190],
-    paint: <Painted fill={MARIGOLD}><text x={800} y={790} fontSize={112} fontWeight={800} textAnchor="middle" textLength={1300} lengthAdjust="spacingAndGlyphs" style={{ fontFamily: '"Mukta", sans-serif' }}>सत्यम् जेभियर्स माध्यमिक बोर्डिङ स्कूल</text></Painted>,
+    name: 'nepali', box: [10, 630, 1580, 215],
+    paint: <Painted fill="url(#sx-gold)"><text x={800} y={796} fontSize={168} fontWeight={800} textAnchor="middle" textLength={1560} lengthAdjust="spacingAndGlyphs" style={{ fontFamily: '"Mukta", sans-serif' }}>सत्यम् जेभियर्स माध्यमिक बोर्डिङ स्कूल</text></Painted>,
   },
 ];
 const STAGGER = 0.07;
@@ -203,6 +222,7 @@ export function SignIntro() {
 
   return (
     <div className="sign-intro" ref={root} aria-hidden="true">
+      <PaintDefs />
       {RENDER.plate ? <img className="sign-plate" src={`/models/env/sign/plate_${RENDER.v}.webp`} alt="" /> : null}
       <div className="sign-board" style={{ width: BW, height: BH }}>
         <div className="sign-board-wall"><img src={`/models/env/sign/wall_${RENDER.v}.webp`} alt="" /></div>
