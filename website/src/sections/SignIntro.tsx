@@ -23,7 +23,7 @@ type P = [number, number];
 const BW = 1600, BH = 860;
 // The sign's own colours, measured on the client's photo of it (data/street/sign_board.jpg): a navy board that
 // deepens into its shaded end; off-white lettering, lighter at the top of each letter; the Devanagari name in a
-// gold that is pale at the top of the letters and deeper at their foot; a dark painted shadow on the lower left.
+// that is silvery cream at the top of the letters and turns gold below; a dark painted shadow on the lower left.
 const SHADOW = '#081428';
 const DISPLAY = '"Bricolage Grotesque", "Mukta", system-ui, sans-serif';
 
@@ -32,7 +32,7 @@ const PaintDefs = () => (
   <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
     <defs>
       <linearGradient id="sx-white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#E3E5E1" /><stop offset="1" stopColor="#B9BDB9" /></linearGradient>
-      <linearGradient id="sx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#DCC07C" /><stop offset=".55" stopColor="#C9A24F" /><stop offset="1" stopColor="#9F7F3A" /></linearGradient>
+      <linearGradient id="sx-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ECE9DF" /><stop offset=".36" stopColor="#E2D5AC" /><stop offset=".62" stopColor="#D3B062" /><stop offset="1" stopColor="#C9A252" /></linearGradient>
       <filter id="sx-paint" x="-2%" y="-2%" width="104%" height="104%">
         <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="1" seed="11" result="n" />
         <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -.28 1.06" result="a" />
@@ -69,15 +69,16 @@ const Phone = ({ x, y, number }: { x: number; y: number; number: string }) => (
 const PIECES: { name: string; box: [number, number, number, number]; paint: ReactNode }[] = [
   { name: 'phone_l', box: [40, 40, 420, 90], paint: <Painted><Phone x={52} y={112} number="057-525563" /></Painted> },
   {
-    // the arch: as wide and as high as the painted one, its letters' foot on an ellipse round the crest
-    name: 'arch', box: [0, 40, 1600, 700],
+    // the arch: as wide and as high as the painted one, its letters' foot on an ellipse round the crest that
+    // ends above the Devanagari line
+    name: 'arch', box: [20, 40, 1560, 600],
     paint: (
       <>
-        <path id="sx-arch" d="M 70 742 A 730 568 0 0 1 1530 742" fill="none" />
+        <path id="sx-arch" d="M 96 622 A 704 468 0 0 1 1504 622" fill="none" />
         <Painted>
-          {/* the arc is about 2,050 units long; a fixed length keeps every letter on it, in any font */}
-          <text fontSize={102} fontWeight={800} fontStretch="80%">
-            <textPath href="#sx-arch" startOffset="50%" textAnchor="middle" textLength={1980} lengthAdjust="spacingAndGlyphs"><Caps size={102} words={['SATYAM', "XAVIER'S", 'SECONDARY', 'BOARDING', 'SCHOOL']} /></textPath>
+          {/* the arc is about 1,880 units long; a fixed length keeps every letter on it, in any font */}
+          <text fontSize={96} fontWeight={800} fontStretch="80%">
+            <textPath href="#sx-arch" startOffset="50%" textAnchor="middle" textLength={1800} lengthAdjust="spacingAndGlyphs"><Caps size={96} words={['SATYAM', "XAVIER'S", 'SECONDARY', 'BOARDING', 'SCHOOL']} /></textPath>
           </text>
         </Painted>
       </>
