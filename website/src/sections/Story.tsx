@@ -299,10 +299,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
       {/* The first page, opened by the school's own signboard: the school introduced. */}
       <section className="portal-page" id="intro" aria-labelledby="intro-title">
         <div className="gap" />
-        <div className="sheet">
-          {head('intro', introHead(lang).title, introHead(lang).other, introHead(lang).lede)}
-          <IntroBody />
-        </div>
+        <div className="sheet sheet-board"><IntroBody /></div>
         <div className="gap" />
       </section>
       <section className="scene scene-a" ref={sceneRef(1)} aria-label={t.nav.classes} />
