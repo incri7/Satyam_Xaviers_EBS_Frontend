@@ -1,0 +1,10 @@
+# Downloads and big binaries stay out of git: the scripts rebuild everything from data/.
+data/polyhaven/
+*.blend
+*.blend1
+renders/*.exr
+renders/*.npy
+renders/*.log
+renders/*.png
+!renders/*_small.png
+data/**/*.f32

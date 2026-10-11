@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
           // Workbox maps an address ending in "/" to its cached index.html (the app's page), before the
           // denylist below is consulted: so "/" opened the app for anyone who had opened the app.
           directoryIndex: null,
-          navigateFallbackDenylist: [/^\/$/, /^\/(en|ne)(\/|$)/, /^\/(programmes|about|gallery|admissions|news|contact)\/?$/, /^\/(site-assets|models|photos|draco)\//],
+          navigateFallbackDenylist: [/^\/$/, /^\/(en|ne)(\/|$)/, /^\/(programmes|about|gallery|admissions|news|contact|preview)\/?$/, /^\/(site-assets|models|photos|draco)\//],
           runtimeCaching: [
             {
               urlPattern: /^https?:\/\/.*\/api\/.*/i,

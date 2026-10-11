@@ -5,6 +5,7 @@ import { Home, Layout } from './App';
 import { Academics, AdmissionsPage, Contact, News } from './pages/Inner';
 import { About } from './pages/About';
 import { Gallery } from './pages/Gallery';
+import { EnvPreview } from './pages/EnvPreview';
 import './styles.css';
 import './pages.css';
 
@@ -31,6 +32,8 @@ const router = createBrowserRouter([
   { path: '/', element: <Layout />, children: pages },
   { path: '/ne', element: <Layout />, children: pages },
   { path: '/en/*', element: <FromEn /> },
+  // The Blender environment, for review; not linked from the site.
+  { path: '/preview', element: <EnvPreview /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
