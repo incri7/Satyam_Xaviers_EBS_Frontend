@@ -10,8 +10,8 @@ import { arrive, pointer } from '../three/rig';
  * so it is the first thing on screen while the 3D scene loads behind it.
  */
 const VIEWS = [
-  { color: '/models/env/street_color_10112226.webp', depth: '/models/env/street_depth_10112226.png', focus: [0.5, 0.66] },
-  { color: '/models/env/driveway_color_10112226.webp', depth: '/models/env/driveway_depth_10112226.png', focus: [0.53, 0.62] },
+  { color: '/models/env/street_color_10112238.webp', depth: '/models/env/street_depth_10112238.png', focus: [0.5, 0.66] },
+  { color: '/models/env/driveway_color_10112238.webp', depth: '/models/env/driveway_depth_10112238.png', focus: [0.53, 0.62] },
 ] as const;
 
 const VERT = `attribute vec2 p; varying vec2 v; void main() { v = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;

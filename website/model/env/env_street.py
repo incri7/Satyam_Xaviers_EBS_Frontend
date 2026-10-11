@@ -312,10 +312,11 @@ def tree(name, src, s, t, scale, rot):
     o = bpy.data.objects.new(name, bpy.data.objects[src].data)
     o.location = W(s, t) + Vector((0, 0, -0.1)); o.scale = (scale,) * 3; o.rotation_euler = (0, 0, rot)
     C.objects.link(o); return o
-# three slim young trees at the mouth, their crowns run together (Street View)
-tree('GEO-mouth_tree_a', 'tree_small_02_LOD1', 4.6, 0.2, 1.45, 0.4)
-tree('GEO-mouth_tree_b', 'tree_small_02_LOD1', 5.4, -0.9, 1.6, 2.3)
-tree('GEO-mouth_tree_c', 'tree_small_02_LOD1', 6.6, -2.2, 1.4, 4.1)
+# three slim young trees on the left of the mouth, their crowns run together (Street View: beside where
+# the bus parks; the driveway frame: their leaves hang in from the top left)
+tree('GEO-mouth_tree_a', 'tree_small_02_LOD1', 3.8, 2.6, 1.45, 0.4)
+tree('GEO-mouth_tree_b', 'tree_small_02_LOD1', 4.9, 3.5, 1.6, 2.3)
+tree('GEO-mouth_tree_c', 'tree_small_02_LOD1', 6.0, 2.2, 1.4, 4.1)
 tree('GEO-tree_right', 'island_tree_02_LOD1', 3.5, -18.5, 2.6, 1.3)
 
 # --- the buses: block-outs at true size (Eicher Skyline: 7.6 x 2.3 x 2.9 m) --------------------------------------
@@ -374,9 +375,12 @@ def bus(name, s, t, length=7.6, width=2.3, facing_road=True):
     return root
 # 11 October 2026 (the client's photos): all three at the far end, facing the school; two together on the
 # left, a wide gap, one on the right. (Older Street View has one parked at the mouth.)
-bus('GEO-bus_end_a', 23.6, 4.6, facing_road=False)
-bus('GEO-bus_end_b', 24.4, 2.1, facing_road=False)
-bus('GEO-bus_end_c', 23.9, -2.0, facing_road=False)
+# The buses are left out of the website's views: they come and go, and the school is what the views
+# are for. bus() stays for a scene that wants them, e.g. bus('GEO-bus_end_a', 23.6, 4.6, facing_road=False).
+if globals().get('SX_BUSES'):
+    bus('GEO-bus_end_a', 23.6, 4.6, facing_road=False)
+    bus('GEO-bus_end_b', 24.4, 2.1, facing_road=False)
+    bus('GEO-bus_end_c', 23.9, -2.0, facing_road=False)
 
 # --- cameras ------------------------------------------------------------------------------------------------------
 def camera(name, s, t, h, lens, pitch=0.0, yaw=0.0):
