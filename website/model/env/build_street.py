@@ -22,7 +22,7 @@ G['SX_CLEAR'] = [[W(-2, -3.3), W(32, -3.3), W(32, 5.6), W(-2, 5.6)],
 # the cream house stands behind the sign and the gate
 G['SX_OVERRIDE'][388610111] = {'floors': 3, 'wall': '#bdb8ad', 'tin': False, 'shops': True,
                                'p': [W(0.6, 5.8), W(12.0, 5.8), W(12.0, 15.5), W(0.6, 15.5)]}
-G['SX_OVERRIDE'][388610115] = {'floors': 3, 'wall': '#efe0cc', 'tin': True, 'roof': '#b03a2b',
+G['SX_OVERRIDE'][388610115] = {'floors': 3, 'wall': '#f1dac6', 'tin': True, 'roof': '#b4474c', 'shops': False,
                                'p': [W(4.5, -15.0), W(4.5, -6.2), W(11.5, -6.2), W(11.5, -15.0)]}
 # the yellow house with red trim, just behind the brick wall further in (the client's video)
 G['SX_OVERRIDE'][388610114]['p'] = [W(12.0, -10.5), W(12.0, -4.4), W(21.0, -4.4), W(21.0, -10.5)]

@@ -229,8 +229,6 @@ pa = [p for p in poles if p[0] == -5.5][0][2]
 for j, tgt in enumerate((W(6.0, 6.0, None) + Vector((0, 0, 6.5)), W(4.0, -5.0, None) + Vector((0, 0, 6.0)), W(10.0, -6.0, None) + Vector((0, 0, 5.5)))):
     wire(f'GEO-drop_{j}', pa + Vector((0, 0, 7.4 - 0.2 * j)), tgt, 0.4, 0.006)
 
-# --- the school, as a plain stand-in: not modelled yet ---------------------------------------------------------
-
 # --- balconies: slabs with railings, the line every Hetauda house has -----------------------------------------
 def railing_material():
     m, nt = new_mat('MAT-railing_steel_bars')
@@ -272,10 +270,66 @@ def balcony_road(s_face, t0, t1, z, kind='panel'):
     plane(f'GEO-balc_{kind}_r_{t0}_{z}', [W(s1, t1, g + z), W(s1, t0, g + z), W(s1, t0, g + z + 1.0), W(s1, t1, g + z + 1.0)],
           MAT[kind], [(0, 0), (t1 - t0, 0), (t1 - t0, 1), (0, 1)])
 
-# the shop house: wave-panel balconies on its road front, railings along the driveway
+# --- the two houses at the mouth, their road fronts as Street View shows them (make_side_textures.py) ---------
+def tex_mat(name, file, scale=(1.0, 1.0), rough=0.8):
+    m, nt = new_mat(name)
+    t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(f'{DATA}/{file}', check_existing=True)
+    uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'
+    mp = nt.nodes.new('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (scale[0], scale[1], 1)
+    nt.links.new(uv.outputs[0], mp.inputs[0]); nt.links.new(mp.outputs[0], t.inputs[0])
+    b = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=rough)
+    nt.links.new(t.outputs[0], b.inputs['Base Color']); finish(nt, b.outputs[0]); return m
+MAT['shop_front'] = tex_mat('MAT-shop_house_front', 'side_shop_front.png')
+MAT['cream_front'] = tex_mat('MAT-cream_house_front', 'side_cream_front.png')
+MAT['floral'] = tex_mat('MAT-balcony_floral_band', 'side_floral_band.png', scale=(1 / 3.0, 1.0), rough=0.5)
+MAT['tin_red'] = flat('MAT-tin_roof_red', '#b4474c', 0.45)
+MAT['tin_under'] = flat('MAT-tin_roof_underside', '#6b5a52', 0.7)
+
+def house_base(s0, s1, t0, t1):
+    # env_town stands a house on the highest ground under its footprint
+    return max(ground(*W(s, t, 0).xy) for s in (s0, s1) for t in (t0, t1))
+
+def road_front(name, s_face, t_lo, t_hi, z0, z1, m):
+    """A painted front on a wall facing the road (constant s); the picture's left is the high-t end."""
+    e = 0.025
+    plane(name, [W(s_face - e, t_hi, z0), W(s_face - e, t_lo, z0), W(s_face - e, t_lo, z1), W(s_face - e, t_hi, z1)],
+          m, [(0, 0), (1, 0), (1, 1), (0, 1)])
+
+# The shop house (left of the mouth): three shops under a sign strip and a canopy; a first-floor balcony
+# with a solid band painted with blue flowers; a second-floor balcony with a steel railing.
+SH = (0.6, 12.0, 5.8, 15.5)
+gs = house_base(*SH)
+road_front('GEO-shop_house_front', 0.6, 5.8, 15.5, gs, gs + 9.2, MAT['shop_front'])
+box('GEO-shop_canopy', -0.35, 0.6, 5.9, 15.4, 2.72 + gs - gz(0.1, 10.6), 2.82 + gs - gz(0.1, 10.6), MAT['slab'])
+balcony_road(0.6, 5.9, 15.4, 3.0 + gs - gz(0.05, 10.6), 'floral')
+balcony_road(0.6, 5.9, 15.4, 6.0 + gs - gz(0.05, 10.6), 'rail')
 for z in (3.0, 6.0):
-    balcony_road(0.6, 6.2, 15.2, z, 'panel')
     balcony_driveway(2.0, 10.5, 5.8, -1, z, 'rail')
+
+# The cream house (right, behind the gate): peach walls, balconies with railings on its front, and a red
+# hipped tin roof with wide eaves.
+CH = (4.5, 11.5, -15.0, -6.2)
+gc = house_base(*CH)
+road_front('GEO-cream_house_front', 4.5, -15.0, -6.2, gc, gc + 9.2, MAT['cream_front'])
+for z in (3.0, 6.0):
+    balcony_road(4.5, -11.6, -9.4, z + gc - gz(3.95, -10.5), 'rail')
+top = gc + 9.2
+s0, s1, t0, t1 = CH[0] - 1.0, CH[1] + 1.0, CH[2] - 1.0, CH[3] + 1.0       # 1 m eaves all round
+rise = 1.9
+half = (s1 - s0) / 2                                                       # the ridge runs along t
+def hip(bm, uvl):
+    e = [bm.verts.new(W(s, t, top)) for s, t in ((s0, t0), (s1, t0), (s1, t1), (s0, t1))]
+    r = [bm.verts.new(W((s0 + s1) / 2, t, top + rise)) for t in (t0 + half, t1 - half)]
+    for f in ((e[0], e[1], r[0]), (e[1], e[2], r[1], r[0]), (e[2], e[3], r[1]), (e[3], e[0], r[0], r[1])):
+        face = bm.faces.new(f)
+        for lp in face.loops: lp[uvl].uv = (lp.vert.co.x, lp.vert.co.y)
+    under = bm.faces.new(e[::-1]); under.material_index = 1
+    for lp in under.loops: lp[uvl].uv = (0, 0)
+from bmesh import new as _bm_new
+bm = _bm_new(); uvl = bm.loops.layers.uv.new('UVMap'); hip(bm, uvl)
+me = bpy.data.meshes.new('cream_roof'); bm.to_mesh(me); bm.free()
+me.materials.append(MAT['tin_red']); me.materials.append(MAT['tin_under'])
+obj('GEO-cream_house_roof', me)
 # the house beyond it: stacked balconies with steel railings, facing the driveway
 for z in (3.0, 6.0):
     balcony_driveway(13.2, 25.4, 6.4, -1, z, 'rail')
@@ -378,7 +432,10 @@ def camera(name, s, t, h, lens, pitch=0.0, yaw=0.0):
     cam.rotation_euler = look.to_track_quat('-Z', 'Y').to_euler()
     return cam
 # Google's car camera, across the road, about 2.5 m up; the screenshot's view is about 75 degrees wide
-camera('CAM-streetview', -7.5, 0.9, 2.5, 15.5, pitch=3.0)
+# The opening shot: standing at the road's edge in front of the driveway, so the neighbours fall out at the
+# frame's edges, the signboard stays on the right, and the driveway and the school hold the middle.
+# (Google's camera stood across the road, at -7.5.)
+camera('CAM-streetview', -3.5, 0.3, 1.7, 22.0, pitch=4.0)
 # where IMG_3017 was taken: a few metres in, at eye height, a little upward (iPhone main lens = 26 mm)
 camera('CAM-img3017', 6.5, 1.0, 1.5, 28.0, pitch=3.0)
 print('street built')
