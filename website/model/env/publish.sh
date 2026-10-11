@@ -30,5 +30,10 @@ echo "$VIEWS" | while IFS=: read name cam size samples exposure zref; do
     .then(()=>sharp('renders/street_${c}.png').jpeg({quality:90}).toFile('renders/final_v1_${name}.jpg'));"
 done
 [ -n "$OLD" ] && [ "$OLD" != "$V" ] && rm -f $P/*_$OLD.*
+# the signboard the first scroll lifts its lettering from: where its corners fall, then the board and its letters
+rm -f renders/job_sign_quad.log
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_sign_quad.py" </dev/null; wait_for renders/job_sign_quad.log
+cp renders/sign_quad.json ../../src/sections/signQuad.json
+python make_sign_from_render.py $V
 sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx
 echo "published $V (was $OLD)"

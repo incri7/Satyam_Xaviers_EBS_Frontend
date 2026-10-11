@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { sign } from '../three/rig';
 import { STREET } from './Arrival';
 import QUAD from './signQuad.json';      // from model/env/job_sign_quad.py
+import RENDER from './signRender.json';  // from model/env/make_sign_from_render.py
 
 /**
  * The first scroll. The school's own signboard stands in the opening view (Arrival's first picture). As the
@@ -10,8 +11,11 @@ import QUAD from './signQuad.json';      // from model/env/job_sign_quad.py
  * piece by piece, and comes round on curves to face the viewer, and the enamel-blue board swings forward and
  * fills the screen: the cover of the first page.
  *
- * The sign is redrawn, not cut from the photo: the same composition and words as the real board (IMG_3014),
- * in crisp type with a sign-painter's hard shadow. Each piece is its own <svg>, warped by a CSS matrix3d from
+ * It starts from exactly what is on screen: the board and its letters squared up out of the opening render
+ * itself (model/env/make_sign_from_render.py), so the first frame of the scroll changes nothing; the letters
+ * simply begin to come away, each casting a shadow on the board as it rises, and the board left behind keeps a
+ * faint trace of the paint. In flight each piece crossfades into the sign redrawn clean: the same composition
+ * and words as the real board (IMG_3014), in crisp type with a sign-painter's hard shadow. Each piece is its own <svg>, warped by a CSS matrix3d from
  * four corners, so it can sit on the board in perspective and end flat on the screen. Board units: 1600 x 860,
  * the squared-up photo the 3D board is textured with.
  */
@@ -128,6 +132,7 @@ export function SignIntro() {
     const board = el.querySelector<HTMLDivElement>('.sign-board')!;
     const wall = el.querySelector<HTMLDivElement>('.sign-board-wall')!;
     const svgs = PIECES.map((p) => el.querySelector<SVGSVGElement>(`[data-part="${p.name}"]`)!);
+    const cuts = PIECES.map((p) => el.querySelector<HTMLImageElement>(`[data-cut="${p.name}"]`)!);
     let shown = false;
 
     const frame = () => {
@@ -135,8 +140,7 @@ export function SignIntro() {
       if (on !== shown) { shown = on; el.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
       const vw = el.clientWidth, vh = el.clientHeight;      // the stage, not the window: no scrollbar in it
-      // the clean sign fades in exactly over the painted one before anything moves
-      el.style.opacity = String(Math.max(clamp01(sign.lift / 0.08), clamp01(sign.fill * 4)));
+      el.style.opacity = '1';      // the render's own board and letters: nothing on screen changes as it starts
 
       // the board where it stands in the street, and where it ends: covering the stage
       const onWall = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh));
@@ -154,23 +158,34 @@ export function SignIntro() {
       const Hwall = squareToQuad(onWall);
       const lw = Math.min(vw * 0.84, vh * 0.6 * (BW / BH)), lh = lw * (BH / BW);
       const lx = (vw - lw) / 2, ly = vh * 0.47 - lh / 2;
-      const lifted = Math.max(0, (sign.lift - 0.08) / 0.92);
-      PIECES.forEach((piece, i) => {
-        const [bx, by, bw, bh] = piece.box;
-        const t0 = (lifted - i * STAGGER) / (1 - STAGGER * (PIECES.length - 1));
-        const t = ease(clamp01(t0));
+      const lifted = sign.lift;
+      // a piece's flight: from its box on the board to the same box in the centred layout, on its own arc
+      // (up and to the left), rising towards the viewer mid-way
+      const fly = (box: number[], i: number, t: number) => {
+        const [bx, by, bw, bh] = box;
         const rect: P[] = [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh]];
         const from = rect.map(([x, y]) => apply(Hwall, x / BW, y / BH));
         const to = rect.map(([x, y]) => [lx + (x / BW) * lw, ly + (y / BH) * lh] as P);
-        // each piece on its own arc, up and to the left, rising towards the viewer mid-way
         const arc: P = [-vw * (0.12 + 0.03 * (i % 3)), -vh * (0.1 + 0.04 * ((i + 1) % 2))];
         let q = from.map((a, k) => bezier(a, [(a[0] + to[k][0]) / 2 + arc[0], (a[1] + to[k][1]) / 2 + arc[1]], to[k], t));
         const pop = 1 + 0.2 * Math.sin(Math.PI * t);
         const mid = q.reduce((s, c) => [s[0] + c[0] / 4, s[1] + c[1] / 4] as P, [0, 0] as P);
         q = q.map((c) => [mid[0] + (c[0] - mid[0]) * pop, mid[1] + (c[1] - mid[1]) * pop] as P);
-        svgs[i].style.transform = matrix3d(q, bw, bh);
-        // the lettering starts at the render's light (the board stands in shade) and brightens as it comes forward
-        svgs[i].style.filter = t < 1 ? `brightness(${0.72 + 0.28 * t}) saturate(${0.75 + 0.25 * t})` : '';
+        return matrix3d(q, bw, bh);
+      };
+      PIECES.forEach((piece, i) => {
+        const t0 = (lifted - i * STAGGER) / (1 - STAGGER * (PIECES.length - 1));
+        const t = ease(clamp01(t0));
+        const swap = ease(clamp01((t - 0.2) / 0.3));          // the render's letters give way to the clean ones in flight
+        const up = Math.sin(Math.PI * Math.min(t, 0.5) * 2) * (1 - swap * 0.6);   // how far it has risen off the board
+        const shadow = up > 0.001 ? `drop-shadow(0 ${(4 + 22 * up).toFixed(1)}px ${(3 + 16 * up).toFixed(1)}px rgb(6 12 26 / ${(0.25 + 0.35 * up).toFixed(2)}))` : '';
+        const cutBox = (RENDER.parts as Record<string, number[]>)[piece.name];
+        cuts[i].style.transform = fly(cutBox, i, t);
+        cuts[i].style.opacity = String(1 - swap);
+        cuts[i].style.filter = shadow;
+        svgs[i].style.transform = fly(piece.box, i, t);
+        svgs[i].style.opacity = String(swap);
+        svgs[i].style.filter = t < 1 ? `${shadow} brightness(${0.72 + 0.28 * t})` : '';
       });
     };
     gsap.ticker.add(frame);
@@ -179,7 +194,13 @@ export function SignIntro() {
 
   return (
     <div className="sign-intro" ref={root} aria-hidden="true">
-      <div className="sign-board" style={{ width: BW, height: BH }}><div className="sign-board-wall" /></div>
+      <div className="sign-board" style={{ width: BW, height: BH }}>
+        <div className="sign-board-wall"><img src={`/models/env/sign/wall_${RENDER.v}.webp`} alt="" /></div>
+      </div>
+      {PIECES.map(({ name }) => {
+        const [, , w, h] = (RENDER.parts as Record<string, number[]>)[name];
+        return <img key={'c' + name} className="sign-part sign-cut" data-cut={name} src={`/models/env/sign/r_${name}_${RENDER.v}.webp`} alt="" style={{ width: w, height: h }} />;
+      })}
       {PIECES.map(({ name, box: [x, y, w, h], paint }) => (
         <svg key={name} className="sign-part" data-part={name} width={w} height={h} viewBox={`${x} ${y} ${w} ${h}`}
           style={{ fontFamily: DISPLAY }} overflow="visible">{paint}</svg>
