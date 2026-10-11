@@ -6,11 +6,11 @@ const en = {
   tbcNote: 'To be confirmed by the school',
   about: {
     title: 'Our story.', other: 'हाम्रो कथा।',
-    intro: 'Since 2059 BS, families in Hetauda have walked their children up to our yellow-and-blue building in Chisapani. This is how we got here, and who is waiting inside.',
-    milestonesTitle: 'Since 2059.',
+    intro: 'Since 2048 BS, families in Hetauda have walked their children up to our school, today the yellow-and-blue building in Chisapani. This is how we got here, and who is waiting inside.',
+    milestonesTitle: 'Since 2048.',
     milestones: [
-      ['2059 BS', 'The school opens in Hetauda-4, Chisapani.', null],
-      ['[Year]', 'The four-floor building with blue balconies. [When it was built]', 'building'],
+      ['2048 BS', 'The school opens.', null],
+      ['2078 BS', 'The move into the four-floor building with blue balconies, in Hetauda-4, Chisapani.', 'building'],
       ['[Year]', 'Our first SEE batch. [Year and results]', null],
       ['2079 BS', 'Farewell for the Class 10 batch, with the whole school there to see them off.', 'farewell'],
       ['Every year', 'The Class 10 trip to Chitlang and Chandragiri.', 'himal'],
@@ -18,7 +18,7 @@ const en = {
     ] as [string, string, string | null][],
     principalTitle: 'A word from the principal.',
     principal: "[The principal's message to families, in their own words]",
-    principalName: "[Principal's name]",
+    principalName: 'Gita Acharya',
     daysTitle: 'What you will see on any school day.',
     days: [
       ['cls2', 'Two languages, every day', 'Lessons in English with Nepali alongside: reading the newspaper and writing about it.'],
@@ -29,9 +29,9 @@ const en = {
     peopleTitle: 'The people inside the gate.',
     people: '[Number of teachers and staff]. The teachers and staff of Satyam Xavier\'s, photographed in front of the school.',
     // Storyline v4: the About page is the teacher's book, told in chapters.
-    chapters: ['Since 2059.', 'One building, thirteen classes.', 'The people inside the gate.', 'What we are proud of.', 'What we believe.'],
+    chapters: ['Since 2048.', 'One building, thirteen classes.', 'The people inside the gate.', 'What we are proud of.', 'What we believe.'],
     building: 'Every class from Nursery to Class 10 is in one building: four floors, yellow walls, blue balconies, open corridors along the front. On the cover photos, students line every balcony.',
-    buildingFacts: [['Classes', 'Nursery, LKG, UKG and Class 1 to 10'], ['Floors', 'Four, with open corridors'], ['Where', 'Hetauda-4, Chisapani'], ['Since', '2059 BS [to confirm]']] as [string, string][],
+    buildingFacts: [['Classes', 'Nursery, LKG, UKG and Class 1 to 10'], ['Floors', 'Four, with open corridors'], ['Where', 'Hetauda-4, Chisapani'], ['Since', '2048 BS']] as [string, string][],
     proud: [
       ['gpa', 'A 3.96 GPA', 'One of our students scored a 3.96 GPA and was honoured by the Ward No. 4 Office, Hetauda. [Which exam]'],
       ['cert', 'District level, at four and five', 'Our LKG and UKG children were selected for the district-level drawing and colouring competition.'],
@@ -99,7 +99,7 @@ const en = {
     intro: 'Nursery to Class 10. Visit, call or write, and the office will walk you through the rest.',
     stepsTitle: 'How to join.',
     steps: [
-      ['Visit or call', 'Come to Hetauda-4, Chisapani, or call 057-525563. [Office hours]'],
+      ['Visit or call', 'Come to Hetauda-4, Chisapani, or call 057-525563. Office hours: 9:30 am to 5:00 pm.'],
       ['Bring the documents', 'See the list below. [Entrance test or interview for some classes]'],
       ['Your child joins', 'Meet the class teacher, collect the uniform list, and sign in to the parent app.'],
     ] as [string, string][],
@@ -133,7 +133,7 @@ const en = {
   },
   contact: {
     title: 'Come and say namaste.', other: 'हामीलाई भेट्न आउनुहोस्।',
-    callTitle: 'Call the school', hours: 'Office hours: [to be confirmed]',
+    callTitle: 'Call the school', hours: 'Office hours: 9:30 am to 5:00 pm',
     emailTitle: 'Email', emailNote: 'The office replies on school days.',
     visitTitle: 'Visit', mapLink: 'Open in Google Maps',
     findTitle: 'Finding us.',
@@ -147,11 +147,11 @@ const ne: Pages = {
   tbcNote: 'विद्यालयले पुष्टि गर्न बाँकी',
   about: {
     title: 'हाम्रो कथा।', other: 'Our story.',
-    intro: 'वि.सं. २०५९ देखि हेटौंडाका परिवारले आफ्ना बच्चा चिसापानीको हाम्रो पहेँलो-निलो भवनसम्म पुर्‍याउँदै आएका छन्। हामी यहाँसम्म कसरी आइपुग्यौँ, र भित्र को पर्खिरहेका छन्, यहाँ छ।',
-    milestonesTitle: '२०५९ देखि।',
+    intro: 'वि.सं. २०४८ देखि हेटौंडाका परिवारले आफ्ना बच्चा हाम्रो विद्यालयसम्म पुर्‍याउँदै आएका छन्, जुन आज चिसापानीको पहेँलो-निलो भवनमा छ। हामी यहाँसम्म कसरी आइपुग्यौँ, र भित्र को पर्खिरहेका छन्, यहाँ छ।',
+    milestonesTitle: '२०४८ देखि।',
     milestones: [
-      ['वि.सं. २०५९', 'हेटौंडा-४, चिसापानीमा विद्यालय सुरु।', null],
-      ['[वर्ष]', 'निलो बार्दली भएको चार तले भवन। [कहिले बन्यो]', 'building'],
+      ['वि.सं. २०४८', 'विद्यालय सुरु।', null],
+      ['वि.सं. २०७८', 'हेटौंडा-४, चिसापानीको निलो बार्दली भएको चार तले भवनमा सराइ।', 'building'],
       ['[वर्ष]', 'हाम्रो पहिलो SEE ब्याच। [वर्ष र नतिजा]', null],
       ['वि.सं. २०७९', 'कक्षा १० को बिदाइ, पूरै विद्यालयको उपस्थितिमा।', 'farewell'],
       ['हरेक वर्ष', 'चित्लाङ र चन्द्रागिरिमा कक्षा १० को भ्रमण।', 'himal'],
@@ -159,7 +159,7 @@ const ne: Pages = {
     ],
     principalTitle: 'प्रधानाध्यापकको भनाइ।',
     principal: '[प्रधानाध्यापकको आफ्नै शब्दमा अभिभावकलाई सन्देश]',
-    principalName: '[प्रधानाध्यापकको नाम]',
+    principalName: 'गीता आचार्य',
     daysTitle: 'कुनै पनि विद्यालय दिन यहाँ के देख्नुहुन्छ।',
     days: [
       ['cls2', 'हरेक दिन दुई भाषा', 'अंग्रेजीमा पढाइ, साथमा नेपाली: पत्रिका पढ्ने र त्यसबारे लेख्ने।'],
@@ -169,9 +169,9 @@ const ne: Pages = {
     ],
     peopleTitle: 'ढोकाभित्रका मानिस।',
     people: '[शिक्षक र कर्मचारीको सङ्ख्या]। विद्यालय अगाडि खिचिएको सत्यम जेभियर्सका शिक्षक र कर्मचारी।',
-    chapters: ['२०५९ देखि।', 'एउटै भवन, तेह्र कक्षा।', 'ढोकाभित्रका मानिस।', 'हामीलाई गर्व लाग्ने कुरा।', 'हाम्रो विश्वास।'],
+    chapters: ['२०४८ देखि।', 'एउटै भवन, तेह्र कक्षा।', 'ढोकाभित्रका मानिस।', 'हामीलाई गर्व लाग्ने कुरा।', 'हाम्रो विश्वास।'],
     building: 'नर्सरीदेखि कक्षा १० सम्मका सबै कक्षा एउटै भवनमा छन्: चार तला, पहेँला भित्ता, निला बार्दली, अगाडि खुला करिडोर। कभर फोटोमा हरेक बार्दलीमा विद्यार्थी लहरै उभिएका छन्।',
-    buildingFacts: [['कक्षा', 'नर्सरी, LKG, UKG र कक्षा १ देखि १०'], ['तला', 'चार, खुला करिडोरसहित'], ['ठाउँ', 'हेटौंडा-४, चिसापानी'], ['स्थापना', 'वि.सं. २०५९ [पुष्टि गर्न बाँकी]']],
+    buildingFacts: [['कक्षा', 'नर्सरी, LKG, UKG र कक्षा १ देखि १०'], ['तला', 'चार, खुला करिडोरसहित'], ['ठाउँ', 'हेटौंडा-४, चिसापानी'], ['स्थापना', 'वि.सं. २०४८']],
     proud: [
       ['gpa', '३.९६ GPA', 'हाम्रा एक विद्यार्थीले ३.९६ GPA ल्याई वडा नं. ४ कार्यालय, हेटौंडाबाट सम्मान पाए। [कुन परीक्षा]'],
       ['cert', 'चार-पाँच वर्षमै जिल्लास्तर', 'हाम्रा LKG र UKG का नानीहरू जिल्लास्तरीय चित्रकला तथा रङ भराइ प्रतियोगितामा छनोट भए।'],
@@ -239,7 +239,7 @@ const ne: Pages = {
     intro: 'नर्सरीदेखि कक्षा १० सम्म। आउनुहोस्, फोन गर्नुहोस् वा लेख्नुहोस्, बाँकी कार्यालयले बुझाउँछ।',
     stepsTitle: 'कसरी भर्ना हुने।',
     steps: [
-      ['आउनुहोस् वा फोन गर्नुहोस्', 'हेटौंडा-४, चिसापानी आउनुहोस्, वा 057-525563 मा फोन गर्नुहोस्। [कार्यालय समय]'],
+      ['आउनुहोस् वा फोन गर्नुहोस्', 'हेटौंडा-४, चिसापानी आउनुहोस्, वा 057-525563 मा फोन गर्नुहोस्। कार्यालय समय: बिहान ९:३० देखि बेलुका ५:०० सम्म।'],
       ['कागजात ल्याउनुहोस्', 'तलको सूची हेर्नुहोस्। [केही कक्षामा प्रवेश परीक्षा वा अन्तर्वार्ता]'],
       ['बच्चा भर्ना हुन्छ', 'कक्षा शिक्षकलाई भेट्नुहोस्, पोसाकको सूची लिनुहोस्, र अभिभावक एपमा लगइन गर्नुहोस्।'],
     ],
@@ -273,7 +273,7 @@ const ne: Pages = {
   },
   contact: {
     title: 'हामीलाई भेट्न आउनुहोस्।', other: 'Come and say namaste.',
-    callTitle: 'विद्यालयलाई फोन', hours: 'कार्यालय समय: [पुष्टि हुन बाँकी]',
+    callTitle: 'विद्यालयलाई फोन', hours: 'कार्यालय समय: बिहान ९:३० देखि बेलुका ५:०० सम्म',
     emailTitle: 'इमेल', emailNote: 'कार्यालयले विद्यालय दिनमा जवाफ दिन्छ।',
     visitTitle: 'भेट्न आउनुहोस्', mapLink: 'गुगल नक्सामा खोल्नुहोस्',
     findTitle: 'हामीलाई कसरी भेट्ने।',

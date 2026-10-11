@@ -172,8 +172,8 @@ function boardChalk(target: Ctx, X: number, Y: number, W: number, H: number, lan
 
 /* ---------- the teacher's book: About ---------- */
 const BOOK_TEXT = {
-  en: { chapter: 'Chapter one', year: '2059', bs: 'BS', title: ['Our story.'], other: 'हाम्रो कथा।', body: ['Since 2059 BS in', 'Hetauda-4, Chisapani.'] },
-  ne: { chapter: 'पहिलो अध्याय', year: '२०५९', bs: 'वि.सं.', title: ['हाम्रो कथा।'], other: 'Our story.', body: ['वि.सं. २०५९ देखि', 'हेटौंडा-४, चिसापानीमा।'] },
+  en: { chapter: 'Chapter one', year: '2048', bs: 'BS', title: ['Our story.'], other: 'हाम्रो कथा।', body: ['Since 2048 BS,', 'now in Hetauda-4, Chisapani.'] },
+  ne: { chapter: 'पहिलो अध्याय', year: '२०४८', bs: 'वि.सं.', title: ['हाम्रो कथा।'], other: 'Our story.', body: ['वि.सं. २०४८ देखि,', 'अहिले हेटौंडा-४, चिसापानीमा।'] },
 };
 function book(g: Ctx, r: Region, lang: Lang) {
   const [SW, SH] = UNITS.book, t = BOOK_TEXT[lang];

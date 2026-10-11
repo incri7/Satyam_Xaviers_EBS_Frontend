@@ -5,7 +5,7 @@ export type Lang = 'en' | 'ne';
 
 const en = {
   school: "Satyam Xavier's",
-  schoolSub: 'English Boarding School, Hetauda',
+  schoolSub: 'English Secondary Boarding School, Hetauda',
   nav: { classes: 'Classes', about: 'About', programmes: 'Programmes', gallery: 'Gallery', admissions: 'Admissions', news: 'News', contact: 'Contact' },
   more: { life: 'More from school life', admissions: 'Everything about admissions', academics: 'How each stage learns' },
   switchTo: 'नेपाली',
@@ -14,7 +14,7 @@ const en = {
   call: 'Call 057-525563',
   loading: 'Building the school',
   mood: { morning: 'Morning', day: 'Day' },
-  hero: { label: 'Hetauda-4, Chisapani. Nursery to Class 10.', lines: ['Growing up in', 'Chisapani', 'since 2059.'], other: '२०५९ देखि चिसापानीमा हुर्कँदै।' },
+  hero: { label: 'Hetauda-4, Chisapani. Nursery to Class 10.', lines: ['Growing up in', 'Chisapani', 'since 2048.'], other: '२०४८ देखि चिसापानीमा हुर्कँदै।' },
   scroll: 'Scroll to walk in',
   storeys: 'Floors of the school',
   floors: [
@@ -51,14 +51,14 @@ const en = {
     ] as [string, string][],
     directions: 'Get directions',
   },
-  footer: { find: 'Find us', address: ['Hetauda-4, Chisapani', 'Hetauda, Makwanpur 44100'], write: 'Call or write', staff: 'Parents and staff', parentLogin: 'Parent login', staffLogin: 'Staff login', legal: "© 2083 BS Satyam Xavier's English Boarding School, Hetauda" },
+  footer: { find: 'Find us', address: ['Hetauda-4, Chisapani', 'Hetauda, Makwanpur 44100'], write: 'Call or write', staff: 'Parents and staff', parentLogin: 'Parent login', staffLogin: 'Staff login', legal: "© 2083 BS Satyam Xavier's English Secondary Boarding School, Hetauda" },
 };
 
 type Copy = typeof en;
 
 const ne: Copy = {
   school: 'सत्यम जेभियर्स',
-  schoolSub: 'इङ्लिस बोर्डिङ स्कुल, हेटौंडा',
+  schoolSub: 'इङ्लिस माध्यमिक बोर्डिङ स्कुल, हेटौंडा',
   nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', programmes: 'पढाइ', gallery: 'तस्बिर', admissions: 'भर्ना', news: 'समाचार', contact: 'सम्पर्क' },
   more: { life: 'विद्यालय जीवन थप', admissions: 'भर्नाबारे सबै', academics: 'हरेक चरणको पढाइ' },
   switchTo: 'English',
@@ -67,7 +67,7 @@ const ne: Copy = {
   call: 'फोन 057-525563',
   loading: 'विद्यालय बन्दैछ',
   mood: { morning: 'बिहान', day: 'दिउँसो' },
-  hero: { label: 'हेटौंडा-४, चिसापानी। नर्सरीदेखि कक्षा १० सम्म।', lines: ['२०५९ देखि', 'चिसापानीमा', 'हुर्कँदै।'], other: 'Growing up in Chisapani since 2059.' },
+  hero: { label: 'हेटौंडा-४, चिसापानी। नर्सरीदेखि कक्षा १० सम्म।', lines: ['२०४८ देखि', 'चिसापानीमा', 'हुर्कँदै।'], other: 'Growing up in Chisapani since 2048.' },
   scroll: 'भित्र जान स्क्रोल गर्नुहोस्',
   storeys: 'विद्यालयका तलाहरू',
   floors: [
@@ -104,7 +104,7 @@ const ne: Copy = {
     ],
     directions: 'बाटो हेर्नुहोस्',
   },
-  footer: { find: 'हामीलाई भेट्नुहोस्', address: ['हेटौंडा-४, चिसापानी', 'हेटौंडा, मकवानपुर ४४१००'], write: 'फोन वा इमेल', staff: 'अभिभावक र कर्मचारी', parentLogin: 'अभिभावक लगइन', staffLogin: 'कर्मचारी लगइन', legal: '© वि.सं. २०८३ सत्यम जेभियर्स इङ्लिस बोर्डिङ स्कुल, हेटौंडा' },
+  footer: { find: 'हामीलाई भेट्नुहोस्', address: ['हेटौंडा-४, चिसापानी', 'हेटौंडा, मकवानपुर ४४१००'], write: 'फोन वा इमेल', staff: 'अभिभावक र कर्मचारी', parentLogin: 'अभिभावक लगइन', staffLogin: 'कर्मचारी लगइन', legal: '© वि.सं. २०८३ सत्यम जेभियर्स इङ्लिस माध्यमिक बोर्डिङ स्कुल, हेटौंडा' },
 };
 
 export const copy: Record<Lang, Copy> = { en, ne };
