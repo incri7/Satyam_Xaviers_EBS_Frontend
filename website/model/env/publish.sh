@@ -37,5 +37,11 @@ cp renders/sign_quad.json ../../src/sections/signQuad.json
 rm -f renders/job_plate.log
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_plate.py" </dev/null; wait_for renders/job_plate.log
 python make_sign_from_render.py $V
+# the entrance with its gate folded away, and where the gate falls in the picture: the walk folds the gate aside
+python make_entrance_open.py
+rm -f renders/job_gate.log
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_gate.py" </dev/null; wait_for renders/job_gate.log
+node -e "require('module').createRequire('$H/../../package.json')('sharp')('renders/street_entrance_open.png').webp({quality:84}).toFile('$P/entrance_open_$V.webp')"
+cp renders/gate_quad.json ../../src/sections/gateQuad.json
 sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx
 echo "published $V (was $OLD)"
