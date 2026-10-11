@@ -112,7 +112,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 .cap { grid-area: 1 / 1; align-self: end; }
 .cap:not(.hero) { visibility: hidden; opacity: 0; }
 .cap .wide { color: #fff; }
-.cap h1 { font-size: clamp(48px, min(6.4vw, 11.5vh), 112px); }
+.cap h1 { font-size: clamp(44px, min(5.6vw, 9.6vh), 96px); }   /* four short lines: the client's "A Place to Learn. A Place to Become." */
 .cap h2 { font-size: clamp(36px, min(4.2vw, 8.4vh), 72px); }
 .cap .other { color: var(--sky); }
 .cap .body { margin-top: 14px; color: rgb(255 255 255 / .88); max-width: 46ch; font-size: 18px; }
@@ -136,7 +136,7 @@ main > .block, .foot { position: relative; z-index: 1; }
   .sheet { border-radius: 22px; }
   .shade { background: linear-gradient(0deg, rgb(11 26 61 / .88) 0%, rgb(11 26 61 / .6) 30%, rgb(11 26 61 / 0) 56%); }
   .copy { right: calc(var(--gutter) + 46px); width: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-  .cap h1 { font-size: clamp(40px, 11.5vw, 58px); }
+  .cap h1 { font-size: clamp(38px, 10.5vw, 52px); }
   .cap h2 { font-size: clamp(30px, 8.6vw, 42px); }
   .cap .body { font-size: 16px; }
   .cap .meta-line { display: none; }

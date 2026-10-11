@@ -262,8 +262,9 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         </div>
         <div className="copy">
           <div className="cap hero">
-            <h1 className="wide">{t.hero.lines.map((l) => <span className="mask" key={l}><span className="hero-line">{l}</span></span>)}</h1>
+            <h1 className="wide">{t.hero.lines.map((l, i) => <span className="mask" key={i}><span className="hero-line">{l}</span></span>)}</h1>
             <p className="other hero-fade" lang={other}>{t.hero.other}</p>
+            <p className="body hero-fade">{t.hero.body}</p>
             <div className="ctas hero-fade"><a className="btn" href="#admissions">{t.start}</a><a className="btn ghost" href="tel:057525563">{t.call}</a></div>
             <p className="meta-line hero-fade">{t.hero.label}</p>
           </div>
