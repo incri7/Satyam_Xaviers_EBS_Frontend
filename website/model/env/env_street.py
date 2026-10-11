@@ -165,37 +165,19 @@ box('GEO-yellow_wall', -0.3, 3.2, -3.35, -3.12, 0, 1.3, MAT['yellow'])
 box('GEO-yellow_wall_cap', -0.3, 3.2, -3.4, -3.07, 1.3, 1.37, MAT['yellow'])
 box('GEO-brick_wall', 3.2, 24.0, -3.35, -3.12, 0, 1.75, MAT['brick'])
 box('GEO-brick_wall_cap', 3.2, 24.0, -3.4, -3.07, 1.75, 1.82, MAT['pillar'])
-# The signboard stands on two black posts over the yellow wall, along it, its face turned across the
-# driveway (IMG_3014: the phone faced 346 degrees, the board faced back at it). The admission board
-# hangs below it. Faces look towards +L (the driveway's left); the picture reads from deeper in to the road.
+# The signboard stands on two black posts just over the yellow wall, along it, its face turned across
+# the driveway (IMG_3014: the phone faced 346 degrees, the board faced back at it; its bottom edge sits
+# just above the wall's top). Faces look towards +L (the driveway's left); the picture reads from deeper
+# in to the road. (Older Street View also shows an admission board under it; the photos of 11 October
+# do not, so it is left out.)
 SG0, SG1, TS = 0.5, 2.8, -2.98
 sg = gz((SG0 + SG1) / 2, TS)
 for s_ in (SG0 + 0.1, SG1 - 0.1):
-    cylinder(f'GEO-sign_post_{s_}', W(s_, TS - 0.08, sg), 3.7, 0.045, MAT['steel'])
-b0, b1 = sg + 2.35, sg + 3.6          # 2.3 m x 1.25 m board
+    cylinder(f'GEO-sign_post_{s_}', W(s_, TS - 0.08, sg), 2.85, 0.045, MAT['steel'])
+b0, b1 = sg + 1.45, sg + 2.7          # 2.3 m x 1.25 m board, its foot just over the 1.37 m wall
 plane('GEO-signboard', [W(SG1, TS, b0), W(SG0, TS, b0), W(SG0, TS, b1), W(SG1, TS, b1)],
       MAT['sign'], [(0, 0), (1, 0), (1, 1), (0, 1)])
-box('GEO-signboard_back', SG0 - 0.02, SG1 + 0.02, TS - 0.07, TS - 0.02, 2.33, 3.62, MAT['sign_back'])
-def admission_material():
-    m, nt = new_mat('MAT-admission_board')
-    uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'
-    sp = nt.nodes.new('ShaderNodeSeparateXYZ'); nt.links.new(uv.outputs[0], sp.inputs[0])
-    y = sp.outputs['Y']
-    band = math_node(nt, 'LESS_THAN', y, 0.16)
-    head = math_node(nt, 'GREATER_THAN', y, 0.82)
-    # lines of lettering, suggested: not readable at this distance
-    rows = math_node(nt, 'LESS_THAN', math_node(nt, 'FRACT', math_node(nt, 'MULTIPLY', y, 9.0)), 0.45)
-    body = math_node(nt, 'MULTIPLY', math_node(nt, 'GREATER_THAN', y, 0.22), math_node(nt, 'LESS_THAN', y, 0.78))
-    nz = node(nt, 'ShaderNodeTexNoise', (0, 0), Scale=60.0, Detail=2.0); nt.links.new(uv.outputs[0], nz.inputs['Vector'])
-    ln = math_node(nt, 'MULTIPLY', math_node(nt, 'MULTIPLY', rows, body), math_node(nt, 'GREATER_THAN', nz.outputs['Fac'], 0.5))
-    c = mix_col(nt, ln, srgb('#f4f1ea'), srgb('#1f3c8a'))
-    c = mix_col(nt, band, c, srgb('#d0262d')); c = mix_col(nt, head, c, srgb('#1f3c8a'))
-    bb = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=0.5)
-    nt.links.new(c, bb.inputs['Base Color']); finish(nt, bb.outputs[0]); return m
-MAT['admission'] = admission_material()
-plane('GEO-admission_board', [W(SG1 - 0.15, TS, sg + 1.0), W(SG0 + 0.15, TS, sg + 1.0), W(SG0 + 0.15, TS, sg + 2.25), W(SG1 - 0.15, TS, sg + 2.25)],
-      MAT['admission'], [(0, 0), (1, 0), (1, 1), (0, 1)])
-
+box('GEO-signboard_back', SG0 - 0.02, SG1 + 0.02, TS - 0.07, TS - 0.02, 1.43, 2.72, MAT['sign_back'])
 # the blue gate with yellow circles, between two white pillars, in a block wall along the road
 def gate_material():
     m, nt = new_mat('MAT-gate_blue_circles')
