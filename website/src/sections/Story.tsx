@@ -149,7 +149,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         // but its lettering lifts off piece by piece and comes round on a curve to face the viewer; then the
         // blue board swings forward and fills the screen, the cover the first page (About us) slides over.
         rail.u = 0;
-        Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0, g: 0 });
+        Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0, g: 0, z: 0 });
         Object.assign(sign, { lift: 0, fill: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
@@ -160,9 +160,9 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           .set({}, {}, '+=0.4');
 
         // Scene A: back from the page to the sign, then the real way in, the way the school's own people walk
-        // it: from the road's edge straight onto the side path, up to the entrance steps, where the collapsible
-        // gate folds aside and the walk steps into the open doorway. The second page (Programmes) comes up
-        // over it.
+        // it: from the road's edge straight onto the side path, up to the entrance steps. There the collapsible
+        // gate folds aside while the view zooms into the doorway, until the hall behind it fills the screen; the
+        // second page (Programmes) comes up over the hall.
         const a = gsap.timeline({ defaults: { ease: 'none' } });
         const W0 = 2.4;      // the walk starts once the lettering is back on its board
         a.addLabel('hero', 0)
@@ -172,9 +172,9 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 1.8)
           .fromTo(arrive, { d2: 0 }, { d2: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 2.0)
           .fromTo(arrive, { v: 1 }, { v: 2, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 3.4)
-          .fromTo(arrive, { d3: 0 }, { d3: 0.8, duration: 1.6, ease: 'sine.inOut', immediateRender: false }, W0 + 3.6)
-          .fromTo(arrive, { g: 0 }, { g: 1, duration: 1.4, ease: 'power1.inOut', immediateRender: false }, W0 + 4.8)
-          .fromTo(arrive, { d3: 0.8 }, { d3: 1.3, duration: 1.3, ease: 'sine.inOut', immediateRender: false }, W0 + 5.6)
+          .fromTo(arrive, { d3: 0 }, { d3: 0.4, duration: 1.4, ease: 'sine.inOut', immediateRender: false }, W0 + 3.6)
+          .fromTo(arrive, { g: 0 }, { g: 1, duration: 1.8, ease: 'power1.inOut', immediateRender: false }, W0 + 4.6)
+          .fromTo(arrive, { z: 0 }, { z: 1, duration: 1.9, ease: 'sine.inOut', immediateRender: false }, W0 + 4.9)
           .set({}, {}, '+=0.3');
 
         // Scenes B to D: back out of one object, walk, into the next. Scene B starts at the open entrance
@@ -184,8 +184,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           const tl = gsap.timeline({ defaults: { ease: 'none' } });
           let start = STOP[from.stop], t0 = 0.3;
           if (k === 0) {
-            tl.fromTo(arrive, { d3: 1.3 }, { d3: 1.7, duration: 1.6, ease: 'sine.in', immediateRender: false }, 0)
-              .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 0.2)
+            tl.fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 0.2)
               .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 1.2);
             start = STOP.room; t0 = 3.85;
           } else coverOut(tl, from.kind);
@@ -240,7 +239,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
     // so its first frames are drawn before anyone sees them.
     const poll = () => {
       setInside(cam.ext < 0.4 && cam.lens > 0.5 && arrive.o < 0.5); setAtPortal(cam.lens < 0.5);
-      setCovered(arrive.o >= 0.999 && arrive.d3 < 1.32);
+      setCovered(arrive.o >= 0.999 && arrive.z < 0.98);
     };
     gsap.ticker.add(poll);
     return () => { gsap.ticker.remove(poll); ro.disconnect(); clearTimeout(timer); ctx?.revert(); };
