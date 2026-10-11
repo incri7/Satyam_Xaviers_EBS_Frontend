@@ -160,19 +160,22 @@ strip('GEO-driveway', -0.2, 30.5, -3.1, 5.8, MAT['drive'])
 strip('GEO-school_forecourt', 20.0, 31.0, -8.0, 9.0, MAT['drive'], lift=0.05)
 
 # --- right side: brick wall along the driveway, the signboard at its start, the gate on the road ------------------
-box('GEO-brick_wall', 2.6, 24.0, -3.35, -3.12, 0, 1.75, MAT['brick'])
-box('GEO-brick_wall_cap', 2.6, 24.0, -3.4, -3.07, 1.75, 1.82, MAT['pillar'])
-box('GEO-yellow_low_wall', 2.2, 3.4, -4.9, -2.2, 0, 1.05, MAT['yellow'])
-# the signboard on two black posts, facing the road (its face looks along -U); the admission board below it
-SS = 2.0
-sg = gz(SS, -3.6)
-for t in (-2.55, -4.65):
-    cylinder(f'GEO-sign_post_{t}', W(SS + 0.05, t, sg), 3.7, 0.045, MAT['steel'])
+# The right-hand wall: a short run of yellow plaster at the mouth, then brick deeper in (IMG_3014).
+box('GEO-yellow_wall', -0.3, 3.2, -3.35, -3.12, 0, 1.3, MAT['yellow'])
+box('GEO-yellow_wall_cap', -0.3, 3.2, -3.4, -3.07, 1.3, 1.37, MAT['yellow'])
+box('GEO-brick_wall', 3.2, 24.0, -3.35, -3.12, 0, 1.75, MAT['brick'])
+box('GEO-brick_wall_cap', 3.2, 24.0, -3.4, -3.07, 1.75, 1.82, MAT['pillar'])
+# The signboard stands on two black posts over the yellow wall, along it, its face turned across the
+# driveway (IMG_3014: the phone faced 346 degrees, the board faced back at it). The admission board
+# hangs below it. Faces look towards +L (the driveway's left); the picture reads from deeper in to the road.
+SG0, SG1, TS = 0.5, 2.8, -2.98
+sg = gz((SG0 + SG1) / 2, TS)
+for s_ in (SG0 + 0.1, SG1 - 0.1):
+    cylinder(f'GEO-sign_post_{s_}', W(s_, TS - 0.08, sg), 3.7, 0.045, MAT['steel'])
 b0, b1 = sg + 2.35, sg + 3.6          # 2.3 m x 1.25 m board
-plane('GEO-signboard', [W(SS, -2.4, b0), W(SS, -4.8, b0), W(SS, -4.8, b1), W(SS, -2.4, b1)],
+plane('GEO-signboard', [W(SG1, TS, b0), W(SG0, TS, b0), W(SG0, TS, b1), W(SG1, TS, b1)],
       MAT['sign'], [(0, 0), (1, 0), (1, 1), (0, 1)])
-box('GEO-signboard_back', SS + 0.02, SS + 0.07, -4.82, -2.38, 2.33, 3.62, MAT['sign_back'])
-
+box('GEO-signboard_back', SG0 - 0.02, SG1 + 0.02, TS - 0.07, TS - 0.02, 2.33, 3.62, MAT['sign_back'])
 def admission_material():
     m, nt = new_mat('MAT-admission_board')
     uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'
@@ -190,7 +193,7 @@ def admission_material():
     bb = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=0.5)
     nt.links.new(c, bb.inputs['Base Color']); finish(nt, bb.outputs[0]); return m
 MAT['admission'] = admission_material()
-plane('GEO-admission_board', [W(SS, -2.6, sg + 0.95), W(SS, -4.6, sg + 0.95), W(SS, -4.6, sg + 2.25), W(SS, -2.6, sg + 2.25)],
+plane('GEO-admission_board', [W(SG1 - 0.15, TS, sg + 1.0), W(SG0 + 0.15, TS, sg + 1.0), W(SG0 + 0.15, TS, sg + 2.25), W(SG1 - 0.15, TS, sg + 2.25)],
       MAT['admission'], [(0, 0), (1, 0), (1, 1), (0, 1)])
 
 # the blue gate with yellow circles, between two white pillars, in a block wall along the road
