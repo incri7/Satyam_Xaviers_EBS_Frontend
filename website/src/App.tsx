@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { scroller } from './scroll';
+import { playToIntro, scroller } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -51,6 +51,13 @@ export function Layout() {
 
   // A new page starts at the top (or at its #section).
   useEffect(() => {
+    // #intro (About in the nav, from another page): start at the top and play the sign into the first page
+    if (hash === '#intro') {
+      if (lenis) lenis.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0);
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+      const id = window.setTimeout(() => playToIntro(), 450);
+      return () => clearTimeout(id);
+    }
     const el = hash ? document.querySelector(hash) : null;
     if (el) (lenis ? lenis.scrollTo(el as HTMLElement, { immediate: true }) : el.scrollIntoView());
     else if (lenis) lenis.scrollTo(0, { immediate: true });

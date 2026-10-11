@@ -1,8 +1,9 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
+import { playToIntro } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
-const PAGES = ['programmes', 'about', 'gallery', 'admissions', 'news', 'contact'] as const;
+const PAGES = ['about', 'programmes', 'gallery', 'admissions', 'news', 'contact'] as const;
 
 export function Nav() {
   const lang = useLang();
@@ -13,7 +14,10 @@ export function Nav() {
     <header className="nav">
       <Link className="brand" to={pagePath(lang)}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
       <ul>
-        {PAGES.map((p) => <li key={p}><NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink></li>)}
+        {PAGES.map((p) => <li key={p}>{p === 'about'
+          // About opens the home story's first page: the sign's lettering lifts off and its board becomes the page
+          ? <Link to={{ pathname: pagePath(lang), hash: '#intro' }} onClick={(e) => { if (pathname === pagePath(lang) && playToIntro()) e.preventDefault(); }}>{t.nav[p]}</Link>
+          : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>)}
       </ul>
       <div className="nav-end">
         <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
