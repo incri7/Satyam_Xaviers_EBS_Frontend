@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { playToIntro, scroller } from './scroll';
+import { playToIntro, restorePlace, scroller } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -49,8 +49,17 @@ export function Layout() {
     return () => { live = false; };
   }, []);
 
-  // A new page starts at the top (or at its #section).
+  // A new page starts at the top (or at its #section). A change of language is not a new page: the reader stays
+  // where they were, in the other language.
+  const last = useRef('');
   useEffect(() => {
+    const here = (pathname.replace(/^\/ne(?=\/|$)/, '') || '/') + hash;
+    const sameStop = here === last.current;
+    last.current = here;
+    if (sameStop) {
+      if (restorePlace()) requestAnimationFrame(() => ScrollTrigger.refresh());
+      return;
+    }
     // #intro (About in the nav, from another page): start at the top and play the sign into the first page
     if (hash === '#intro') {
       if (lenis) lenis.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0);

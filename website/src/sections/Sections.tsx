@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { playToIntro } from '../scroll';
+import { playToIntro, rememberPlace } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
@@ -20,7 +20,7 @@ export function Nav() {
           : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>)}
       </ul>
       <div className="nav-end">
-        <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
+        <Link className="lang" to={switched} lang={otherLang(lang)} preventScrollReset onClick={rememberPlace}>{t.switchTo}</Link>
         {/* The school app (parents, teachers, staff) lives on the same domain at /login: a full page load. */}
         <a className="btn line login" href="/login">{t.login}</a>
       </div>

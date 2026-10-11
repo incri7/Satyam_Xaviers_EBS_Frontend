@@ -9,6 +9,36 @@ export function scrollToY(y: number, duration: number) {
   else window.scrollTo({ top: y });
 }
 
+/** The reader's place, kept across a change of language: the innermost section at the top of the screen and how
+    far into it they are. The other language's words run longer or shorter, so a bare scroll offset would drift;
+    the same section, the same distance in, does not. */
+let place: { i: number; f: number } | null = null;
+const anchors = () => Array.from(document.querySelectorAll<HTMLElement>('main section, main header, main figure'));
+
+export function rememberPlace() {
+  let i = -1, f = window.scrollY;
+  anchors().forEach((el, k) => {
+    const r = el.getBoundingClientRect();
+    if (r.height > 0 && r.top <= 0 && r.bottom > 0) { i = k; f = -r.top / r.height; }
+  });
+  place = { i, f };
+}
+
+/** Puts the reader back at the remembered place, if there is one; true when it did. */
+export function restorePlace() {
+  const p = place; place = null;
+  if (!p) return false;
+  let y = p.f;
+  if (p.i >= 0) {
+    const el = anchors()[p.i];
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    y = r.top + window.scrollY + p.f * r.height;
+  }
+  if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y);
+  return true;
+}
+
 /** "About" in the nav, on the home page: scrolls the story for the visitor until the sign has become the first
     page's cover (its lettering lifted off, its board filling the screen), and stops there; scrolling on brings the
     page up. Slow enough to watch: about 3.2 s a screen (at least 5 s), eased in and out. */

@@ -8,7 +8,7 @@ import { Gallery } from './pages/Gallery';
 import './styles.css';
 import './pages.css';
 
-/** One set of pages, mounted twice: English at the root, Nepali under /ne. */
+/** One set of pages: English at the root, Nepali under /ne. */
 const pages = [
   { index: true, element: <Home /> },
   { path: 'about', element: <About /> },
@@ -27,9 +27,10 @@ function FromEn() {
   return <Navigate to={(pathname.replace(/^\/en(?=\/|$)/, '') || '/') + hash} replace />;
 }
 
+// One route for both languages ('/ne' is an optional segment), so switching language keeps the page mounted:
+// the story, its 3D scene and the reader's place stay where they are, and only the words change.
 const router = createBrowserRouter([
-  { path: '/', element: <Layout />, children: pages },
-  { path: '/ne', element: <Layout />, children: pages },
+  { path: '/ne?', element: <Layout />, children: pages },
   { path: '/en/*', element: <FromEn /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
