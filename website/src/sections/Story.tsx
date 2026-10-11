@@ -2,13 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
-import { cam, light, photos, rise, rail, STOP, SURFACES, fitRegion, type Stop, type SurfaceId } from '../three/rig';
+import { arrive, cam, light, photos, rise, rail, STOP, SURFACES, fitRegion, type Stop, type SurfaceId } from '../three/rig';
 import { coverReady, drawCoverView } from '../covers';
 import { pages } from '../pages/pages';
 import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
 import { AboutBody } from '../pages/About';
 import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
+import { Arrival } from './Arrival';
 
 gsap.registerPlugin(ScrollTrigger);
 if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
@@ -18,8 +19,10 @@ type Tier = 'desktop' | 'mobile';
 
 /* Storyline v4 (website/docs/storyline-v4.md). Each chapter: a scene walks to an object, the object
    becomes a page, and the next scene turns the page back into the object and walks on.
-     hero → board → Programmes → book → About → laptop → Gallery → gate sign → Admissions → end
-   One fixed stage sits behind it all.
+     the real street → down the driveway → board → Programmes → book → About → laptop → Gallery
+     → gate sign → Admissions → end
+   One fixed stage sits behind it all. It opens on the school's real street (Arrival, website/model/env),
+   which dissolves into the 3D classroom as the walk goes through the door.
 
    Ownership (web3d-integration-patterns): GSAP owns every continuous value (the camera rail, the
    cover overlays, captions); React owns discrete state (ready, inside a room, at a portal).
@@ -44,16 +47,17 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
   const [inside, setInside] = useState(false);
   const [atPortal, setAtPortal] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [covered, setCovered] = useState(true);
   const doneRef = useRef(false);
-  const onProgress = useCallback((pr: number, done: boolean) => {
-    setProgress(pr);
-    if (done && !doneRef.current) { doneRef.current = true; setReady(true); }
-  }, []);
-  // If the 3D scene can't load (no WebGL, slow network), the page must not wait forever.
+  const lift = useCallback(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, []);
+  // The curtain lifts on the street (Arrival, half a megabyte): the 3D scene keeps loading behind it,
+  // and is only needed once the walk reaches the door.
+  const onProgress = useCallback((pr: number) => setProgress((p) => Math.max(p, pr)), []);
+  // If nothing can load (slow network), the page must not wait forever.
   useEffect(() => {
-    const id = setTimeout(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, 12000);
+    const id = setTimeout(lift, 12000);
     return () => clearTimeout(id);
-  }, []);
+  }, [lift]);
 
   // Render the 3D scene only while a scene is on screen; over a page it rests.
   useEffect(() => {
@@ -139,13 +143,20 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
         const coverOut = (tl: gsap.core.Timeline, kind: SurfaceId) =>
           tl.fromTo(`.cover-view[data-kind="${kind}"]`, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.35, ease: 'power1.inOut', immediateRender: false }, 0.001);
 
-        // Scene A: the hero, across the yard, into the classroom, up to the board.
+        // Scene A: the real street, down the driveway, through the door into the classroom, up to the
+        // board. The arrival layer covers the 3D scene until the walk reaches the door; it keeps walking
+        // forward while it dissolves, so the street becomes the classroom in one movement.
         rail.u = 0;
+        Object.assign(arrive, { o: 1, d0: 0, d1: 0, mix: 0 });
         const a = gsap.timeline({ defaults: { ease: 'none' } });
         a.addLabel('hero', 0)
           .to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.5)
           .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.5)
-          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 0.55)
+          .fromTo(arrive, { d0: 0 }, { d0: 1, duration: 2.2, ease: 'sine.in', immediateRender: false }, 0.3)
+          .fromTo(arrive, { mix: 0 }, { mix: 1, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, 1.9)
+          .fromTo(arrive, { d1: 0 }, { d1: 1.35, duration: 3.1, ease: 'sine.inOut', immediateRender: false }, 2.0)
+          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 3.0)
+          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 4.3)
           .addLabel('room')
           // The text shade goes before the board arrives: nothing may tint a surface at its handoff.
           .to('.shade', { autoAlpha: 0, duration: 0.6 }, 'room-=0.6')
@@ -204,7 +215,12 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
     });
     if (root.current) ro.observe(root.current);
 
-    const poll = () => { setInside(cam.ext < 0.4 && cam.lens > 0.5); setAtPortal(cam.lens < 0.5); };
+    // While the street covers the stage the 3D scene rests; it wakes a little before the dissolve,
+    // so its first frames are drawn before anyone sees them.
+    const poll = () => {
+      setInside(cam.ext < 0.4 && cam.lens > 0.5 && arrive.o < 0.5); setAtPortal(cam.lens < 0.5);
+      setCovered(arrive.o >= 0.999 && arrive.d1 < 0.8);
+    };
     gsap.ticker.add(poll);
     return () => { gsap.ticker.remove(poll); ro.disconnect(); clearTimeout(timer); ctx?.revert(); };
   }, [reduce]);
@@ -229,8 +245,9 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
     <div className="story" ref={root}>
       <div className={'stage morning' + (ready ? ' ready' : '') + (atPortal ? ' at-portal' : '')}>
         <Suspense fallback={null}>
-          <Experience tier={tier} reduce={reduce} active={active} lang={lang} onProgress={onProgress} />
+          <Experience tier={tier} reduce={reduce} active={active && !covered} lang={lang} onProgress={onProgress} />
         </Suspense>
+        <Arrival reduce={reduce} onReady={lift} />
         <div className="shade" aria-hidden="true" />
         {CHAPTERS.map(({ kind }) => <canvas key={kind} className="cover-view" data-kind={kind} ref={(el) => { covers.current[kind] = el; }} aria-hidden="true" />)}
         <div className="curtain" aria-hidden="true">
