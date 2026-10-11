@@ -121,7 +121,7 @@ export const photos = { f0: 0, f1: 0, f2: 0, f3: 0 } as Record<string, number>;
 export const rise = { f0: 0, f1: 0, f2: 0, f3: 0, roof: 0, tower: 0, gate: 0, students: 0 } as Record<string, number>;
 export const pointer = { x: 0, y: 0 };
 /** The arrival along the real way in (sections/Arrival.tsx), before the walk goes inside. o: its opacity
-    (1 covers the 3D scene); v: which view, 0 the street, 1 the driveway, 2 the side path, 3 the entrance
+    (1 covers the 3D scene); v: which view, 0 the street, 1 the side path, 2 the entrance (d1, the driveway's, is unused)
     steps, fractions crossfading; d0..d3: how far each view has been walked into. */
 export const arrive = { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering

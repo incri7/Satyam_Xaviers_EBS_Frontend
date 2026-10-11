@@ -5,8 +5,7 @@ import { arrive, pointer, sign } from '../three/rig';
 /**
  * The arrival: the real way into the school, before the story goes inside. Renders of the real place
  * (website/model/env), each with a depth map, moved in 2.5D: from the road's edge in front of the driveway,
- * down the driveway (where the client took IMG_3017), round the corner onto the side path, and to the foot
- * of the entrance steps (IMG_3055). Scrolling (Story's timeline) walks into each view, crossfades to the
+ * straight onto the side path, and to the foot of the entrance steps (IMG_3055). Scrolling (Story's timeline) walks into each view, crossfades to the
  * next, and dissolves into the classroom. About 1 MB, no three.js: it is on screen while the 3D scene loads.
  */
 /** The opening picture: its size and the point its cover-fit keeps in view. SignIntro places the signboard
@@ -14,11 +13,11 @@ import { arrive, pointer, sign } from '../three/rig';
 export const STREET = { size: [1920, 1024], focus: [0.5, 0.66] } as const;
 const VIEWS = [
   { name: 'street', focus: STREET.focus, dolly: 0.55 },
-  { name: 'driveway', focus: [0.53, 0.62], dolly: 0.6 },
   { name: 'sidepath', focus: [0.55, 0.56], dolly: 0.5 },
   { name: 'entrance', focus: [0.53, 0.6], dolly: 0.45 },
 ].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10120049.webp`, depth: `/models/env/${w.name}_depth_10120049.png` }));
-const DOLLY = ['d0', 'd1', 'd2', 'd3'] as const;
+// The driveway view is rendered but not walked: from the road the walk turns straight onto the side path.
+const DOLLY = ['d0', 'd2', 'd3'] as const;
 
 const VERT = `attribute vec2 p; varying vec2 v; void main() { v = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
 const FRAG = `precision highp float;

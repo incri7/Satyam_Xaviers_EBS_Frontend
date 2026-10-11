@@ -21,7 +21,7 @@ type Tier = 'desktop' | 'mobile';
 
 /* Storyline v4 (website/docs/storyline-v4.md). Each chapter: a scene walks to an object, the object
    becomes a page, and the next scene turns the page back into the object and walks on.
-     the road → down the driveway → the side path → the entrance steps → board → Programmes → book
+     the road → the side path → the entrance steps → board → Programmes → book
      → About → laptop → Gallery → gate sign → Admissions → end
    One fixed stage sits behind it all. It opens on the school's real street (Arrival, website/model/env),
    which dissolves into the 3D classroom as the walk goes through the door.
@@ -160,8 +160,7 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           .set({}, {}, '+=0.4');
 
         // Scene A: back from the page to the sign, then the real way in, the way the school's own people walk
-        // it: from the road's edge, down the driveway, round the corner onto the side path, to the entrance
-        // steps; then through the door into the classroom and up to the board. The arrival layer covers the 3D
+        // it: from the road's edge straight onto the side path, to the entrance steps; then through the door into the classroom and up to the board. The arrival layer covers the 3D
         // scene until the walk reaches the door; it keeps walking forward while it dissolves, so the entrance
         // becomes the classroom in one move.
         const a = gsap.timeline({ defaults: { ease: 'none' } });
@@ -171,13 +170,11 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
           .fromTo(sign, { lift: 1 }, { lift: 0, duration: 1.3, immediateRender: false }, 0.9)
           .fromTo(arrive, { d0: 0 }, { d0: 1, duration: 2.0, ease: 'sine.in', immediateRender: false }, W0 + 0.3)
           .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 1.8)
-          .fromTo(arrive, { d1: 0 }, { d1: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 2.0)
+          .fromTo(arrive, { d2: 0 }, { d2: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 2.0)
           .fromTo(arrive, { v: 1 }, { v: 2, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 3.4)
-          .fromTo(arrive, { d2: 0 }, { d2: 1, duration: 1.8, ease: 'sine.inOut', immediateRender: false }, W0 + 3.6)
-          .fromTo(arrive, { v: 2 }, { v: 3, duration: 0.8, ease: 'sine.inOut', immediateRender: false }, W0 + 5.0)
-          .fromTo(arrive, { d3: 0 }, { d3: 1.3, duration: 2.6, ease: 'sine.inOut', immediateRender: false }, W0 + 5.2)
-          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, W0 + 5.6)
-          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, W0 + 6.9)
+          .fromTo(arrive, { d3: 0 }, { d3: 1.3, duration: 2.6, ease: 'sine.inOut', immediateRender: false }, W0 + 3.6)
+          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, W0 + 4.0)
+          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, W0 + 5.3)
           .addLabel('room')
           .to(rail, { u: STOP.board, duration: 1.3, ease: 'power2.inOut' }, '+=0.45');
         coverIn(a, 'board').set({}, {}, '+=0.05');
