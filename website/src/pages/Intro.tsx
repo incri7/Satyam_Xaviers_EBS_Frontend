@@ -9,8 +9,8 @@ import './intro.css';
 gsap.registerPlugin(ScrollTrigger);
 
 /** The first page of the home story, opened by the school's own signboard (SignIntro): the board fills the
-    screen and the page is that board, in its navy, its enamel-white lettering and its gold. The words are the
-    client's About section (their draft website doc, 11 October 2026), in their order. */
+    screen and the page's opening band is that board; below it the page wears the app's own colours. The
+    words are the client's About section (their draft website doc, 11 October 2026), in their order. */
 const COPY = {
   en: {
     title: 'Our story.', other: 'हाम्रो कथा।',
@@ -106,7 +106,7 @@ export function IntroBody() {
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
 
-  // Three moments of motion, each tied to what it shows: a gold line paints across the four chapters as the
+  // Three moments of motion, each tied to what it shows: a line draws across the four chapters as the
   // reader passes them, lighting each year in turn; the thirteen steps rise one after another; 3.96 counts up.
   useLayoutEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -140,13 +140,13 @@ export function IntroBody() {
       </header>
 
       <section className="bp-block" aria-labelledby="bp-chapters">
-        <h3 className="bp-h painted" id="bp-chapters">{c.chaptersTitle}</h3>
+        <h3 className="bp-h wide" id="bp-chapters">{c.chaptersTitle}</h3>
         <div className="chapters">
           <span className="ch-line" aria-hidden="true"><i /></span>
           <ol>
           {c.chapters.map(([ne, en, head, body]) => (
             <li className="ch" key={en}>
-              <span className="ch-year painted" aria-label={`${en} BS`}>{lang === 'ne' ? ne : en}<small>{lang === 'ne' ? 'वि.सं.' : 'BS'}</small></span>
+              <span className="ch-year" aria-label={`${en} BS`}>{lang === 'ne' ? ne : en}<small>{lang === 'ne' ? 'वि.सं.' : 'BS'}</small></span>
               <b>{head}</b>
               <p>{body}</p>
             </li>
@@ -158,7 +158,7 @@ export function IntroBody() {
 
       <section className="bp-block levels" aria-labelledby="bp-levels">
         <div className="levels-text">
-          <h3 className="bp-h painted" id="bp-levels">{c.levelsTitle}</h3>
+          <h3 className="bp-h wide" id="bp-levels">{c.levelsTitle}</h3>
           <p className="bp-lede">{c.levelsLede}</p>
           <dl className="glance">{c.glance.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
         </div>
@@ -174,8 +174,8 @@ export function IntroBody() {
         </figure>
       </section>
 
-      <section className="bp-block principal" aria-labelledby="bp-principal">
-        <h3 className="bp-h painted" id="bp-principal">{c.principalTitle}</h3>
+      <section className="bp-block bp-band principal" aria-labelledby="bp-principal">
+        <h3 className="bp-h wide" id="bp-principal">{c.principalTitle}</h3>
         <blockquote>
           {c.quote.map((q) => <p key={q}>{q}</p>)}
           <p className="quote-end">{c.quoteEnd}</p>
@@ -184,7 +184,7 @@ export function IntroBody() {
       </section>
 
       <section className="bp-block proud" aria-labelledby="bp-proud">
-        <h3 className="bp-h painted" id="bp-proud">{c.proudTitle}</h3>
+        <h3 className="bp-h wide" id="bp-proud">{c.proudTitle}</h3>
         <div className="proud-grid">
           <figure className="gpa"><Photo name="gpa" alt="" ratio="4 / 5" /><figcaption><b>3.96</b><span>{c.gpaLabel}</span></figcaption></figure>
           {c.proud.map(([img, h, b]) => (
@@ -194,7 +194,7 @@ export function IntroBody() {
       </section>
 
       <section className="bp-block beyond" aria-labelledby="bp-beyond">
-        <h3 className="bp-h painted" id="bp-beyond">{c.beyondTitle}</h3>
+        <h3 className="bp-h wide" id="bp-beyond">{c.beyondTitle}</h3>
         <div className="mosaic">
           {c.beyond.map(([img, h, b], i) => (
             <figure key={h} className={'m' + i}><Photo name={img} alt="" /><figcaption><b>{h}</b><span>{b}</span></figcaption></figure>
@@ -203,16 +203,16 @@ export function IntroBody() {
       </section>
 
       <section className="bp-block values" aria-labelledby="bp-values">
-        <h3 className="bp-h painted" id="bp-values">{c.valuesTitle}</h3>
-        <dl className="value-list">{c.values.map(([k, v]) => <div key={k}><dt className="painted">{k}</dt><dd>{v}</dd></div>)}</dl>
+        <h3 className="bp-h wide" id="bp-values">{c.valuesTitle}</h3>
+        <dl className="value-list">{c.values.map(([k, v]) => <div key={k}><dt className="wide">{k}</dt><dd>{v}</dd></div>)}</dl>
       </section>
 
       <section className="bp-block join" aria-labelledby="bp-join">
-        <h3 className="bp-h painted" id="bp-join">{c.joinTitle}</h3>
+        <h3 className="bp-h wide" id="bp-join">{c.joinTitle}</h3>
         <p className="bp-lede">{c.join}</p>
         <div className="join-links">
-          <Link className="bp-btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link>
-          <Link className="bp-btn ghost" to={pagePath(lang, 'contact')}>{c.contact}</Link>
+          <Link className="btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link>
+          <Link className="btn line" to={pagePath(lang, 'contact')}>{c.contact}</Link>
         </div>
       </section>
     </div>
