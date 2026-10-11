@@ -94,13 +94,19 @@ main > .block, .foot { position: relative; z-index: 1; }
 .stage canvas { position: absolute !important; inset: 0; }
 /* The real street (Arrival): over the 3D scene until the walk reaches the door, under the text. */
 .stage .arrival { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
-/* The first scroll (SignIntro): the signboard's lettering lifts off and the board fills the screen. Each piece is
-   placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
-.sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; }
+/* The first scroll (SignIntro): the signboard, repainted clean, lifts its lettering and fills the screen. Each
+   piece is placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
+.sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; opacity: 0; }
 .sign-board, .sign-part { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
-.sign-board img { display: block; width: 100%; height: 100%; }
-.sign-board-plain { position: absolute; inset: 0; background: #1f3c66; opacity: 0; }   /* the sign's blue, even, once the board is the page's cover */
-.sign-part { opacity: 0; max-width: none; }
+.sign-part { overflow: visible; }
+/* Enamel paint on a board: the sign's own blue, a little brushed, darker towards its edges, and the painted
+   keyline every hand-lettered sign is framed with. */
+.sign-board {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
+    radial-gradient(120% 95% at 50% 42%, #2157AA 0%, #1D4E9E 46%, #123A7A 100%);
+}
+.sign-board::after { content: ""; position: absolute; inset: 22px; border: 5px solid rgb(246 242 231 / .82); border-radius: 10px; }
 .scene-sign { height: 360vh; }
 .stage-who { display: block; margin: 2px 0 6px; font-size: 14px; color: var(--slate); }
 

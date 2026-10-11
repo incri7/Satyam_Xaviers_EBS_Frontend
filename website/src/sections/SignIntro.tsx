@@ -1,22 +1,83 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import gsap from 'gsap';
 import { sign } from '../three/rig';
 import { STREET } from './Arrival';
 import QUAD from './signQuad.json';      // from model/env/job_sign_quad.py
-import PARTS from './signParts.json';
 
 /**
- * The first scroll. The school's own signboard stands in the opening view (Arrival's first picture). Its
- * lettering lifts off the board, piece by piece, and comes round on a curve to face the viewer; then the
- * blue board swings forward and fills the screen: the cover of the first page.
+ * The first scroll. The school's own signboard stands in the opening view (Arrival's first picture). As the
+ * scroll begins, a clean repainting of it fades in exactly over the painted one; then its lettering lifts off,
+ * piece by piece, and comes round on curves to face the viewer, and the enamel-blue board swings forward and
+ * fills the screen: the cover of the first page.
  *
- * The pieces are cut from the client's photo of the sign (website/model/env/make_sign_parts.py); where the
- * board's corners fall in the opening render is measured in Blender (job_sign_quad.py). Each piece is an
- * <img> warped by a CSS matrix3d from four corners, so it can sit exactly on the board in perspective and
- * end flat on the screen. Nothing here draws until the scroll starts: until then the render's own sign shows.
+ * The sign is redrawn, not cut from the photo: the same composition and words as the real board (IMG_3014),
+ * in crisp type with a sign-painter's hard shadow. Each piece is its own <svg>, warped by a CSS matrix3d from
+ * four corners, so it can sit on the board in perspective and end flat on the screen. Board units: 1600 x 860,
+ * the squared-up photo the 3D board is textured with.
  */
 type P = [number, number];
-const ORDER = ['phone_l', 'arch', 'crest', 'hetauda', 'chisapani', 'phone_r', 'nepali'] as const;
+const BW = 1600, BH = 860;
+const INK = '#0E2A5C', WHITE = '#F6F2E7', MARIGOLD = '#F4B63F';
+const DISPLAY = '"Bricolage Grotesque", "Mukta", system-ui, sans-serif';
+
+/** Painted lettering: the words, and the same words a few units down-right in ink, as a sign painter shadows. */
+function Painted({ children, fill = WHITE, dx = 4, dy = 5 }: { children: ReactNode; fill?: string; dx?: number; dy?: number }) {
+  return (
+    <>
+      <g fill={INK} color={INK} transform={`translate(${dx} ${dy})`}>{children}</g>
+      <g fill={fill} color={fill}>{children}</g>
+    </>
+  );
+}
+/** Sign-painter capitals: each word's first letter a size up. */
+const Caps = ({ words, size }: { words: string[]; size: number }) => (
+  <>{words.map((w, i) => (
+    <tspan key={i}><tspan fontSize={size * 1.28}>{w[0]}</tspan>{w.slice(1)}{i < words.length - 1 ? ' ' : ''}</tspan>
+  ))}</>
+);
+const Phone = ({ x, y, number }: { x: number; y: number; number: string }) => (
+  <>
+    <path transform={`translate(${x} ${y - 50}) scale(2.3)`} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinejoin="round"
+      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    <text x={x + 72} y={y} fontSize={52} fontWeight={700} letterSpacing={1.5}>{number}</text>
+  </>
+);
+
+/** The pieces: each a box on the board (board units) and what is painted in it. Order is lift order. */
+const PIECES: { name: string; box: [number, number, number, number]; paint: ReactNode }[] = [
+  { name: 'phone_l', box: [44, 36, 500, 100], paint: <Painted><Phone x={60} y={108} number="057-525563" /></Painted> },
+  {
+    name: 'arch', box: [40, 70, 1520, 680],
+    paint: (
+      <>
+        <path id="sx-arch" d="M 150 705 A 650 565 0 0 1 1450 705" fill="none" />
+        <Painted>
+          {/* the arc is about 1,910 units long; a fixed length keeps every letter on it, in any font */}
+          <text fontSize={76} fontWeight={800}>
+            <textPath href="#sx-arch" startOffset="50%" textAnchor="middle" textLength={1780} lengthAdjust="spacingAndGlyphs"><Caps size={76} words={['SATYAM', "XAVIER'S", 'SECONDARY', 'BOARDING', 'SCHOOL']} /></textPath>
+          </text>
+        </Painted>
+      </>
+    ),
+  },
+  {
+    name: 'crest', box: [600, 220, 400, 400],
+    paint: (
+      <>
+        <circle cx={800} cy={420} r={186} fill={INK} transform="translate(5 6)" />
+        <circle cx={800} cy={420} r={186} fill={WHITE} />
+        <image href="/photos/crest.png" x={624} y={244} width={352} height={352} />
+      </>
+    ),
+  },
+  { name: 'hetauda', box: [240, 470, 380, 100], paint: <Painted><text x={430} y={545} fontSize={60} fontWeight={800} textAnchor="middle" letterSpacing={2}>HETAUDA-4</text></Painted> },
+  { name: 'chisapani', box: [980, 470, 380, 100], paint: <Painted><text x={1170} y={545} fontSize={60} fontWeight={800} textAnchor="middle" letterSpacing={2}>CHISAPANI</text></Painted> },
+  { name: 'phone_r', box: [1100, 36, 460, 100], paint: <Painted><Phone x={1116} y={108} number="057-523452" /></Painted> },
+  {
+    name: 'nepali', box: [110, 650, 1380, 190],
+    paint: <Painted fill={MARIGOLD}><text x={800} y={790} fontSize={112} fontWeight={800} textAnchor="middle" textLength={1300} lengthAdjust="spacingAndGlyphs" style={{ fontFamily: '"Mukta", sans-serif' }}>सत्यम् जेभियर्स माध्यमिक बोर्डिङ स्कूल</text></Painted>,
+  },
+];
 const STAGGER = 0.07;
 
 /** The projective map of the unit square onto a quad (tl, tr, br, bl): Heckbert's square-to-quad. */
@@ -44,7 +105,7 @@ function matrix3d(q: P[], w: number, hgt: number) {
   return `matrix3d(${a},${b},0,${g},${c},${d},0,${h},0,0,1,0,${m.e},${m.f},0,1)`;
 }
 
-/** Where a pixel of the opening render lands on the screen: Arrival's cover-fit, kept in step with its shader. */
+/** Where a pixel of the opening render lands on the stage: Arrival's cover-fit, kept in step with its shader. */
 function imageToScreen([x, y]: P, vw: number, vh: number): P {
   const [iw, ih] = STREET.size, [fx, fy] = STREET.focus;
   const va = vw / vh, ia = iw / ih;
@@ -54,6 +115,7 @@ function imageToScreen([x, y]: P, vw: number, vh: number): P {
   return [u * vw, v * vh];
 }
 
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const ease = (t: number) => t * t * (3 - 2 * t);
 const lerp = (a: P, b: P, t: number): P => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const bezier = (a: P, c: P, b: P, t: number): P => lerp(lerp(a, c, t), lerp(c, b, t), t);
@@ -64,48 +126,46 @@ export function SignIntro() {
   useEffect(() => {
     const el = root.current!;
     const board = el.querySelector<HTMLDivElement>('.sign-board')!;
-    const plain = el.querySelector<HTMLDivElement>('.sign-board-plain')!;
-    const imgs = ORDER.map((n) => el.querySelector<HTMLImageElement>(`[data-part="${n}"]`)!);
-    const [BW, BH] = PARTS.board;
+    const svgs = PIECES.map((p) => el.querySelector<SVGSVGElement>(`[data-part="${p.name}"]`)!);
     let shown = false;
 
     const frame = () => {
       const on = sign.lift > 0.0005 || sign.fill > 0.0005;
       if (on !== shown) { shown = on; el.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
-      const vw = innerWidth, vh = innerHeight;
-      // the board where it stands in the street, and where it ends: covering the whole screen
+      const vw = el.clientWidth, vh = el.clientHeight;      // the stage, not the window: no scrollbar in it
+      // the clean sign fades in exactly over the painted one before anything moves
+      el.style.opacity = String(Math.max(clamp01(sign.lift / 0.08), clamp01(sign.fill * 4)));
+
+      // the board where it stands in the street, and where it ends: covering the stage
       const onWall = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh));
-      const scale = Math.max(vw / BW, vh / BH) * 1.04;
+      const scale = Math.max(vw / BW, vh / BH) * 1.06;
       const cw = BW * scale, ch = BH * scale, cx = (vw - cw) / 2, cy = (vh - ch) / 2;
       const full: P[] = [[cx, cy], [cx + cw, cy], [cx + cw, cy + ch], [cx, cy + ch]];
-      const f = ease(Math.min(1, Math.max(0, sign.fill)));
-      // the board swings out from the wall on a curve, not a straight zoom
-      const swing: P = [-vw * 0.08, -vh * 0.04];
+      const f = ease(clamp01(sign.fill));
+      const swing: P = [-vw * 0.08, -vh * 0.04];            // out from the wall on a curve, not a straight zoom
       const bq = onWall.map((p, i) => bezier(p, [(p[0] + full[i][0]) / 2 + swing[0], (p[1] + full[i][1]) / 2 + swing[1]], full[i], f));
       board.style.transform = matrix3d(bq, BW, BH);
-      plain.style.opacity = String(Math.min(1, f * 1.4));          // even blue once it is the page's cover
 
-      // the lettering: from its place on the board to the same layout, flat and centred on the screen
+      // the lettering: from its place on the board to the same composition, flat and centred
       const Hwall = squareToQuad(onWall);
-      const lw = Math.min(vw * 0.86, vh * 0.62 * (BW / BH)), lh = lw * (BH / BW);
-      const lx = (vw - lw) / 2, ly = vh * 0.45 - lh / 2;
-      ORDER.forEach((name, i) => {
-        const p = PARTS.parts[name];
-        const t0 = (sign.lift - i * STAGGER) / (1 - STAGGER * (ORDER.length - 1));
-        const t = ease(Math.min(1, Math.max(0, t0)));
-        const rect: P[] = [[p.x, p.y], [p.x + p.w, p.y], [p.x + p.w, p.y + p.h], [p.x, p.y + p.h]];
-        const from = rect.map(([u, v]) => apply(Hwall, u, v));
-        const to = rect.map(([u, v]) => [lx + u * lw, ly + v * lh] as P);
-        // a curve up and to the left, each piece on its own arc, and a lift towards the viewer mid-way
+      const lw = Math.min(vw * 0.84, vh * 0.6 * (BW / BH)), lh = lw * (BH / BW);
+      const lx = (vw - lw) / 2, ly = vh * 0.47 - lh / 2;
+      const lifted = Math.max(0, (sign.lift - 0.08) / 0.92);
+      PIECES.forEach((piece, i) => {
+        const [bx, by, bw, bh] = piece.box;
+        const t0 = (lifted - i * STAGGER) / (1 - STAGGER * (PIECES.length - 1));
+        const t = ease(clamp01(t0));
+        const rect: P[] = [[bx, by], [bx + bw, by], [bx + bw, by + bh], [bx, by + bh]];
+        const from = rect.map(([x, y]) => apply(Hwall, x / BW, y / BH));
+        const to = rect.map(([x, y]) => [lx + (x / BW) * lw, ly + (y / BH) * lh] as P);
+        // each piece on its own arc, up and to the left, rising towards the viewer mid-way
         const arc: P = [-vw * (0.12 + 0.03 * (i % 3)), -vh * (0.1 + 0.04 * ((i + 1) % 2))];
         let q = from.map((a, k) => bezier(a, [(a[0] + to[k][0]) / 2 + arc[0], (a[1] + to[k][1]) / 2 + arc[1]], to[k], t));
-        const pop = 1 + 0.22 * Math.sin(Math.PI * t);
+        const pop = 1 + 0.2 * Math.sin(Math.PI * t);
         const mid = q.reduce((s, c) => [s[0] + c[0] / 4, s[1] + c[1] / 4] as P, [0, 0] as P);
         q = q.map((c) => [mid[0] + (c[0] - mid[0]) * pop, mid[1] + (c[1] - mid[1]) * pop] as P);
-        const img = imgs[i];
-        img.style.transform = matrix3d(q, img.naturalWidth || 1, img.naturalHeight || 1);
-        img.style.opacity = t0 > -STAGGER ? '1' : '0';
+        svgs[i].style.transform = matrix3d(q, bw, bh);
       });
     };
     gsap.ticker.add(frame);
@@ -114,11 +174,11 @@ export function SignIntro() {
 
   return (
     <div className="sign-intro" ref={root} aria-hidden="true">
-      <div className="sign-board" style={{ width: PARTS.board[0], height: PARTS.board[1] }}>
-        <img src="/models/env/sign/board_blank.webp" alt="" />
-        <div className="sign-board-plain" />
-      </div>
-      {ORDER.map((n) => <img key={n} className="sign-part" data-part={n} src={`/models/env/sign/${n}.webp`} alt="" />)}
+      <div className="sign-board" style={{ width: BW, height: BH }} />
+      {PIECES.map(({ name, box: [x, y, w, h], paint }) => (
+        <svg key={name} className="sign-part" data-part={name} width={w} height={h} viewBox={`${x} ${y} ${w} ${h}`}
+          style={{ fontFamily: DISPLAY }} overflow="visible">{paint}</svg>
+      ))}
     </div>
   );
 }
