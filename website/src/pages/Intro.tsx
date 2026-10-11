@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -105,6 +105,7 @@ export function IntroBody() {
   const lang = useLang();
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(0);
 
   // Three moments of motion, each tied to what it shows: a line draws across the four chapters as the
   // reader passes them, lighting each year in turn; the thirteen steps rise one after another; 3.96 counts up.
@@ -126,6 +127,9 @@ export function IntroBody() {
         gsap.to(n, { v: 3.96, duration: 1.6, ease: 'power3.out', onUpdate: () => { gpa.textContent = n.v.toFixed(2); },
           scrollTrigger: { trigger: gpa, start: 'top 85%', once: true } });
       }
+      // the four photographs open out of their panels, one after another, as the gallery comes into view
+      gsap.fromTo('.reel li', { clipPath: 'inset(100% 0 0 0 round 20px)' }, { clipPath: 'inset(0% 0 0 0 round 20px)', duration: 0.9,
+        ease: 'power3.out', stagger: 0.09, scrollTrigger: { trigger: '.reel', start: 'top 82%', once: true } });
     }, root);
     return () => ctx.revert();
   }, [lang]);
@@ -199,9 +203,17 @@ export function IntroBody() {
 
         <section className="beyond" aria-labelledby="bp-beyond">
           <h3 className="card-h" id="bp-beyond">{c.beyondTitle}</h3>
-          <ul>
-            {c.beyond.map(([img, h, b]) => (
-              <li className="card" key={h}><Photo name={img} alt="" /><span><b>{h}</b>{b}</span></li>
+          {/* One photograph open at a time, the others folded beside it; pointing at, focusing or tapping a
+              fold opens it. On a phone they become a row to swipe, each open. */}
+          <ul className="reel">
+            {c.beyond.map(([img, h, b], i) => (
+              <li key={h} className={i === open ? 'open' : undefined}>
+                <button type="button" aria-expanded={i === open} onClick={() => setOpen(i)} onMouseEnter={() => setOpen(i)} onFocus={() => setOpen(i)}>
+                  <Photo name={img} alt="" />
+                  <span className="reel-fold" aria-hidden="true">{h}</span>
+                  <span className="reel-cap"><b>{h}</b><span>{b}</span></span>
+                </button>
+              </li>
             ))}
           </ul>
         </section>
