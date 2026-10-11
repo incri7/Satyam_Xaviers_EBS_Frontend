@@ -130,6 +130,7 @@ export function SignIntro() {
   useEffect(() => {
     const el = root.current!;
     const board = el.querySelector<HTMLDivElement>('.sign-board')!;
+    const plate = el.querySelector<HTMLImageElement>('.sign-plate');
     const wall = el.querySelector<HTMLDivElement>('.sign-board-wall')!;
     const svgs = PIECES.map((p) => el.querySelector<SVGSVGElement>(`[data-part="${p.name}"]`)!);
     const cuts = PIECES.map((p) => el.querySelector<HTMLImageElement>(`[data-cut="${p.name}"]`)!);
@@ -152,7 +153,15 @@ export function SignIntro() {
       const bq = onWall.map((p, i) => bezier(p, [(p[0] + full[i][0]) / 2 + swing[0], (p[1] + full[i][1]) / 2 + swing[1]], full[i], f));
       board.style.transform = matrix3d(bq, BW, BH);
       // on the wall it wears the painted board's own colours, as the render lit them; out in front, enamel blue
-      wall.style.opacity = String(1 - clamp01(f * 1.25));
+      wall.style.opacity = String(1 - clamp01(f * 2.5));
+      // once it leaves the wall, the street behind it shows: the clean plate, the posts standing empty
+      if (plate && RENDER.plate) {
+        const [px, py, pw, ph] = RENDER.plate;
+        const [x0, y0] = imageToScreen([px, py], vw, vh), [x1, y1] = imageToScreen([px + pw, py + ph], vw, vh);
+        plate.style.transform = `translate(${x0}px, ${y0}px)`;
+        plate.style.width = `${x1 - x0}px`; plate.style.height = `${y1 - y0}px`;
+        plate.style.opacity = sign.fill > 0.0005 ? '1' : '0';
+      }
 
       // the lettering: from its place on the board to the same composition, flat and centred
       const Hwall = squareToQuad(onWall);
@@ -194,6 +203,7 @@ export function SignIntro() {
 
   return (
     <div className="sign-intro" ref={root} aria-hidden="true">
+      {RENDER.plate ? <img className="sign-plate" src={`/models/env/sign/plate_${RENDER.v}.webp`} alt="" /> : null}
       <div className="sign-board" style={{ width: BW, height: BH }}>
         <div className="sign-board-wall"><img src={`/models/env/sign/wall_${RENDER.v}.webp`} alt="" /></div>
       </div>

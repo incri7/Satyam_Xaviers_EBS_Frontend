@@ -34,6 +34,8 @@ done
 rm -f renders/job_sign_quad.log
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_sign_quad.py" </dev/null; wait_for renders/job_sign_quad.log
 cp renders/sign_quad.json ../../src/sections/signQuad.json
+rm -f renders/job_plate.log
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_plate.py" </dev/null; wait_for renders/job_plate.log
 python make_sign_from_render.py $V
 sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx
 echo "published $V (was $OLD)"

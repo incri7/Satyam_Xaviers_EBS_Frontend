@@ -79,5 +79,22 @@ clean = board * keep[..., None] + (num / np.maximum(den[..., None], 1e-3)) * hol
 ghost = np.clip(np.maximum.reduce([m for k, m in masks.items() if k != 'crest']), 0, 1)[..., None]
 wall = clean + ghost * 0.05 * (board - clean)          # where the paint was, a faint trace of it stays
 Image.fromarray(np.clip(wall, 0, 255).astype(np.uint8)).save(os.path.join(OUT, f'wall_{V}.webp'), quality=90)
-json.dump({'v': V, 'board': [1600, 860], 'parts': parts}, open(JSN, 'w'), indent=1)
+# the clean plate behind the board (job_plate.py): the street with the board off its posts, cut to the board's
+# area with a soft edge, for when the board swings out
+plate_box = None
+PLATE = os.path.join(HERE, 'renders', 'street_plate.png')
+if os.path.exists(PLATE):
+    xs = [QUAD[k][0] for k in ('tl', 'tr', 'br', 'bl')]; ys = [QUAD[k][1] for k in ('tl', 'tr', 'br', 'bl')]
+    m = 24
+    px0, py0 = max(int(min(xs)) - m, 0), max(int(min(ys)) - m, 0)
+    px1, py1 = min(int(max(xs)) + m, IW), min(int(max(ys)) + m, IH)
+    pl = np.asarray(Image.open(PLATE).convert('RGB'))[py0:py1, px0:px1]
+    ph, pw = pl.shape[:2]
+    gy, gx = np.mgrid[0:ph, 0:pw]
+    edge = np.minimum.reduce([gx, gy, pw - 1 - gx, ph - 1 - gy]).astype(np.float32)
+    alpha = np.clip(edge / m, 0, 1)
+    if px1 >= IW: alpha = np.minimum(alpha, 1) * 0 + np.clip(np.minimum.reduce([gx, gy, ph - 1 - gy]) / m, 0, 1)   # the frame's own edge stays hard
+    Image.fromarray(np.dstack([pl, (alpha * 255).astype(np.uint8)]), 'RGBA').save(os.path.join(OUT, f'plate_{V}.webp'), quality=88)
+    plate_box = [px0, py0, pw, ph]
+json.dump({'v': V, 'board': [1600, 860], 'parts': parts, 'plate': plate_box}, open(JSN, 'w'), indent=1)
 print(parts)
