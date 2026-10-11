@@ -126,6 +126,7 @@ export function SignIntro() {
   useEffect(() => {
     const el = root.current!;
     const board = el.querySelector<HTMLDivElement>('.sign-board')!;
+    const wall = el.querySelector<HTMLDivElement>('.sign-board-wall')!;
     const svgs = PIECES.map((p) => el.querySelector<SVGSVGElement>(`[data-part="${p.name}"]`)!);
     let shown = false;
 
@@ -146,6 +147,8 @@ export function SignIntro() {
       const swing: P = [-vw * 0.08, -vh * 0.04];            // out from the wall on a curve, not a straight zoom
       const bq = onWall.map((p, i) => bezier(p, [(p[0] + full[i][0]) / 2 + swing[0], (p[1] + full[i][1]) / 2 + swing[1]], full[i], f));
       board.style.transform = matrix3d(bq, BW, BH);
+      // on the wall it wears the painted board's own colours, as the render lit them; out in front, enamel blue
+      wall.style.opacity = String(1 - clamp01(f * 1.25));
 
       // the lettering: from its place on the board to the same composition, flat and centred
       const Hwall = squareToQuad(onWall);
@@ -166,6 +169,8 @@ export function SignIntro() {
         const mid = q.reduce((s, c) => [s[0] + c[0] / 4, s[1] + c[1] / 4] as P, [0, 0] as P);
         q = q.map((c) => [mid[0] + (c[0] - mid[0]) * pop, mid[1] + (c[1] - mid[1]) * pop] as P);
         svgs[i].style.transform = matrix3d(q, bw, bh);
+        // the lettering starts at the render's light (the board stands in shade) and brightens as it comes forward
+        svgs[i].style.filter = t < 1 ? `brightness(${0.72 + 0.28 * t}) saturate(${0.75 + 0.25 * t})` : '';
       });
     };
     gsap.ticker.add(frame);
@@ -174,7 +179,7 @@ export function SignIntro() {
 
   return (
     <div className="sign-intro" ref={root} aria-hidden="true">
-      <div className="sign-board" style={{ width: BW, height: BH }} />
+      <div className="sign-board" style={{ width: BW, height: BH }}><div className="sign-board-wall" /></div>
       {PIECES.map(({ name, box: [x, y, w, h], paint }) => (
         <svg key={name} className="sign-part" data-part={name} width={w} height={h} viewBox={`${x} ${y} ${w} ${h}`}
           style={{ fontFamily: DISPLAY }} overflow="visible">{paint}</svg>
