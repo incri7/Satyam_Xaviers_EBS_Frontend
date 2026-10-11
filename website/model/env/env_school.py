@@ -44,7 +44,14 @@ SM = {
     'rebar': flat('MAT-rebar', '#4a3a30', 0.7, 1.0),
     'flag': flat('MAT-flag_nepal', '#c8102e', 0.6),
     'ac': flat('MAT-ac_unit', '#e9ebec', 0.4),
+    'front_ground': mat_img('MAT-school_front_ground', 'school_front_ground.png'),
+    'side_ground': mat_img('MAT-school_side_ground', 'school_side_ground.png'),
+    'base_front': mat_img('MAT-school_basement_front', 'school_base_front.png'),
+    'base_side': mat_img('MAT-school_basement_side', 'school_base_side.png'),
+    'concrete': flat('MAT-school_ramp_wall', '#b9b6ae', 0.9),
+    'bracket': flat('MAT-school_bracket', '#5d80a8', 0.6),
 }
+W_FRONT_TEX = 10.4      # make_school_textures.py's front width; the core's front is TL - TC wide
 
 def mesh(name, build, mats):
     bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
@@ -117,17 +124,33 @@ for i, (s, t) in enumerate(posts):
     cylinder(f'GEO-school_post_{i}', P(s, t, Z0), LEVELS[-1] - SLAB - Z0, 0.035, SM['post'], seg=8)
 
 # --- the core: painted storeys on the front and the long side; plain walls behind ------------------------------
-def wall_strip(name, a, b, z0, z1, m, u1):
-    return mesh(name, lambda bm, uvl: quad(bm, uvl, P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1), [(0, 0), (u1, 0), (u1, 1), (0, 1)]), [m])
+def wall_strip(name, a, b, z0, z1, m, u1, v0=0.0):
+    return mesh(name, lambda bm, uvl: quad(bm, uvl, P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1), [(0, v0), (u1, v0), (u1, 1), (0, 1)]), [m])
 for k in range(4):
     z = LEVELS[k]
-    wall_strip(f'GEO-school_front_{k}', (SF + CORR, TL), (SF + CORR, TC), z, z + STOREY - SLAB + 0.45, SM['front'], 1.0)
-    wall_strip(f'GEO-school_side_{k}', (SF + CORR, TC), (SB, TC), z, z + STOREY - SLAB + 0.45, SM['side'], (SB - SF - CORR) / 30.0)
-# the semi-basement under the front corridor: its steel gate, the ramp down to it in shadow
-wall_strip('GEO-school_basement_gate', (SF + CORR, TL - 2.0), (SF + CORR, TC + 2.0), 0.0, Z0, SM['gate'], 1.0)
-wall_strip('GEO-school_basement_wall_l', (SF + CORR, TL), (SF + CORR, TL - 2.0), 0.0, Z0, SM['plain'], 1.0)
-wall_strip('GEO-school_basement_wall_r', (SF + CORR, TC + 2.0), (SF + CORR, TC), 0.0, Z0, SM['plain'], 1.0)
-wall_strip('GEO-school_basement_side', (SF + CORR, TC), (SB, TC), 0.0, Z0, SM['plain'], 1.0)
+    ground_floor = k == 0       # the ground storey's wall is painted with pupils, the flag, a welcome panel
+    wall_strip(f'GEO-school_front_{k}', (SF + CORR, TL), (SF + CORR, TC), z, z + STOREY - SLAB + 0.45,
+               SM['front_ground' if ground_floor else 'front'], 1.0)
+    wall_strip(f'GEO-school_side_{k}', (SF + CORR, TC), (SB, TC), z, z + STOREY - SLAB + 0.45,
+               SM['side_ground' if ground_floor else 'side'], (SB - SF - CORR) / 30.0)
+# The semi-basement under the ground-floor corridor: barred windows, and on the front the collapsible gate at
+# the foot of a ramp between two low concrete walls (IMG_3055 0:02, 0:14). The painted band is 1.6 m tall;
+# the 1 m above the ground shows its upper part (the rest is below the ramp's level).
+wall_strip('GEO-school_basement_front', (SF + CORR, TL), (SF + CORR, TC), 0.0, Z0, SM['base_front'], 1.0, v0=0.375)
+wall_strip('GEO-school_basement_side', (SF + CORR, TC), (SB, TC), 0.0, Z0, SM['base_side'], (SB - SF - CORR) / 30.0, v0=0.375)
+GATE_T = TL - (W_FRONT_TEX / 2 + 0.4)          # the gate's centre: where make_school_textures.py paints it
+for i, t in enumerate((GATE_T + 1.75, GATE_T - 1.75)):
+    off = G - gz(SF - 1.6, t)
+    box(f'GEO-school_ramp_wall_{i}', SF - 3.6, SF + 0.05, t - 0.13, t + 0.13, off, off + 0.85, SM['concrete'])
+# blue brackets under every corridor slab, at the posts and across the front (IMG_3099 4:00, 4:40)
+def bracket(name, s0, s1, t0, t1, z):
+    off = G - gz((s0 + s1) / 2, (t0 + t1) / 2)
+    box(name, s0, s1, t0, t1, off + z - SLAB - 0.32, off + z - SLAB + 0.01, SM['bracket'])
+for k, z in enumerate(LEVELS):
+    for i, t in enumerate((TL - 0.15, TL - 3.6, TL - 7.0)):
+        bracket(f'GEO-school_bracket_f{k}_{i}', SF + 0.05, SF + CORR, t - 0.09, t + 0.09, z)
+    for i, (ps, pt) in enumerate(posts[3:]):
+        bracket(f'GEO-school_bracket_s{k}_{i}', ps - 0.09, ps + 0.09, TR + 0.05, TC, z)
 wall_strip('GEO-school_wall_left', (SB, TL), (SF + CORR, TL), 0.0, LEVELS[-1], SM['plain'], 1.0)
 wall_strip('GEO-school_wall_back', (SB, TC), (SB, TL), 0.0, LEVELS[-1], SM['plain'], 1.0)
 wall_strip('GEO-school_left_end_cap', (SF + CORR, TL), (SF, TL), 0.0, Z0, SM['plain'], 1.0)

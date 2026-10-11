@@ -79,6 +79,96 @@ while x < W_SIDE - 0.8:
     x += 3.95
 grime(img).save(f'{OUT}/school_side.png')
 
+# --- the ground storey: the same openings, the wall painted with children in uniform, the Nepal flag and a
+# football, a dark skirting (IMG_3055 0:20-1:05), and on the front the "Welcome to" panel (IMG_3019, 3020)
+SKIN, HAIR, SHIRT = (226, 182, 140), (28, 24, 24), (244, 244, 240)
+def kid(d, x, h, size=1.15, girl=False):
+    """A painted pupil, hands joined in namaste, standing on the skirting; x in metres, centre."""
+    s = size; base = h - m(0.14)
+    cx = m(x)
+    leg = m(0.38 * s); body = m(0.42 * s); head = m(0.17 * s)
+    d.rectangle([cx - m(0.07 * s), base - leg, cx - m(0.02 * s), base], fill=SKIN)
+    d.rectangle([cx + m(0.02 * s), base - leg, cx + m(0.07 * s), base], fill=SKIN)
+    d.rectangle([cx - m(0.08 * s), base - m(0.05 * s), cx + m(0.08 * s), base], fill=(20, 20, 22))
+    y = base - leg
+    if girl: d.polygon([(cx - m(0.16 * s), y), (cx + m(0.16 * s), y), (cx + m(0.11 * s), y - m(0.2 * s)), (cx - m(0.11 * s), y - m(0.2 * s))], fill=(40, 90, 170))
+    else: d.rectangle([cx - m(0.12 * s), y - m(0.16 * s), cx + m(0.12 * s), y], fill=(40, 90, 170))
+    d.rectangle([cx - m(0.12 * s), y - body, cx + m(0.12 * s), y - m(0.16 * s)], fill=SHIRT, outline=(150, 150, 150))
+    d.ellipse([cx - m(0.04 * s), y - body + m(0.1 * s), cx + m(0.04 * s), y - body + m(0.2 * s)], fill=SKIN)   # joined hands
+    d.ellipse([cx - head // 2 - 2, y - body - head, cx + head // 2 + 2, y - body + 2], fill=SKIN)
+    d.chord([cx - head // 2 - 3, y - body - head - 3, cx + head // 2 + 3, y - body - head // 3], 180, 360, fill=HAIR)
+    if girl:
+        d.rectangle([cx - head // 2 - 3, y - body - head // 2, cx - head // 2 + 2, y - body + m(0.05)], fill=HAIR)
+        d.rectangle([cx + head // 2 - 2, y - body - head // 2, cx + head // 2 + 3, y - body + m(0.05)], fill=HAIR)
+
+def nepal_flag(d, x, y_top, size=0.6):
+    pts = [(m(x), m(y_top)), (m(x + size * 0.75), m(y_top + size * 0.4)), (m(x + size * 0.3), m(y_top + size * 0.42)),
+           (m(x + size * 0.75), m(y_top + size)), (m(x), m(y_top + size))]
+    d.polygon(pts, fill=(200, 16, 46), outline=(0, 56, 147), width=3)
+
+def ground_storey(width_m, kinds, murals, welcome=False):
+    img, d, w, h = wall(width_m)
+    d.rectangle([0, h - m(0.14), w, h], fill=(38, 40, 44))                  # the dark skirting
+    slot = width_m / len(kinds)
+    for i, k in enumerate(kinds):
+        x = slot * (i + 0.5)
+        if k == 'D': door(d, x, h)
+        elif k == 'W': window(d, x, h, notice=False)
+    for x, kind in murals:
+        if kind == 'flag': nepal_flag(d, x - 0.17, STOREY - 2.2, size=0.42)
+        else: kid(d, x, h, girl=(kind == 'girl'))
+    if welcome:                                  # the welcome panel takes the last slot ('P'), right of the doors
+        c = slot * (kinds.index('P') + 0.5)
+        x0, x1, y0, y1 = m(c - 0.65), m(c + 0.65), h - m(2.2), h - m(1.0)
+        d.rectangle([x0, y0, x1, y1], fill=(250, 238, 170), outline=(200, 40, 40), width=4)
+        d.rectangle([x0 + 10, y0 + 8, x1 - 10, y0 + m(0.22)], fill=(214, 46, 46))
+        for k in range(2): kid(d, (x0 + x1) / 2 / PX + (k - 0.5) * 0.4, y1 - 4 + m(0.14), size=0.62, girl=bool(k))
+        d.rectangle([x0 + 10, y1 - m(0.28), x1 - 10, y1 - m(0.12)], fill=(40, 90, 170))
+    return img
+
+slot = W_FRONT / 6
+mid = lambda i: slot * (i + 1.0)          # between openings i and i + 1
+grime(ground_storey(W_FRONT, 'WDWWDP', [(mid(0), 'boy'), (mid(1) - 0.1, 'girl'), (mid(2), 'flag'), (mid(3), 'boy')], welcome=True), 0.05).save(f'{OUT}/school_front_ground.png')
+murals, x = [], 1.68                       # between each door and the window after it
+while x < W_SIDE - 1.0:
+    murals.append((x, rnd.choice(['boy', 'girl'])))
+    x += 3.95
+img, d, w, h = wall(W_SIDE)
+d.rectangle([0, h - m(0.14), w, h], fill=(38, 40, 44))
+x = 0.9
+while x < W_SIDE - 0.8:
+    door(d, x, h); window(d, x + 1.55, h, notice=False); window(d, x + 3.05, h, notice=False)
+    x += 3.95
+for mx, kind in murals:
+    if kind == 'flag': nepal_flag(d, mx - 0.3, STOREY - 2.25)
+    else: kid(d, mx, h, girl=(kind == 'girl'))
+grime(img, 0.05).save(f'{OUT}/school_side_ground.png')
+
+# --- the semi-basement, under the ground-floor corridor: pale yellow wall, barred windows, damp at the foot
+# (IMG_3055 0:14, 1:06); on the front the collapsible gate at the ramp's foot
+def basement(width_m, gate_at=None):
+    bw, bh = m(width_m), m(1.6)
+    img = Image.new('RGB', (bw, bh), (236, 222, 160)); d = ImageDraw.Draw(img)
+    a = np.asarray(img).astype(np.float32)
+    damp = np.linspace(0, 1, bh)[:, None] ** 3
+    a *= (1 - 0.35 * damp)[..., None]
+    img = Image.fromarray(a.astype(np.uint8)); d = ImageDraw.Draw(img)
+    x = 1.2
+    while x < width_m - 0.8:
+        if gate_at is None or abs(x - gate_at) > 2.2:
+            x0, x1 = m(x - 0.6), m(x + 0.6)
+            d.rectangle([x0, m(0.25), x1, m(1.0)], fill=(30, 30, 30))
+            for k in range(x0 + 6, x1, 9): d.line([k, m(0.25), k, m(1.0)], fill=(70, 70, 70), width=2)
+        x += 3.95
+    if gate_at is not None:
+        x0, x1 = m(gate_at - 1.6), m(gate_at + 1.6)
+        d.rectangle([x0, m(0.1), x1, bh], fill=(28, 26, 26))
+        for k in range(x0, x1 - 40, 14):
+            d.line([k, m(0.1), k + 40, bh], fill=(78, 62, 54), width=2); d.line([k + 40, m(0.1), k, bh], fill=(78, 62, 54), width=2)
+    return img
+basement(W_FRONT, gate_at=W_FRONT / 2 + 0.4).save(f'{OUT}/school_base_front.png')
+basement(W_SIDE).save(f'{OUT}/school_base_side.png')
+
 # the slab edge: slate blue, streaked by rain, tile 4 m x 0.45 m
 fw, fh = m(4.0), m(0.45)
 a = np.zeros((fh, fw, 3), np.float32); a[:] = (88, 122, 158)
