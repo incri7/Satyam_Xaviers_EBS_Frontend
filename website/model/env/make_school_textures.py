@@ -200,3 +200,28 @@ for (x, y), (u, v) in zip([(0, 0), (ow, 0), (ow, oh), (0, oh)], src):
 c = np.linalg.solve(np.array(A, float), np.array(B, float))
 im.transform((ow, oh), Image.PERSPECTIVE, tuple(c), Image.BICUBIC).save(f'{OUT}/school_banner.jpg', quality=90)
 print('textures written')
+
+# --- the main entrance on the long side (IMG_3055 0:30-0:42): a maroon collapsible gate across the hall's
+# opening, the hall dark behind it with its red columns; and WELCOME painted in red letters down the wall
+gw, gh = m(3.0), m(2.45)
+img = Image.new('RGB', (gw, gh), (44, 34, 34)); d = ImageDraw.Draw(img)
+for cx in (m(0.7), m(2.3)):                                   # red columns inside the hall
+    d.rectangle([cx - m(0.15), 0, cx + m(0.15), gh], fill=(120, 30, 34))
+d.rectangle([0, gh - m(0.5), gw, gh], fill=(70, 66, 64))      # the hall's floor
+for k in range(-gh, gw, 16):                                  # the lattice
+    d.line([k, 0, k + gh // 3, gh], fill=(150, 92, 100), width=3)
+    d.line([k + gh // 3, 0, k, gh], fill=(150, 92, 100), width=3)
+for k in range(0, gw, m(0.16)):
+    d.line([k, 0, k, gh], fill=(128, 76, 84), width=4)
+d.rectangle([0, 0, gw, m(0.08)], fill=(110, 64, 70)); d.rectangle([0, gh - m(0.08), gw, gh], fill=(110, 64, 70))
+img.save(f'{OUT}/school_entrance_gate.png')
+
+from PIL import ImageFont
+ww, wh = m(0.6), m(2.3)
+img = Image.new('RGB', (ww, wh), (238, 220, 146)); d = ImageDraw.Draw(img)
+font = ImageFont.truetype('C:/Windows/Fonts/arialbd.ttf', m(0.27))
+for i, ch in enumerate('WELCOME'):
+    bb = d.textbbox((0, 0), ch, font=font)
+    d.text(((ww - (bb[2] - bb[0])) / 2, m(0.05) + i * m(0.32)), ch, font=font, fill=(200, 30, 40))
+img.save(f'{OUT}/school_welcome.png')
+print('entrance textures written')

@@ -71,7 +71,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
    pages and the sections after the story are opaque and slide over it. */
 .stage { --haze: #E9C7A6; position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--haze); color: #fff; }
 .scene { position: relative; z-index: 1; pointer-events: none; }
-.scene-a { height: 920vh; }     /* the street and the driveway, then the walk to the board */
+.scene-a { height: 1240vh; }    /* the real way in (four views), then the walk to the board */
 /* Board to book, book to laptop, laptop to gate, gate to the end. */
 .scene-b { height: 300vh; }
 .scene-c { height: 480vh; }
@@ -132,7 +132,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .stage:not(.ready) .hero-line { transform: none; } .stage:not(.ready) .hero-fade { opacity: 1; } }
 
 @media (max-width: 760px) {
-  .scene-a { height: 860vh; }
+  .scene-a { height: 1160vh; }
   .sheet { border-radius: 22px; }
   .shade { background: linear-gradient(0deg, rgb(11 26 61 / .88) 0%, rgb(11 26 61 / .6) 30%, rgb(11 26 61 / 0) 56%); }
   .copy { right: calc(var(--gutter) + 46px); width: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }

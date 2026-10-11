@@ -3,16 +3,19 @@ import gsap from 'gsap';
 import { arrive, pointer } from '../three/rig';
 
 /**
- * The arrival: the school's real street, before the story goes inside. Two renders of the real place
- * (website/model/env: Bhairav Road from where Google's camera stood, then down the driveway from where
- * the client took IMG_3017), each with a depth map, moved in 2.5D. Scrolling (Story's timeline) dollies
- * in, crossfades to the driveway, walks on, and dissolves into the classroom. About 0.5 MB, no three.js,
- * so it is the first thing on screen while the 3D scene loads behind it.
+ * The arrival: the real way into the school, before the story goes inside. Renders of the real place
+ * (website/model/env), each with a depth map, moved in 2.5D: from the road's edge in front of the driveway,
+ * down the driveway (where the client took IMG_3017), round the corner onto the side path, and to the foot
+ * of the entrance steps (IMG_3055). Scrolling (Story's timeline) walks into each view, crossfades to the
+ * next, and dissolves into the classroom. About 1 MB, no three.js: it is on screen while the 3D scene loads.
  */
 const VIEWS = [
-  { color: '/models/env/street_color_10112355.webp', depth: '/models/env/street_depth_10112355.png', focus: [0.5, 0.66] },
-  { color: '/models/env/driveway_color_10112355.webp', depth: '/models/env/driveway_depth_10112355.png', focus: [0.53, 0.62] },
-] as const;
+  { name: 'street', focus: [0.5, 0.66], dolly: 0.55 },
+  { name: 'driveway', focus: [0.53, 0.62], dolly: 0.6 },
+  { name: 'sidepath', focus: [0.55, 0.56], dolly: 0.5 },
+  { name: 'entrance', focus: [0.53, 0.6], dolly: 0.45 },
+].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10120031.webp`, depth: `/models/env/${w.name}_depth_10120031.png` }));
+const DOLLY = ['d0', 'd1', 'd2', 'd3'] as const;
 
 const VERT = `attribute vec2 p; varying vec2 v; void main() { v = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
 const FRAG = `precision highp float;
@@ -52,7 +55,6 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
   useEffect(() => {
     const cv = canvas.current!;
     let alive = true;
-    const images = Promise.all(VIEWS.flatMap((w) => [load(w.color), load(w.depth)]));
     const gl = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false });
     if (!gl) {
       // No WebGL: the street as a plain picture, fading like the canvas would.
@@ -72,13 +74,16 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const u = (n: string) => gl.getUniformLocation(prog, n);
-    const texture = (img: HTMLImageElement, unit: number, name: string) => {
-      gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    ['uC0', 'uD0', 'uC1', 'uD1'].forEach((n, i) => gl.uniform1i(u(n), i));
+    const texture = (img: HTMLImageElement) => {
+      const t = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, t);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.uniform1i(u(name), unit);
+      return t;
     };
+    // Each view's two textures and its picture size, as they arrive (the first view lifts the curtain).
+    const loaded: ({ c: WebGLTexture; d: WebGLTexture; w: number; h: number } | null)[] = VIEWS.map(() => null);
 
     const eased = { x: 0, y: 0 };
     let shown = true;
@@ -88,28 +93,37 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       if (visible !== shown) { shown = visible; cv.style.visibility = visible ? 'visible' : 'hidden'; }
       cv.style.opacity = String(arrive.o);
       if (!visible) return;
+      // The two views being walked between: v runs 0 .. VIEWS.length - 1.
+      let i = Math.min(Math.floor(arrive.v), VIEWS.length - 2);
+      while (i > 0 && !loaded[i]) i--;
+      const a = loaded[i], b = loaded[i + 1];
+      if (!a) return;
+      const mix = b ? Math.min(1, Math.max(0, arrive.v - i)) : 0;
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const w = Math.round(cv.clientWidth * dpr), h = Math.round(cv.clientHeight * dpr);
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
       const k = reduce ? 0 : 1;
       eased.x += (pointer.x * k - eased.x) * 0.06; eased.y += (pointer.y * k - eased.y) * 0.06;
+      const bind = (unit: number, t: WebGLTexture) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); };
+      bind(0, a.c); bind(1, a.d); bind(2, (b ?? a).c); bind(3, (b ?? a).d);
+      const j = b ? i + 1 : i;
+      gl.uniform2f(u('uImg0'), a.w, a.h); gl.uniform2f(u('uImg1'), (b ?? a).w, (b ?? a).h);
+      gl.uniform2f(u('uF0'), VIEWS[i].focus[0], VIEWS[i].focus[1]); gl.uniform2f(u('uF1'), VIEWS[j].focus[0], VIEWS[j].focus[1]);
+      gl.uniform1f(u('uDolly0'), arrive[DOLLY[i]] * VIEWS[i].dolly * k);
+      gl.uniform1f(u('uDolly1'), arrive[DOLLY[j]] * VIEWS[j].dolly * k);
       gl.uniform2f(u('uView'), w, h);
       gl.uniform2f(u('uShift'), eased.x * 0.02, eased.y * 0.01);
-      gl.uniform1f(u('uDolly0'), arrive.d0 * 0.55 * k);
-      gl.uniform1f(u('uDolly1'), arrive.d1 * 0.6 * k);
-      gl.uniform1f(u('uMix'), arrive.mix);
+      gl.uniform1f(u('uMix'), mix);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
+    gsap.ticker.add(frame);
 
-    images.then(([c0, d0, c1, d1]) => {
+    let first = true;
+    VIEWS.reduce((prev, w, n) => prev.then(() => Promise.all([load(w.color), load(w.depth)]).then(([c, d]) => {
       if (!alive) return;
-      texture(c0, 0, 'uC0'); texture(d0, 1, 'uD0'); texture(c1, 2, 'uC1'); texture(d1, 3, 'uD1');
-      gl.uniform2f(u('uImg0'), c0.width, c0.height); gl.uniform2f(u('uImg1'), c1.width, c1.height);
-      gl.uniform2f(u('uF0'), VIEWS[0].focus[0], VIEWS[0].focus[1]); gl.uniform2f(u('uF1'), VIEWS[1].focus[0], VIEWS[1].focus[1]);
-      frame();
-      gsap.ticker.add(frame);
-      onReady();
-    }, () => alive && onReady());   // a failed download must not hold the curtain
+      loaded[n] = { c: texture(c), d: texture(d), w: c.width, h: c.height };
+      if (first) { first = false; onReady(); }
+    }, () => { if (first) { first = false; onReady(); } })), Promise.resolve());   // a failed download must not hold the curtain
     return () => { alive = false; gsap.ticker.remove(frame); };
   }, [reduce, onReady]);
 

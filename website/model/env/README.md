@@ -47,6 +47,21 @@ The textures and trees are Poly Haven CC0.
 - **Roof:** rebar left up for a future floor, a stair head, the AC unit and the flag.
 - **Facades:** the painted storeys and the banner come from `make_school_textures.py`. The doors and windows follow the photos (window, door, window, window, door, window across the front). The interior and the back are not modelled.
 
+
+## The real way in (IMG_3055)
+
+The front is not the entrance.
+- **The front ramp:** at the front's centre, a ramp goes down between low concrete walls to the semi-basement's collapsible gate under the front corridor. This is the underground path. The ground is cut away over it: the terrain's and the dirt's materials turn transparent inside the cut (`cut_hole` in `env_school.py`).
+- **The route in:** people turn right at the rounded corner and walk the side path, between the long side and a concrete-block boundary wall. Granite steps with steel handrails climb to the ground-floor corridor at the main entrance: a maroon collapsible gate with WELCOME painted beside it (`S_ENT`, about 11.5 m along the long side).
+
+The home page walks this route in four views (`publish.sh`):
+1. `street`: the road's edge in front of the driveway.
+2. `driveway`: where the client took IMG_3017.
+3. `sidepath`: round the corner.
+4. `entrance`: the foot of the steps.
+
+After that, it dissolves into the classroom.
+
 ## Rebuild
 
 Run everything headless (no Blender window needed):

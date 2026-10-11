@@ -120,7 +120,7 @@ export const light = { day: 0 };
 export const photos = { f0: 0, f1: 0, f2: 0, f3: 0 } as Record<string, number>;
 export const rise = { f0: 0, f1: 0, f2: 0, f3: 0, roof: 0, tower: 0, gate: 0, students: 0 } as Record<string, number>;
 export const pointer = { x: 0, y: 0 };
-/** The arrival on the real street (sections/Arrival.tsx), before the walk goes inside. o: its opacity
-    (1 covers the 3D scene); d0, d1: how far the street and the driveway views have been walked into;
-    mix: 0 the street, 1 the driveway. */
-export const arrive = { o: 1, d0: 0, d1: 0, mix: 0 };
+/** The arrival along the real way in (sections/Arrival.tsx), before the walk goes inside. o: its opacity
+    (1 covers the 3D scene); v: which view, 0 the street, 1 the driveway, 2 the side path, 3 the entrance
+    steps, fractions crossfading; d0..d3: how far each view has been walked into. */
+export const arrive = { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0 };

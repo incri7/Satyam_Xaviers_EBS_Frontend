@@ -17,6 +17,7 @@ TR = -5.0            # outer edge of the side corridor (the viewer's right)
 TC = TR + CORR       # the core's right wall
 SB = 60.5            # the back
 R = 1.6              # the rounded corner's radius
+S_ENT = SF + CORR + 9.9    # the main entrance on the long side: steps up from the side path, the WELCOME gate (IMG_3055 0:30-0:51)
 Z0, STOREY, SLAB = 1.0, 3.2, 0.45
 LEVELS = [Z0 + STOREY * k for k in range(5)]          # four corridor floors and the roof
 G = gz(SF + 10, 0.0)                                  # the plot is levelled: one ground height
@@ -101,10 +102,17 @@ for k, z in enumerate(LEVELS):
     slab(f'GEO-school_slab_{k}', z, full=(k == len(LEVELS) - 1))
 
 # --- railings on every corridor level, along the slab's outer edge --------------------------------------------
-def railing(name, z):
+def railing(name, z, gap=None):
+    """gap: (s0, s1) left open on the long side, where the entrance steps come up."""
+    pieces = []
+    for (s0, t0), (s1, t1) in zip(OUT, OUT[1:]):
+        if gap and t0 == t1 == TR and s0 < gap[0] < gap[1] < s1:
+            pieces += [((s0, t0), (gap[0], t1)), ((gap[1], t0), (s1, t1))]
+        else:
+            pieces.append(((s0, t0), (s1, t1)))
     def build(bm, uvl):
         u = 0.0
-        for (s0, t0), (s1, t1) in zip(OUT, OUT[1:]):
+        for (s0, t0), (s1, t1) in pieces:
             seg = math.dist((s0, t0), (s1, t1))
             # 6 cm inside the edge
             d = Vector((s1 - s0, t1 - t0)).normalized(); n = Vector((-d.y, d.x)) * 0.06
@@ -113,7 +121,7 @@ def railing(name, z):
             u += seg
     return mesh(name, build, [MAT['rail']])
 for k, z in enumerate(LEVELS[:4]):
-    railing(f'GEO-school_railing_{k}', z)
+    railing(f'GEO-school_railing_{k}', z, gap=(S_ENT - 1.0, S_ENT + 1.0) if k == 0 else None)
 
 # --- thin steel posts from the ground corridor to the roof, at the corners and down the long side ---------------
 posts = [(SF + 0.08, TL - 0.08), (SF + 0.1, TR + R + 0.0), (SF + R, TR + 0.1)]
@@ -188,4 +196,79 @@ def flag(bm, uvl):
     for lp in f.loops: lp[uvl].uv = (0, 0)
 mesh('GEO-school_flag', flag, [SM['flag']])
 on_level('GEO-school_ac_unit', SF + CORR - 0.32, SF + CORR - 0.02, TL - 1.65, TL - 0.8, LEVELS[3] + 2.0, LEVELS[3] + 2.6, SM['ac'])
+
+# === The real way in (IMG_3055): not through the front. The front's ramp goes down to the semi-basement; people
+# turn right at the rounded corner, walk the side path along the long side, and climb granite steps to the
+# ground-floor corridor at the main entrance: a maroon collapsible gate with WELCOME painted beside it. =========
+SM['entrance'] = mat_img('MAT-school_entrance_gate', 'school_entrance_gate.png', 0.5)
+SM['welcome'] = mat_img('MAT-school_welcome', 'school_welcome.png', 0.8)
+SM['granite'] = pbr('MAT-granite_steps', 'white_plaster_02', 0.8, tint='#b9b7b1', bump=0.2)
+SM['bwall'] = pbr('MAT-boundary_wall_blocks', 'concrete_wall_003', 2.0, tint='#b3afa6', bump=0.6)
+SM['ramp'] = flat('MAT-ramp_concrete', '#87847d', 0.9)
+
+# --- the side path, from the corner to the back, under the corridor's overhang, up to the boundary wall ---------
+strip('GEO-side_path', SF - 1.0, SB, -8.4, TC, MAT['drive'], lift=0.05)
+box('GEO-boundary_wall', SF - 6.0, SB, -8.7, -8.42, 0, 1.9, SM['bwall'])
+box('GEO-boundary_wall_cap', SF - 6.0, SB, -8.74, -8.38, 1.9, 1.96, SM['bwall'])
+import random as _r2
+_rr = _r2.Random(19); s_ = SF - 4.0
+while s_ < SB:                      # banana plants and bushes behind the wall
+    tree(f'GEO-behind_wall_{s_:.1f}', _rr.choice(['shrub_02_a_LOD1', 'shrub_02_c_LOD1']), s_, -9.6 - _rr.uniform(0, 1.2),
+         _rr.uniform(1.8, 2.6), _rr.uniform(0, 6.28))
+    s_ += _rr.uniform(2.0, 3.5)
+
+# --- the steps: five granite steps from the path to the corridor floor, a steel handrail each side --------------
+for k in range(5):
+    on_level(f'GEO-entrance_step_{k}', S_ENT - 1.0, S_ENT + 1.0, TR - 1.5 + 0.3 * k, TR + 0.02, 0.0, 0.2 * (k + 1), SM['granite'])
+def rod(name, a, b, r=0.024):
+    cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 2
+    sp = cu.splines.new('POLY'); sp.points.add(1)
+    sp.points[0].co = (*a, 1); sp.points[1].co = (*b, 1)
+    cu.materials.append(SM['post']); return obj(name, cu)
+for i, s_ in enumerate((S_ENT - 0.95, S_ENT + 0.95)):
+    lo, hi = P(s_, TR - 1.4, 0.2), P(s_, TR + 0.05, Z0)
+    for j, p in enumerate((lo, hi)):
+        rod(f'GEO-entrance_rail_post_{i}_{j}', p, p + Vector((0, 0, 0.9)))
+    rod(f'GEO-entrance_rail_{i}', lo + Vector((0, 0, 0.9)), hi + Vector((0, 0, 0.9)))
+
+# --- the main entrance: the gate across the hall's opening, WELCOME down the wall beside it ---------------------
+wall_strip('GEO-entrance_gate', (S_ENT - 1.5, TC - 0.03), (S_ENT + 1.5, TC - 0.03), Z0, Z0 + 2.45, SM['entrance'], 1.0)
+wall_strip('GEO-entrance_welcome', (S_ENT + 1.65, TC - 0.03), (S_ENT + 2.25, TC - 0.03), Z0 + 0.1, Z0 + 2.4, SM['welcome'], 1.0)
+wall_strip('GEO-entrance_threshold', (S_ENT - 1.5, TC - 0.6), (S_ENT + 1.5, TC - 0.6), Z0 + 0.005, Z0 + 0.006, SM['granite'], 1.0)
+
+# --- the underground path: the front ramp really goes down. The ground is cut away over it (the terrain's and
+# the dirt's materials turn transparent inside the cut), and the ramp falls 1.35 m between retaining walls to the
+# semi-basement's gate under the front corridor ------------------------------------------------------------------
+DEPTH = 1.35
+RS0, RS1 = SF - 3.6, SF + CORR
+RT0, RT1 = GATE_T - 1.62, GATE_T + 1.62
+def cut_hole(mat, s0, s1, t0, t1):
+    nt = mat.node_tree
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    src = out.inputs['Surface'].links[0].from_socket
+    geo = nt.nodes.new('ShaderNodeNewGeometry')
+    rel = nt.nodes.new('ShaderNodeVectorMath'); rel.operation = 'SUBTRACT'; rel.inputs[1].default_value = (M.x, M.y, 0)
+    nt.links.new(geo.outputs['Position'], rel.inputs[0])
+    def dot(v):
+        n = nt.nodes.new('ShaderNodeVectorMath'); n.operation = 'DOT_PRODUCT'; n.inputs[1].default_value = (v.x, v.y, 0)
+        nt.links.new(rel.outputs[0], n.inputs[0]); return n.outputs['Value']
+    ss, tt = dot(U), dot(L)
+    inside = math_node(nt, 'MULTIPLY',
+                       math_node(nt, 'MULTIPLY', math_node(nt, 'GREATER_THAN', ss, s0), math_node(nt, 'LESS_THAN', ss, s1)),
+                       math_node(nt, 'MULTIPLY', math_node(nt, 'GREATER_THAN', tt, t0), math_node(nt, 'LESS_THAN', tt, t1)))
+    tr = nt.nodes.new('ShaderNodeBsdfTransparent')
+    mx = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(inside, mx.inputs[0]); nt.links.new(src, mx.inputs[1]); nt.links.new(tr.outputs[0], mx.inputs[2])
+    nt.links.new(mx.outputs[0], out.inputs['Surface'])
+for name in ('MAT-terrain_real', 'MAT-drive_dirt'):
+    cut_hole(bpy.data.materials[name], RS0, RS1, RT0, RT1)
+for i, t in enumerate((RT0 - 0.13, RT1 + 0.13)):                  # retaining walls under the parapets
+    on_level(f'GEO-ramp_retaining_{i}', RS0, RS1, t - 0.13, t + 0.13, -DEPTH - 0.1, 0.0, SM['concrete'])
+mesh('GEO-ramp', lambda bm, uvl: quad(bm, uvl, P(RS0, RT0, 0.02), P(RS0, RT1, 0.02), P(RS1, RT1, -DEPTH), P(RS1, RT0, -DEPTH),
+                                      [(0, 0), (1, 0), (1, 1), (0, 1)]), [SM['ramp']])
+wall_strip('GEO-school_basement_gate_deep', (RS1 - 0.02, GATE_T + 1.55), (RS1 - 0.02, GATE_T - 1.55), -DEPTH, 0.95, SM['gate'], 1.0)
+
+# --- the walk's two new views: round the corner onto the side path; at the foot of the entrance steps ------------
+camera('CAM-sidepath', SF - 1.5, -6.7, 1.55, 22.0, pitch=4.0, yaw=-6.0)
+camera('CAM-entrance', S_ENT - 0.3, -8.0, 1.6, 20.0, pitch=10.0, yaw=-90.0)
 print('school built')
