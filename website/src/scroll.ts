@@ -9,15 +9,15 @@ export function scrollToY(y: number, duration: number) {
   else window.scrollTo({ top: y });
 }
 
-/** "About" in the nav, on the home page: scrolls the story for the visitor to the first page, so the sign's
-    lettering lifts off and the board fills the screen on the way, at the pace of scrolling by hand (about 0.65 s
-    a screen, eased in and out), and stops where the page begins. */
+/** "About" in the nav, on the home page: scrolls the story for the visitor until the sign has become the first
+    page's cover (its lettering lifted off, its board filling the screen), and stops there; scrolling on brings the
+    page up. Slow enough to watch: about 1.6 s a screen, eased in and out. */
 export function playToIntro() {
-  const sheet = document.querySelector<HTMLElement>('#intro .sheet');
-  if (!sheet) return false;
-  const y = sheet.getBoundingClientRect().top + window.scrollY;
+  const page = document.querySelector<HTMLElement>('#intro');
+  if (!page) return false;
+  const y = page.getBoundingClientRect().top + window.scrollY;      // where the sign scene ends: the cover is whole
   const screens = Math.abs(y - window.scrollY) / window.innerHeight;
-  const duration = Math.max(1.2, screens * 0.65);
+  const duration = Math.max(2.4, screens * 1.6);
   if (scroller.lenis) scroller.lenis.scrollTo(y, { duration, easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) });
   else window.scrollTo({ top: y, behavior: 'smooth' });
   return true;
