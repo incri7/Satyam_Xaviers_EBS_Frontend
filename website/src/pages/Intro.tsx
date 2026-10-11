@@ -131,90 +131,95 @@ export function IntroBody() {
   }, [lang]);
 
   const levelStage = c.stages.flatMap(([, n], s) => Array(n).fill(s) as number[]);
+  const otherLang = lang === 'en' ? 'ne' : 'en';
   return (
     <div className="board-page" ref={root}>
       <header className="bp-open">
         <h2 className="bp-title painted" id="intro-title">{c.title}</h2>
-        <p className="bp-other" lang={lang === 'en' ? 'ne' : 'en'}>{c.other}</p>
+        <p className="bp-other" lang={otherLang}>{c.other}</p>
         <p className="bp-lede">{c.lede}</p>
+        <dl className="glance">{c.glance.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
       </header>
 
-      <section className="bp-block" aria-labelledby="bp-chapters">
-        <h3 className="bp-h wide" id="bp-chapters">{c.chaptersTitle}</h3>
-        <div className="chapters">
-          <span className="ch-line" aria-hidden="true"><i /></span>
-          <ol>
-          {c.chapters.map(([ne, en, head, body]) => (
-            <li className="ch" key={en}>
-              <span className="ch-year" aria-label={`${en} BS`}>{lang === 'ne' ? ne : en}<small>{lang === 'ne' ? 'वि.सं.' : 'BS'}</small></span>
-              <b>{head}</b>
-              <p>{body}</p>
-            </li>
-          ))}
-          </ol>
-        </div>
-        <p className="bp-note">{c.chaptersNote}</p>
-      </section>
-
-      <section className="bp-block levels" aria-labelledby="bp-levels">
-        <div className="levels-text">
-          <h3 className="bp-h wide" id="bp-levels">{c.levelsTitle}</h3>
-          <p className="bp-lede">{c.levelsLede}</p>
-          <dl className="glance">{c.glance.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-        </div>
-        <figure className="stairs" aria-label={c.levels.join(', ')}>
-          <div className="steps">
-            {c.levels.map((l, i) => (
-              <div className={'step s' + levelStage[i]} key={l} style={{ height: `${18 + i * 6.4}%` }}><span>{l}</span></div>
-            ))}
+      <div className="bento">
+        <section className="card story" aria-labelledby="bp-chapters">
+          <h3 className="card-h" id="bp-chapters">{c.chaptersTitle}</h3>
+          <div className="chapters">
+            <span className="ch-line" aria-hidden="true"><i /></span>
+            <ol>
+              {c.chapters.map(([ne, en, head, body]) => (
+                <li className="ch" key={en}>
+                  <span className="ch-year" aria-label={`${en} BS`}>{lang === 'ne' ? ne : en}<small>{lang === 'ne' ? 'वि.सं.' : 'BS'}</small></span>
+                  <b>{head}</b>
+                  <p>{body}</p>
+                </li>
+              ))}
+            </ol>
           </div>
-          <figcaption className="stage-key">
-            {c.stages.map(([name], s) => <span key={name} className={'s' + s}>{name}</span>)}
-          </figcaption>
+          <p className="card-note">{c.chaptersNote}</p>
+        </section>
+
+        <section className="card levels" aria-labelledby="bp-levels">
+          <h3 className="card-h" id="bp-levels">{c.levelsTitle}</h3>
+          <p className="card-p">{c.levelsLede}</p>
+          <figure className="stairs" aria-label={c.levels.join(', ')}>
+            <div className="steps">
+              {c.levels.map((l, i) => (
+                <div className={'step s' + levelStage[i]} key={l} style={{ height: `${22 + i * 6.2}%` }}><span>{l}</span></div>
+              ))}
+            </div>
+            <figcaption className="stage-key">
+              {c.stages.map(([name], s) => <span key={name} className={'s' + s}>{name}</span>)}
+            </figcaption>
+          </figure>
+        </section>
+
+        <section className="card principal" aria-labelledby="bp-principal">
+          <h3 className="card-h" id="bp-principal">{c.principalTitle}</h3>
+          <blockquote>
+            <p>{c.quote[0]}</p>
+            <p className="quote-end">{c.quoteEnd}</p>
+            <footer><img src="/photos/crest.png" alt="" width={44} height={44} /><span><b>{c.principal}</b>{c.principalRole}</span></footer>
+          </blockquote>
+        </section>
+
+        <figure className="card gpa">
+          <Photo name="gpa" alt="" />
+          <figcaption><b>3.96</b><span>{c.gpaLabel}</span></figcaption>
         </figure>
-      </section>
 
-      <section className="bp-block bp-band principal" aria-labelledby="bp-principal">
-        <h3 className="bp-h wide" id="bp-principal">{c.principalTitle}</h3>
-        <blockquote>
-          {c.quote.map((q) => <p key={q}>{q}</p>)}
-          <p className="quote-end">{c.quoteEnd}</p>
-          <footer><img src="/photos/crest.png" alt="" width={56} height={56} /><span><b>{c.principal}</b>{c.principalRole}</span></footer>
-        </blockquote>
-      </section>
+        <section className="card proud" aria-labelledby="bp-proud">
+          <h3 className="card-h" id="bp-proud">{c.proudTitle}</h3>
+          <ul>
+            {c.proud.map(([img, h, b]) => (
+              <li key={h}><Photo name={img} alt="" /><span><b>{h}</b>{b}</span></li>
+            ))}
+          </ul>
+        </section>
 
-      <section className="bp-block proud" aria-labelledby="bp-proud">
-        <h3 className="bp-h wide" id="bp-proud">{c.proudTitle}</h3>
-        <div className="proud-grid">
-          <figure className="gpa"><Photo name="gpa" alt="" ratio="4 / 5" /><figcaption><b>3.96</b><span>{c.gpaLabel}</span></figcaption></figure>
-          {c.proud.map(([img, h, b]) => (
-            <figure key={h} className="proud-item"><Photo name={img} alt="" ratio="4 / 3" /><figcaption><b>{h}</b><span>{b}</span></figcaption></figure>
-          ))}
-        </div>
-      </section>
+        <section className="beyond" aria-labelledby="bp-beyond">
+          <h3 className="card-h" id="bp-beyond">{c.beyondTitle}</h3>
+          <ul>
+            {c.beyond.map(([img, h, b]) => (
+              <li className="card" key={h}><Photo name={img} alt="" /><span><b>{h}</b>{b}</span></li>
+            ))}
+          </ul>
+        </section>
 
-      <section className="bp-block beyond" aria-labelledby="bp-beyond">
-        <h3 className="bp-h wide" id="bp-beyond">{c.beyondTitle}</h3>
-        <div className="mosaic">
-          {c.beyond.map(([img, h, b], i) => (
-            <figure key={h} className={'m' + i}><Photo name={img} alt="" /><figcaption><b>{h}</b><span>{b}</span></figcaption></figure>
-          ))}
-        </div>
-      </section>
+        <section className="card values" aria-labelledby="bp-values">
+          <h3 className="card-h" id="bp-values">{c.valuesTitle}</h3>
+          <dl>{c.values.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        </section>
 
-      <section className="bp-block values" aria-labelledby="bp-values">
-        <h3 className="bp-h wide" id="bp-values">{c.valuesTitle}</h3>
-        <dl className="value-list">{c.values.map(([k, v]) => <div key={k}><dt className="wide">{k}</dt><dd>{v}</dd></div>)}</dl>
-      </section>
-
-      <section className="bp-block join" aria-labelledby="bp-join">
-        <h3 className="bp-h wide" id="bp-join">{c.joinTitle}</h3>
-        <p className="bp-lede">{c.join}</p>
-        <div className="join-links">
-          <Link className="btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link>
-          <Link className="btn line" to={pagePath(lang, 'contact')}>{c.contact}</Link>
-        </div>
-      </section>
+        <section className="card join" aria-labelledby="bp-join">
+          <h3 className="card-h" id="bp-join">{c.joinTitle}</h3>
+          <p className="card-p">{c.join}</p>
+          <div className="join-links">
+            <Link className="btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link>
+            <Link className="btn line" to={pagePath(lang, 'contact')}>{c.contact}</Link>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

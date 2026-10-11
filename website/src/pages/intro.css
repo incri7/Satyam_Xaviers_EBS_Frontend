@@ -1,159 +1,142 @@
-/* The first page in the app's own colours (v3 logo blue, src/styles/tokens.css in the app): the canvas,
-   white surface panels with the app's line and shadow, the soft-blue panel, navy headings, royal actions,
-   sky on dark. Only its opening band keeps the signboard's navy, so the board the first scroll fills the
-   screen with runs straight into the page. Selectors start at .sheet.sheet-board so they outrank styles.css,
-   which loads after this file. */
+/* The first page, built the way the app is built: a bento grid of cards on the app's canvas, with the app's
+   tokens and its Figma text styles 1:1 (display-xl 48, display-l 38, h2 24, h3 19, figure-xl 60; card radius
+   20, row radius 14, shadow e2). Only the opening band keeps the signboard's navy, so the board the first
+   scroll fills the screen with runs straight into the page. Selectors start at .sheet.sheet-board so they
+   outrank styles.css, which loads after this file. */
 .sheet.sheet-board {
   --soft: #F1F8FB; --soft-line: #E0EFF6; --muted: #687A8F; --unlit: #C9D5E2; --band: #13295B;
-  --panel-shadow: 0 1px 2px rgb(20 40 70 / .04), 0 10px 28px -14px rgb(20 40 70 / .16);
+  --e2: 0 1px 2px rgb(20 40 70 / .04), 0 10px 28px -14px rgb(20 40 70 / .16);
   --st0: #B4D8E4; --st1: #86BBD6; --st2: #1F52A6; --st3: #13295B; --st0-t: #13295B; --st1-t: #13295B; --st2-t: #fff; --st3-t: #fff;
-  background: var(--canvas); color: var(--text);
+  background: var(--canvas); color: var(--text); font-size: 16px;
 }
 @media (prefers-color-scheme: dark) {
   .sheet.sheet-board {
     --soft: #132643; --soft-line: #1F3A63; --muted: #8697AB; --unlit: #2A3B58; --band: #14203A;
-    --panel-shadow: 0 1px 2px rgb(0 0 0 / .35), 0 12px 30px -16px rgb(0 0 0 / .6);
+    --e2: 0 1px 2px rgb(0 0 0 / .35), 0 12px 30px -16px rgb(0 0 0 / .6);
     --st0: #1F3A63; --st1: #2C6BC0; --st2: #86BBD6; --st3: #EEF3F9; --st0-t: #EEF3F9; --st1-t: #fff; --st2-t: #13295B; --st3-t: #13295B;
   }
 }
+.sheet-board .board-page { padding: 0 var(--gutter) clamp(40px, 5vw, 64px); }
+.sheet-board .board-page :is(p, ul, ol, dl, dd, figure, blockquote) { margin: 0; }
+.sheet-board .board-page ul { list-style: none; padding: 0; }
 
-.sheet-board .board-page { padding: 0 var(--gutter) clamp(72px, 9vw, 128px); }
-.sheet-board .board-page p { margin: 0; }
-.sheet-board .bp-band { margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); }
-
-/* the opening band: the signboard itself, its navy and its lettering with the sign-painter's shadow */
-.sheet-board .bp-open { margin-inline: calc(-1 * var(--gutter)); padding: clamp(80px, 11vw, 168px) var(--gutter) clamp(64px, 8vw, 112px);
-  color: #fff;
+/* the opening band: the signboard itself */
+.sheet-board .bp-open { margin: 0 calc(-1 * var(--gutter)); padding: clamp(48px, 6vw, 80px) var(--gutter) clamp(36px, 4vw, 52px); color: #fff;
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
     linear-gradient(90deg, #0F223D 0%, #172B48 50%, #233856 100%); }
-.sheet-board .painted { margin: 0; color: #ECEDE8; text-shadow: -.025em .035em 0 #081428; font-family: var(--display); font-stretch: 88%;
-  font-weight: 800; letter-spacing: -.03em; line-height: 1; text-wrap: balance; }
-html:lang(ne) .sheet-board .painted { letter-spacing: 0; line-height: 1.2; font-weight: 700; }
-.sheet-board .bp-title { font-size: clamp(60px, 10vw, 168px); }
-.sheet-board .bp-other { margin-top: .35em; font: 600 clamp(24px, 2.6vw, 40px)/1.3 "Mukta", var(--font); color: var(--sky); }
-.sheet-board .bp-other:lang(en) { font-family: var(--display); font-stretch: 88%; letter-spacing: -.02em; }
-.sheet-board .bp-open .bp-lede { color: rgb(255 255 255 / .82); }
-.sheet-board .bp-lede { margin-top: clamp(20px, 2.2vw, 30px); max-width: 56ch; font-size: clamp(18px, 1.35vw, 21px); line-height: 1.6; color: var(--slate); text-wrap: pretty; }
+.sheet-board .painted { margin: 0; color: #ECEDE8; text-shadow: -1px 2px 0 #081428; font: 700 clamp(34px, 3.6vw, 48px)/1.05 var(--display);
+  letter-spacing: -.035em; }
+html:lang(ne) .sheet-board .painted { letter-spacing: 0; line-height: 1.25; }
+.sheet-board .bp-other { margin-top: 6px; font: 600 19px/1.4 "Mukta", var(--font); color: var(--sky); }
+.sheet-board .bp-other:lang(en) { font-family: var(--display); letter-spacing: -.015em; }
+.sheet-board .bp-lede { margin-top: 14px; max-width: 64ch; font-size: 16px; line-height: 1.6; color: rgb(255 255 255 / .8); }
+.sheet-board .glance { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 10px; }
+.sheet-board .glance div { padding: 8px 14px; border-radius: 14px; background: rgb(255 255 255 / .07); border: 1px solid rgb(255 255 255 / .12); }
+.sheet-board .glance dt { font-size: 12px; color: rgb(255 255 255 / .6); }
+.sheet-board .glance dd { font-size: 15px; font-weight: 600; color: #fff; }
 
-.sheet-board .bp-block { margin-top: clamp(80px, 10vw, 150px); }
-.sheet-board .bp-h { font-size: clamp(34px, 4.4vw, 68px); max-width: 18ch; }
-.sheet-board .bp-note { margin-top: 28px; color: var(--slate); font-size: 17px; max-width: 48ch; }
-.sheet-board .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--panel-shadow); }
+/* the bento */
+.sheet-board .bento { margin-top: clamp(20px, 2.4vw, 28px); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 20px); }
+.sheet-board .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--e2); padding: clamp(18px, 2vw, 26px); }
+.sheet-board .card-h { margin: 0; font: 700 24px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); }
+html:lang(ne) .sheet-board .card-h { letter-spacing: 0; line-height: 1.4; }
+.sheet-board .card-p { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--slate); max-width: 62ch; }
+.sheet-board .card-note { margin-top: 18px; font-size: 14px; color: var(--muted); }
+.sheet-board .story { grid-column: span 7; }
+.sheet-board .levels { grid-column: span 5; background: var(--soft); border-color: var(--soft-line); box-shadow: none; display: flex; flex-direction: column; }
+.sheet-board .principal { grid-column: span 6; }
+.sheet-board .gpa { grid-column: span 3; }
+.sheet-board .proud { grid-column: span 3; }
+.sheet-board .beyond { grid-column: span 12; padding-top: 8px; }
+.sheet-board .values { grid-column: span 8; }
+.sheet-board .join { grid-column: span 4; background: var(--soft); border-color: var(--soft-line); box-shadow: none; display: flex; flex-direction: column; }
 
-/* Four chapters, on a white panel: a royal line draws across them as the reader passes, and each year
-   lights as it arrives. --p (0..1) draws the line, --lit (0..1) lights a year; both rest at 1. */
-.sheet-board .chapters { --p: 1; position: relative; margin-top: clamp(36px, 4vw, 56px);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--panel-shadow);
-  padding: clamp(32px, 4vw, 56px) clamp(24px, 3.4vw, 52px) clamp(32px, 3.6vw, 48px); }
-.sheet-board .chapters ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(20px, 3vw, 44px); }
-.sheet-board .ch-line { position: absolute; left: clamp(24px, 3.4vw, 52px); right: clamp(24px, 3.4vw, 52px); top: clamp(32px, 4vw, 56px);
-  height: 3px; background: var(--line); border-radius: 2px; }
+/* Four chapters: a royal line draws across them as the reader passes, and each year lights as it arrives.
+   --p (0..1) draws the line, --lit (0..1) lights a year; both rest at 1 so the card reads without motion. */
+.sheet-board .chapters { --p: 1; position: relative; margin-top: 22px; }
+.sheet-board .chapters ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.sheet-board .ch-line { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--line); border-radius: 2px; }
 .sheet-board .ch-line i { position: absolute; inset: 0; background: var(--royal); border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--p)); }
-.sheet-board .ch { --lit: 1; position: relative; padding-top: 34px; }
-.sheet-board .ch::before { content: ""; position: absolute; left: 0; top: -7px; width: 17px; height: 17px; border-radius: 50%;
+.sheet-board .ch { --lit: 1; position: relative; padding-top: 22px; }
+.sheet-board .ch::before { content: ""; position: absolute; left: 0; top: -5px; width: 13px; height: 13px; border-radius: 50%;
   border: 3px solid color-mix(in srgb, var(--royal) calc(var(--lit) * 100%), var(--unlit));
   background: color-mix(in srgb, var(--royal) calc(var(--lit) * 100%), var(--surface)); }
-.sheet-board .ch-year { display: block; font: 700 clamp(56px, 6.6vw, 112px)/1 var(--display); font-stretch: 75%; letter-spacing: -.03em;
+.sheet-board .ch-year { display: block; font: 700 38px/1.1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--ink) calc(var(--lit) * 100%), var(--unlit)); }
 html:lang(ne) .sheet-board .ch-year { font-family: "Mukta", sans-serif; letter-spacing: 0; }
-.sheet-board .ch-year small { font: 600 .2em var(--font); letter-spacing: 0; margin-left: .3em; color: var(--royal); opacity: var(--lit); }
-.sheet-board .ch b { display: block; margin-top: 16px; font: 700 20px/1.25 var(--display); font-stretch: 88%; color: var(--ink); }
-.sheet-board .ch p { margin-top: 8px; color: var(--slate); font-size: 16px; line-height: 1.55; max-width: 30ch; }
+.sheet-board .ch-year small { font: 600 12px var(--font); letter-spacing: 0; margin-left: 4px; color: var(--royal); opacity: var(--lit); }
+.sheet-board .ch b { display: block; margin-top: 6px; font: 600 15px/1.3 var(--display); color: var(--ink); }
+.sheet-board .ch p { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--slate); }
 
-/* Thirteen class levels as thirteen steps on the soft-blue panel, rising in turn, coloured by stage from
-   sky to navy */
-.sheet-board .levels { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(36px, 5vw, 80px); align-items: end;
-  background: var(--soft); border: 1px solid var(--soft-line); border-radius: 20px; padding: clamp(32px, 4.4vw, 64px); }
-.sheet-board .glance { margin: 36px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; }
-.sheet-board .glance dt { font-size: 14px; color: var(--muted); }
-.sheet-board .glance dd { margin: 4px 0 0; font: 700 19px/1.3 var(--display); font-stretch: 88%; color: var(--ink); }
-.sheet-board .stairs { margin: 0; }
-.sheet-board .steps { display: flex; align-items: flex-end; gap: clamp(4px, .6vw, 8px); height: clamp(250px, 28vw, 400px); }
-.sheet-board .step { flex: 1; position: relative; transform-origin: 50% 100%; border-radius: 8px 8px 2px 2px; }
-.sheet-board .step span { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); writing-mode: vertical-rl; rotate: 180deg;
-  font: 700 clamp(12px, 1vw, 15px)/1 var(--font); white-space: nowrap; }
+/* thirteen class levels as thirteen steps, rising in turn, sky to navy by stage */
+.sheet-board .stairs { margin-top: auto; padding-top: 20px; }
+.sheet-board .steps { display: flex; align-items: flex-end; gap: 4px; height: 170px; }
+.sheet-board .step { flex: 1; position: relative; transform-origin: 50% 100%; border-radius: 6px 6px 2px 2px; background: var(--c); }
+.sheet-board .step span { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); writing-mode: vertical-rl; rotate: 180deg;
+  font: 700 11px/1 var(--font); white-space: nowrap; color: var(--t); }
 .sheet-board .s0 { --c: var(--st0); --t: var(--st0-t); } .sheet-board .s1 { --c: var(--st1); --t: var(--st1-t); }
 .sheet-board .s2 { --c: var(--st2); --t: var(--st2-t); } .sheet-board .s3 { --c: var(--st3); --t: var(--st3-t); }
-.sheet-board .step { background: var(--c); } .sheet-board .step span { color: var(--t); }
-.sheet-board .stage-key { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 20px; font-size: 15px; color: var(--slate); }
-.sheet-board .stage-key span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; background: var(--c); }
+.sheet-board .stage-key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--slate); }
+.sheet-board .stage-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--c); }
 
-/* the principal's own words, large, on the app's navy */
-.sheet-board .principal { padding-block: clamp(72px, 9vw, 132px); background: var(--band); color: #fff; }
-.sheet-board .principal .bp-h { color: #fff; }
-.sheet-board .principal blockquote { margin: clamp(36px, 4.4vw, 56px) 0 0; max-width: 34em; position: relative; padding-left: clamp(0px, 6vw, 96px); }
-.sheet-board .principal blockquote::before { content: "\201C"; position: absolute; left: 0; top: -.12em; font: 800 clamp(80px, 10vw, 150px)/1 var(--display); color: var(--sky); }
-.sheet-board .principal blockquote p { font-size: clamp(21px, 2vw, 30px); line-height: 1.45; letter-spacing: -.01em; color: #fff; text-wrap: pretty; }
-.sheet-board .principal blockquote p + p { margin-top: .8em; }
-.sheet-board .principal .quote-end { color: var(--sky); }
-.sheet-board .principal footer { display: flex; align-items: center; gap: 16px; margin-top: 36px; }
-.sheet-board .principal footer img { width: 56px; height: 56px; }
-.sheet-board .principal footer b { display: block; font: 700 21px/1.2 var(--display); font-stretch: 88%; color: #fff; }
-.sheet-board .principal footer span { font-size: 15px; color: rgb(255 255 255 / .72); }
+/* the principal, in her own words */
+.sheet-board .principal { background: var(--band); border-color: transparent; color: #fff; display: flex; flex-direction: column; }
+.sheet-board .principal .card-h { color: #fff; }
+.sheet-board .principal blockquote { margin-top: 14px; display: flex; flex-direction: column; flex: 1; }
+.sheet-board .principal blockquote p { font-size: 19px; line-height: 1.5; letter-spacing: -.005em; }
+.sheet-board .principal blockquote p::before { content: "\201C"; }
+.sheet-board .principal blockquote p::after { content: "\201D"; }
+.sheet-board .principal .quote-end { margin-top: 12px; font-size: 16px; color: var(--sky); }
+.sheet-board .principal footer { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 20px; }
+.sheet-board .principal footer img { width: 44px; height: 44px; }
+.sheet-board .principal footer b { display: block; font: 600 16px/1.3 var(--display); }
+.sheet-board .principal footer span { font-size: 13px; color: rgb(255 255 255 / .7); }
 
-/* what the school is proud of: the 3.96 counts up over its own photograph */
-.sheet-board .proud-grid { margin-top: clamp(36px, 4vw, 56px); display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(16px, 2vw, 24px); }
-.sheet-board .proud-grid figure { margin: 0; }
-.sheet-board .proud-grid img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
-.sheet-board .gpa { grid-row: span 2; position: relative; overflow: hidden; border-radius: 20px; min-height: 520px; }
-.sheet-board .gpa img { position: absolute; inset: 0; aspect-ratio: auto !important; border-radius: 0; }
-.sheet-board .gpa figcaption { position: absolute; inset: auto 0 0 0; padding: 120px clamp(20px, 2.4vw, 36px) clamp(20px, 2.4vw, 32px);
-  background: linear-gradient(0deg, rgb(11 26 61 / .92) 0%, rgb(11 26 61 / .7) 45%, rgb(11 26 61 / 0) 100%); }
-.sheet-board .gpa b { display: block; font: 800 clamp(80px, 9.6vw, 150px)/.9 var(--display); font-stretch: 75%; letter-spacing: -.03em; color: #fff;
-  font-variant-numeric: tabular-nums; }
-.sheet-board .gpa span { display: block; margin-top: 12px; font-size: 17px; color: var(--sky); max-width: 30ch; }
-.sheet-board .proud-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: center;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--panel-shadow); padding: 12px; }
-.sheet-board .proud-item img { aspect-ratio: 4 / 3; }
-.sheet-board .proud-item figcaption { padding-right: 12px; }
-.sheet-board .board-page figcaption b { display: block; font: 700 19px/1.25 var(--display); font-stretch: 88%; color: var(--ink); }
-.sheet-board .board-page figcaption span { display: block; margin-top: 6px; font-size: 16px; line-height: 1.5; color: var(--slate); }
-.sheet-board .board-page .gpa figcaption b { color: #fff; }
-.sheet-board .board-page .gpa figcaption span { color: var(--sky); }
+/* 3.96, counting up over its own photograph */
+.sheet-board .gpa { position: relative; overflow: hidden; padding: 0; min-height: 300px; border: 0; }
+.sheet-board .gpa img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sheet-board .gpa figcaption { position: absolute; inset: auto 0 0 0; padding: 80px 20px 20px;
+  background: linear-gradient(0deg, rgb(11 26 61 / .92) 0%, rgb(11 26 61 / .65) 50%, rgb(11 26 61 / 0) 100%); }
+.sheet-board .gpa b { display: block; font: 700 60px/1 var(--display); letter-spacing: -.04em; color: #fff; font-variant-numeric: tabular-nums; }
+.sheet-board .gpa span { display: block; margin-top: 6px; font-size: 14px; line-height: 1.45; color: var(--sky); }
 
-/* beyond the classroom: four photographs, two wide and two tall, crossing */
-.sheet-board .mosaic { margin-top: clamp(36px, 4vw, 56px); display: grid; grid-template-columns: repeat(12, 1fr); gap: clamp(28px, 3vw, 40px) clamp(16px, 2vw, 24px); }
-.sheet-board .mosaic figure { margin: 0; }
-.sheet-board .mosaic img { display: block; width: 100%; object-fit: cover; border-radius: 14px; margin-bottom: 14px; }
-.sheet-board .mosaic .m0 { grid-column: 1 / span 7; } .sheet-board .mosaic .m0 img { aspect-ratio: 16 / 10; }
-.sheet-board .mosaic .m1 { grid-column: 8 / span 5; align-self: end; } .sheet-board .mosaic .m1 img { aspect-ratio: 4 / 5; }
-.sheet-board .mosaic .m2 { grid-column: 1 / span 5; } .sheet-board .mosaic .m2 img { aspect-ratio: 4 / 5; }
-.sheet-board .mosaic .m3 { grid-column: 6 / span 7; } .sheet-board .mosaic .m3 img { aspect-ratio: 16 / 10; }
+/* rows of a photo and its words, as the app lists things */
+.sheet-board .proud ul { margin-top: 14px; display: grid; gap: 12px; }
+.sheet-board .proud li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: start; }
+.sheet-board .proud img { width: 72px; height: 72px; object-fit: cover; border-radius: 14px; }
+.sheet-board :is(.proud, .beyond) li b { display: block; font: 600 15px/1.3 var(--display); color: var(--ink); margin-bottom: 2px; }
+.sheet-board :is(.proud, .beyond) li span { font-size: 14px; line-height: 1.45; color: var(--slate); }
 
-/* the five values, on a white panel, the words themselves large */
-.sheet-board .value-list { margin: clamp(32px, 4vw, 48px) 0 0; padding: 4px clamp(24px, 3.4vw, 48px);
-  background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--panel-shadow); }
-.sheet-board .value-list div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: baseline;
-  padding: clamp(18px, 2vw, 26px) 0; }
-.sheet-board .value-list div + div { border-top: 1px solid var(--line); }
-.sheet-board .value-list dt { font-size: clamp(32px, 4.2vw, 64px); }
-.sheet-board .value-list dd { margin: 0; font-size: 17px; line-height: 1.55; color: var(--slate); max-width: 40ch; }
+.sheet-board .beyond ul { margin-top: 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 20px); }
+.sheet-board .beyond li.card { padding: 8px 8px 16px; }
+.sheet-board .beyond img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
+.sheet-board .beyond li span { display: block; padding: 0 8px; }
 
-/* the invitation, on the soft-blue panel, with the app's buttons */
-.sheet-board .join { background: var(--soft); border: 1px solid var(--soft-line); border-radius: 20px; padding: clamp(36px, 5vw, 72px); }
-.sheet-board .join-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+/* the five values */
+.sheet-board .values dl { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.sheet-board .values dl div { padding: 14px; border-radius: 14px; background: var(--soft); border: 1px solid var(--soft-line); }
+.sheet-board .values dt { font: 600 19px/1.25 var(--display); letter-spacing: -.015em; color: var(--ink); }
+.sheet-board .values dd { margin-top: 4px; font-size: 14px; line-height: 1.45; color: var(--slate); }
 
-@media (max-width: 900px) {
-  .sheet-board .levels { grid-template-columns: 1fr; align-items: start; }
-  .sheet-board .proud-grid { grid-template-columns: 1fr; }
-  .sheet-board .gpa { grid-row: auto; min-height: 0; } .sheet-board .gpa img { position: static; aspect-ratio: 4 / 5 !important; }
-  .sheet-board .value-list div { grid-template-columns: 1fr; gap: 6px; }
+.sheet-board .join-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: auto; padding-top: 20px; }
+
+@media (max-width: 1100px) {
+  .sheet-board :is(.story, .levels, .principal, .values, .join) { grid-column: span 12; }
+  .sheet-board :is(.gpa, .proud) { grid-column: span 6; }
+  .sheet-board .beyond ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
+  .sheet-board :is(.gpa, .proud) { grid-column: span 12; }
   /* the four chapters stack, and the line runs down beside them */
-  .sheet-board .chapters ol { grid-template-columns: 1fr; gap: 36px; padding-left: 34px; }
-  .sheet-board .ch-line { left: calc(clamp(24px, 3.4vw, 52px) + 7px); right: auto; top: calc(clamp(32px, 4vw, 56px) + 10px); bottom: clamp(40px, 5vw, 60px); width: 3px; height: auto; }
+  .sheet-board .chapters ol { grid-template-columns: 1fr; gap: 18px; padding-left: 26px; }
+  .sheet-board .ch-line { left: 5px; right: auto; top: 6px; bottom: 6px; width: 3px; height: auto; }
   .sheet-board .ch-line i { transform-origin: 50% 0; transform: scaleY(var(--p)); }
   .sheet-board .ch { padding-top: 0; }
-  .sheet-board .ch::before { left: -34px; top: .9em; }
-  .sheet-board .proud-item { grid-template-columns: 1fr; }
-  .sheet-board .proud-item figcaption { padding: 0 8px 8px; }
-  .sheet-board .mosaic { grid-template-columns: 1fr; }
-  .sheet-board .mosaic .m0, .sheet-board .mosaic .m1, .sheet-board .mosaic .m2, .sheet-board .mosaic .m3 { grid-column: auto; }
-  .sheet-board .mosaic img { aspect-ratio: 4 / 3 !important; }
-  .sheet-board .glance { grid-template-columns: 1fr; }
-  .sheet-board .principal blockquote { padding-left: 0; padding-top: 64px; }
-  .sheet-board .principal blockquote::before { top: -.05em; font-size: 96px; }
-  .sheet-board .step span { font-size: 11px; }
+  .sheet-board .ch::before { left: -26px; top: 14px; }
+  .sheet-board .ch-year { font-size: 30px; }
+  .sheet-board .card-h { font-size: 21px; }
+  .sheet-board .beyond ul { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sheet-board .beyond li span { font-size: 0; padding: 0 4px; }
+  .sheet-board .beyond li span b { font-size: 14px; margin: 0; }
 }
