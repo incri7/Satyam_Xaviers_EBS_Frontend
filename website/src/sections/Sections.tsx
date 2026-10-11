@@ -23,7 +23,6 @@ export function Nav() {
         <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
         {/* The school app (parents, teachers, staff) lives on the same domain at /login: a full page load. */}
         <a className="btn line login" href="/login">{t.login}</a>
-        <Link className="btn" to={pagePath(lang, 'admissions')}>{t.start}</Link>
       </div>
     </header>
   );
