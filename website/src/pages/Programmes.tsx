@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -111,43 +111,71 @@ export function ProgrammesBody() {
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
 
-  // One moment of motion, tied to what it shows: a line runs through the school day as the reader passes it,
-  // lighting each hour as it arrives (the same gesture as the first page's four chapters).
+  // The climb: on a wide screen the navy band holds while the reader scrolls through the four stages; the thirteen
+  // classes light up stage by stage and the stage panel changes with them. On a phone, or with reduced motion, the
+  // four stages simply stack. And the school day: a line runs through the hours, lighting each as it arrives.
   useLayoutEffect(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const ctx = gsap.context(() => {
-      const hours = gsap.utils.toArray<HTMLElement>('.hour');
-      const n = hours.length;
-      const tl = gsap.timeline({ defaults: { ease: 'none' },
+    const mm = gsap.matchMedia(root);
+    mm.add({ wide: '(min-width: 901px)', calm: '(prefers-reduced-motion: reduce)' }, (ctx) => {
+      const { wide, calm } = ctx.conditions as { wide: boolean; calm: boolean };
+      if (calm) return;
+      const day = gsap.utils.toArray<HTMLElement>('.hour');
+      const n = day.length;
+      const dl = gsap.timeline({ defaults: { ease: 'none' },
         scrollTrigger: { trigger: '.day-line-wrap', start: 'top 75%', end: 'bottom 55%', scrub: 0.6 } });
-      tl.fromTo('.day-line-wrap', { '--p': 0 }, { '--p': 1, duration: n });
-      hours.forEach((el, i) => tl.fromTo(el, { '--lit': 0 }, { '--lit': 1, duration: 0.4 }, i * (n - 0.4) / (n - 1)));
-    }, root);
-    return () => ctx.revert();
+      dl.fromTo('.day-line-wrap', { '--p': 0 }, { '--p': 1, duration: n });
+      day.forEach((el, i) => dl.fromTo(el, { '--lit': 0 }, { '--lit': 1, duration: 0.4 }, i * (n - 0.4) / (n - 1)));
+      if (!wide) return;
+      const band = root.current!.querySelector<HTMLElement>('.journey')!;
+      band.classList.add('is-held');
+      const panels = gsap.utils.toArray<HTMLElement>('.panel');
+      const dots = gsap.utils.toArray<HTMLElement>('.jdot');
+      const steps = (s: number) => gsap.utils.toArray<HTMLElement>(`.rung.s${s}`);
+      gsap.set(panels.slice(1), { autoAlpha: 0 });
+      const tl = gsap.timeline({ defaults: { ease: 'none' },
+        scrollTrigger: { trigger: band, start: 'top top', end: () => '+=' + Math.round(innerHeight * 2.6), pin: true, scrub: 0.5, invalidateOnRefresh: true } });
+      for (let k = 1; k < panels.length; k++) {
+        const at = k - 0.45;
+        tl.to(panels[k - 1], { autoAlpha: 0, y: -24, duration: 0.3, ease: 'power1.in' }, at)
+          .fromTo(panels[k], { autoAlpha: 0, y: 32 }, { autoAlpha: 1, y: 0, duration: 0.35, ease: 'power2.out' }, at + 0.22)
+          .fromTo(panels[k].querySelector('img'), { scale: 1.08 }, { scale: 1, duration: 0.6, ease: 'power2.out' }, at + 0.22)
+          .fromTo(steps(k), { '--lit': 0 }, { '--lit': 1, duration: 0.12, stagger: 0.06, immediateRender: false }, at + 0.1)
+          .fromTo(dots[k - 1], { '--on': 1 }, { '--on': 0, duration: 0.2, immediateRender: false }, at + 0.1)
+          .fromTo(dots[k], { '--on': 0 }, { '--on': 1, duration: 0.2, immediateRender: false }, at + 0.1);
+      }
+      tl.set({}, {}, panels.length - 0.2);
+      return () => band.classList.remove('is-held');
+    });
+    return () => mm.revert();
   }, [lang]);
 
   return (
     <div className="prog" ref={root}>
-      <section className="prog-block" aria-labelledby="pg-stages">
-        <header className="prog-head">
-          <h3 className="prog-h" id="pg-stages">{c.stagesTitle}</h3>
-          <p className="prog-lede">{c.stagesLede}</p>
-        </header>
-        <div className="stages">
-          {c.stages.map((s, i) => (
-            <article className={'card stage s' + i} key={s.name}>
-              <Photo name={s.photo} alt="" className="stage-photo" />
-              <div className="stage-body">
-                <p className="stage-meta"><b>{s.name}</b><span>{s.meta}</span></p>
-                <h4 className="stage-title">{s.title}</h4>
-                <ul className="class-chips" aria-label={s.meta}>{s.classes.map((k) => <li key={k}>{/^[0-9०-९]+$/.test(k) ? `${c.classWord} ${k}` : k}</li>)}</ul>
-                <dl className="stage-dl">
-                  <div><dt>{c.learn}</dt><dd>{s.learn}</dd></div>
-                  <div><dt>{c.how}</dt><dd>{s.how}</dd></div>
-                </dl>
-              </div>
-            </article>
-          ))}
+      <section className="journey" aria-labelledby="pg-stages">
+        <div className="journey-inner">
+          <header className="journey-head">
+            <h3 className="journey-h" id="pg-stages">{c.stagesTitle}</h3>
+            <p className="journey-lede">{c.stagesLede}</p>
+          </header>
+          <ol className="ladder" aria-hidden="true">
+            {c.stages.flatMap((s, si) => s.classes.map((k) => <li className={'rung s' + si} key={si + k}>{k}</li>))}
+          </ol>
+          <div className="panels">
+            {c.stages.map((s, i) => (
+              <article className={'panel s' + i} key={s.name}>
+                <figure className="panel-photo"><Photo name={s.photo} alt="" /></figure>
+                <div className="panel-body">
+                  <p className="stage-meta"><b>{s.name}</b><span>{s.meta}</span></p>
+                  <h4 className="panel-title">{s.title}</h4>
+                  <dl className="panel-dl">
+                    <div><dt>{c.learn}</dt><dd>{s.learn}</dd></div>
+                    <div><dt>{c.how}</dt><dd>{s.how}</dd></div>
+                  </dl>
+                </div>
+              </article>
+            ))}
+          </div>
+          <ol className="jdots" aria-hidden="true">{c.stages.map((s, i) => <li className="jdot" key={s.name} style={{ '--on': i ? 0 : 1 } as CSSProperties}><b>{s.name}</b></li>)}</ol>
         </div>
       </section>
 
@@ -158,24 +186,22 @@ export function ProgrammesBody() {
         </header>
         <div className="bento">
           <article className="card wall">
-            <Photo name="learnwall" alt="" className="tile-photo" />
-            <div>
+            <Photo name="learnwall" alt="" className="wall-photo" />
+            <div className="wall-body">
               <h4 className="card-h">{c.wall.title}</h4>
               <p className="card-p">{c.wall.text}</p>
               <ul className="wall-list">{c.wall.items.map((it) => <li key={it}>{it}</li>)}</ul>
-              <p className="wall-sample">{c.wall.sample}</p>
             </div>
+            <p className="chalk">{c.wall.sample}</p>
           </article>
-          <article className="card tile">
-            <Photo name="englishzone" alt="" className="tile-photo tall" />
-            <h4 className="card-h">{c.english.title}</h4>
-            <p className="card-p">{c.english.text}</p>
-          </article>
-          <article className="card tile">
-            <Photo name="cls1" alt="" className="tile-photo tall" />
-            <h4 className="card-h">{c.paper.title}</h4>
-            <p className="card-p">{c.paper.text}</p>
-          </article>
+          <figure className="card shot">
+            <Photo name="englishzone" alt="" />
+            <figcaption><b>{c.english.title}</b><span>{c.english.text}</span></figcaption>
+          </figure>
+          <figure className="card shot">
+            <Photo name="cls1" alt="" />
+            <figcaption><b>{c.paper.title}</b><span>{c.paper.text}</span></figcaption>
+          </figure>
         </div>
       </section>
 
