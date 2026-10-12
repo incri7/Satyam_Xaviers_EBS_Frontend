@@ -9,7 +9,7 @@ export function Academics() {
   return (
     <>
       <PageHead title={a.title} other={a.other} intro={a.intro} />
-      <AcademicsBody />
+      <AcademicsBody lead="light" />
     </>
   );
 }

@@ -11,6 +11,7 @@ import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { IntroBody, introHead } from '../pages/Intro';
+import { ProgrammesGlance } from '../pages/Programmes';
 
 gsap.registerPlugin(ScrollTrigger);
 if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
@@ -107,7 +108,11 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(arrive, { o: 1, q: 1 }, { o: 0, q: 0, duration: 0.001, immediateRender: false }, 0.002)
           .fromTo(card.querySelector('.pickup-full'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.28, ease: 'power1.inOut', immediateRender: false }, 0.04)
           .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight }, { ...to, duration: 0.6, ease: 'power2.inOut', immediateRender: false }, 0.24)
-          .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.5)
+          .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
+          // then the light page deepens into the signboard's navy, the words turning light with it, so the page runs
+          // on into Programmes' navy without an edge
+          .fromTo(pin.querySelector('.pickup-dark'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: 'sine.inOut', immediateRender: false }, 0.74)
+          .fromTo(pin, { '--dk': 0 }, { '--dk': 1, duration: 0.24, ease: 'sine.inOut', immediateRender: false }, 0.74)
           .set({}, {}, 1);
 
         // Lay the scenes out in scroll pixels: scene 0 and 1 over their sections, the pick-up while its picture is
@@ -188,10 +193,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       <section className="pickup" id="programmes" aria-labelledby="programmes-title" ref={pickup}>
         <div className="pickup-pin">
           <div className="pickup-bg" />
+          <div className="pickup-dark" />
           <header className="pickup-head">
             <h2 className="wide" id="programmes-title">{p.academics.title}</h2>
             <p className="other" lang={other}>{p.academics.other}</p>
             <p className="lede">{p.academics.intro}</p>
+            <ProgrammesGlance />
           </header>
           <div className="pickup-slot" aria-hidden="true" />
           <div className="pickup-card">

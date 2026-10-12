@@ -78,13 +78,26 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 .pickup-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; align-items: center; align-content: center;
   grid-template-columns: minmax(0, .85fr) minmax(0, 1.25fr); gap: clamp(28px, 4vw, 64px); padding: 88px var(--gutter) 40px; }
 .pickup-bg { position: absolute; inset: 0; background: var(--canvas); visibility: hidden; opacity: 0; }
+.pickup-dark { position: absolute; inset: 0; visibility: hidden; opacity: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(90deg, #0F223D 0%, #172B48 50%, #233856 100%); }
+/* --dk (0..1): the page head turning light as the page deepens into navy */
+.pickup-pin { --dk: 0; }
 .pickup-head { position: relative; z-index: 1; visibility: hidden; opacity: 0; }
-.pickup-head h2 { font-size: clamp(36px, 4.2vw, 64px); }
-.pickup-head .lede { max-width: 44ch; }
+.pickup-head h2 { font-size: clamp(36px, 4.2vw, 64px); color: color-mix(in srgb, #ECEDE8 calc(var(--dk) * 100%), var(--ink)); }
+.pickup-head .other { color: color-mix(in srgb, var(--sky) calc(var(--dk) * 100%), var(--royal)); }
+.pickup-head .lede { max-width: 44ch; color: color-mix(in srgb, rgb(255 255 255 / .78) calc(var(--dk) * 100%), var(--slate)); }
+.prog-glance { margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 8px; max-width: 560px; }
+.prog-glance div { padding: 8px 12px; border-radius: 14px;
+  background: color-mix(in srgb, rgb(255 255 255 / .07) calc(var(--dk) * 100%), var(--surface));
+  border: 1px solid color-mix(in srgb, rgb(255 255 255 / .14) calc(var(--dk) * 100%), var(--line)); }
+.prog-glance dt { margin: 0; font-size: 12px; font-weight: 500; color: color-mix(in srgb, rgb(255 255 255 / .6) calc(var(--dk) * 100%), var(--slate)); }
+.prog-glance dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; color: color-mix(in srgb, #fff calc(var(--dk) * 100%), var(--ink)); }
 .pickup-slot { aspect-ratio: var(--va, 16 / 10); width: 100%; max-height: calc(100vh - 160px); }
 .pickup-card { position: absolute; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; visibility: hidden; opacity: 0; }
 .pickup-card img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
-.pickup-school { filter: drop-shadow(0 26px 30px rgb(11 26 61 / .22)); }
+.pickup-school { filter: drop-shadow(0 26px 30px rgb(11 26 61 / .3)); }
 /* the pages after it, read as pages */
 .home-pages { position: relative; z-index: 2; background: var(--canvas); }
 .home-page { padding-bottom: clamp(40px, 5vw, 80px); }

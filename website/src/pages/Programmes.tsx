@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -14,6 +14,7 @@ gsap.registerPlugin(ScrollTrigger);
     Zone signs, the corridor's learning wall, the school buses, the early-years classroom). */
 const COPY = {
   en: {
+    glance: [['Classes', 'Nursery to Class 10'], ['Stages', 'Four, Early Years to Secondary'], ['School day', '6:00 AM to 4:30 PM'], ['Getting here', 'School buses'], ['Since', '2048 BS']],
     stagesTitle: 'Four stages, thirteen classes.',
     stagesLede: 'As children progress through the classes, they encounter new subjects, develop new abilities, and take on greater responsibility for their learning.',
     learn: 'What they learn', how: 'How they are taught', classWord: 'Class',
@@ -59,6 +60,7 @@ const COPY = {
     admissions: 'Explore admissions',
   },
   ne: {
+    glance: [['कक्षा', 'नर्सरीदेखि कक्षा १० सम्म'], ['चरण', 'चार, प्रारम्भिकदेखि माध्यमिकसम्म'], ['विद्यालयको दिन', 'बिहान ६:०० देखि बेलुका ४:३०'], ['आवतजावत', 'विद्यालय बस'], ['स्थापना', 'वि.सं. २०४८']],
     stagesTitle: 'चार चरण, तेह्र कक्षा।',
     stagesLede: 'माथिल्लो कक्षामा जाँदै गर्दा बच्चाहरूले नयाँ विषय भेट्छन्, नयाँ क्षमता बनाउँछन् र आफ्नो पढाइको जिम्मेवारी बढी लिन्छन्।',
     learn: 'के सिक्छन्', how: 'कसरी सिकाइन्छ', classWord: 'कक्षा',
@@ -105,11 +107,19 @@ const COPY = {
   },
 };
 
-/** The programmes: shared by the home page (under the picked-up school) and by the /programmes route. */
-export function ProgrammesBody() {
+/** The page's key facts, as chips: beside the heading where the school's front is picked up (Story). */
+export function ProgrammesGlance() {
+  const c = COPY[useLang()];
+  return <dl className="prog-glance">{c.glance.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
+}
+
+/** The programmes: shared by the home page (under the picked-up school, already on the navy) and by the /programmes
+    route (lead="light": it opens on the light page head, so the navy fades in). */
+export function ProgrammesBody({ lead }: { lead?: 'light' }) {
   const lang = useLang();
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(0);
 
   // The climb: on a wide screen the navy band holds while the reader scrolls through the four stages; the thirteen
   // classes light up stage by stage and the stage panel changes with them. On a phone, or with reduced motion, the
@@ -150,7 +160,7 @@ export function ProgrammesBody() {
   }, [lang]);
 
   return (
-    <div className="prog" ref={root}>
+    <div className={'prog' + (lead === 'light' ? ' from-light' : '')} ref={root}>
       <section className="journey" aria-labelledby="pg-stages">
         <div className="journey-inner">
           <header className="journey-head">
@@ -184,25 +194,22 @@ export function ProgrammesBody() {
           <h3 className="prog-h" id="pg-every">{c.everyTitle}</h3>
           <p className="prog-lede">{c.everyLede}</p>
         </header>
-        <div className="bento">
-          <article className="card wall">
-            <Photo name="learnwall" alt="" className="wall-photo" />
-            <div className="wall-body">
-              <h4 className="card-h">{c.wall.title}</h4>
-              <p className="card-p">{c.wall.text}</p>
-              <ul className="wall-list">{c.wall.items.map((it) => <li key={it}>{it}</li>)}</ul>
-            </div>
-            <p className="chalk">{c.wall.sample}</p>
-          </article>
-          <figure className="card shot">
-            <Photo name="englishzone" alt="" />
-            <figcaption><b>{c.english.title}</b><span>{c.english.text}</span></figcaption>
-          </figure>
-          <figure className="card shot">
-            <Photo name="cls1" alt="" />
-            <figcaption><b>{c.paper.title}</b><span>{c.paper.text}</span></figcaption>
-          </figure>
-        </div>
+        {/* One photograph open at a time, the others folded beside it (as the first page's reel); pointing at,
+            focusing or tapping a fold opens it. On a phone they stack, every one open. */}
+        <ul className="lreel">
+          {[
+            { img: 'learnwall', title: c.wall.title, body: <><span>{c.wall.text}</span><ul className="wall-list">{c.wall.items.map((it) => <li key={it}>{it}</li>)}</ul><p className="chalk">{c.wall.sample}</p></> },
+            { img: 'englishzone', title: c.english.title, body: <span>{c.english.text}</span> },
+            { img: 'cls1', title: c.paper.title, body: <span>{c.paper.text}</span> },
+          ].map((it, i) => (
+            <li key={it.title} className={i === open ? 'open' : undefined} onMouseEnter={() => setOpen(i)}>
+              <Photo name={it.img} alt="" />
+              <span className="lreel-fold" aria-hidden="true">{it.title}</span>
+              <div className="lreel-cap"><b>{it.title}</b>{it.body}</div>
+              <button type="button" className="lreel-hit" aria-expanded={i === open} aria-label={it.title} onClick={() => setOpen(i)} onFocus={() => setOpen(i)} />
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="prog-block bento" aria-label={c.dayTitle}>
