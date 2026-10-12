@@ -3,9 +3,8 @@
 # the neighbours, then comes round and down onto the open ground in front of the long side; its view turns
 # from the driveway to the facade along the way, and its lens eases from the street's to the front's.
 # Usage: blender -b sxebs_street_v1.blend --python job_travel.py -- <out dir> <frames> <WxH> <samples>
-import bpy, json, math, os, sys, time, traceback
+import bpy, math, os, sys, time, traceback
 from mathutils import Vector
-from bpy_extras.object_utils import world_to_camera_view
 args = sys.argv[sys.argv.index('--') + 1:]
 OUT, N = args[0], int(args[1]); W, H = map(int, args[2].split('x')); SAMPLES = int(args[3])
 os.makedirs(OUT, exist_ok=True)
@@ -37,20 +36,15 @@ try:
     s = sc.render.image_settings; s.media_type = 'IMAGE'; s.file_format = 'PNG'; s.color_mode = 'RGB'; s.color_depth = '8'
     ease = lambda t: t * t * (3 - 2 * t)
     frames = [int(f) for f in args[4].split(',')] if len(args) > 4 else range(N)
-    # the flag's corners in every frame, for the website to draw it waving (the renders leave the cloth out)
-    fq = list(bpy.data.objects['GEO-school_flag']['web_quad']); fcorners = [Vector(fq[i:i + 3]) for i in range(0, 12, 3)]
-    flag = {}
     for k in frames:
         t = k / (N - 1); u = ease(t)
         cam.location = (1 - u) ** 3 * P0 + 3 * (1 - u) ** 2 * u * P1 + 3 * (1 - u) * u ** 2 * P2 + u ** 3 * P3
         w = ease(t); aim = (1 - w) ** 2 * A0 + 2 * (1 - w) * w * A1 + w ** 2 * A2
         cam.rotation_euler = (aim - cam.location).to_track_quat('-Z', 'Y').to_euler()
         cam.data.lens = a.data.lens + (b.data.lens - a.data.lens) * u
-        flag[k] = [round(v, 1) for p in fcorners for v in (world_to_camera_view(sc, cam, p).x * W, (1 - world_to_camera_view(sc, cam, p).y) * H)]
         bpy.ops.render.render()
         bpy.data.images['Render Result'].save_render(os.path.join(OUT, f'{k:03d}.png'), scene=sc)
         print('frame', k, round(time.time() - t0, 1))
-    json.dump({'size': [W, H], 'frames': [flag[k] for k in sorted(flag)]}, open(os.path.join(OUT, 'flag.json'), 'w'))
 except Exception:
     traceback.print_exc()
 print('DONE'); log.close()

@@ -188,23 +188,33 @@ def on_level(name, s0, s1, t0, t1, z0, z1, m):
     off = G - gz((s0 + s1) / 2, (t0 + t1) / 2)
     return box(name, s0, s1, t0, t1, off + z0, off + z1, m)
 on_level('GEO-school_stair_head', SB - 7.0, SB - 3.5, TC + 0.6, TC + 4.0, roof, roof + 2.7, SM['plain'])
-# The flag: a short pole at the roof's front corner, so the flag flies just above the roof in the front view. The
-# cloth is drawn by the website, waving (sections/Flag.tsx), so the renders leave it out; the object keeps the
-# flag's four corners (hoist top, fly top, fly bottom, hoist bottom) for the jobs that project them into each view.
-cylinder('GEO-school_flag_pole', P(SF + CORR + 0.6, TC + 0.7, roof), 2.7, 0.03, SM['post'], seg=8)
-fp = P(SF + CORR + 0.6, TC + 0.7, roof + 2.65)
+# The flag: a pole at the roof's front corner, the flag flying just above the roof in the front view, along the
+# front so it is seen broadside. Nepal's flag (make_flag.py) on a cloth with a gentle ripple, its transparent
+# ground cutting the cloth to the two pennants.
+cylinder('GEO-school_flag_pole', P(SF + CORR + 0.6, TC + 0.7, roof), 3.3, 0.03, SM['post'], seg=8)
+fp = P(SF + CORR + 0.6, TC + 0.7, roof + 3.25)
 along = (W(1, 0, 0) - W(0, 0, 0)); along.z = 0; along.normalize()
 out = (W(0, -1, 0) - W(0, 0, 0)); out.z = 0; out.normalize()
 fly = (along * 0.85 + out * 0.5).normalized()        # along the front, a little towards the viewer: seen from the street too
-FW, FH = 0.95, 1.2                                    # Nepal's flag, about 1 : 1.22
+FW, FH = 1.25, 1.52
+nrm = Vector((0, 0, 1)).cross(fly).normalized()
+fm, fnt = new_mat('MAT-flag_nepal')
+ftex = fnt.nodes.new('ShaderNodeTexImage'); ftex.image = bpy.data.images.load(f'{ST}/school_flag_nepal.png', check_existing=True)
+ftex.extension = 'CLIP'
+fuv = fnt.nodes.new('ShaderNodeUVMap'); fuv.uv_map = 'UVMap'; fnt.links.new(fuv.outputs[0], ftex.inputs[0])
+fb = node(fnt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=0.75)
+fnt.links.new(ftex.outputs['Color'], fb.inputs['Base Color']); fnt.links.new(ftex.outputs['Alpha'], fb.inputs['Alpha'])
+finish(fnt, fb.outputs[0])
 def flag(bm, uvl):
-    pts = [fp, fp + fly * FW + Vector((0, 0, -0.5)), fp + fly * FW * 0.37 + Vector((0, 0, -0.55)),
-           fp + fly * FW + Vector((0, 0, -1.15)), fp + Vector((0, 0, -FH))]
-    f = bm.faces.new([bm.verts.new(p) for p in pts])
-    for lp in f.loops: lp[uvl].uv = (0, 0)
-fo = mesh('GEO-school_flag', flag, [SM['flag']])
-fo.hide_render = True
-fo['web_quad'] = [c for p in (fp, fp + fly * FW, fp + fly * FW + Vector((0, 0, -FH)), fp + Vector((0, 0, -FH))) for c in p]
+    N = 14
+    def pt(u, v):
+        ripple = math.sin(u * math.tau * 1.15 + 0.4) * 0.06 * u + math.sin(u * math.tau * 2.3) * 0.02 * u
+        return fp + fly * (FW * u) + nrm * ripple + Vector((0, 0, -FH * v - 0.05 * u * u))
+    for i in range(N):
+        u0, u1 = i / N, (i + 1) / N
+        f = bm.faces.new([bm.verts.new(pt(u0, 0)), bm.verts.new(pt(u1, 0)), bm.verts.new(pt(u1, 1)), bm.verts.new(pt(u0, 1))])
+        for lp, uv in zip(f.loops, ((u0, 1), (u1, 1), (u1, 0), (u0, 0))): lp[uvl].uv = uv
+fo = mesh('GEO-school_flag', flag, [fm])
 on_level('GEO-school_ac_unit', SF + CORR - 0.32, SF + CORR - 0.02, TL - 1.65, TL - 0.8, LEVELS[3] + 2.0, LEVELS[3] + 2.6, SM['ac'])
 
 # === The real way in (IMG_3055): not through the front. The front's ramp goes down to the semi-basement; people
@@ -254,7 +264,7 @@ for k in range(1, 4):
 SM['roof_board'] = mat_img('MAT-school_roof_board', 'school_roof_board.png', 0.6)
 BS0, BS1 = S_ENT - 7.0, S_ENT + 7.0
 BT = TR + 0.5                                         # just in from the roof's front edge
-bz0, bz1 = LEVELS[-1] + 0.8, LEVELS[-1] + 2.8
+bz0, bz1 = LEVELS[-1] + 0.3, LEVELS[-1] + 2.3
 wall_strip('GEO-roof_board', (BS0, BT), (BS1, BT), bz0, bz1, SM['roof_board'], 1.0)
 wall_strip('GEO-roof_board_back', (BS1, BT + 0.06), (BS0, BT + 0.06), bz0, bz1, SM['plain'], 1.0)
 for i in range(5):                                   # steel legs from the roof up to the board's top

@@ -16,7 +16,5 @@ for w in (1280, 720):
         im = Image.open(f).convert('RGB')
         if im.width != w: im = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
         im.save(os.path.join(OUT, str(w), f'{os.path.basename(f)[:3]}_{V}.webp'), quality=66 if w > 720 else 64, method=6)
-if os.path.exists(os.path.join(SRC, 'flag.json')):
-    shutil.copy(os.path.join(SRC, 'flag.json'), os.path.join(HERE, '..', '..', 'src', 'sections', 'travelFlag.json'))
 size = sum(os.path.getsize(os.path.join(dp, n)) for dp, _, ns in os.walk(OUT) for n in ns)
 print('travel', len(frames), 'frames', round(size / 1e6, 1), 'MB')

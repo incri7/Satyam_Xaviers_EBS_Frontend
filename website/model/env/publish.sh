@@ -8,8 +8,9 @@ L="$LOCALAPPDATA/Microsoft/WindowsApps/blender-launcher.exe"; H="$(pwd -W)"
 # view name : camera : size : samples : exposure : depth reference (metres, the nearest thing that matters)
 VIEWS="street:CAM-streetview:1920x1024:256:0:5.0
 front:CAM-front:1920x1080:256:0:20.0"
-wait_for() { for i in $(seq 1 400); do grep -qs DONE "$1" && return 0; sleep 2; done; echo "timeout: $1"; exit 1; }
+wait_for() { for i in $(seq 1 2000); do grep -qs DONE "$1" && return 0; sleep 2; done; echo "timeout: $1"; exit 1; }
 python make_roof_board.py
+python make_flag.py
 rm -f renders/job_street.log renders/job_render.log renders/job_depth.log
 "$L" -b "$H/sxebs_environment_v1.blend" --python "$H/job_street.py" </dev/null; wait_for renders/job_street.log
 if grep -q Traceback renders/job_street.log; then cat renders/job_street.log; exit 1; fi
@@ -40,8 +41,9 @@ python make_sign_from_render.py $V
 rm -rf renders/travel
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_travel.py" -- "$H/renders/travel" 180 1280x720 32 </dev/null; wait_for renders/travel/job_travel.log
 python make_travel.py $V
-# where the flag falls in the street and front views (the website draws it, waving)
-rm -f renders/job_flag.log
-"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_flag.py" -- "$H/../../src/sections/flagQuads.json" </dev/null; wait_for renders/job_flag.log
+# the front view with only the school in it, on a transparent ground: the next page picks up the building alone
+rm -f renders/job_cutout.log
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_cutout.py" -- "$H/renders/front_school.png" </dev/null; wait_for renders/job_cutout.log
+python -c "from PIL import Image; Image.open('renders/front_school.png').save('$P/front_school_$V.webp', quality=86, method=6)"
 sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx ../../src/sections/Travel.tsx
 echo "published $V (was $OLD)"

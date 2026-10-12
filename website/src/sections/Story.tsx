@@ -7,10 +7,9 @@ import { pages } from '../pages/pages';
 import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
-import { Arrival, FRONT, coverPosition } from './Arrival';
+import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
-import { Flag, FlagOnCard } from './Flag';
 import { IntroBody, introHead } from '../pages/Intro';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -29,7 +28,6 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   const root = useRef<HTMLDivElement>(null);
   const scenes = useRef<(HTMLElement | null)[]>([]);
   const pickup = useRef<HTMLElement>(null);
-  const card = useRef<HTMLImageElement>(null);
   const [ready, setReady] = useState(false);
   const doneRef = useRef(false);
   const lift = useCallback(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, []);
@@ -90,22 +88,26 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .set({}, {}, '+=0.6');
 
         // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front
-        // view (the same picture, cropped the same way) takes over from the street without a seam; then the
-        // picture lifts off the screen as a card and settles into its place on the page, while the page's
-        // ground and heading come up around it.
+        // view (the same picture, cropped the same way) takes over from the street without a seam. Then the
+        // view's surroundings fall away (the sky, the ground, the neighbours), leaving the school building alone
+        // (a render of the building on its own, job_cutout.py, lying exactly under the full view), and the
+        // building settles into its place on the page as the page's heading comes up beside it.
         const pin = pickup.current!.querySelector<HTMLElement>('.pickup-pin')!;
         const slot = pin.querySelector<HTMLElement>('.pickup-slot')!;
         const card = pin.querySelector<HTMLElement>('.pickup-card')!;
-        card.style.objectPosition = coverPosition(innerWidth / innerHeight, FRONT.size, FRONT.focus);
+        // the building's place on the page has the screen's proportions, so it only grows smaller on the way there
+        pin.style.setProperty('--va', String(innerWidth / innerHeight));
+        const pos = coverPosition(innerWidth / innerHeight, FRONT.size, FRONT.focus);
+        card.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
         const to = { left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.offsetHeight };
         const s2 = gsap.timeline({ defaults: { ease: 'none' } });
         // the card and the page's ground take over at once, and the street view and the flight under them go
         s2.fromTo(card, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
           .fromTo(pin.querySelector('.pickup-bg'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.001)
           .fromTo(arrive, { o: 1, q: 1 }, { o: 0, q: 0, duration: 0.001, immediateRender: false }, 0.002)
-          .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight, borderRadius: 0, boxShadow: '0 0 0 0 rgb(11 26 61 / 0)' },
-            { ...to, borderRadius: 20, boxShadow: '0 30px 60px -24px rgb(11 26 61 / .45)', duration: 0.7, ease: 'power2.inOut', immediateRender: false }, 0.05)
-          .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
+          .fromTo(card.querySelector('.pickup-full'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.28, ease: 'power1.inOut', immediateRender: false }, 0.04)
+          .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight }, { ...to, duration: 0.6, ease: 'power2.inOut', immediateRender: false }, 0.24)
+          .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.5)
           .set({}, {}, 1);
 
         // Lay the scenes out in scroll pixels: scene 0 and 1 over their sections, the pick-up while its picture is
@@ -156,7 +158,6 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       <div className={'stage' + (ready ? ' ready' : '')}>
         <Arrival reduce={reduce} onReady={lift} />
         <Travel start={ready} />
-        <Flag />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
         <div className="curtain" aria-hidden="true">
@@ -193,8 +194,10 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="lede">{p.academics.intro}</p>
           </header>
           <div className="pickup-slot" aria-hidden="true" />
-          <img className="pickup-card" ref={card} src={FRONT.src} alt={t.schoolView} />
-          <FlagOnCard card={card} />
+          <div className="pickup-card">
+            <img className="pickup-full" src={FRONT.src} alt="" />
+            <img className="pickup-school" src={FRONT_SCHOOL} alt={t.schoolView} />
+          </div>
         </div>
       </section>
       <div className="home-pages">

@@ -14,7 +14,7 @@ import { FRONT } from './Arrival';
 const N = 180;
 const SIZE = [1280, 720];
 const T0 = 20 / 89;              // where the flight starts showing (Story): above the driveway's trees
-const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121420.webp`;
+const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121518.webp`;
 
 export function Travel({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
