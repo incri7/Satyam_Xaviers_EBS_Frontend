@@ -1,9 +1,10 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { playToIntro, rememberPlace } from '../scroll';
+import { jumpTo, rememberPlace } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
 const PAGES = ['about', 'programmes', 'gallery', 'admissions', 'news', 'contact'] as const;
+const STORY = { about: 'intro', programmes: 'programmes' } as const;
 
 export function Nav() {
   const lang = useLang();
@@ -14,10 +15,14 @@ export function Nav() {
     <header className="nav">
       <Link className="brand" to={pagePath(lang)}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
       <ul>
-        {PAGES.map((p) => <li key={p}>{p === 'about'
-          // About opens the home story's first page: the sign's lettering lifts off and its board becomes the page
-          ? <Link to={{ pathname: pagePath(lang), hash: '#intro' }} onClick={(e) => { if (pathname === pagePath(lang) && playToIntro()) e.preventDefault(); }}>{t.nav[p]}</Link>
-          : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>)}
+        {PAGES.map((p) => {
+          // About and Programmes are moments of the home story: the sign's board become the first page's cover, and
+          // the school's front view the second page picks up. A click goes straight there, in one blink.
+          const at = STORY[p as keyof typeof STORY];
+          return <li key={p}>{at
+            ? <Link to={{ pathname: pagePath(lang), hash: '#' + at }} onClick={(e) => { if (pathname === pagePath(lang) && jumpTo(at)) e.preventDefault(); }}>{t.nav[p]}</Link>
+            : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>;
+        })}
       </ul>
       <div className="nav-end">
         <Link className="lang" to={switched} lang={otherLang(lang)} preventScrollReset onClick={rememberPlace}>{t.switchTo}</Link>

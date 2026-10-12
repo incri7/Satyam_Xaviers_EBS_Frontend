@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { playToIntro, restorePlace, scroller } from './scroll';
+import { restorePlace, scroller } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -60,18 +60,17 @@ export function Layout() {
       if (restorePlace()) requestAnimationFrame(() => ScrollTrigger.refresh());
       return;
     }
-    // #intro (About in the nav, from another page): start at the top and play the sign into the first page
-    if (hash === '#intro') {
-      if (lenis) lenis.scrollTo(0, { immediate: true }); else window.scrollTo(0, 0);
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-      const id = window.setTimeout(() => playToIntro(), 450);
-      return () => clearTimeout(id);
-    }
+    // a #section (About and Programmes in the nav, from another page) is reached in one blink
     const el = hash ? document.querySelector(hash) : null;
-    if (el) (lenis ? lenis.scrollTo(el as HTMLElement, { immediate: true }) : el.scrollIntoView());
-    else if (lenis) lenis.scrollTo(0, { immediate: true });
-    else window.scrollTo(0, 0);
-    requestAnimationFrame(() => ScrollTrigger.refresh());
+    // the smooth scroller still knows the last page's height: measure the new one first, or the jump stops short
+    const go = () => {
+      lenis?.resize();
+      if (el) (lenis ? lenis.scrollTo(el as HTMLElement, { immediate: true, force: true }) : el.scrollIntoView());
+      else if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
+      else window.scrollTo(0, 0);
+    };
+    go();
+    requestAnimationFrame(() => { ScrollTrigger.refresh(); go(); });
   }, [pathname, hash]);
 
   // The building leans a little toward the pointer (desktop only).

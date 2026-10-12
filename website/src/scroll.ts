@@ -39,16 +39,13 @@ export function restorePlace() {
   return true;
 }
 
-/** "About" in the nav, on the home page: scrolls the story for the visitor until the sign has become the first
-    page's cover (its lettering lifted off, its board filling the screen), and stops there; scrolling on brings the
-    page up. Slow enough to watch: about 3.2 s a screen (at least 5 s), eased in and out. */
-export function playToIntro() {
-  const page = document.querySelector<HTMLElement>('#intro');
-  if (!page) return false;
-  const y = page.getBoundingClientRect().top + window.scrollY;      // where the sign scene ends: the cover is whole
-  const screens = Math.abs(y - window.scrollY) / window.innerHeight;
-  const duration = Math.max(5, screens * 3.2);
-  if (scroller.lenis) scroller.lenis.scrollTo(y, { duration, easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) });
-  else window.scrollTo({ top: y, behavior: 'smooth' });
+/** About and Programmes in the nav, on the home page: straight to their moment in the story, in one blink, no
+    scrolling to watch. #intro is where the sign's board has become the first page's cover; #programmes is where the
+    school's front view stands whole, just as the second page picks it up. */
+export function jumpTo(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  const y = el.getBoundingClientRect().top + window.scrollY;
+  if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y);
   return true;
 }
