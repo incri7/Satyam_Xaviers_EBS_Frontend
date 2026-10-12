@@ -7,7 +7,7 @@ import { pages } from '../pages/pages';
 import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
-import { Arrival, HIGH, coverPosition } from './Arrival';
+import { Arrival, FRONT, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { IntroBody, introHead } from '../pages/Intro';
 
@@ -15,8 +15,9 @@ gsap.registerPlugin(ScrollTrigger);
 if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
 
 /* The home page, kept simple: the school's real street, rendered from the model of the real place.
-     the street → its signboard becomes the first page (About us) → back on the street, the camera rises straight
-     up until the whole school is in view → that view is picked up as the second page's picture (Programmes)
+     the street → its signboard becomes the first page (About us) → back on the street, the view rises to the
+     school's front, its long side with the balconies straight on → that view is picked up as the second page's
+     picture (Programmes)
      → the rest of the pages, read as pages (Gallery, Admissions).
    One fixed stage sits behind it all (Arrival, SignIntro); scenes are empty scroll lengths over it, pages slide
    over it. GSAP owns every continuous value, on one master timeline whose time is the scroll position in pixels
@@ -72,8 +73,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(sign, { fill: 0 }, { fill: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: false }, 2.7)
           .set({}, {}, '+=0.4');
 
-        // Scene 1: back from the page to the sign, its lettering back on the board; then the camera rises straight
-        // up from where it stands until the whole school is in view, and holds there.
+        // Scene 1: back from the page to the sign, its lettering back on the board; then the view rises to the
+        // school's front, the whole long side straight on, and holds there.
         const s1 = gsap.timeline({ defaults: { ease: 'none' } });
         s1.fromTo(sign, { fill: 1 }, { fill: 0, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 0.2)
           .fromTo(sign, { lift: 1 }, { lift: 0, duration: 1.3, immediateRender: false }, 0.9)
@@ -81,14 +82,14 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 3.15)
           .set({}, {}, '+=0.5');
 
-        // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the high
+        // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front
         // view (the same picture, cropped the same way) takes over from the street without a seam; then the
         // picture lifts off the screen as a card and settles into its place on the page, while the page's
         // ground and heading come up around it.
         const pin = pickup.current!.querySelector<HTMLElement>('.pickup-pin')!;
         const slot = pin.querySelector<HTMLElement>('.pickup-slot')!;
         const card = pin.querySelector<HTMLElement>('.pickup-card')!;
-        card.style.objectPosition = coverPosition(innerWidth / innerHeight, HIGH.size, HIGH.focus);
+        card.style.objectPosition = coverPosition(innerWidth / innerHeight, FRONT.size, FRONT.focus);
         const to = { left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.offsetHeight };
         const s2 = gsap.timeline({ defaults: { ease: 'none' } });
         s2.fromTo(card, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
@@ -182,7 +183,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="lede">{p.academics.intro}</p>
           </header>
           <div className="pickup-slot" aria-hidden="true" />
-          <img className="pickup-card" src={HIGH.src} alt={t.schoolView} />
+          <img className="pickup-card" src={FRONT.src} alt={t.schoolView} />
         </div>
       </section>
       <div className="home-pages">

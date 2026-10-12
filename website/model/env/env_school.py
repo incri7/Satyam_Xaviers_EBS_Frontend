@@ -275,4 +275,8 @@ wall_strip('GEO-school_basement_gate_deep', (RS1 - 0.02, GATE_T + 1.55), (RS1 - 
 # --- the walk's two new views: round the corner onto the side path; at the foot of the entrance steps ------------
 camera('CAM-sidepath', SF - 2.0, WALL_T + 1.2, 1.55, 22.0, pitch=4.0, yaw=-4.0)
 camera('CAM-entrance', S_ENT - 0.3, WALL_T + 0.25, 1.6, 16.0, pitch=12.0, yaw=-90.0)
+# The front view: the long side with its balconies, as the client's own photos show the school (IMG_3082-3084):
+# straight on from the open ground past the boundary wall, at the second floor's height, level, so the whole
+# length is in the frame and the roof is not.
+camera('CAM-front', (SF + SB) / 2 + CORR / 2, TR - 28.0, 6.5, 24.0, pitch=1.5, yaw=-90.0)
 print('school built')

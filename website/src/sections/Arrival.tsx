@@ -5,19 +5,19 @@ import { arrive, pointer, sign } from '../three/rig';
 /**
  * The arrival: the school's real street, rendered from the Blender model of the real place (website/model/env),
  * each view with a depth map so it moves in 2.5D. The opening shot stands at the road's edge in front of the
- * driveway; scrolling on, the camera rises straight up from there (arrive.r) into the high view, the whole
- * school between its neighbours, which the next page picks up as its picture (Story). About 1 MB, no three.js.
+ * driveway; scrolling on, the view rises (arrive.r) into the front view, the school's long side with its
+ * balconies straight on, which the next page picks up as its picture (Story). About 1 MB, no three.js.
  */
 /** The opening picture: its size and the point its cover-fit keeps in view. SignIntro places the signboard
     over it with the same numbers. */
 export const STREET = { size: [1920, 1024], focus: [0.5, 0.66] } as const;
 const VIEWS = [
   { name: 'street', focus: STREET.focus, dolly: 0.55 },
-  { name: 'high', focus: [0.42, 0.5], dolly: 0.4 },
-].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10121118.webp`, depth: `/models/env/${w.name}_depth_10121118.png` }));
+  { name: 'front', focus: [0.48, 0.5], dolly: 0.4 },
+].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10121141.webp`, depth: `/models/env/${w.name}_depth_10121141.png` }));
 const DOLLY = ['d0', 'd1'] as const;
-/** The high view, for the page that picks it up (its picture, size and the point its cover-fit keeps). */
-export const HIGH = { src: VIEWS[1].color, size: [1920, 1080], focus: VIEWS[1].focus } as const;
+/** The front view, for the page that picks it up (its picture, size and the point its cover-fit keeps). */
+export const FRONT = { src: VIEWS[1].color, size: [1920, 1080], focus: VIEWS[1].focus } as const;
 /** CSS object-position that crops a picture the way the shader's cover-fit does on a box of aspect va. */
 export function coverPosition(va: number, size: readonly number[], f: readonly number[]) {
   const ia = size[0] / size[1];
@@ -25,7 +25,7 @@ export function coverPosition(va: number, size: readonly number[], f: readonly n
   return va > ia ? `50% ${at(ia / va, f[1])}%` : `${at(va / ia, f[0])}% 50%`;
 }
 // The rise: as the camera goes up, near things slide down the screen faster than far ones. The street slides
-// down out of the frame while the high view settles from below into place; they crossfade halfway.
+// down out of the frame while the front view settles from below into place; they crossfade halfway.
 const RISE = 0.2;
 
 const VERT = `attribute vec2 p; varying vec2 v; void main() { v = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
@@ -126,7 +126,7 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; gl.viewport(0, 0, w, h); }
       const k = reduce ? 0 : 1;
       // while the signboard's lettering is lifting off, the picture holds still so the board stays registered; and
-      // the high view holds still too, so the page picking it up finds it exactly where it is
+      // the front view holds still too, so the page picking it up finds it exactly where it is
       const still = sign.lift > 0 || sign.fill > 0 || arrive.v > 0.5 ? 0 : 1;
       eased.x += (pointer.x * k * still - eased.x) * 0.06; eased.y += (pointer.y * k * still - eased.y) * 0.06;
       const bind = (unit: number, t: WebGLTexture) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); };

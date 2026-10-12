@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 L="$LOCALAPPDATA/Microsoft/WindowsApps/blender-launcher.exe"; H="$(pwd -W)"
 # view name : camera : size : samples : exposure : depth reference (metres, the nearest thing that matters)
 VIEWS="street:CAM-streetview:1920x1024:256:0:5.0
-high:CAM-high:1920x1080:256:0:8.0"
+front:CAM-front:1920x1080:256:0:20.0"
 wait_for() { for i in $(seq 1 400); do grep -qs DONE "$1" && return 0; sleep 2; done; echo "timeout: $1"; exit 1; }
 rm -f renders/job_street.log renders/job_render.log renders/job_depth.log
 "$L" -b "$H/sxebs_environment_v1.blend" --python "$H/job_street.py" </dev/null; wait_for renders/job_street.log

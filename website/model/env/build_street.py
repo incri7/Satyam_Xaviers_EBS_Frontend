@@ -17,7 +17,10 @@ M = (4.0, 7.3); b = math.radians(241.0); U = (math.sin(b), math.cos(b)); L = (-U
 def W(s, t): return (M[0] + U[0] * s + L[0] * t, M[1] + U[1] * s + L[1] * t)
 G['SX_CLEAR'] = [[W(-2, -3.3), W(32, -3.3), W(32, 5.6), W(-2, 5.6)],
                  [W(19, -3.3), W(64, -3.3), W(64, 16), W(19, 16)],
-                 [W(-16, -9), W(-1, -9), W(-1, 9), W(-16, 9)]]       # the road where Google's camera stood
+                 [W(-16, -9), W(-1, -9), W(-1, 9), W(-16, 9)],       # the road where Google's camera stood
+                 # the open ground in front of the long side, past the boundary wall (IMG_3084), where the
+                 # front view stands
+                 [W(26, -3.6), W(64.5, -3.6), W(64.5, -36), W(26, -36)]]
 # footprints corrected from Street View: the shop house faces the road beside the driveway's mouth,
 # the cream house stands behind the sign and the gate
 G['SX_OVERRIDE'][388610111] = {'floors': 3, 'wall': '#bdb8ad', 'tin': False, 'shops': True,
