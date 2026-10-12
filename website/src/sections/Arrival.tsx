@@ -14,7 +14,7 @@ export const STREET = { size: [1920, 1024], focus: [0.5, 0.66] } as const;
 const VIEWS = [
   { name: 'street', focus: STREET.focus, dolly: 0.55 },
   { name: 'front', focus: [0.48, 0.5], dolly: 0.4 },
-].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10121141.webp`, depth: `/models/env/${w.name}_depth_10121141.png` }));
+].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10121156.webp`, depth: `/models/env/${w.name}_depth_10121156.png` }));
 const DOLLY = ['d0', 'd1'] as const;
 /** The front view, for the page that picks it up (its picture, size and the point its cover-fit keeps). */
 export const FRONT = { src: VIEWS[1].color, size: [1920, 1080], focus: VIEWS[1].focus } as const;
