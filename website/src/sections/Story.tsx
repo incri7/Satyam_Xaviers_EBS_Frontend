@@ -65,7 +65,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // lettering lifts off piece by piece and comes round on a curve to face the viewer; then the blue board
         // swings forward and fills the screen, the cover the first page (About us) slides over.
         Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
-        Object.assign(sign, { lift: 0, fill: 0 });
+        Object.assign(sign, { lift: 0, fill: 0, out: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
           .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
@@ -74,19 +74,18 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(sign, { fill: 0 }, { fill: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: false }, 2.7)
           .set({}, {}, '+=0.4');
 
-        // Scene 1: back from the page to the sign, its lettering back on the board; then the camera flies from the
-        // street to the school's front (Travel): up off the road, over the neighbours, round and down onto the
-        // open ground before the long side, and holds there. The flight starts on the street view's own picture
-        // and ends on the front view's, which it hands back to (Arrival). Underneath, the street rises into the
-        // front view on its own, which is what shows if the flight's frames have not loaded yet.
+        // Scene 1: no going back to the street. The board that covered the first page fades away onto the camera's
+        // flight (Travel), already lifted above the driveway's trees with the school ahead; it flies on over the
+        // neighbours, round and down onto the open ground before the long side, and holds on the front view,
+        // which it hands back to (Arrival). Under the board the street view has already become the front view,
+        // so if the flight's frames have not loaded yet the board simply fades onto the school's front.
+        const T0 = 20 / 89;
         const s1 = gsap.timeline({ defaults: { ease: 'none' } });
-        s1.fromTo(sign, { fill: 1 }, { fill: 0, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 0.2)
-          .fromTo(sign, { lift: 1 }, { lift: 0, duration: 1.3, immediateRender: false }, 0.9)
-          .fromTo(arrive, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 2.4)
-          .fromTo(arrive, { t: 0 }, { t: 1, duration: 4.4, ease: 'sine.inOut', immediateRender: false }, 2.4)
-          .fromTo(arrive, { r: 0 }, { r: 1, duration: 2.4, ease: 'sine.inOut', immediateRender: false }, 3.4)
-          .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 4.15)
-          .fromTo(arrive, { q: 1 }, { q: 0, duration: 0.35, immediateRender: false }, 6.8)
+        s1.fromTo(arrive, { r: 0, v: 0 }, { r: 1, v: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(arrive, { q: 0, t: 0 }, { q: 1, t: T0, duration: 0.001, immediateRender: false }, 0.002)
+          .fromTo(sign, { out: 0 }, { out: 1, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 0.1)
+          .fromTo(arrive, { t: T0 }, { t: 1, duration: 3.6, ease: 'sine.inOut', immediateRender: false }, 0.5)
+          .fromTo(arrive, { q: 1 }, { q: 0, duration: 0.35, immediateRender: false }, 4.1)
           .set({}, {}, '+=0.4');
 
         // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front

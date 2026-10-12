@@ -157,11 +157,11 @@ export function SignIntro() {
     let shown = false;
 
     const frame = () => {
-      const on = sign.lift > 0.0005 || sign.fill > 0.0005;
+      const on = (sign.lift > 0.0005 || sign.fill > 0.0005) && sign.out < 0.999;
       if (on !== shown) { shown = on; el.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
       const vw = el.clientWidth, vh = el.clientHeight;      // the stage, not the window: no scrollbar in it
-      el.style.opacity = '1';      // the render's own board and letters: nothing on screen changes as it starts
+      el.style.opacity = String(1 - sign.out);      // the render's own board and letters: nothing on screen changes as it starts
 
       // the board where it stands in the street, and where it ends: covering the stage
       const onWall = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh));

@@ -128,5 +128,5 @@ export const pointer = { x: 0, y: 0 };
 export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
-    screen, the first page's cover (0 .. 1). */
-export const sign = { lift: 0, fill: 0 };
+    screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */
+export const sign = { lift: 0, fill: 0, out: 0 };
