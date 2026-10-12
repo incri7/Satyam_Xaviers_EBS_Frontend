@@ -56,15 +56,3 @@ export function jumpTo(id: string) {
   return true;
 }
 
-/** Back up the story to a moment, at a pace to watch it go by: from Programmes back to the school's front, the page
-    shrinking back into the building as the scroll reverses. */
-export function glideTo(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return false;
-  const y = el.getBoundingClientRect().top + window.scrollY;
-  const screens = Math.abs(y - window.scrollY) / window.innerHeight;
-  const duration = Math.min(2.4, Math.max(1.2, screens * 0.35));
-  if (scroller.lenis) scroller.lenis.scrollTo(y, { duration, easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) });
-  else window.scrollTo({ top: y, behavior: 'smooth' });
-  return true;
-}

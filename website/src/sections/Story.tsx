@@ -106,20 +106,38 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         s2.fromTo(card, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
           .fromTo(pin.querySelector('.pickup-bg'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.001)
           .fromTo(arrive, { o: 1, q: 1 }, { o: 0, q: 0, duration: 0.001, immediateRender: false }, 0.002)
+          // under the pages from here on, the blueprint the school comes back on (scene 3)
+          .fromTo('.back-bg', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.003)
           .fromTo(card.querySelector('.pickup-full'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.28, ease: 'power1.inOut', immediateRender: false }, 0.04)
           .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight }, { ...to, duration: 0.6, ease: 'power2.inOut', immediateRender: false }, 0.24)
           .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
           .set({}, {}, 1);
 
+        // Scene 3, the return: past the end of Programmes the school comes back to its own place. The building alone
+        // rises from the page's blueprint and grows to fill the screen, its surroundings coming back round it, and
+        // hands over to the street's front view, which the next page (Gallery) then slides up over.
+        const back = root.current!.querySelector<HTMLElement>('.back-card')!;
+        back.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
+        const vw0 = innerWidth, vh0 = innerHeight;
+        const small = { left: vw0 * 0.24, top: vh0 * 0.42, width: vw0 * 0.52, height: vh0 * 0.52 };
+        const s3 = gsap.timeline({ defaults: { ease: 'none' } });
+        s3.fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, immediateRender: false }, 0.02)
+          .fromTo(back, small, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.62, ease: 'power2.inOut', immediateRender: false }, 0.02)
+          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: 'power1.inOut', immediateRender: false }, 0.4)
+          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.7)
+          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.701)
+          .set({}, {}, 1);
+
         // Lay the scenes out in scroll pixels: scene 0 and 1 over their sections, the pick-up while its picture is
-        // held on screen (its section's height less one screen).
+        // held on screen (its section's height less one screen), the return over its section.
         const at = (el: HTMLElement) => ({ top: el.getBoundingClientRect().top + scrollY, h: el.offsetHeight });
-        const [A, B] = scenes.current.map((el) => at(el!));
+        const [A, B, R] = scenes.current.map((el) => at(el!));
         const P = at(pickup.current!);
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top);
-        const end = P.top + P.h - vh;
+        master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
+          .add(s3.duration(Math.max(1, R.h - vh)), R.top);
+        const end = R.top + R.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
         // catch-up tween that restarts on every wheel notch.
@@ -161,6 +179,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         <Travel start={ready} />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
+        {/* the return: the building alone growing back into the street's front view (scene 3) */}
+        <div className="back-bg" aria-hidden="true" />
+        <div className="back-card" aria-hidden="true">
+          <img className="back-full" src={FRONT.src} alt="" />
+          <img className="back-school" src={FRONT_SCHOOL} alt="" />
+        </div>
         <div className="curtain" aria-hidden="true">
           <img src="/photos/crest.png" alt="" width={64} height={64} />
           <span>{t.loading}</span>
@@ -204,6 +228,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       </section>
       <div className="home-pages">
         <section className="home-page" aria-label={p.academics.title}><AcademicsBody lead="light" /></section>
+      </div>
+      <section className="scene scene-back" ref={sceneRef(2)} aria-hidden="true" />
+      <div className="home-pages">
         {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
       </div>
     </div>

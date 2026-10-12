@@ -1,6 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { glideTo } from '../scroll';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { pagePath, useLang } from '../lang';
@@ -52,7 +51,6 @@ const COPY = {
     ages: [['Nursery', '3+'], ['LKG', '4+'], ['UKG', '5+'], ['Class 1', '6+'], ['Classes 2–10', 'By the class completed']],
     ageNote: "Age guidelines are a general reference. The school places each child according to their previous education.",
     admissions: 'Explore admissions',
-    back: 'Back to the school',
   },
   ne: {
     glance: [['कक्षा', 'नर्सरीदेखि कक्षा १० सम्म'], ['चरण', 'चार, प्रारम्भिकदेखि माध्यमिकसम्म'], ['विद्यालयको दिन', 'बिहान ६:०० देखि बेलुका ४:३०'], ['आवतजावत', 'विद्यालय बस'], ['स्थापना', 'वि.सं. २०४८']],
@@ -92,7 +90,6 @@ const COPY = {
     ages: [['नर्सरी', '३+'], ['LKG', '४+'], ['UKG', '५+'], ['कक्षा १', '६+'], ['कक्षा २–१०', 'पूरा गरेको कक्षाअनुसार']],
     ageNote: 'उमेर सामान्य जानकारीका लागि मात्र हो। विद्यालयले बच्चाको अघिल्लो पढाइ हेरेर कक्षा तय गर्छ।',
     admissions: 'भर्नाबारे हेर्नुहोस्',
-    back: 'विद्यालयमा फर्कनुहोस्',
   },
 };
 
@@ -108,23 +105,6 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
   const lang = useLang();
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-  const [back, setBack] = useState(false);
-  // Back to the school: a pill at the foot of the screen while the reader is inside the page. On the home page it
-  // glides back up the story, the page shrinking back into the building; on the page's own route it goes to the home
-  // page at the building.
-  useLayoutEffect(() => {
-    let raf = 0;
-    const check = () => {
-      raf = 0;
-      const r = root.current?.getBoundingClientRect();
-      setBack(!!r && r.top < innerHeight * 0.3 && r.bottom > innerHeight * 0.7);
-    };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(check); };
-    addEventListener('scroll', onScroll, { passive: true }); check();
-    return () => { removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
-  }, []);
-  const toBuilding = () => { if (lead !== 'light' && glideTo('programmes')) return; navigate({ pathname: pagePath(lang), hash: '#programmes' }); };
 
   // The climb: on a wide screen the navy band holds while the reader scrolls through the four stages; the thirteen
   // classes light up stage by stage and the stage panel changes with them. On a phone, or with reduced motion, the
@@ -166,10 +146,6 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
 
   return (
     <div className={'prog' + (lead === 'light' ? ' from-light' : '')} ref={root}>
-      <button type="button" className={'to-building' + (back ? ' show' : '')} onClick={toBuilding} tabIndex={back ? 0 : -1} aria-hidden={!back}>
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6M9 11h1M14 11h1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        {c.back}
-      </button>
       <section className="journey" aria-labelledby="pg-stages">
         <div className="journey-inner">
           <header className="journey-head">

@@ -154,13 +154,3 @@ html:lang(ne) .prog .date { font-family: "Mukta", sans-serif; }
   .prog .hour-t b { font-size: 26px; }
 }
 
-/* back to the school: a pill at the foot of the screen while the reader is inside the page */
-.prog .to-building { position: fixed; z-index: 20; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 16px);
-  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
-  font: 600 15px var(--font); color: var(--navy-a); background: var(--sky); border: 1px solid rgb(255 255 255 / .5);
-  box-shadow: 0 12px 30px -10px rgb(0 0 0 / .45); opacity: 0; visibility: hidden;
-  transition: opacity .3s var(--ease), transform .4s var(--ease), visibility .3s, background .2s; }
-.prog .to-building.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
-.prog .to-building:hover { background: #fff; }
-.prog .to-building:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) { .prog .to-building { transition: none; } }
