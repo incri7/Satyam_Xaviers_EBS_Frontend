@@ -1,0 +1,129 @@
+/* Programmes, built as the first page is (intro.css): the app's tokens and Figma text styles 1:1 (h1 30, h2 24,
+   h3 19; card radius 20, row radius 14, chip 8, shadow e2), a bento of cards on the canvas, and the four stages in
+   the same sky-to-navy the first page's thirteen steps use. Selectors start at .prog so they outrank styles.css,
+   which loads after this file. */
+.prog {
+  --soft: #F1F8FB; --soft-line: #E0EFF6; --muted: #687A8F; --unlit: #C9D5E2; --band: #13295B;
+  --e2: 0 1px 2px rgb(20 40 70 / .04), 0 10px 28px -14px rgb(20 40 70 / .16);
+  --st0: #B4D8E4; --st1: #86BBD6; --st2: #1F52A6; --st3: #13295B;
+  padding: clamp(24px, 3vw, 40px) var(--gutter) clamp(48px, 6vw, 80px); color: var(--text); font-size: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  .prog { --soft: #132643; --soft-line: #1F3A63; --muted: #8697AB; --unlit: #2A3B58; --band: #14203A;
+    --e2: 0 1px 2px rgb(0 0 0 / .35), 0 12px 30px -16px rgb(0 0 0 / .6);
+    --st0: #1F3A63; --st1: #2C6BC0; --st2: #86BBD6; --st3: #EEF3F9; }
+}
+.prog :is(p, ul, ol, dl, dt, dd, figure, h3, h4) { margin: 0; }
+.prog ul, .prog ol { list-style: none; padding: 0; }
+.prog .prog-block + .prog-block { margin-top: clamp(40px, 5vw, 72px); }
+.prog .prog-head { margin-bottom: clamp(16px, 2vw, 24px); max-width: 64ch; }
+.prog .prog-h { font: 700 30px/1.15 var(--display); letter-spacing: -.025em; color: var(--ink); }
+html:lang(ne) .prog .prog-h { letter-spacing: 0; line-height: 1.35; }
+.prog .prog-lede { margin-top: 8px; font-size: 16px; line-height: 1.6; color: var(--slate); }
+.prog .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--e2); padding: clamp(18px, 2vw, 24px); }
+.prog .card-h { font: 700 24px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); }
+html:lang(ne) .prog .card-h { letter-spacing: 0; line-height: 1.4; }
+.prog .card-p { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--slate); }
+.prog .card-note { margin-top: 14px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.prog .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 20px); }
+
+/* the four stages: a 2 x 2 of cards, each with its photo, its stage colour on the top edge and its classes as chips */
+.prog .stages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 20px); }
+.prog .stage { --c: var(--st0); position: relative; padding: 0; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+.prog .stage::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 5px; background: var(--c); z-index: 1; }
+.prog .stage.s1 { --c: var(--st1); } .prog .stage.s2 { --c: var(--st2); } .prog .stage.s3 { --c: var(--st3); }
+.prog .stage-photo { display: block; width: 100%; aspect-ratio: 16 / 8; object-fit: cover; }
+.prog .stage-body { padding: clamp(18px, 2vw, 24px); }
+.prog .stage-meta { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: var(--muted); }
+.prog .stage-meta b { font: 600 15px/1.3 var(--display); color: var(--royal); }
+.prog .stage-title { margin-top: 6px; font: 700 24px/1.25 var(--display); letter-spacing: -.02em; color: var(--ink); }
+html:lang(ne) .prog .stage-title { letter-spacing: 0; line-height: 1.4; }
+.prog .class-chips { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.prog .class-chips li { padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+  background: color-mix(in srgb, var(--c) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.prog .stage-dl { margin-top: 16px; display: grid; gap: 12px; }
+.prog .stage-dl dt { font: 600 13px/1.3 var(--font); color: var(--muted); }
+.prog .stage-dl dd { margin-top: 3px; font-size: 15px; line-height: 1.55; color: var(--slate); }
+
+/* learning every day: the corridor's wall, wide; the English zone and newspaper day beside it */
+.prog .wall { grid-column: span 6; display: grid; grid-template-rows: auto 1fr; gap: 16px; }
+.prog .tile { grid-column: span 3; display: flex; flex-direction: column; }
+.prog .tile-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; margin-bottom: 14px; }
+.prog .tile-photo.tall { aspect-ratio: 4 / 4.2; }
+.prog .wall .tile-photo { margin-bottom: 0; }
+.prog .wall-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.prog .wall-list li { padding: 4px 10px; border-radius: 8px; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--soft-line); }
+.prog .wall-sample { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--soft); font-size: 15px; line-height: 1.5; color: var(--ink); }
+
+/* a school day: a line runs through the hours as the reader passes; --p draws it, --lit lights an hour; both rest
+   at 1 so the card reads without motion */
+.prog .day { grid-column: span 12; }
+.prog .day-line-wrap { --p: 1; position: relative; margin-top: 22px; }
+.prog .hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.prog .day-line { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--line); border-radius: 2px; }
+.prog .day-line i { position: absolute; inset: 0; background: var(--royal); border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--p)); }
+.prog .hour { --lit: 1; position: relative; padding-top: 22px; }
+.prog .hour::before { content: ""; position: absolute; left: 0; top: -5px; width: 13px; height: 13px; border-radius: 50%; box-sizing: border-box;
+  border: 3px solid color-mix(in srgb, var(--royal) calc(var(--lit) * 100%), var(--unlit));
+  background: color-mix(in srgb, var(--royal) calc(var(--lit) * 100%), var(--surface)); }
+.prog .hour-t { display: flex; align-items: baseline; gap: 4px; color: color-mix(in srgb, var(--ink) calc(var(--lit) * 100%), var(--unlit)); }
+.prog .hour-t b { font: 700 30px/1.1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+html:lang(ne) .prog .hour-t b { font-family: "Mukta", sans-serif; letter-spacing: 0; }
+.prog .hour-t small { font: 600 12px var(--font); color: var(--royal); opacity: var(--lit); }
+.prog .hour-what { display: block; margin-top: 6px; font: 600 15px/1.3 var(--display); color: var(--ink); }
+.prog .hour p { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--slate); }
+
+/* the school buses, on the app's navy */
+.prog .bus { grid-column: span 4; padding: 0; overflow: hidden; background: var(--band); border-color: transparent; color: #fff; display: flex; flex-direction: column; }
+.prog .bus-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: 50% 62%; }
+.prog .bus-body { padding: clamp(18px, 2vw, 24px); display: flex; flex-direction: column; flex: 1; }
+.prog .bus .card-h { color: #fff; }
+.prog .bus .card-p { color: rgb(255 255 255 / .8); }
+.prog .bus .tbc-line { color: var(--sky); }
+.prog .bus mark.tbc { background: rgb(255 255 255 / .1); color: var(--sky); border: 1px dashed rgb(180 216 228 / .6); border-radius: 6px; padding: 1px 6px; }
+.prog .bus-call { margin-top: auto; padding-top: 16px; font: 600 15px var(--font); color: var(--sky); text-decoration: none; }
+.prog .bus-call:hover { text-decoration: underline; }
+.prog .bus-call:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; border-radius: 4px; }
+
+/* approved at every level: the four levels as rows, each in its stage colour */
+.prog .approved { grid-column: span 4; }
+.prog .levels-list { margin-top: 16px; display: grid; gap: 8px; }
+.prog .levels-list li { --c: var(--st0); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px 12px 18px; border-radius: 14px; background: var(--soft); border: 1px solid var(--soft-line); position: relative; overflow: hidden; }
+.prog .levels-list li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--c); }
+.prog .levels-list li.s1 { --c: var(--st1); } .prog .levels-list li.s2 { --c: var(--st2); } .prog .levels-list li.s3 { --c: var(--st3); }
+.prog .lvl { font-size: 14px; color: var(--slate); }
+.prog .lvl b { display: block; font: 600 15px/1.3 var(--display); color: var(--ink); }
+.prog .date { font: 700 19px/1 var(--display); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+html:lang(ne) .prog .date { font-family: "Mukta", sans-serif; }
+.prog .date small { font: 600 12px var(--font); color: var(--muted); }
+
+/* which class: the age guide, and the way to admissions */
+.prog .ages { grid-column: span 4; background: var(--soft); border-color: var(--soft-line); box-shadow: none; display: flex; flex-direction: column; }
+.prog .age-list { margin-top: 14px; display: grid; gap: 2px; }
+.prog .age-list div { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--soft-line); }
+.prog .age-list :is(dt, dd) { display: block; margin: 0; order: 0; }
+.prog .age-list dt { font-size: 15px; color: var(--ink); }
+.prog .age-list dd { margin: 0; font: 600 15px var(--font); color: var(--royal); text-align: right; }
+.prog .ages-cta { margin-top: auto; padding-top: 18px; }
+
+@media (max-width: 1100px) {
+  .prog .wall { grid-column: span 12; }
+  .prog .tile { grid-column: span 6; }
+  .prog .bus, .prog .approved, .prog .ages { grid-column: span 6; }
+  .prog .bus { grid-column: span 12; }
+  .prog .hours { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 28px; }
+  .prog .day-line { display: none; }
+}
+@media (max-width: 760px) {
+  .prog .stages { grid-template-columns: 1fr; }
+  .prog .tile, .prog .approved, .prog .ages { grid-column: span 12; }
+  .prog .prog-h { font-size: 26px; }
+  /* the day runs down the card, its line beside it */
+  .prog .hours { grid-template-columns: 1fr; gap: 16px; padding-left: 26px; }
+  .prog .day-line { display: block; left: 5px; right: auto; top: 6px; bottom: 6px; width: 3px; height: auto; }
+  .prog .day-line i { transform-origin: 50% 0; transform: scaleY(var(--p)); }
+  .prog .hour { padding-top: 0; }
+  .prog .hour::before { left: -26px; top: 10px; }
+  .prog .hour-t b { font-size: 24px; }
+}

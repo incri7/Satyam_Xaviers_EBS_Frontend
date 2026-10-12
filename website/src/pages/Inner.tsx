@@ -1,3 +1,4 @@
+import { ProgrammesBody } from './Programmes';
 import { useLang } from '../lang';
 import { copy } from '../content';
 import { pages } from './pages';
@@ -13,31 +14,8 @@ export function Academics() {
   );
 }
 
-/** The programmes themselves: shared by the route and by the page the blackboard opens in the story. */
-export function AcademicsBody() {
-  const lang = useLang(); const a = pages[lang].academics;
-  return (
-    <>
-      {a.stages.map(([name, classes, title, learn, how, [p1, p2]], i) => (
-        <section className={'block stage-row' + (i % 2 ? ' flip tint' : '')} key={name}>
-          <div className="stage-photos"><Photo name={p1} alt="" className="big" /><Photo name={p2} alt="" className="small" /></div>
-          <div>
-            <p className="label narrow">{name}. {classes}</p>
-            <h2 className="wide">{title}</h2>
-            <dl>
-              <dt>{a.learnLabel}</dt><dd><T>{learn}</T></dd>
-              <dt>{a.howLabel}</dt><dd>{how}</dd>
-            </dl>
-          </div>
-        </section>
-      ))}
-      <Section title={a.dayTitle} className="day-row">
-        <ol className="schoolday">{a.day.map((d) => <li key={d}><span><T>{a.dayTime}</T></span><b>{d}</b></li>)}</ol>
-      </Section>
-      <Section title={a.appTitle} className="dark"><p className="lede">{a.app}</p></Section>
-    </>
-  );
-}
+/** The programmes themselves: shared by the route and by the home page, under the picked-up school. */
+export const AcademicsBody = ProgrammesBody;
 
 export function AdmissionsPage() {
   const lang = useLang(); const a = pages[lang].admissions;
