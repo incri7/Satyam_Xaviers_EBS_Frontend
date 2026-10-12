@@ -120,12 +120,10 @@ export const light = { day: 0 };
 export const photos = { f0: 0, f1: 0, f2: 0, f3: 0 } as Record<string, number>;
 export const rise = { f0: 0, f1: 0, f2: 0, f3: 0, roof: 0, tower: 0, gate: 0, students: 0 } as Record<string, number>;
 export const pointer = { x: 0, y: 0 };
-/** The arrival along the real way in (sections/Arrival.tsx), before the walk goes inside. o: its opacity
-    (1 covers the 3D scene); v: which view, 0 the street, 1 the side path, 2 the entrance steps (d1, the
-    driveway's, is unused), fractions crossfading; d0..d3: how far each view has been walked into; g: the
-    entrance's collapsible gate, 0 shut .. 1 folded aside; z: the zoom into its doorway, 0 .. 1 the hall behind it
-    filling the screen. */
-export const arrive = { o: 1, v: 0, d0: 0, d1: 0, d2: 0, d3: 0, g: 0, z: 0 };
+/** The school's real street (sections/Arrival.tsx). o: its opacity (0 once the next page has picked its picture
+    up); v: which view, 0 the street, 1 the high view, fractions crossfading; d0, d1: how far each view has been
+    walked into; r: the rise, the camera going straight up from the street (0) to the high view (1). */
+export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1). */

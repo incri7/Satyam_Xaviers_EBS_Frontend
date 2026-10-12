@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -93,8 +93,7 @@ export function Layout() {
 
 export function Home() {
   const lang = useLang();
-  const [tier] = useState(() => (matchMedia('(max-width: 760px)').matches ? 'mobile' : 'desktop') as 'mobile' | 'desktop');
   return (
-    <Story lang={lang} tier={tier} reduce={reduce} />
+    <Story lang={lang} reduce={reduce} />
   );
 }

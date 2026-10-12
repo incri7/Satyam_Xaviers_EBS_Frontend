@@ -13,6 +13,7 @@ const en = {
   login: 'Log in',
   call: 'Call 057-525563',
   loading: 'Building the school',
+  schoolView: "Satyam Xavier's school building in Chisapani, Hetauda, seen from the street",
   mood: { morning: 'Morning', day: 'Day' },
   // The client's own line (their draft website doc, 11 October 2026), with the sentence they wrote for under it.
   hero: { label: 'Hetauda-4, Chisapani. Since 2048 BS.', lines: ['A Place', 'to Learn.', 'A Place', 'to Become.'], other: 'पढ्ने ठाउँ, अघि बढ्ने ठाउँ।',
@@ -68,6 +69,7 @@ const ne: Copy = {
   login: 'लगइन',
   call: 'फोन 057-525563',
   loading: 'विद्यालय बन्दैछ',
+  schoolView: 'चिसापानी, हेटौंडामा सत्यम जेभियर्सको विद्यालय भवन, सडकबाट',
   mood: { morning: 'बिहान', day: 'दिउँसो' },
   hero: { label: 'हेटौंडा-४, चिसापानी। वि.सं. २०४८ देखि।', lines: ['पढ्ने ठाउँ,', 'अघि बढ्ने ठाउँ।'], other: 'A Place to Learn. A Place to Become.',
     body: 'सत्यम जेभियर्समा पढाइ कक्षाकोठामा मात्र सीमित छैन। यहाँ बच्चाहरू सिक्छन्, आत्मविश्वास बढाउँछन् र असल मान्छे बन्छन्।' },

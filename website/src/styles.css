@@ -71,14 +71,21 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
    pages and the sections after the story are opaque and slide over it. */
 .stage { --haze: #E9C7A6; position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--haze); color: #fff; }
 .scene { position: relative; z-index: 1; pointer-events: none; }
-.scene-a { height: 620vh; }    /* back to the sign, the real way in (three views), the gate folding open */
-/* Board to book, book to laptop, laptop to gate, gate to the end. */
-.scene-b { height: 520vh; }   /* through the door into the classroom, then to the book */
-.scene-c { height: 480vh; }
-.scene-d { height: 520vh; }
-.scene-e { height: 360vh; }
-/* The board as the screen sees it at the end of the zoom (covers.ts); the scenes fade it in and out. */
-.cover-view { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; visibility: hidden; opacity: 0; }
+.scene-rise { height: 340vh; }   /* back to the sign, then straight up until the whole school is in view */
+/* The second page picks the view of the whole school up as its picture: while its section is held on screen the
+   picture (a copy of the street's high view) shrinks from the full screen into its place beside the heading. */
+.pickup { position: relative; z-index: 2; height: 260vh; }
+.pickup-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; align-items: center; align-content: center;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.25fr); gap: clamp(28px, 4vw, 64px); padding: 88px var(--gutter) 40px; }
+.pickup-bg { position: absolute; inset: 0; background: var(--canvas); visibility: hidden; opacity: 0; }
+.pickup-head { position: relative; z-index: 1; visibility: hidden; opacity: 0; }
+.pickup-head h2 { font-size: clamp(36px, 4.2vw, 64px); }
+.pickup-head .lede { max-width: 44ch; }
+.pickup-slot { aspect-ratio: 16 / 10; width: 100%; max-height: calc(100vh - 160px); }
+.pickup-card { position: absolute; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; visibility: hidden; opacity: 0; }
+/* the pages after it, read as pages */
+.home-pages { position: relative; z-index: 2; background: var(--canvas); }
+.home-page { padding-bottom: clamp(40px, 5vw, 80px); }
 
 /* A page opened from an object: a sheet that slides up over the object's cover and away again. */
 .portal-page { position: relative; z-index: 2; pointer-events: none; }
@@ -159,7 +166,9 @@ main > .block, .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .stage:not(.ready) .hero-line { transform: none; } .stage:not(.ready) .hero-fade { opacity: 1; } }
 
 @media (max-width: 760px) {
-  .scene-a { height: 580vh; }
+  .scene-rise { height: 320vh; }
+  .pickup-pin { grid-template-columns: 1fr; align-content: center; gap: 24px; padding-top: 84px; }
+  .pickup-slot { aspect-ratio: 4 / 3; max-height: 46vh; }
   .scene-sign { height: 160vh; }
   .sheet { border-radius: 22px; }
   .shade { background: linear-gradient(0deg, rgb(11 26 61 / .88) 0%, rgb(11 26 61 / .6) 30%, rgb(11 26 61 / 0) 56%); }

@@ -7,9 +7,7 @@ cd "$(dirname "$0")"
 L="$LOCALAPPDATA/Microsoft/WindowsApps/blender-launcher.exe"; H="$(pwd -W)"
 # view name : camera : size : samples : exposure : depth reference (metres, the nearest thing that matters)
 VIEWS="street:CAM-streetview:1920x1024:256:0:5.0
-driveway:CAM-img3017:1080x1612:192:0:4.0
-sidepath:CAM-sidepath:1920x1280:192:0.7:2.5
-entrance:CAM-entrance:1920x1280:192:0.8:2.0"
+high:CAM-high:1920x1080:256:0:8.0"
 wait_for() { for i in $(seq 1 400); do grep -qs DONE "$1" && return 0; sleep 2; done; echo "timeout: $1"; exit 1; }
 rm -f renders/job_street.log renders/job_render.log renders/job_depth.log
 "$L" -b "$H/sxebs_environment_v1.blend" --python "$H/job_street.py" </dev/null; wait_for renders/job_street.log
@@ -37,11 +35,5 @@ cp renders/sign_quad.json ../../src/sections/signQuad.json
 rm -f renders/job_plate.log
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_plate.py" </dev/null; wait_for renders/job_plate.log
 python make_sign_from_render.py $V
-# the entrance's collapsible gate: where it falls in the picture, and the hall behind it (the website draws the
-# gate there as a see-through lattice over the hall photograph and folds it open)
-rm -f renders/job_gate.log
-"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_gate.py" </dev/null; wait_for renders/job_gate.log
-python make_hall.py $V
-cp renders/gate_quad.json ../../src/sections/gateQuad.json
 sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx
 echo "published $V (was $OLD)"

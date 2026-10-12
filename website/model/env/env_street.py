@@ -436,6 +436,9 @@ def camera(name, s, t, h, lens, pitch=0.0, yaw=0.0):
 # frame's edges, the signboard stays on the right, and the driveway and the school hold the middle.
 # (Google's camera stood across the road, at -7.5.)
 camera('CAM-streetview', -3.5, 0.3, 1.7, 22.0, pitch=4.0)
+# the same spot, straight up to about the third floor's height, tilted a little down: the whole school between
+# its neighbours, flag and all. The website rises into it from the opening shot.
+camera('CAM-high', -3.5, 0.3, 10.0, 20.0, pitch=-8.0)
 # where IMG_3017 was taken: a few metres in, at eye height, a little upward (iPhone main lens = 26 mm)
 camera('CAM-img3017', 6.5, 1.0, 1.5, 28.0, pitch=3.0)
 print('street built')
