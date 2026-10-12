@@ -45,6 +45,9 @@ L = 0.3 * R + 0.59 * G + 0.11 * B
 Lb = np.asarray(Image.fromarray(np.clip(L, 0, 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.GaussianBlur(28))).astype(np.float32)
 blue = B - (R + G) / 2
 key = np.clip((L - Lb - 9) / 12, 0, 1) * np.clip(np.median(blue) - blue + 8, 0, 12) / 12
+# the board's own thin light edge is not lettering: nothing within its margin lifts off
+edge = (u > 0.018) & (u < 0.982) & (v > 0.025) & (v < 0.975)
+key = key * edge
 print('board blue', round(float(np.median(blue)), 1))
 yy, xx = (v - 0.5 / BH), (u - 0.5 / BW)
 CREST = (0.495, 0.465, 0.113)
