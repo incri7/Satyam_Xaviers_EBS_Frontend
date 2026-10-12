@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { restorePlace, scroller } from './scroll';
+import { restorePlace, scroller, storyY } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,7 +65,7 @@ export function Layout() {
     // the smooth scroller still knows the last page's height: measure the new one first, or the jump stops short
     const go = () => {
       lenis?.resize();
-      if (el) (lenis ? lenis.scrollTo(el as HTMLElement, { immediate: true, force: true }) : el.scrollIntoView());
+      if (el) { const y = storyY(el as HTMLElement); if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y); }
       else if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
       else window.scrollTo(0, 0);
     };

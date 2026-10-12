@@ -42,10 +42,16 @@ export function restorePlace() {
 /** About and Programmes in the nav, on the home page: straight to their moment in the story, in one blink, no
     scrolling to watch. #intro is where the sign's board has become the first page's cover; #programmes is where the
     school's front view stands whole, just as the second page picks it up. */
+export function storyY(el: HTMLElement) {
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  // #programmes: a step into its section, past the flight's last frame, where the full-quality front picture the page
+  // picks up already fills the screen (before it starts to shrink)
+  return el.id === 'programmes' ? top + Math.max(4, (el.offsetHeight - window.innerHeight) * 0.02) : top;
+}
 export function jumpTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return false;
-  const y = el.getBoundingClientRect().top + window.scrollY;
+  const y = storyY(el);
   if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y);
   return true;
 }
