@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import gsap from 'gsap';
-import { parallax, sign } from '../three/rig';
+import { glInfo, parallax, sign } from '../three/rig';
 import { STREET } from './Arrival';
 import QUAD from './signQuad.json';      // from model/env/job_sign_quad.py
 import RENDER from './signRender.json';  // from model/env/make_sign_from_render.py
@@ -225,7 +225,31 @@ export function SignIntro() {
       });
     };
     gsap.ticker.add(frame);
-    return () => gsap.ticker.remove(frame);
+    // ?signdebug: where this layer believes the painted board is (red), and what the screen and the street's canvas
+    // measure, to find why the two might part on someone's screen
+    let debug: (() => void) | null = null;
+    if (new URLSearchParams(location.search).has('signdebug')) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('style', 'position:fixed;inset:0;width:100%;height:100%;z-index:50;pointer-events:none');
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', 'red'); poly.setAttribute('stroke-width', '2');
+      svg.appendChild(poly); document.body.appendChild(svg);
+      const info = document.createElement('pre');
+      info.setAttribute('style', 'position:fixed;left:8px;bottom:8px;z-index:51;background:#000c;color:#0f0;font:12px monospace;padding:8px;margin:0;pointer-events:none');
+      document.body.appendChild(info);
+      debug = () => {
+        const r = el.getBoundingClientRect(), vw = el.clientWidth, vh = el.clientHeight;
+        const pts = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh, QUAD[k][2]));
+        poly.setAttribute('points', pts.map(([x, y]) => `${(x + r.left).toFixed(1)},${(y + r.top).toFixed(1)}`).join(' '));
+        info.textContent = [`window ${innerWidth} x ${innerHeight}  dpr ${devicePixelRatio}  zoom? ${(outerWidth / innerWidth).toFixed(2)}`,
+          `sign layer ${vw} x ${vh} at ${r.left.toFixed(1)},${r.top.toFixed(1)}`,
+          `street canvas css ${glInfo.cw} x ${glInfo.ch}  buffer ${glInfo.bw} x ${glInfo.bh}  drawn ${glInfo.dbw} x ${glInfo.dbh}`,
+          `street picture ${glInfo.iw} x ${glInfo.ih}  lean ${parallax.x.toFixed(4)}, ${parallax.y.toFixed(4)}`,
+          `lift ${sign.lift.toFixed(3)} fill ${sign.fill.toFixed(3)}  ${navigator.userAgent.split(') ').pop()}`].join('\n');
+      };
+      gsap.ticker.add(debug);
+    }
+    return () => { gsap.ticker.remove(frame); if (debug) gsap.ticker.remove(debug); };
   }, []);
 
   return (

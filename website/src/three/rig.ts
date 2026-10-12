@@ -133,6 +133,8 @@ export const travel = { shown: false, covers: false, x: 0, n: 1 };
     the picture at nearness z (0 far .. 1 near, the depth map's measure) shows shifted by (x, y) * z, in the picture's
     own 0..1 units. The signboard's lettering (SignIntro) follows it, so it never parts from the board. */
 export const parallax = { x: 0, y: 0 };
+/** What the street's canvas measures, for the ?signdebug view (sections/SignIntro.tsx). */
+export const glInfo = { cw: 0, ch: 0, bw: 0, bh: 0, dbw: 0, dbh: 0, iw: 0, ih: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */
