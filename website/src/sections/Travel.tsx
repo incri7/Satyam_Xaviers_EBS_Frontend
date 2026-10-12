@@ -1,18 +1,20 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { arrive } from '../three/rig';
-import { STREET, FRONT } from './Arrival';
+import { FRONT } from './Arrival';
 
 /**
  * The camera's flight from the street to the school's front, rendered in Blender from the model of the real place
  * (website/model/env/job_travel.py) and scrubbed by the scroll: arrive.t is how far along it is (0 .. 1), arrive.q
- * how much of it shows over the street view (Arrival). Its first frame is the street view and its last the front
- * view, so it takes over and hands back without a seam. Frames load one after another once the street is on
+ * how much of it shows over the street view (Arrival). It is rendered at the front view's size and its last frame
+ * is the front view, which the next page picks up (Story). Its first frames (the street) are never shown: the
+ * flight starts above the driveway's trees, where the first page's board fades away onto it. Frames load one after another once the street is on
  * screen; two neighbouring frames are blended, so the flight stays smooth between them.
  */
 const N = 90;
-const SIZE = [1280, 683];
-const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121214.webp`;
+const SIZE = [1280, 720];
+const T0 = 20 / (N - 1);         // where the flight starts showing (Story)
+const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121520.webp`;
 
 export function Travel({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -42,8 +44,8 @@ export function Travel({ start }: { start: boolean }) {
     // the nearest frames here on either side of x
     const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
     const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
-    // cover-fit, keeping the focus point in view; the focus moves from the street's to the front's as it flies
-    const draw = (img: HTMLImageElement, alpha: number, f: number[]) => {
+    // cover-fit, keeping the front view's focus point in view, so its last frame lies exactly over the front view
+    const draw = (img: HTMLImageElement, alpha: number, f: readonly number[]) => {
       const W = cv.width, H = cv.height, ia = SIZE[0] / SIZE[1], va = W / H;
       let sw = img.width, sh = img.height, sx = 0, sy = 0;
       if (va > ia) { sh = img.width / va; sy = Math.min(Math.max(f[1] * img.height - sh / 2, 0), img.height - sh); }
@@ -57,14 +59,14 @@ export function Travel({ start }: { start: boolean }) {
       const x = arrive.t * (N - 1);
       const ka = below(x), kb = above(x);
       const da = ka >= 0 ? x - ka : Infinity, db = kb >= 0 ? kb - x : Infinity;
-      const on = arrive.q > 0.001 && Math.min(da, db) <= 8;
+      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 8;
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
       cv.style.opacity = String(arrive.q);
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-      const f = [STREET.focus[0] + (FRONT.focus[0] - STREET.focus[0]) * arrive.t, STREET.focus[1] + (FRONT.focus[1] - STREET.focus[1]) * arrive.t];
+      const f = FRONT.focus;
       // blend the two loaded frames either side, when they are near each other; else the nearer alone
       if (ka >= 0 && kb > ka && kb - ka <= 16) {
         draw(imgs[ka]!, 1, f);

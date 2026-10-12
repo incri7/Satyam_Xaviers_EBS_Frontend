@@ -76,17 +76,16 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
 
         // Scene 1: no going back to the street. The board that covered the first page fades away onto the camera's
         // flight (Travel), already lifted above the driveway's trees with the school ahead; it flies on over the
-        // neighbours, round and down onto the open ground before the long side, and holds on the front view,
-        // which it hands back to (Arrival). Under the board the street view has already become the front view,
-        // so if the flight's frames have not loaded yet the board simply fades onto the school's front.
+        // neighbours, round and down onto the open ground before the long side, and holds on its last frame, the
+        // front view, until the next page picks that up. Under the board the street view has already become the
+        // front view, so if the flight's frames have not loaded yet the board simply fades onto the school's front.
         const T0 = 20 / 89;
         const s1 = gsap.timeline({ defaults: { ease: 'none' } });
         s1.fromTo(arrive, { r: 0, v: 0 }, { r: 1, v: 1, duration: 0.001, immediateRender: false }, 0)
           .fromTo(arrive, { q: 0, t: 0 }, { q: 1, t: T0, duration: 0.001, immediateRender: false }, 0.002)
           .fromTo(sign, { out: 0 }, { out: 1, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 0.1)
           .fromTo(arrive, { t: T0 }, { t: 1, duration: 3.6, ease: 'sine.inOut', immediateRender: false }, 0.5)
-          .fromTo(arrive, { q: 1 }, { q: 0, duration: 0.35, immediateRender: false }, 4.1)
-          .set({}, {}, '+=0.4');
+          .set({}, {}, '+=0.6');
 
         // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front
         // view (the same picture, cropped the same way) takes over from the street without a seam; then the
@@ -98,11 +97,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         card.style.objectPosition = coverPosition(innerWidth / innerHeight, FRONT.size, FRONT.focus);
         const to = { left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.offsetHeight };
         const s2 = gsap.timeline({ defaults: { ease: 'none' } });
+        // the card and the page's ground take over at once, and the street view and the flight under them go
         s2.fromTo(card, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
-          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.001, immediateRender: false }, 0.002)
+          .fromTo(pin.querySelector('.pickup-bg'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.001)
+          .fromTo(arrive, { o: 1, q: 1 }, { o: 0, q: 0, duration: 0.001, immediateRender: false }, 0.002)
           .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight, borderRadius: 0, boxShadow: '0 0 0 0 rgb(11 26 61 / 0)' },
             { ...to, borderRadius: 20, boxShadow: '0 30px 60px -24px rgb(11 26 61 / .45)', duration: 0.7, ease: 'power2.inOut', immediateRender: false }, 0.05)
-          .fromTo(pin.querySelector('.pickup-bg'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.45, immediateRender: false }, 0.12)
           .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
           .set({}, {}, 1);
 
