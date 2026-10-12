@@ -10,6 +10,7 @@ import { Parents } from './Sections';
 import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
+import { markMoment } from '../scroll';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
 
@@ -155,7 +156,22 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
     const again = () => { clearTimeout(timer); timer = window.setTimeout(() => { laid = where(); build(); ScrollTrigger.refresh(); }, 150); };
     const ro = new ResizeObserver(() => { if (where() !== laid) again(); });
     if (root.current) ro.observe(root.current);
-    return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); };
+    // The address bar follows the reader: / at the top, /#about on the first page, /#programmes from the school's
+    // pick-up to its return, then /#gallery and /#admissions.
+    let raf = 0;
+    const mark = () => {
+      raf = 0;
+      const y = scrollY + innerHeight * 0.5;
+      const top = (sel: string) => { const el = document.querySelector<HTMLElement>(sel); return el ? el.getBoundingClientRect().top + scrollY : Infinity; };
+      const marks: [string, number][] = [['about', top('#intro')], ['', top('.scene-rise')], ['programmes', top('#programmes')],
+        ['', top('.scene-back')], ['gallery', top('#gallery')], ['admissions', top('#admissions')]];
+      let at = '';
+      for (const [h, t] of marks) if (y >= t) at = h;
+      markMoment(at);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(mark); };
+    addEventListener('scroll', onScroll, { passive: true });
+    return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
   }, [reduce]);
 
   const other = lang === 'en' ? 'ne' : 'en';

@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { restorePlace, scroller, storyY } from './scroll';
+import { MOMENTS, restorePlace, scroller, storyY } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -61,7 +61,8 @@ export function Layout() {
       return;
     }
     // a #section (About and Programmes in the nav, from another page) is reached in one blink
-    const el = hash ? document.querySelector(hash) : null;
+    const id = hash ? MOMENTS[hash.slice(1)] ?? hash.slice(1) : '';
+    const el = id ? document.getElementById(id) : null;
     // the smooth scroller still knows the last page's height: measure the new one first, or the jump stops short
     const go = () => {
       lenis?.resize();

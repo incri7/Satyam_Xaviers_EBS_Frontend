@@ -1,10 +1,10 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { jumpTo, rememberPlace } from '../scroll';
+import { jumpTo, markMoment, rememberPlace } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
 const PAGES = ['about', 'programmes', 'gallery', 'admissions', 'news', 'contact'] as const;
-const STORY = { about: 'intro', programmes: 'programmes' } as const;
+const STORY = { about: 'about', programmes: 'programmes' } as const;   // their moments on the home page (scroll.ts MOMENTS)
 
 export function Nav() {
   const lang = useLang();
@@ -20,7 +20,7 @@ export function Nav() {
           // the school's front view the second page picks up. A click goes straight there, in one blink.
           const at = STORY[p as keyof typeof STORY];
           return <li key={p}>{at
-            ? <Link to={{ pathname: pagePath(lang), hash: '#' + at }} onClick={(e) => { if (pathname === pagePath(lang) && jumpTo(at)) e.preventDefault(); }}>{t.nav[p]}</Link>
+            ? <Link to={{ pathname: pagePath(lang), hash: '#' + at }} onClick={(e) => { if (pathname === pagePath(lang) && jumpTo(at === 'about' ? 'intro' : at)) { e.preventDefault(); markMoment(at); } }}>{t.nav[p]}</Link>
             : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>;
         })}
       </ul>

@@ -6,6 +6,20 @@ import { Academics, AdmissionsPage, Contact, News } from './pages/Inner';
 import { About } from './pages/About';
 import { Gallery } from './pages/Gallery';
 import './styles.css';
+
+// Bare / (or /ne) with no #moment: a member of the school signed in to the app on this device goes to their own home
+// there (the app's own role homes, src/utils/roleHome.ts), as the app's / used to send them; anyone else gets the
+// website's home page, from the top: the browser does not put them back where they were.
+const ROLE_HOME: Record<string, string> = { admin: '/dashboard', teacher: '/home/teacher', parent: '/home/parent', accountant: '/home/accountant',
+  coordinator: '/home/coordinator', student: '/home/student', principal: '/home/principal' };
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+if (/^\/(ne\/?)?$/.test(location.pathname) && !location.hash) {
+  try {
+    const raw = sessionStorage.getItem('auth-storage') ?? localStorage.getItem('auth-storage');
+    const state = raw ? JSON.parse(raw).state : null;
+    if (state?.isAuthenticated && state?.accessToken) location.replace(ROLE_HOME[state.user?.role] ?? '/profile');
+  } catch { /* no session to read: the website it is */ }
+}
 import './pages.css';
 
 /** One set of pages: English at the root, Nepali under /ne. */

@@ -56,3 +56,12 @@ export function jumpTo(id: string) {
   return true;
 }
 
+
+/** The home page's moments as the address bar names them, and the element each one is: /#about is the first page
+    (its element is #intro), /#programmes the second, then the pages after. */
+export const MOMENTS: Record<string, string> = { about: 'intro', intro: 'intro', programmes: 'programmes', gallery: 'gallery', admissions: 'admissions' };
+/** Writes the moment into the address bar without a navigation (no scroll, no re-render); '' is the top: plain /. */
+export function markMoment(hash: string) {
+  const url = location.pathname + location.search + (hash ? '#' + hash : '');
+  if (url !== location.pathname + location.search + location.hash) history.replaceState(history.state, '', url);
+}
