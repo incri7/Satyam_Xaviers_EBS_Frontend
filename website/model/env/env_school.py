@@ -20,7 +20,7 @@ TR = WALL_T + 2.9    # outer edge of the side corridor (the viewer's right)
 TC = TR + CORR       # the core's right wall
 SB = 60.5            # the back
 R = 1.6              # the rounded corner's radius
-S_ENT = SF + CORR + 9.9    # the main entrance on the long side: steps up from the side path, the WELCOME gate (IMG_3055 0:30-0:51)
+S_ENT = (SF + CORR + SB) / 2    # the main entrance in the exact middle of the long side: steps up from the side path, the WELCOME gate; a collapsible gate on every floor above it
 Z0, STOREY, SLAB = 1.0, 3.2, 0.45
 LEVELS = [Z0 + STOREY * k for k in range(5)]          # four corridor floors and the roof
 G = gz(SF + 10, 0.0)                                  # the plot is levelled: one ground height
@@ -188,16 +188,23 @@ def on_level(name, s0, s1, t0, t1, z0, z1, m):
     off = G - gz((s0 + s1) / 2, (t0 + t1) / 2)
     return box(name, s0, s1, t0, t1, off + z0, off + z1, m)
 on_level('GEO-school_stair_head', SB - 7.0, SB - 3.5, TC + 0.6, TC + 4.0, roof, roof + 2.7, SM['plain'])
-cylinder('GEO-school_flag_pole', P(SF + CORR + 0.6, TC + 0.7, roof), 4.6, 0.025, SM['post'], seg=8)
-fp = P(SF + CORR + 0.6, TC + 0.7, roof + 4.55)
-side = (W(0, -1, 0) - W(0, 0, 0)); side.z = 0; side.normalize()
+# The flag: a short pole at the roof's front corner, so the flag flies just above the roof in the front view. The
+# cloth is drawn by the website, waving (sections/Flag.tsx), so the renders leave it out; the object keeps the
+# flag's four corners (hoist top, fly top, fly bottom, hoist bottom) for the jobs that project them into each view.
+cylinder('GEO-school_flag_pole', P(SF + CORR + 0.6, TC + 0.7, roof), 2.7, 0.03, SM['post'], seg=8)
+fp = P(SF + CORR + 0.6, TC + 0.7, roof + 2.65)
+along = (W(1, 0, 0) - W(0, 0, 0)); along.z = 0; along.normalize()
+out = (W(0, -1, 0) - W(0, 0, 0)); out.z = 0; out.normalize()
+fly = (along * 0.85 + out * 0.5).normalized()        # along the front, a little towards the viewer: seen from the street too
+FW, FH = 0.95, 1.2                                    # Nepal's flag, about 1 : 1.22
 def flag(bm, uvl):
-    # Nepal's flag: two pennants, one above the other, flying towards the viewer's right
-    pts = [fp, fp + side * 0.95 + Vector((0, 0, -0.5)), fp + side * 0.35 + Vector((0, 0, -0.55)),
-           fp + side * 0.95 + Vector((0, 0, -1.15)), fp + Vector((0, 0, -1.2))]
+    pts = [fp, fp + fly * FW + Vector((0, 0, -0.5)), fp + fly * FW * 0.37 + Vector((0, 0, -0.55)),
+           fp + fly * FW + Vector((0, 0, -1.15)), fp + Vector((0, 0, -FH))]
     f = bm.faces.new([bm.verts.new(p) for p in pts])
     for lp in f.loops: lp[uvl].uv = (0, 0)
-mesh('GEO-school_flag', flag, [SM['flag']])
+fo = mesh('GEO-school_flag', flag, [SM['flag']])
+fo.hide_render = True
+fo['web_quad'] = [c for p in (fp, fp + fly * FW, fp + fly * FW + Vector((0, 0, -FH)), fp + Vector((0, 0, -FH))) for c in p]
 on_level('GEO-school_ac_unit', SF + CORR - 0.32, SF + CORR - 0.02, TL - 1.65, TL - 0.8, LEVELS[3] + 2.0, LEVELS[3] + 2.6, SM['ac'])
 
 # === The real way in (IMG_3055): not through the front. The front's ramp goes down to the semi-basement; people
@@ -239,6 +246,20 @@ for i, s_ in enumerate((S_ENT - 0.95, S_ENT + 0.95)):
 wall_strip('GEO-entrance_gate', (S_ENT - 1.5, TC - 0.03), (S_ENT + 1.5, TC - 0.03), Z0, Z0 + 2.45, SM['entrance'], 1.0)
 wall_strip('GEO-entrance_welcome', (S_ENT + 1.65, TC - 0.03), (S_ENT + 2.25, TC - 0.03), Z0 + 0.1, Z0 + 2.4, SM['welcome'], 1.0)
 wall_strip('GEO-entrance_threshold', (S_ENT - 1.5, TC - 0.6), (S_ENT + 1.5, TC - 0.6), Z0 + 0.005, Z0 + 0.006, SM['granite'], 1.0)
+# the same collapsible gate on every floor above, over the stair hall in the middle
+for k in range(1, 4):
+    wall_strip(f'GEO-floor_gate_{k}', (S_ENT - 1.5, TC - 0.03), (S_ENT + 1.5, TC - 0.03), LEVELS[k], LEVELS[k] + 2.45, SM['entrance'], 1.0)
+
+# --- the board on the roof, facing the front: the crest and the school's name (make_roof_board.py) --------------
+SM['roof_board'] = mat_img('MAT-school_roof_board', 'school_roof_board.png', 0.6)
+BS0, BS1 = S_ENT - 7.0, S_ENT + 7.0
+BT = TR + 0.5                                         # just in from the roof's front edge
+bz0, bz1 = LEVELS[-1] + 0.8, LEVELS[-1] + 2.8
+wall_strip('GEO-roof_board', (BS0, BT), (BS1, BT), bz0, bz1, SM['roof_board'], 1.0)
+wall_strip('GEO-roof_board_back', (BS1, BT + 0.06), (BS0, BT + 0.06), bz0, bz1, SM['plain'], 1.0)
+for i in range(5):                                   # steel legs from the roof up to the board's top
+    s_ = BS0 + 0.3 + (BS1 - BS0 - 0.6) * i / 4
+    cylinder(f'GEO-roof_board_leg_{i}', P(s_, BT + 0.12, LEVELS[-1]), bz1 - LEVELS[-1], 0.045, SM['post'], seg=8)
 
 # --- the underground path: the front ramp really goes down. The ground is cut away over it (the terrain's and
 # the dirt's materials turn transparent inside the cut), and the ramp falls 1.35 m between retaining walls to the

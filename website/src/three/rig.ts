@@ -126,6 +126,9 @@ export const pointer = { x: 0, y: 0 };
     t: the camera's flight from the street to the front (sections/Travel.tsx), 0 .. 1; q: how much of the flight
     shows over the street view. */
 export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 };
+/** What the flight (sections/Travel.tsx) is showing, for the layers round it: whether it is on screen, which frame
+    (x, of n), and whether it covers the street view entirely (which then need not draw). */
+export const travel = { shown: false, covers: false, x: 0, n: 1 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */

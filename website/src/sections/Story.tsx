@@ -10,6 +10,7 @@ import { Parents } from './Sections';
 import { Arrival, FRONT, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
+import { Flag, FlagOnCard } from './Flag';
 import { IntroBody, introHead } from '../pages/Intro';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -28,6 +29,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   const root = useRef<HTMLDivElement>(null);
   const scenes = useRef<(HTMLElement | null)[]>([]);
   const pickup = useRef<HTMLElement>(null);
+  const card = useRef<HTMLImageElement>(null);
   const [ready, setReady] = useState(false);
   const doneRef = useRef(false);
   const lift = useCallback(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, []);
@@ -154,6 +156,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       <div className={'stage' + (ready ? ' ready' : '')}>
         <Arrival reduce={reduce} onReady={lift} />
         <Travel start={ready} />
+        <Flag />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
         <div className="curtain" aria-hidden="true">
@@ -190,7 +193,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="lede">{p.academics.intro}</p>
           </header>
           <div className="pickup-slot" aria-hidden="true" />
-          <img className="pickup-card" src={FRONT.src} alt={t.schoolView} />
+          <img className="pickup-card" ref={card} src={FRONT.src} alt={t.schoolView} />
+          <FlagOnCard card={card} />
         </div>
       </section>
       <div className="home-pages">

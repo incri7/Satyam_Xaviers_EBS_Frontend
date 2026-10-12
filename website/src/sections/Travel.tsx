@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { arrive } from '../three/rig';
+import { arrive, travel } from '../three/rig';
 import { FRONT } from './Arrival';
 
 /**
@@ -11,10 +11,10 @@ import { FRONT } from './Arrival';
  * flight starts above the driveway's trees, where the first page's board fades away onto it. Frames load one after another once the street is on
  * screen; two neighbouring frames are blended, so the flight stays smooth between them.
  */
-const N = 90;
+const N = 180;
 const SIZE = [1280, 720];
-const T0 = 20 / (N - 1);         // where the flight starts showing (Story)
-const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121520.webp`;
+const T0 = 20 / 89;              // where the flight starts showing (Story): above the driveway's trees
+const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10121420.webp`;
 
 export function Travel({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -31,7 +31,7 @@ export function Travel({ start }: { start: boolean }) {
     // has scrolled to, a frame close to it is already here. The first and last frames come first of all, and four
     // load at a time.
     const order: number[] = [0, N - 1];
-    for (const step of [8, 4, 2, 1]) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
+    for (const step of [16, 8, 4, 2, 1]) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
     let next = 0;
     const worker = async () => {
       while (alive && next < order.length) {
@@ -59,8 +59,9 @@ export function Travel({ start }: { start: boolean }) {
       const x = arrive.t * (N - 1);
       const ka = below(x), kb = above(x);
       const da = ka >= 0 ? x - ka : Infinity, db = kb >= 0 ? kb - x : Infinity;
-      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 8;
+      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 12;
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
+      travel.shown = on; travel.covers = on && arrive.q >= 0.999; travel.x = x; travel.n = N;
       if (!on) return;
       cv.style.opacity = String(arrive.q);
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
@@ -68,7 +69,7 @@ export function Travel({ start }: { start: boolean }) {
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       const f = FRONT.focus;
       // blend the two loaded frames either side, when they are near each other; else the nearer alone
-      if (ka >= 0 && kb > ka && kb - ka <= 16) {
+      if (ka >= 0 && kb > ka && kb - ka <= 24) {
         draw(imgs[ka]!, 1, f);
         const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, fr, f);
       } else draw(imgs[da <= db ? ka : kb]!, 1, f);
