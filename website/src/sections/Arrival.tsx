@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { arrive, pointer, sign, travel } from '../three/rig';
+import { arrive, parallax, pointer, sign, travel } from '../three/rig';
 
 /**
  * The arrival: the school's real street, rendered from the Blender model of the real place (website/model/env),
@@ -144,6 +144,7 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       gl.uniform1f(u('uDolly1'), arrive[DOLLY[j]] * VIEWS[j].dolly * k);
       gl.uniform2f(u('uView'), w, h);
       const px = eased.x * 0.02, py = eased.y * 0.01;
+      parallax.x = px; parallax.y = py;
       const rise = (n: number) => (n === 0 ? RISE * arrive.r : -RISE * (1 - arrive.r));
       gl.uniform2f(u('uShift0'), px, py + rise(i)); gl.uniform2f(u('uShift1'), px, py + rise(j));
       gl.uniform1f(u('uMix'), mix);

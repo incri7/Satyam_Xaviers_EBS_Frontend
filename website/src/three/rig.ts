@@ -129,6 +129,10 @@ export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 };
 /** What the flight (sections/Travel.tsx) is showing, for the layers round it: whether it is on screen, which frame
     (x, of n), and whether it covers the street view entirely (which then need not draw). */
 export const travel = { shown: false, covers: false, x: 0, n: 1 };
+/** The street view's lean towards the pointer as its shader applies it this frame (sections/Arrival.tsx): a point of
+    the picture at nearness z (0 far .. 1 near, the depth map's measure) shows shifted by (x, y) * z, in the picture's
+    own 0..1 units. The signboard's lettering (SignIntro) follows it, so it never parts from the board. */
+export const parallax = { x: 0, y: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */

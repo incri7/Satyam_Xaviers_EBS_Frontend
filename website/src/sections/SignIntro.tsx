@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import gsap from 'gsap';
-import { sign } from '../three/rig';
+import { parallax, sign } from '../three/rig';
 import { STREET } from './Arrival';
 import QUAD from './signQuad.json';      // from model/env/job_sign_quad.py
 import RENDER from './signRender.json';  // from model/env/make_sign_from_render.py
@@ -130,10 +130,16 @@ function matrix3d(q: P[], w: number, hgt: number) {
 }
 
 /** Where a pixel of the opening render lands on the stage: Arrival's cover-fit, kept in step with its shader. */
-function imageToScreen([x, y]: P, vw: number, vh: number): P {
+// The street's depth map measures nearness as ZREF / distance (make_depth.py; publish.sh renders the street with 5 m)
+const ZREF = 5.0;
+const near = (dist: number) => Math.min(1, ZREF / Math.max(dist, 1e-3));
+/** A point of the street picture (pixels, at distance dist) to the screen: the same cover-fit as the street's shader,
+    and the same lean towards the pointer, which moves nearer things further. */
+function imageToScreen([x, y]: P, vw: number, vh: number, dist = 5.5): P {
   const [iw, ih] = STREET.size, [fx, fy] = STREET.focus;
   const va = vw / vh, ia = iw / ih;
-  let u = x / iw, v = y / ih;
+  const z = near(dist);
+  let u = x / iw + parallax.x * z, v = y / ih + parallax.y * z;
   if (va > ia) { const k = ia / va, c = Math.min(Math.max(fy, 0.5 * k), 1 - 0.5 * k); v = (v - c) / k + 0.5; }
   else { const k = va / ia, c = Math.min(Math.max(fx, 0.5 * k), 1 - 0.5 * k); u = (u - c) / k + 0.5; }
   return [u * vw, v * vh];
@@ -164,7 +170,7 @@ export function SignIntro() {
       el.style.opacity = String(1 - sign.out);      // the render's own board and letters: nothing on screen changes as it starts
 
       // the board where it stands in the street, and where it ends: covering the stage
-      const onWall = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh));
+      const onWall = (['tl', 'tr', 'br', 'bl'] as const).map((k) => imageToScreen(QUAD[k] as unknown as P, vw, vh, QUAD[k][2]));
       const scale = Math.max(vw / BW, vh / BH) * 1.06;
       const cw = BW * scale, ch = BH * scale, cx = (vw - cw) / 2, cy = (vh - ch) / 2;
       const full: P[] = [[cx, cy], [cx + cw, cy], [cx + cw, cy + ch], [cx, cy + ch]];
@@ -177,7 +183,8 @@ export function SignIntro() {
       // once it leaves the wall, the street behind it shows: the clean plate, the posts standing empty
       if (plate && RENDER.plate) {
         const [px, py, pw, ph] = RENDER.plate;
-        const [x0, y0] = imageToScreen([px, py], vw, vh), [x1, y1] = imageToScreen([px + pw, py + ph], vw, vh);
+        const dist = (QUAD.tl[2] + QUAD.tr[2] + QUAD.br[2] + QUAD.bl[2]) / 4;
+        const [x0, y0] = imageToScreen([px, py], vw, vh, dist), [x1, y1] = imageToScreen([px + pw, py + ph], vw, vh, dist);
         plate.style.transform = `translate(${x0}px, ${y0}px)`;
         plate.style.width = `${x1 - x0}px`; plate.style.height = `${y1 - y0}px`;
         plate.style.opacity = sign.fill > 0.0005 ? '1' : '0';
