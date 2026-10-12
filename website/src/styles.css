@@ -77,11 +77,13 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 .pickup { position: relative; z-index: 2; height: 190vh; }
 .pickup-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; align-items: center; align-content: center;
   grid-template-columns: minmax(0, .85fr) minmax(0, 1.25fr); gap: clamp(28px, 4vw, 64px); padding: 88px var(--gutter) 40px; }
-.pickup-bg { position: absolute; inset: 0; background: var(--canvas); visibility: hidden; opacity: 0; }
-.pickup-dark { position: absolute; inset: 0; visibility: hidden; opacity: 0;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
-    linear-gradient(90deg, #0F223D 0%, #172B48 50%, #233856 100%); }
+/* the page the school is picked up onto: white, drawn on like an engineer's blueprint, a grid of the app's royal blue
+   (a fine line every 24 px, a stronger one every 120 px) */
+.pickup-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
+  background-image:
+    linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
+    linear-gradient(rgb(31 82 166 / .07) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .07) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px; }
 /* --dk (0..1): the page head turning light as the page deepens into navy */
 .pickup-pin { --dk: 0; }
 .pickup-head { position: relative; z-index: 1; visibility: hidden; opacity: 0; }
