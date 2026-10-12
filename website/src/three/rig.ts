@@ -122,8 +122,10 @@ export const rise = { f0: 0, f1: 0, f2: 0, f3: 0, roof: 0, tower: 0, gate: 0, st
 export const pointer = { x: 0, y: 0 };
 /** The school's real street (sections/Arrival.tsx). o: its opacity (0 once the next page has picked its picture
     up); v: which view, 0 the street, 1 the high view, fractions crossfading; d0, d1: how far each view has been
-    walked into; r: the rise, the camera going straight up from the street (0) to the high view (1). */
-export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0 };
+    walked into; r: a rise from the street into the front view (the fallback while the flight's frames load);
+    t: the camera's flight from the street to the front (sections/Travel.tsx), 0 .. 1; q: how much of the flight
+    shows over the street view. */
+export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 };
 /** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1). */

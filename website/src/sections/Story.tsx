@@ -9,6 +9,7 @@ import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
 import { Arrival, FRONT, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
+import { Travel } from './Travel';
 import { IntroBody, introHead } from '../pages/Intro';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -63,7 +64,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // Scene 0, the first scroll: nothing in the street moves. The school's signboard keeps its place, but its
         // lettering lifts off piece by piece and comes round on a curve to face the viewer; then the blue board
         // swings forward and fills the screen, the cover the first page (About us) slides over.
-        Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0 });
+        Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
         Object.assign(sign, { lift: 0, fill: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
@@ -73,14 +74,20 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(sign, { fill: 0 }, { fill: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: false }, 2.7)
           .set({}, {}, '+=0.4');
 
-        // Scene 1: back from the page to the sign, its lettering back on the board; then the view rises to the
-        // school's front, the whole long side straight on, and holds there.
+        // Scene 1: back from the page to the sign, its lettering back on the board; then the camera flies from the
+        // street to the school's front (Travel): up off the road, over the neighbours, round and down onto the
+        // open ground before the long side, and holds there. The flight starts on the street view's own picture
+        // and ends on the front view's, which it hands back to (Arrival). Underneath, the street rises into the
+        // front view on its own, which is what shows if the flight's frames have not loaded yet.
         const s1 = gsap.timeline({ defaults: { ease: 'none' } });
         s1.fromTo(sign, { fill: 1 }, { fill: 0, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 0.2)
           .fromTo(sign, { lift: 1 }, { lift: 0, duration: 1.3, immediateRender: false }, 0.9)
-          .fromTo(arrive, { r: 0 }, { r: 1, duration: 2.4, ease: 'sine.inOut', immediateRender: false }, 2.4)
-          .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 3.15)
-          .set({}, {}, '+=0.5');
+          .fromTo(arrive, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 2.4)
+          .fromTo(arrive, { t: 0 }, { t: 1, duration: 4.4, ease: 'sine.inOut', immediateRender: false }, 2.4)
+          .fromTo(arrive, { r: 0 }, { r: 1, duration: 2.4, ease: 'sine.inOut', immediateRender: false }, 3.4)
+          .fromTo(arrive, { v: 0 }, { v: 1, duration: 0.9, ease: 'sine.inOut', immediateRender: false }, 4.15)
+          .fromTo(arrive, { q: 1 }, { q: 0, duration: 0.35, immediateRender: false }, 6.8)
+          .set({}, {}, '+=0.4');
 
         // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front
         // view (the same picture, cropped the same way) takes over from the street without a seam; then the
@@ -147,6 +154,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
     <div className="story" ref={root}>
       <div className={'stage' + (ready ? ' ready' : '')}>
         <Arrival reduce={reduce} onReady={lift} />
+        <Travel start={ready} />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
         <div className="curtain" aria-hidden="true">

@@ -71,7 +71,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
    pages and the sections after the story are opaque and slide over it. */
 .stage { --haze: #E9C7A6; position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--haze); color: #fff; }
 .scene { position: relative; z-index: 1; pointer-events: none; }
-.scene-rise { height: 340vh; }   /* back to the sign, then up to the school's front */
+.scene-rise { height: 480vh; }   /* back to the sign, then the flight to the school's front */
 /* The second page picks the view of the whole school up as its picture: while its section is held on screen the
    picture (a copy of the street's front view) shrinks from the full screen into its place beside the heading. */
 .pickup { position: relative; z-index: 2; height: 260vh; }
@@ -103,6 +103,8 @@ main > .block, .foot { position: relative; z-index: 1; }
 .stage .arrival { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
 /* The plain-picture fallback (no WebGL) is hidden until Arrival shows it: display above must not undo [hidden]. */
 .stage .arrival[hidden] { display: none; }
+/* the camera's flight from the street to the front (Travel), over the street view while it plays */
+.stage .travel { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
 /* The first scroll (SignIntro): the signboard, repainted clean, lifts its lettering and fills the screen. Each
    piece is placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
 .sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; opacity: 0; }
@@ -166,7 +168,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .stage:not(.ready) .hero-line { transform: none; } .stage:not(.ready) .hero-fade { opacity: 1; } }
 
 @media (max-width: 760px) {
-  .scene-rise { height: 320vh; }
+  .scene-rise { height: 440vh; }
   .pickup-pin { grid-template-columns: 1fr; align-content: center; gap: 24px; padding-top: 84px; }
   .pickup-slot { aspect-ratio: 4 / 3; max-height: 46vh; }
   .scene-sign { height: 160vh; }

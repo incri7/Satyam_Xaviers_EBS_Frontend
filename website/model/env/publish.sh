@@ -35,5 +35,9 @@ cp renders/sign_quad.json ../../src/sections/signQuad.json
 rm -f renders/job_plate.log
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_plate.py" </dev/null; wait_for renders/job_plate.log
 python make_sign_from_render.py $V
-sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx
+# the camera's flight from the street to the front, frame by frame, scrubbed by the scroll
+rm -rf renders/travel
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_travel.py" -- "$H/renders/travel" 90 1280x683 48 </dev/null; wait_for renders/travel/job_travel.log
+python make_travel.py $V
+sed -i "s/_${OLD}\./_${V}./g" ../../src/sections/Arrival.tsx ../../src/sections/Travel.tsx
 echo "published $V (was $OLD)"

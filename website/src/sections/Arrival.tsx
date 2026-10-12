@@ -127,7 +127,7 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       const k = reduce ? 0 : 1;
       // while the signboard's lettering is lifting off, the picture holds still so the board stays registered; and
       // the front view holds still too, so the page picking it up finds it exactly where it is
-      const still = sign.lift > 0 || sign.fill > 0 || arrive.v > 0.5 ? 0 : 1;
+      const still = sign.lift > 0 || sign.fill > 0 || arrive.v > 0.5 || arrive.q > 0 ? 0 : 1;
       eased.x += (pointer.x * k * still - eased.x) * 0.06; eased.y += (pointer.y * k * still - eased.y) * 0.06;
       const bind = (unit: number, t: WebGLTexture) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); };
       bind(0, a.c); bind(1, a.d); bind(2, (b ?? a).c); bind(3, (b ?? a).d);
