@@ -70,13 +70,29 @@ for i, kind in enumerate('WDWWDW'):
     door(d, x, h) if kind == 'D' else window(d, x, h)
 grime(img).save(f'{OUT}/school_front.png')
 
-# the long side: classroom after classroom, a door then two windows (IMG_3082)
+# the long side: classroom after classroom, a door then two windows (IMG_3082), round the collapsible gate in the
+# exact middle of every floor. As the client set it out: nothing under the gate; on its right only the farthest
+# door; on its left the two doors nearest it. The other doors' places are windows where one fits, else wall.
 W_SIDE = 30.0
+L_SIDE = 60.5 - 30.5 - 1.6        # the long side as the model shows it (SB - SF - CORR, env_school.py)
+GATE_X, GATE_HALF = L_SIDE / 2, 1.5
+def side_layout():
+    items, x = [], 0.9
+    while x < W_SIDE - 0.8:
+        items += [('D', x), ('W', x + 1.55), ('W', x + 3.05)]; x += 3.95
+    items = [(k, x) for k, x in items if x + 0.65 <= L_SIDE]
+    items = [(k, x) for k, x in items if abs(x - GATE_X) >= GATE_HALF + (0.62 if k == 'W' else 0.52) + 0.08]
+    doors = [x for k, x in items if k == 'D']
+    keep = set(sorted([x for x in doors if x < GATE_X], key=lambda x: GATE_X - x)[:2] + [max(x for x in doors if x > GATE_X)])
+    out = [(k, x) for k, x in items if k == 'W' or x in keep]
+    for k, x in items:                       # a removed door's place: a window where one fits, else plain wall
+        if k == 'D' and x not in keep and all(abs(x - ox) >= 1.34 for _, ox in out):
+            out.append(('W', x))
+    return sorted(out, key=lambda o: o[1])
+SIDE = side_layout()
 img, d, w, h = wall(W_SIDE)
-x = 0.9
-while x < W_SIDE - 0.8:
-    door(d, x, h); window(d, x + 1.55, h); window(d, x + 3.05, h)
-    x += 3.95
+for k, x in SIDE:
+    door(d, x, h) if k == 'D' else window(d, x, h)
 grime(img).save(f'{OUT}/school_side.png')
 
 # --- the ground storey: the same openings, the wall painted with children in uniform, the Nepal flag and a
@@ -129,16 +145,15 @@ def ground_storey(width_m, kinds, murals, welcome=False):
 slot = W_FRONT / 6
 mid = lambda i: slot * (i + 1.0)          # between openings i and i + 1
 grime(ground_storey(W_FRONT, 'WDWWDP', [(mid(0), 'boy'), (mid(1) - 0.1, 'girl'), (mid(2), 'flag'), (mid(3), 'boy')], welcome=True), 0.05).save(f'{OUT}/school_front_ground.png')
-murals, x = [], 1.68                       # between each door and the window after it
+murals, x = [], 1.68                       # between each door place and the window after it, none under the gate
 while x < W_SIDE - 1.0:
-    murals.append((x, rnd.choice(['boy', 'girl'])))
+    if abs(x - GATE_X) > GATE_HALF + 0.3: murals.append((x, rnd.choice(['boy', 'girl'])))
     x += 3.95
 img, d, w, h = wall(W_SIDE)
 d.rectangle([0, h - m(0.14), w, h], fill=(38, 40, 44))
-x = 0.9
-while x < W_SIDE - 0.8:
-    door(d, x, h); window(d, x + 1.55, h, notice=False); window(d, x + 3.05, h, notice=False)
-    x += 3.95
+for k, x in SIDE:
+    if k == 'W' and GATE_X + 1.65 - 0.7 < x < GATE_X + 2.25 + 0.7: continue      # where the WELCOME panel stands
+    door(d, x, h) if k == 'D' else window(d, x, h, notice=False)
 for mx, kind in murals:
     if kind == 'flag': nepal_flag(d, mx - 0.3, STOREY - 2.25)
     else: kid(d, mx, h, girl=(kind == 'girl'))
