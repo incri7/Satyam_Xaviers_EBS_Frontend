@@ -26,16 +26,19 @@ export function Travel({ start }: { start: boolean }) {
     let alive = true;
     // coarse to fine: every eighth frame first, then every fourth, every second, the rest; so wherever the reader
     // has scrolled to, a frame close to it is already here
-    const order: number[] = [];
+    // has scrolled to, a frame close to it is already here. The first and last frames come first of all, and four
+    // load at a time.
+    const order: number[] = [0, N - 1];
     for (const step of [8, 4, 2, 1]) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
-    if (!order.includes(N - 1)) order.splice(1, 0, N - 1);
-    (async () => {
-      for (const k of order) {
-        if (!alive) return;
+    let next = 0;
+    const worker = async () => {
+      while (alive && next < order.length) {
+        const k = order[next++];
         const img = new Image(); img.decoding = 'async'; img.src = frame(k, w);
         try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
       }
-    })();
+    };
+    for (let i = 0; i < 4; i++) worker();
     // the nearest frames here on either side of x
     const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
     const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
@@ -49,19 +52,24 @@ export function Travel({ start }: { start: boolean }) {
     };
     let shown = false;
     const tick = () => {
-      const on = arrive.q > 0.001 && !!imgs[0] && !!imgs[N - 1];
+      // shown only while a frame close to where the reader is has loaded (within a coarse step); otherwise the
+      // street view's own rise (Arrival) carries on underneath until it has
+      const x = arrive.t * (N - 1);
+      const ka = below(x), kb = above(x);
+      const da = ka >= 0 ? x - ka : Infinity, db = kb >= 0 ? kb - x : Infinity;
+      const on = arrive.q > 0.001 && Math.min(da, db) <= 8;
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
       cv.style.opacity = String(arrive.q);
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-      const x = arrive.t * (N - 1);
       const f = [STREET.focus[0] + (FRONT.focus[0] - STREET.focus[0]) * arrive.t, STREET.focus[1] + (FRONT.focus[1] - STREET.focus[1]) * arrive.t];
-      const ka = below(x), kb = above(x);
-      const a = ka >= 0 ? imgs[ka]! : imgs[kb]!, b = ka >= 0 && kb > ka ? imgs[kb]! : null;
-      draw(a, 1, f);
-      if (b) { const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(b, fr, f); }
+      // blend the two loaded frames either side, when they are near each other; else the nearer alone
+      if (ka >= 0 && kb > ka && kb - ka <= 16) {
+        draw(imgs[ka]!, 1, f);
+        const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, fr, f);
+      } else draw(imgs[da <= db ? ka : kb]!, 1, f);
     };
     gsap.ticker.add(tick);
     return () => { alive = false; gsap.ticker.remove(tick); };
