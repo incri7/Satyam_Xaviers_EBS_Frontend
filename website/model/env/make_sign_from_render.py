@@ -71,10 +71,11 @@ for name, m in masks.items():
     # boxes in the 1600 x 860 board units the page uses
     parts[name] = [round(x0_ / BW * 1600, 1), round(y0_ / BH * 860, 1), round((x1_ - x0_) / BW * 1600, 1), round((y1_ - y0_) / BH * 860, 1)]
 
-# the board with its lettering painted out (a normalised blur fills the gaps), and a faint ghost of the paint
+# the board with its lettering painted out. The fill is drawn only from what is surely bare board: away from every
+# letter (their painted shadows and soft light edges too), no lighter than the board round it, and as blue as it.
+# A letter's pale edge left in would be averaged into the fill and leave a ghost of it.
 hole = np.clip(np.maximum.reduce(list(masks.values())) * 3, 0, 1)
-hole = np.asarray(Image.fromarray((hole * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(31))) / 255.0   # the letters' painted shadows too
-keep = 1 - hole
+hole = np.asarray(Image.fromarray((hole * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(31))) / 255.0
 def blur(x, r):
     for _ in range(3):
         for ax in (0, 1):
@@ -82,11 +83,17 @@ def blur(x, r):
             cs = np.cumsum(p, axis=ax)
             x = (np.take(cs, np.arange(2 * r + 1, cs.shape[ax]), axis=ax) - np.take(cs, np.arange(0, cs.shape[ax] - 2 * r - 1), axis=ax)) / (2 * r + 1)
     return x
+bare = (hole < 0.01) & (L < Lb + 3) & (blue > np.median(blue) - 6) & edge
+bare = np.asarray(Image.fromarray((bare * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5))) > 127   # off their rims
 num = np.zeros_like(board); den = np.zeros(board.shape[:2], np.float32)
-for rad in (2, 6, 16, 40, 90):
-    num += blur(board * keep[..., None], rad); den += blur(keep.astype(np.float32), rad)
-clean = board * keep[..., None] + (num / np.maximum(den[..., None], 1e-3)) * hole[..., None]
-ghost = np.clip(np.maximum.reduce([m for k, m in masks.items() if k != 'crest']), 0, 1)[..., None]
+for rad in (3, 8, 20, 45, 100):
+    num += blur(board * bare[..., None], rad); den += blur(bare.astype(np.float32), rad)
+fill = num / np.maximum(den[..., None], 1e-3)
+# the board's own fine grain, borrowed from bare board nearby, so the fill is not a smear
+grain = (board - blur(board, 2)) * bare[..., None]
+shift = np.roll(np.roll(grain, 37, 0), 53, 1)
+soft = np.clip(blur(hole.astype(np.float32), 3) * 1.4, 0, 1)[..., None]   # feathered, so no seam round a gap
+clean = board * (1 - soft) + (fill + shift * 0.8) * soft
 wall = clean                                            # no trace of the lettering: it has lifted off
 Image.fromarray(np.clip(wall, 0, 255).astype(np.uint8)).save(os.path.join(OUT, f'wall_{V}.webp'), quality=90)
 # the clean plate behind the board (job_plate.py): the street with the board off its posts, cut to the board's
