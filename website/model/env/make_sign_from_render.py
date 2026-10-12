@@ -38,7 +38,14 @@ board = (img[y0, x0] * (1 - tx) * (1 - ty) + img[y0, x0 + 1] * tx * (1 - ty)
          + img[y0 + 1, x0] * (1 - tx) * ty + img[y0 + 1, x0 + 1] * tx * ty)
 
 R, G, B = board[..., 0], board[..., 1], board[..., 2]
-key = np.clip(((R + G) / 2 - 0.75 * B + 12) / 30, 0, 1)        # light lettering on slate navy, as rendered
+# light lettering on slate navy: each pixel against the board's own brightness round it (the board is shaded
+# unevenly, darker at its far end), so the key follows the render's light rather than fixed numbers; the lettering
+# is also less blue than the board
+L = 0.3 * R + 0.59 * G + 0.11 * B
+Lb = np.asarray(Image.fromarray(np.clip(L, 0, 255).astype(np.uint8)).filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.GaussianBlur(28))).astype(np.float32)
+blue = B - (R + G) / 2
+key = np.clip((L - Lb - 9) / 12, 0, 1) * np.clip(np.median(blue) - blue + 8, 0, 12) / 12
+print('board blue', round(float(np.median(blue)), 1))
 yy, xx = (v - 0.5 / BH), (u - 0.5 / BW)
 CREST = (0.495, 0.465, 0.113)
 boxes = {'phone_l': (0.02, 0.03, 0.31, 0.14), 'phone_r': (0.71, 0.03, 0.995, 0.14), 'hetauda': (0.15, 0.55, 0.38, 0.66),
@@ -63,7 +70,7 @@ for name, m in masks.items():
 
 # the board with its lettering painted out (a normalised blur fills the gaps), and a faint ghost of the paint
 hole = np.clip(np.maximum.reduce(list(masks.values())) * 3, 0, 1)
-hole = np.asarray(Image.fromarray((hole * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(13))) / 255.0   # the letters' painted shadows too
+hole = np.asarray(Image.fromarray((hole * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(31))) / 255.0   # the letters' painted shadows too
 keep = 1 - hole
 def blur(x, r):
     for _ in range(3):
@@ -77,7 +84,7 @@ for rad in (2, 6, 16, 40, 90):
     num += blur(board * keep[..., None], rad); den += blur(keep.astype(np.float32), rad)
 clean = board * keep[..., None] + (num / np.maximum(den[..., None], 1e-3)) * hole[..., None]
 ghost = np.clip(np.maximum.reduce([m for k, m in masks.items() if k != 'crest']), 0, 1)[..., None]
-wall = clean + ghost * 0.05 * (board - clean)          # where the paint was, a faint trace of it stays
+wall = clean                                            # no trace of the lettering: it has lifted off
 Image.fromarray(np.clip(wall, 0, 255).astype(np.uint8)).save(os.path.join(OUT, f'wall_{V}.webp'), quality=90)
 # the clean plate behind the board (job_plate.py): the street with the board off its posts, cut to the board's
 # area with a soft edge, for when the board swings out

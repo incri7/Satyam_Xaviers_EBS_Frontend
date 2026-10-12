@@ -39,8 +39,8 @@ rm -f renders/job_plate.log
 python make_sign_from_render.py $V
 # the camera's flight from the street to the front, frame by frame, scrubbed by the scroll
 rm -rf renders/travel
-"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_travel.py" -- "$H/renders/travel" 180 1280x720 32 </dev/null; wait_for renders/travel/job_travel.log
-python make_travel.py $V
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_travel.py" -- "$H/renders/travel" 180 1920x1080 32 </dev/null; wait_for renders/travel/job_travel.log
+node make_travel.mjs $V
 # the front view with only the school in it, on a transparent ground: the next page picks up the building alone
 rm -f renders/job_cutout.log
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_cutout.py" -- "$H/renders/front_school.png" </dev/null; wait_for renders/job_cutout.log

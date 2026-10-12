@@ -8,13 +8,29 @@ import { FRONT } from './Arrival';
  * (website/model/env/job_travel.py) and scrubbed by the scroll: arrive.t is how far along it is (0 .. 1), arrive.q
  * how much of it shows over the street view (Arrival). It is rendered at the front view's size and its last frame
  * is the front view, which the next page picks up (Story). Its first frames (the street) are never shown: the
- * flight starts above the driveway's trees, where the first page's board fades away onto it. Frames load one after another once the street is on
- * screen; two neighbouring frames are blended, so the flight stays smooth between them.
+ * flight starts above the driveway's trees, where the first page's board fades away onto it. Two neighbouring frames
+ * are blended, so the flight stays smooth between them.
+ *
+ * Light as it can be for the screen it plays on: AVIF where the browser reads it (WebP otherwise), 1600 wide on large
+ * or dense screens, 1280 on laptops, 720 on phones; on a phone or a slow or data-saving connection every other frame
+ * (the blend covers the gaps). Frames start loading once the street is on screen and the browser is idle, at low
+ * priority, so they never hold up the page.
  */
 const N = 180;
 const SIZE = [1280, 720];
 const T0 = 20 / 89;              // where the flight starts showing (Story): above the driveway's trees
-const frame = (k: number, w: number) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10122134.webp`;
+const frame = (k: number, w: number, ext: string) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10122230.${ext}`;
+// the smallest AVIF there is: whether this browser can show the frames' own format
+const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
+function plan(avif: boolean) {
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } };
+  const slow = !!nav.connection?.saveData || /(^|-)(2g|3g)$/.test(nav.connection?.effectiveType || '');
+  // a phone by its width, or by a touch screen that is small itself (a short laptop window is not a phone)
+  const phone = innerWidth <= 760 || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 820);
+  const px = innerWidth * Math.min(devicePixelRatio || 1, 2);
+  const w = !avif ? 1280 : phone || slow ? 720 : px >= 1700 ? 1600 : 1280;
+  return { w, ext: avif ? 'avif' : 'webp', stride: phone || slow ? 2 : 1 };
+}
 
 export function Travel({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -23,24 +39,31 @@ export function Travel({ start }: { start: boolean }) {
     if (!start) return;
     const cv = canvas.current!;
     const ctx = cv.getContext('2d')!;
-    const w = Math.min(innerWidth, innerHeight) <= 760 ? 720 : 1280;     // phones get the lighter frames
     const imgs: (HTMLImageElement | null)[] = Array(N).fill(null);
     let alive = true;
     // coarse to fine: every eighth frame first, then every fourth, every second, the rest; so wherever the reader
     // has scrolled to, a frame close to it is already here
     // has scrolled to, a frame close to it is already here. The first and last frames come first of all, and four
     // load at a time.
-    const order: number[] = [0, N - 1];
-    for (const step of [16, 8, 4, 2, 1]) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
-    let next = 0;
-    const worker = async () => {
-      while (alive && next < order.length) {
-        const k = order[next++];
-        const img = new Image(); img.decoding = 'async'; img.src = frame(k, w);
-        try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
-      }
+    const begin = (avif: boolean) => {
+      const { w, ext, stride } = plan(avif);
+      const order: number[] = [0, N - 1];
+      for (const step of [16, 8, 4, 2, 1]) if (step >= stride) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
+      let next = 0;
+      const worker = async () => {
+        while (alive && next < order.length) {
+          const k = order[next++];
+          const img = new Image() as HTMLImageElement & { fetchPriority?: string };
+          img.decoding = 'async'; img.fetchPriority = 'low'; img.src = frame(k, w, ext);
+          try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
+        }
+      };
+      for (let i = 0; i < 4; i++) worker();
     };
-    for (let i = 0; i < 4; i++) worker();
+    const probe = new Image();
+    const go = () => probe.decode().then(() => begin(probe.width > 0), () => begin(false));
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (idle) idle(() => { probe.src = AVIF_PROBE; go(); }, { timeout: 1500 }); else setTimeout(() => { probe.src = AVIF_PROBE; go(); }, 300);
     // the nearest frames here on either side of x
     const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
     const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
@@ -59,12 +82,12 @@ export function Travel({ start }: { start: boolean }) {
       const x = arrive.t * (N - 1);
       const ka = below(x), kb = above(x);
       const da = ka >= 0 ? x - ka : Infinity, db = kb >= 0 ? kb - x : Infinity;
-      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 12;
+      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 14;
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       travel.shown = on; travel.covers = on && arrive.q >= 0.999; travel.x = x; travel.n = N;
       if (!on) return;
       cv.style.opacity = String(arrive.q);
-      const dpr = Math.min(devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(devicePixelRatio || 1, 1.5, (imgs[ka] ?? imgs[kb])!.width / cv.clientWidth);   // no finer than the frames themselves
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       const f = FRONT.focus;

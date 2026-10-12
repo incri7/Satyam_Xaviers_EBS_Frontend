@@ -307,8 +307,8 @@ wall_strip('GEO-school_basement_gate_deep', (RS1 - 0.02, GATE_T + 1.55), (RS1 - 
 camera('CAM-sidepath', SF - 2.0, WALL_T + 1.2, 1.55, 22.0, pitch=4.0, yaw=-4.0)
 camera('CAM-entrance', S_ENT - 0.3, WALL_T + 0.25, 1.6, 16.0, pitch=12.0, yaw=-90.0)
 # The front view: the long side with its balconies, as the client's own photos show the school (IMG_3082-3084):
-# straight on from the open ground past the boundary wall, 11 m up (below the roof, so its top is not seen) and
-# the ground floor's foot at the frame's bottom edge, so the boundary wall falls just below it; the whole building in the
-# frame with a little room round it.
-camera('CAM-front', (SF + SB) / 2 + CORR / 2, TR - 28.0, 11.0, 30.0, pitch=-3.0, yaw=-90.0)
+# straight on from the open ground past the boundary wall, 11 m up (below the roof, so its top is not seen), aimed
+# at the middle of the building with its board and flag: they fill the middle 72% of the frame's height, so a screen
+# up to 2.4 : 1 wide, which crops the top and bottom, still shows all of them.
+camera('CAM-front', (SF + SB) / 2 + CORR / 2, TR - 28.0, 11.0, 27.0, pitch=-5.4, yaw=-90.0)
 print('school built')
