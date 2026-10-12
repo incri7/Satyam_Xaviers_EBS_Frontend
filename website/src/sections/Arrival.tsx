@@ -70,30 +70,36 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
   useEffect(() => {
     const cv = canvas.current!;
     let alive = true;
-    const gl = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false });
-    if (!gl) {
-      // No WebGL: the street as a plain picture, fading like the canvas would.
+    // Without WebGL (switched off, or a driver that cannot build the shader) the street is a plain picture: cropped
+    // exactly as the shader crops it, round the same focus, so the signboard's lettering (SignIntro) still lies on
+    // its painted board; it turns to the front view where the shader would, and fades as the canvas would.
+    const picture = (why: string) => {
       cv.style.display = 'none';
       const img = fallback.current!; img.hidden = false;
       img.onload = () => alive && onReady(); if (img.complete) onReady();
-      const tick = () => { img.style.opacity = String(arrive.o); img.style.visibility = arrive.o > 0.001 ? 'visible' : 'hidden'; };
+      Object.assign(glInfo, { mode: 'picture: ' + why });
+      parallax.x = 0; parallax.y = 0;
+      const tick = () => {
+        img.style.opacity = String(arrive.o); img.style.visibility = arrive.o > 0.001 ? 'visible' : 'hidden';
+        const view = VIEWS[arrive.v > 0.5 ? 1 : 0];
+        if (img.getAttribute('src') !== view.color) img.setAttribute('src', view.color);
+        const size = view.name === 'front' ? FRONT.size : STREET.size;
+        img.style.objectPosition = coverPosition(img.clientWidth / Math.max(1, img.clientHeight), size, view.focus);
+        Object.assign(glInfo, { cw: img.clientWidth, ch: img.clientHeight, iw: size[0], ih: size[1] });
+      };
       gsap.ticker.add(tick);
       return () => { alive = false; gsap.ticker.remove(tick); };
-    }
+    };
+    const gl = cv.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+    if (!gl) return picture('no WebGL');
 
     const sh = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
     const prog = gl.createProgram()!;
     gl.attachShader(prog, sh(gl.VERTEX_SHADER, VERT)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FRAG));
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      // A driver that cannot build the shader gets the street as a plain picture rather than a black screen.
       console.warn('arrival shader:', gl.getProgramInfoLog(prog));
-      cv.style.display = 'none';
-      const img = fallback.current!; img.hidden = false;
-      img.onload = () => alive && onReady(); if (img.complete) onReady();
-      const tick = () => { img.style.opacity = String(arrive.o); img.style.visibility = arrive.o > 0.001 ? 'visible' : 'hidden'; };
-      gsap.ticker.add(tick);
-      return () => { alive = false; gsap.ticker.remove(tick); };
+      return picture('shader: ' + (gl.getProgramInfoLog(prog) || 'did not link').slice(0, 80));
     }
     gl.useProgram(prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -145,7 +151,7 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       gl.uniform2f(u('uView'), w, h);
       const px = eased.x * 0.02, py = eased.y * 0.01;
       parallax.x = px; parallax.y = py;
-      Object.assign(glInfo, { cw: cv.clientWidth, ch: cv.clientHeight, bw: cv.width, bh: cv.height, dbw: gl.drawingBufferWidth, dbh: gl.drawingBufferHeight, iw: a.w, ih: a.h });
+      Object.assign(glInfo, { mode: 'webgl', cw: cv.clientWidth, ch: cv.clientHeight, bw: cv.width, bh: cv.height, dbw: gl.drawingBufferWidth, dbh: gl.drawingBufferHeight, iw: a.w, ih: a.h });
       const rise = (n: number) => (n === 0 ? RISE * arrive.r : -RISE * (1 - arrive.r));
       gl.uniform2f(u('uShift0'), px, py + rise(i)); gl.uniform2f(u('uShift1'), px, py + rise(j));
       gl.uniform1f(u('uMix'), mix);

@@ -243,7 +243,7 @@ export function SignIntro() {
         poly.setAttribute('points', pts.map(([x, y]) => `${(x + r.left).toFixed(1)},${(y + r.top).toFixed(1)}`).join(' '));
         info.textContent = [`window ${innerWidth} x ${innerHeight}  dpr ${devicePixelRatio}  zoom? ${(outerWidth / innerWidth).toFixed(2)}`,
           `sign layer ${vw} x ${vh} at ${r.left.toFixed(1)},${r.top.toFixed(1)}`,
-          `street canvas css ${glInfo.cw} x ${glInfo.ch}  buffer ${glInfo.bw} x ${glInfo.bh}  drawn ${glInfo.dbw} x ${glInfo.dbh}`,
+          `street (${glInfo.mode}) css ${glInfo.cw} x ${glInfo.ch}  buffer ${glInfo.bw} x ${glInfo.bh}  drawn ${glInfo.dbw} x ${glInfo.dbh}`,
           `street picture ${glInfo.iw} x ${glInfo.ih}  lean ${parallax.x.toFixed(4)}, ${parallax.y.toFixed(4)}`,
           `lift ${sign.lift.toFixed(3)} fill ${sign.fill.toFixed(3)}  ${navigator.userAgent.split(') ').pop()}`].join('\n');
       };
