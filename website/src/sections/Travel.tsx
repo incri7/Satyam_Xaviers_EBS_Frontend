@@ -24,15 +24,21 @@ export function Travel({ start }: { start: boolean }) {
     const w = Math.min(innerWidth, innerHeight) <= 760 ? 720 : 1280;     // phones get the lighter frames
     const imgs: (HTMLImageElement | null)[] = Array(N).fill(null);
     let alive = true;
-    // one after another, so the flight's first frames are ready first
+    // coarse to fine: every eighth frame first, then every fourth, every second, the rest; so wherever the reader
+    // has scrolled to, a frame close to it is already here
+    const order: number[] = [];
+    for (const step of [8, 4, 2, 1]) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
+    if (!order.includes(N - 1)) order.splice(1, 0, N - 1);
     (async () => {
-      for (let k = 0; k < N && alive; k++) {
+      for (const k of order) {
+        if (!alive) return;
         const img = new Image(); img.decoding = 'async'; img.src = frame(k, w);
         try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
       }
     })();
-
-    const near = (k: number) => { for (let d = 0; d < N; d++) { if (imgs[k - d]) return imgs[k - d]; if (imgs[k + d]) return imgs[k + d]; } return null; };
+    // the nearest frames here on either side of x
+    const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
+    const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
     // cover-fit, keeping the focus point in view; the focus moves from the street's to the front's as it flies
     const draw = (img: HTMLImageElement, alpha: number, f: number[]) => {
       const W = cv.width, H = cv.height, ia = SIZE[0] / SIZE[1], va = W / H;
@@ -43,18 +49,19 @@ export function Travel({ start }: { start: boolean }) {
     };
     let shown = false;
     const tick = () => {
-      const on = arrive.q > 0.001 && !!imgs[0];
+      const on = arrive.q > 0.001 && !!imgs[0] && !!imgs[N - 1];
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       if (!on) return;
       cv.style.opacity = String(arrive.q);
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-      const x = arrive.t * (N - 1), k = Math.floor(x), fr = x - k;
+      const x = arrive.t * (N - 1);
       const f = [STREET.focus[0] + (FRONT.focus[0] - STREET.focus[0]) * arrive.t, STREET.focus[1] + (FRONT.focus[1] - STREET.focus[1]) * arrive.t];
-      const a = imgs[k] ?? near(k), b = k + 1 < N ? imgs[k + 1] : null;
-      if (a) draw(a, 1, f);
-      if (b && fr > 0.01) draw(b, fr, f);
+      const ka = below(x), kb = above(x);
+      const a = ka >= 0 ? imgs[ka]! : imgs[kb]!, b = ka >= 0 && kb > ka ? imgs[kb]! : null;
+      draw(a, 1, f);
+      if (b) { const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(b, fr, f); }
     };
     gsap.ticker.add(tick);
     return () => { alive = false; gsap.ticker.remove(tick); };

@@ -120,18 +120,18 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
         // catch-up tween that restarts on every wheel notch.
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
+        // A rebuild starts every value from the top of the story; put them straight back where the reader is.
+        master.time(Math.min(Math.max(scrollY, 0), end));
       }, root);
     };
     build();
 
-    // Fonts, lazy photos, the gallery's album filter and the window's size change the layout: lay it out again.
-    let height = root.current?.offsetHeight ?? 0, width = innerWidth, timer = 0;
-    const again = () => { clearTimeout(timer); timer = window.setTimeout(() => { build(); ScrollTrigger.refresh(); }, 150); };
-    const ro = new ResizeObserver(() => {
-      const h = root.current?.offsetHeight ?? 0;
-      if (Math.abs(h - height) < 2 && innerWidth === width) return;
-      height = h; width = innerWidth; again();
-    });
+    // Fonts, the first page's photos and the window's size move the scenes: lay them out again. Photos loading
+    // in the pages below the pick-up change the story's height but not where the scenes are, so they do not.
+    const where = () => [...scenes.current, pickup.current].map((el) => el ? `${el.offsetTop}:${el.offsetHeight}` : '').join() + `|${innerWidth}x${innerHeight}`;
+    let laid = where(), timer = 0;
+    const again = () => { clearTimeout(timer); timer = window.setTimeout(() => { laid = where(); build(); ScrollTrigger.refresh(); }, 150); };
+    const ro = new ResizeObserver(() => { if (where() !== laid) again(); });
     if (root.current) ro.observe(root.current);
     return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); };
   }, [reduce]);
