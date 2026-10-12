@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -10,8 +10,8 @@ gsap.registerPlugin(ScrollTrigger);
 
 /** The second page, Programmes, built as the first is: a bento of the app's cards on its canvas. Its words are the
     client's (their draft website doc's "First book", A School Day and admission age guide; School Info.md's
-    approval dates); the everyday details are what the client's walk-through video and photos show (the English
-    Zone signs, the corridor's learning wall, the school buses, the early-years classroom). */
+    approval dates); the school buses and the early-years classroom are from the client's walk-through video and
+    photos. */
 const COPY = {
   en: {
     glance: [['Classes', 'Nursery to Class 10'], ['Stages', 'Four, Early Years to Secondary'], ['School day', '6:00 AM to 4:30 PM'], ['Getting here', 'School buses'], ['Since', '2048 BS']],
@@ -32,13 +32,6 @@ const COPY = {
         learn: 'Core secondary subjects, optional subjects, and the knowledge and skills needed for the SEE and beyond.',
         how: 'Focused academic preparation alongside experiences that build confidence, responsibility, and independence: from educational trips and school-wide celebrations to focused SEE preparation.' },
     ],
-    everyTitle: 'Learning every day.',
-    everyLede: 'What you see walking through our corridors.',
-    wall: { title: 'A wall that changes every day.', text: 'In the corridor, a board the students read on their way to class:',
-      items: ['Science wall: amazing facts about science', "Maths wall: today's fact", "Today's question", 'A riddle', 'and a corner in Nepali'],
-      sample: 'On the day we visited: “If H₂O is the formula for water, what is the formula for ice?”' },
-    english: { title: 'English zones.', text: 'Signs on our corridors mark English zones, where students speak English with friends and teachers, not only in English lessons.' },
-    paper: { title: 'Newspaper day.', text: 'The class reads The Kathmandu Post together, then writes its own stories beside it.' },
     dayTitle: 'A school day.',
     day: [
       ['6:00', 'AM', 'Gate opens', 'Students arrive and prepare for the school day.'],
@@ -78,13 +71,6 @@ const COPY = {
         learn: 'मुख्य र ऐच्छिक विषय, र SEE तथा त्यसपछिका लागि चाहिने ज्ञान र सीप।',
         how: 'केन्द्रित शैक्षिक तयारीसँगै आत्मविश्वास, जिम्मेवारी र स्वतन्त्रता बढाउने अनुभव: शैक्षिक भ्रमण र विद्यालयव्यापी उत्सवदेखि SEE को केन्द्रित तयारीसम्म।' },
     ],
-    everyTitle: 'हरेक दिनको सिकाइ।',
-    everyLede: 'हाम्रा करिडोरमा हिँड्दा देखिने कुरा।',
-    wall: { title: 'हरेक दिन फेरिने भित्ता।', text: 'करिडोरमा एउटा बोर्ड, जुन विद्यार्थीले कक्षा जाँदा पढ्छन्:',
-      items: ['विज्ञान भित्ता: विज्ञानका रोचक तथ्य', 'गणित भित्ता: आजको तथ्य', 'आजको प्रश्न', 'एउटा पहेली', 'र नेपालीमा एउटा कुना'],
-      sample: 'हामी पुगेको दिन: “पानीको सूत्र H₂O हो भने बरफको सूत्र के हो?”' },
-    english: { title: 'अङ्ग्रेजी क्षेत्र।', text: 'करिडोरका सङ्केतले अङ्ग्रेजी क्षेत्र देखाउँछन्, जहाँ विद्यार्थी अङ्ग्रेजी कक्षामा मात्र होइन, साथी र शिक्षकसँग पनि अङ्ग्रेजी बोल्छन्।' },
-    paper: { title: 'पत्रिका दिवस।', text: 'कक्षा सँगै द काठमाडौं पोस्ट पढ्छ, अनि त्यसैको छेउमा आफ्नै कथा लेख्छ।' },
     dayTitle: 'विद्यालयको एक दिन।',
     day: [
       ['६:००', 'बिहान', 'गेट खुल्छ', 'विद्यार्थी आइपुग्छन् र दिनको तयारी गर्छन्।'],
@@ -119,7 +105,6 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
   const lang = useLang();
   const c = COPY[lang];
   const root = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(0);
 
   // The climb: on a wide screen the navy band holds while the reader scrolls through the four stages; the thirteen
   // classes light up stage by stage and the stage panel changes with them. On a phone, or with reduced motion, the
@@ -187,29 +172,6 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
           </div>
           <ol className="jdots" aria-hidden="true">{c.stages.map((s, i) => <li className="jdot" key={s.name} style={{ '--on': i ? 0 : 1 } as CSSProperties}><b>{s.name}</b></li>)}</ol>
         </div>
-      </section>
-
-      <section className="prog-block" aria-labelledby="pg-every">
-        <header className="prog-head">
-          <h3 className="prog-h" id="pg-every">{c.everyTitle}</h3>
-          <p className="prog-lede">{c.everyLede}</p>
-        </header>
-        {/* One photograph open at a time, the others folded beside it (as the first page's reel); pointing at,
-            focusing or tapping a fold opens it. On a phone they stack, every one open. */}
-        <ul className="lreel">
-          {[
-            { img: 'learnwall', title: c.wall.title, body: <><span>{c.wall.text}</span><ul className="wall-list">{c.wall.items.map((it) => <li key={it}>{it}</li>)}</ul><p className="chalk">{c.wall.sample}</p></> },
-            { img: 'englishzone', title: c.english.title, body: <span>{c.english.text}</span> },
-            { img: 'cls1', title: c.paper.title, body: <span>{c.paper.text}</span> },
-          ].map((it, i) => (
-            <li key={it.title} className={i === open ? 'open' : undefined} onMouseEnter={() => setOpen(i)}>
-              <Photo name={it.img} alt="" />
-              <span className="lreel-fold" aria-hidden="true">{it.title}</span>
-              <div className="lreel-cap"><b>{it.title}</b>{it.body}</div>
-              <button type="button" className="lreel-hit" aria-expanded={i === open} aria-label={it.title} onClick={() => setOpen(i)} onFocus={() => setOpen(i)} />
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="prog-block bento" aria-label={c.dayTitle}>

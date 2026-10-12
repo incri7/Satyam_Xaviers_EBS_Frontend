@@ -1,6 +1,7 @@
 /* Programmes: one navy world, the signboard's own (the first page's opening band), ruled like the blueprint the
-   school is picked up onto (styles.css .pickup-bg), its lines light on the navy. The page fades into it from white, the climb holds on it, and everything after stays on it as glass panels (white at a low
-   alpha, a thin light edge), until the page fades back to the light canvas for the gallery. The app's text styles
+   school is picked up onto (styles.css .pickup-bg), its lines light on the navy. The page fades into it from white,
+   the climb holds on it, and everything after stays on it as glass panels (white at a low alpha, a thin light edge),
+   until the page fades back to the light canvas for the gallery. The app's text styles
    1:1 (h1 30, h2 24, h3 19; card radius 20, row 14, chip 8). Selectors start at .prog so they outrank styles.css. */
 .prog {
   --navy-a: #0F223D; --navy-b: #172B48; --navy-c: #233856;
@@ -81,35 +82,6 @@ html:lang(ne) .prog .panel-title { letter-spacing: 0; line-height: 1.3; }
 .prog .jdot::before { content: ""; width: calc(10px + var(--on) * 18px); height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--sky) calc(30% + var(--on) * 70%), transparent); }
 .prog .jdot b { font-weight: 600; }
 
-/* Learning every day: an expanding reel, as the first page's. The open photograph takes the room, its words over it;
-   the folded ones show a slice of their picture and their name set upright. */
-.prog .lreel { display: flex; gap: clamp(8px, 1vw, 14px); height: clamp(460px, 40vw, 580px); }
-.prog .lreel li { position: relative; flex: 1 1 0; min-width: 0; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-line);
-  transition: flex-grow .7s var(--ease); }
-.prog .lreel li.open { flex-grow: 3.4; }
-.prog .lreel li > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.12);
-  transition: transform 1.1s var(--ease), filter .7s var(--ease); filter: saturate(.7) brightness(.7); }
-.prog .lreel li.open > img { transform: scale(1); filter: none; }
-.prog .lreel li::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(0deg, rgb(11 26 61 / .95) 0%, rgb(11 26 61 / .55) 42%, rgb(11 26 61 / 0) 68%); }
-.prog .lreel-fold { position: absolute; z-index: 1; left: 50%; bottom: 22px; transform: translateX(-50%); writing-mode: vertical-rl; rotate: 180deg;
-  white-space: nowrap; font: 600 17px/1 var(--display); color: #fff; transition: opacity .3s var(--ease); }
-.prog .lreel li.open .lreel-fold { opacity: 0; }
-.prog .lreel-cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: clamp(18px, 2vw, 26px); display: grid; gap: 8px;
-  opacity: 0; transform: translateY(12px); transition: opacity .35s var(--ease), transform .5s var(--ease); max-width: 640px; }
-.prog .lreel li.open .lreel-cap { opacity: 1; transform: none; transition-delay: .25s; }
-.prog .lreel-cap b { font: 700 26px/1.2 var(--display); letter-spacing: -.02em; }
-html:lang(ne) .prog .lreel-cap b { letter-spacing: 0; line-height: 1.35; }
-.prog .lreel-cap span { font-size: 15px; line-height: 1.55; color: var(--soft-t); }
-.prog .wall-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.prog .wall-list li { padding: 4px 10px; border-radius: 8px; font-size: 13px; color: #fff; background: rgb(255 255 255 / .12); border: 1px solid rgb(255 255 255 / .18); }
-.prog .chalk { margin-top: 4px; padding: 14px 18px; border-radius: 14px; background: #1E3A2F; color: #F2F1EA; font-size: 15px; line-height: 1.5;
-  box-shadow: inset 0 0 0 5px #6B4A30, inset 0 0 30px rgb(0 0 0 / .25); }
-.prog .lreel-hit { position: absolute; inset: 0; z-index: 2; border: 0; padding: 0; margin: 0; background: transparent; cursor: pointer; border-radius: 20px; }
-.prog .lreel li.open .lreel-hit { cursor: default; }
-.prog .lreel-hit:focus-visible { outline: 3px solid var(--sky); outline-offset: -3px; }
-@media (prefers-reduced-motion: reduce) { .prog .lreel li, .prog .lreel li > img, .prog .lreel-cap { transition: none; } }
-
 /* a school day: a sky line runs through the hours as the reader passes; --p draws it, --lit lights an hour; both
    rest at 1 so the card reads without motion */
 .prog .day { grid-column: span 12; }
@@ -168,13 +140,6 @@ html:lang(ne) .prog .date { font-family: "Mukta", sans-serif; }
   .prog .panel { grid-template-columns: 1fr; }
   .prog .ladder { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .prog .panels { gap: 36px; }
-  /* the reel stacks, every photograph open */
-  .prog .lreel { flex-direction: column; height: auto; }
-  .prog .lreel li, .prog .lreel li.open { flex: none; min-height: 420px; }
-  .prog .lreel li > img { transform: none; filter: none; }
-  .prog .lreel-fold { display: none; }
-  .prog .lreel-cap { opacity: 1; transform: none; }
-  .prog .lreel-hit { display: none; }
 }
 @media (max-width: 760px) {
   .prog .approved, .prog .ages { grid-column: span 12; }
