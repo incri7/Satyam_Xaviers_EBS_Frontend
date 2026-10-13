@@ -122,8 +122,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const vw0 = innerWidth, vh0 = innerHeight;
         const small = { left: vw0 * 0.24, top: vh0 * 0.42, width: vw0 * 0.52, height: vh0 * 0.52 };
         const s3 = gsap.timeline({ defaults: { ease: 'none' } });
-        s3.fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, immediateRender: false }, 0.02)
-          .fromTo(back, small, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.62, ease: 'power2.inOut', immediateRender: false }, 0.02)
+        s3.fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0)
+          .fromTo(back, small, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.64, ease: 'power2.inOut', immediateRender: false }, 0)
           .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: 'power1.inOut', immediateRender: false }, 0.4)
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.7)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.701)
@@ -136,8 +136,10 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const P = at(pickup.current!);
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
+        // the return starts while the end of Programmes is still leaving: once 30% of the screen below it is blueprint
+        const lead = vh * 0.7;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
-          .add(s3.duration(Math.max(1, R.h - vh)), R.top);
+          .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);
         const end = R.top + R.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
