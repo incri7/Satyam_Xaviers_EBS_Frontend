@@ -135,11 +135,13 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // of it, growing to fill the screen, its surroundings coming back round it, and hands over to the street's
         // front view, which the next page (Gallery) then slides up over.
         const s3 = gsap.timeline({ defaults: { ease: 'none' } });
-        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.25, ease: 'power1.in', immediateRender: false }, 0)
-          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.64, ease: 'power2.inOut', immediateRender: false }, 0)
-          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: 'power1.inOut', immediateRender: false }, 0.4)
-          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.7)
-          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.701)
+        // It is whole before the page's end reaches the foot of the screen, so the page scrolls away under the school
+        // and no empty ground ever shows; it holds there until the page has gone, then the street's view takes over.
+        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.1, ease: 'power1.in', immediateRender: false }, 0)
+          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.3, ease: 'power2.inOut', immediateRender: false }, 0)
+          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: 'power1.inOut', immediateRender: false }, 0.17)
+          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
+          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
 
         // Lay the scenes out in scroll pixels: scene 0 and 1 over their sections, the pick-up while its picture is
@@ -149,9 +151,10 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const P = at(pickup.current!);
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        // the return starts as the end of Programmes reaches the foot of the screen: the badge grows back into the
-        // building right over the page, no empty stretch first
-        const lead = vh;
+        // the return starts once the last of Programmes is on screen (its end just below the foot of the screen) and
+        // is quick: the building is whole within a third of a screen, before more than a sliver of the page's end
+        // has come up, so the page scrolls away under the school
+        const lead = vh * 1.15;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 0.7), P.top + P.h - vh)
           .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);

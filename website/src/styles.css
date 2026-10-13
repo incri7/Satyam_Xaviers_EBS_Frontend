@@ -102,7 +102,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 .pickup-school { filter: drop-shadow(0 26px 30px rgb(11 26 61 / .3)); }
 /* the return (scene 3): the building alone growing back into the street's front view, on the blueprint it was
    picked up onto; both live in the fixed stage, under the pages */
-.scene-back { height: 90vh; }
+.scene-back { height: 100vh; }
 .stage .back-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
   background-image:
     linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
