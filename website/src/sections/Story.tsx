@@ -127,7 +127,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const sb = gsap.timeline({ defaults: { ease: 'none' } });
         sb.fromTo(card.querySelector('.pickup-school'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0)
           .fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
-          .fromTo(back, to, { ...badge, duration: 0.8, ease: 'power2.inOut', immediateRender: false }, 0)
+          .fromTo(back, to, { ...badge, duration: 0.85, ease: 'sine.inOut', immediateRender: false }, 0)
           .fromTo(back, { '--badge': 0 }, { '--badge': 1, duration: 0.35, ease: 'power1.out', immediateRender: false }, 0.5)
           .set({}, {}, 1);
 
@@ -156,7 +156,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // has come up, so the page scrolls away under the school
         const lead = vh * 1.15;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
-          .add(sb.duration(vh * 0.7), P.top + P.h - vh)
+          .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
           .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);
         const end = R.top + R.h - vh;
         master.set({}, {}, end);
