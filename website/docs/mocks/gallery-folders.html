@@ -58,8 +58,7 @@ button { font: inherit; }
 .front { padding: 14px 16px; }
 .back::before { top: -18px; height: 20px; }
 
-/* three surfaces to compare (the switch at the top right) */
-/* 1. frosted glass: the photos inside show through the front, softly */
+/* frosted glass: the photos inside show through the folder's front, softly */
 .v-glass .back { background: color-mix(in srgb, var(--c) 82%, #0B1A3D); }
 .v-glass .back::before { background: color-mix(in srgb, var(--c) 82%, #0B1A3D); }
 .v-glass .peek { height: 100%; }
@@ -68,24 +67,6 @@ button { font: inherit; }
 .v-glass .front { background: color-mix(in srgb, var(--c) 46%, transparent); backdrop-filter: blur(9px) saturate(1.7); -webkit-backdrop-filter: blur(9px) saturate(1.7);
   border: 1px solid rgb(255 255 255 / .55); box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 -8px 24px -18px rgb(0 0 0 / .4); color: #fff; text-shadow: 0 1px 8px rgb(0 0 0 / .35); }
 .v-glass .folder:not(.ach):not(.evt) .front { color: var(--navy); text-shadow: 0 1px 8px rgb(255 255 255 / .6); }
-/* 2. paper: grain, a crease, a printed label */
-.v-paper .back, .v-paper .back::before, .v-paper .front {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
-.v-paper .folder { --c: #B9D3DC; --c2: #C9DFE6; } .v-paper .folder.ach { --c: #2E5A9C; --c2: #3966AB; } .v-paper .folder.evt { --c: #B93A47; --c2: #C64755; }
-.v-paper .front { border-radius: 6px 6px 12px 12px; justify-content: center; align-items: flex-start; }
-.v-paper .front::before { content: ""; position: absolute; left: 5%; right: 5%; top: 12px; height: 1px; background: rgb(0 0 0 / .14); box-shadow: 0 1px 0 rgb(255 255 255 / .22); }
-.v-paper .label { padding: 9px 12px 8px; background: #FBFAF6; color: var(--navy); border-radius: 3px; transform: rotate(-1.5deg); box-shadow: 0 2px 6px -2px rgb(0 0 0 / .35); }
-/* 3. blueprint: the Programmes page's own navy and grid, the folder's colour only on its tab */
-.v-blue .back, .v-blue .front { --g: rgb(134 187 214 / .2); background-color: #13295B;
-  background-image: linear-gradient(var(--g) 1px, transparent 1px), linear-gradient(90deg, var(--g) 1px, transparent 1px);
-  background-size: 16px 16px; border: 1.5px solid rgb(180 216 228 / .65); }
-.v-blue .front { background-color: #172F66; color: #fff; }
-.v-blue .front em { color: var(--sky); }
-.v-blue .back::before { background: var(--c); border: 1.5px solid rgb(180 216 228 / .65); border-bottom: 0; top: -20px; left: -1.5px; }
-.switch { position: fixed; right: 16px; top: 16px; z-index: 60; display: flex; gap: 6px; padding: 5px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
-.switch button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: none; color: var(--ink); font-weight: 600; cursor: pointer; }
-.switch button[aria-pressed="true"] { background: var(--navy); color: #fff; }
-
 
 /* the wall behind the folders: doodles like the children's drawings in the classroom, light, at the edges */
 .doodles { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -95,14 +76,15 @@ button { font: inherit; }
 .doodles .leaf { fill: rgb(120 180 120 / .28); stroke: rgb(80 140 90 / .4); }
 .head, .desk, .page { position: relative; z-index: 1; }
 
-/* the opened folder: its photos, landed as a page */
+/* the opened folder: its photos, landed as a page; above them, written plainly in the copy */
+.backbtn { border: 0; padding: 0; background: none; cursor: pointer; font: 400 17px/28px var(--hand); color: var(--royal);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.backbtn:hover { color: var(--navy); }
+.title { margin: 0; font: 700 32px/56px var(--hand); color: var(--navy); }
+.title small { margin-left: 10px; font: 400 16px var(--hand); color: var(--pen); }
 .page { padding: 0 var(--gutter) 120px; display: none; }
 .page.on { display: block; }
-.bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 18px 0; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(10px); }
-.chip { font-family: var(--hand); font-size: 18px; display: inline-flex; align-items: center; gap: 10px; padding: 8px 16px 8px 10px; border-radius: 999px; background: var(--c); color: var(--t); font-weight: 600; }
-.chip i { width: 22px; height: 16px; border-radius: 2px 4px 4px 4px; background: var(--c2); box-shadow: inset 0 -6px 0 rgb(0 0 0 / .12); }
-.backbtn { font-family: var(--hand); font-size: 18px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; cursor: pointer; }
-.backbtn:hover { border-color: var(--royal); }
+.bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: baseline; gap: 20px; padding: 14px 0 0; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(10px); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin-top: 16px; }
 .cell { aspect-ratio: 4 / 3; border-radius: 14px; }
 .cell.big { grid-column: span 2; grid-row: span 2; }
@@ -119,7 +101,6 @@ button { font: inherit; }
 </style>
 </head>
 <body class="v-glass">
-<div class="switch" role="group" aria-label="Folder style"><button type="button" data-v="v-glass" aria-pressed="true">Glass</button><button type="button" data-v="v-paper" aria-pressed="false">Paper</button><button type="button" data-v="v-blue" aria-pressed="false">Blueprint</button></div>
 <div class="margin" aria-hidden="true"></div>
 <div class="doodles" id="doodles" aria-hidden="true"></div>
 <header class="head" id="head">
@@ -129,11 +110,12 @@ button { font: inherit; }
 </header>
 <main class="desk" id="desk"></main>
 <section class="page" id="page" aria-live="polite">
-  <div class="bar"><button class="backbtn" id="back" type="button">Back to the folders</button><span class="chip" id="chip"><i></i><span></span></span></div>
+  <div class="bar"><button class="backbtn" id="back" type="button">‹ All folders</button></div>
+  <h2 class="title" id="title"></h2>
   <div class="grid" id="grid"></div>
 </section>
 <div class="lb" id="lb"><img alt=""></div>
-<div class="note">Mock · hover a folder, then click it</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script>
@@ -179,9 +161,7 @@ function open(f, b) {
   const front = b.querySelector('.front'), peekBox = b.querySelector('.peek').getBoundingClientRect();
   // the page they land on: empty cells, laid out but invisible for now
   grid.innerHTML = f.photos.map((p, i) => `<div class="cell${i === 0 ? ' big' : ''}"></div>`).join('');
-  const chip = document.getElementById('chip'); chip.querySelector('span').textContent = `${f.name} · ${f.photos.length} photos`;
-  chip.style.setProperty('--c', getComputedStyle(b).getPropertyValue('--c')); chip.style.setProperty('--c2', getComputedStyle(b).getPropertyValue('--c2'));
-  chip.style.setProperty('--t', getComputedStyle(b).getPropertyValue('--t'));
+  document.getElementById('title').innerHTML = `${f.name}<small>${f.photos.length} photos</small>`;
   // every photo starts inside the folder, where the peeking ones are
   const fly = f.photos.map((p, i) => {
     const im = document.createElement('img'); im.className = 'fly'; im.src = src(p); im.alt = '';
@@ -213,7 +193,7 @@ function open(f, b) {
           duration: 0.75, ease: 'power3.inOut', delay: i * 0.04,
           onComplete: () => { im.className = ''; im.removeAttribute('style'); cells[i].appendChild(im); im.addEventListener('click', () => zoom(im)); } });
       });
-      gsap.fromTo('.bar', { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.4, delay: 0.5 });
+      gsap.fromTo(['.bar', '#title'], { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.4, delay: 0.5 });
     }, 0.9);
   if (reduce) tl.progress(1);
 }
@@ -281,10 +261,6 @@ PLACES.forEach(([k, x, y, size, rot]) => {
     duration: gsap.utils.random(5, 9), ease: 'sine.inOut', yoyo: true, repeat: -1, delay: gsap.utils.random(0, 3) });
 });
 
-document.querySelectorAll('.switch button').forEach((bt) => bt.addEventListener('click', () => {
-  document.body.className = bt.dataset.v;
-  document.querySelectorAll('.switch button').forEach((o) => o.setAttribute('aria-pressed', String(o === bt)));
-}));
 </script>
 </body>
 </html>
