@@ -153,27 +153,72 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
   .people-row, .facts { grid-template-columns: 1fr; }
 }
 
-/* ---------- Gallery: albums, grid, lightbox ---------- */
-.albums { padding-top: clamp(40px, 5vw, 72px); }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chips button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
-  font: 600 15px var(--font); color: var(--ink); cursor: pointer; transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease); }
-.chips button span { font-weight: 500; font-size: 13px; color: var(--slate); }
-.chips button:hover { border-color: var(--royal); }
-.chips button[aria-pressed="true"], .chips button[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
-.chips button[aria-pressed="true"] span, .chips button[aria-selected="true"] span { color: var(--sky); }
-.album { margin-top: clamp(28px, 3.4vw, 48px); }
-.album-h { display: flex; align-items: baseline; gap: 10px; margin: 0; font: 700 22px/1.2 var(--display); font-stretch: 88%; letter-spacing: -.02em; color: var(--ink); }
-.album-h span { font: 500 14px var(--font); color: var(--slate); }
-.album .grid { margin-top: 16px; }
-.album-note { margin-top: 18px; color: var(--slate); max-width: 60ch; min-height: 1.6em; }
-.grid { list-style: none; margin: clamp(24px, 3vw, 40px) 0 0; padding: 0; columns: 4 240px; column-gap: 14px; animation: gridIn .45s var(--ease) both; }
-.grid li { break-inside: avoid; margin-bottom: 14px; }
-.grid button { display: block; width: 100%; padding: 0; border: 0; background: var(--sunken); border-radius: 16px; overflow: hidden; cursor: zoom-in; }
-.grid img { width: 100%; transition: transform .5s var(--ease); }
-.grid button:hover img { transform: scale(1.035); }
-.consent { margin-top: 24px; font-size: 14px; color: var(--slate); }
-@keyframes gridIn { from { opacity: 0; } to { opacity: 1; } }
+/* ---------- Gallery: a Nepali school copy, three glass folders, the lightbox ---------- */
+/* The page itself (the home page's #gallery, the route's .gal-paper): soft paper ruled every 28 px, the red margin,
+   everything written in one hand (Kalam writes English and Nepali alike), every line on a rule. One screen. */
+#gallery, .gal-paper { --paper: #F3F1E9; --rule: rgb(110 150 205 / .32); --red: rgb(214 74 86 / .5); --hand: "Kalam", "Mukta", cursive; --pen: #24448A;
+  position: relative; overflow: hidden; min-height: 100vh; padding-bottom: 28px; background-color: var(--paper);
+  background-image: repeating-linear-gradient(180deg, transparent 0 27px, var(--rule) 27px 28px); }
+#gallery .sheet-head, .gal-paper .sheet-head { position: relative; z-index: 1; max-width: 900px; padding: 112px var(--gutter) 0; }
+#gallery .sheet-head .wide, .gal-paper .sheet-head .wide { margin: 0; font: 700 clamp(34px, 3.4vw, 46px)/56px var(--hand); letter-spacing: 0; font-stretch: normal; color: var(--navy); }
+#gallery .sheet-head .other, .gal-paper .sheet-head .other { margin: 0; font: 700 19px/28px var(--hand); letter-spacing: 0; color: var(--royal); }
+#gallery .sheet-head .lede, .gal-paper .sheet-head .lede { margin: 0; max-width: 64ch; font: 400 17px/28px var(--hand); color: var(--pen); }
+.gal-margin { position: absolute; top: 0; bottom: 0; left: calc(var(--gutter) - 26px); width: 6px; border-left: 1px solid var(--red); border-right: 1px solid var(--red); pointer-events: none; }
+.gal-doodles { position: absolute; inset: 0; pointer-events: none; }
+.gal-doodles > span { position: absolute; display: block; }
+.gal-doodles svg { display: block; overflow: visible; fill: none; stroke: rgb(31 82 166 / .28); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.gal-doodles .petal { fill: rgb(246 205 92 / .55); stroke: rgb(214 160 40 / .5); }
+.gal-doodles .seed { fill: rgb(150 96 40 / .45); stroke: none; }
+.gal-doodles .leaf { fill: rgb(120 180 120 / .28); stroke: rgb(80 140 90 / .4); }
+
+/* the folders: frosted glass, their photos peeking out and showing softly through the front */
+.gal-desk { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: clamp(36px, 5vw, 80px); justify-content: center; align-items: flex-start; padding: 64px var(--gutter) 28px; }
+.fold-item { width: clamp(180px, 16vw, 224px); }
+.fold { --c: #9FC3D2; --c2: rgb(180 216 228 / .5); --t: var(--navy); position: relative; display: block; width: 100%; aspect-ratio: 1.3; padding: 0; border: 0;
+  background: none; cursor: pointer; perspective: 1000px; text-align: left; color: var(--t); }
+.fold.royal { --c: #1C4996; --c2: rgb(31 82 166 / .55); --t: #fff; }
+.fold.crest { --c: #B02535; --c2: rgb(209 42 60 / .55); --t: #fff; }
+.fold:focus-visible { outline: 3px solid var(--royal); outline-offset: 8px; border-radius: 16px; }
+.fold-back { position: absolute; inset: 0; background: var(--c); border-radius: 4px 16px 16px 16px; box-shadow: 0 30px 50px -28px rgb(11 26 61 / .55); }
+.fold-back::before { content: ""; position: absolute; left: 0; top: -18px; width: 42%; height: 20px; background: var(--c); border-radius: 12px 14px 0 0; }
+.peek { position: absolute; left: 9%; right: 9%; top: 6%; height: 100%; }
+.peek img { position: absolute; width: 58%; aspect-ratio: 4 / 3; object-fit: cover; border: 5px solid #fff; border-radius: 6px; box-shadow: 0 10px 22px -10px rgb(0 0 0 / .45); }
+.peek img:nth-child(1) { left: 2%; top: 20%; rotate: -7deg; }
+.peek img:nth-child(2) { left: 24%; top: 6%; rotate: 2deg; }
+.peek img:nth-child(3) { right: 0; top: 24%; rotate: 8deg; }
+.fold .front { position: absolute; left: 0; right: 0; bottom: 0; height: 64%; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px 16px;
+  border-radius: 10px 10px 16px 16px; transform-origin: 50% 100%; background: var(--c2); backdrop-filter: blur(9px) saturate(1.7); -webkit-backdrop-filter: blur(9px) saturate(1.7);
+  border: 1px solid rgb(255 255 255 / .55); box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 -8px 24px -18px rgb(0 0 0 / .4); }
+.fold.royal .front, .fold.crest .front { text-shadow: 0 1px 8px rgb(0 0 0 / .35); }
+.fold.sky .front { text-shadow: 0 1px 8px rgb(255 255 255 / .6); }
+.fold b { display: block; font: 700 clamp(18px, 1.6vw, 22px)/1.05 var(--hand); }
+.fold em { display: block; margin-top: 1px; font: 400 14px/1.25 var(--hand); font-style: normal; opacity: .85; }
+.fold small { display: block; margin-top: 3px; font: 400 13px/1.2 var(--hand); opacity: .85; }
+.fold-line { margin: 16px 0 0; font: 400 15px/28px var(--hand); color: var(--pen); }
+/* a photo in flight between its folder and the folder's page */
+.gal-fly { position: fixed; z-index: 30; margin: 0; object-fit: cover; border: 5px solid #fff; border-radius: 6px; box-shadow: 0 18px 40px -16px rgb(0 0 0 / .5); pointer-events: none; }
+
+/* an opened folder: written plainly above its photos */
+.gal-open { position: relative; z-index: 1; padding: 28px var(--gutter) 0; }
+.gal-back { padding: 0; border: 0; background: none; cursor: pointer; font: 400 17px/28px var(--hand); color: var(--royal);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.gal-back:hover { color: var(--navy); }
+.gal-title { margin: 0; font: 700 32px/56px var(--hand); color: var(--navy); }
+.gal-title small { margin-left: 10px; font: 400 16px var(--hand); color: var(--pen); }
+.gal-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.gal-cell { aspect-ratio: 4 / 3; }
+.gal-cell.big { grid-column: span 2; grid-row: span 2; }
+.gal-cell.wait img { visibility: hidden; }
+.gal-cell button { display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 14px; overflow: hidden; cursor: zoom-in; background: rgb(31 82 166 / .06); }
+.gal-cell img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .5s var(--ease); }
+.gal-cell button:hover img { transform: scale(1.035); }
+.gal-open .consent { margin: 28px 0 0; font: 400 15px/28px var(--hand); color: var(--pen); }
+@media (max-width: 760px) {
+  .gal-desk { gap: 40px; padding-top: 48px; }
+  .fold-item { width: min(78vw, 300px); }
+  .gal-cell.big { grid-column: auto; grid-row: auto; }
+  .gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
 .lightbox { width: min(1200px, 94vw); max-width: none; max-height: 94vh; padding: 0; border: 0; border-radius: 24px; background: var(--deep); color: #fff; overflow: visible; }
 .lightbox::backdrop { background: rgb(6 12 30 / .82); backdrop-filter: blur(6px); }
 .lightbox[open] { animation: lbIn .35s var(--ease) both; }

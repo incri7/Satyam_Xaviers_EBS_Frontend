@@ -10,28 +10,16 @@ const en = {
   },
   gallery: {
     title: 'School life, in photos.', other: 'तस्बिरमा विद्यालय जीवन।',
-    intro: 'Every photo here was posted by the school on its own page: everyday school life, what our students have won, and the days we celebrate.',
-    close: 'Close', prev: 'Previous photo', next: 'Next photo', of: 'of',
+    intro: 'The days we remember, kept in three folders. Open one, and the photos come out.',
+    close: 'Close', prev: 'Previous photo', next: 'Next photo', of: 'of', photos: 'photos', all: 'All folders',
     consent: "[Families' consent to show these photos online]",
-    // the three sections the school asked for: [id, name, what it holds, its albums: [name, photos]]
-    sections: [
-      ['general', 'General', 'Everyday life at school: lessons, our youngest at work, the building and its people.', [
-        ['Newspaper day', ['cls1', 'cls2', 'cls3', 'cls4', 'cls5', 'cls6', 'write1', 'write2']],
-        ["Father's Day cards", ['ey1', 'ey2', 'ey3', 'ey4', 'ey5']],
-        ['Our school and people', ['building', 'hero', 'staff', 'teachers', 'batch', 'lawn']],
-      ]],
-      ['achievements', 'Achievements', 'Medals, certificates and honours, won at school and beyond it.', [
-        ['Medals and honours', ['medal', 'medal2', 'medal3', 'cert', 'gpa']],
-        ['Prize day', ['award']],
-      ]],
-      ['events', 'Events', 'Festivals, functions and trips, in school and out of it.', [
-        ['Asar 15', ['rice', 'rice2']],
-        ['On stage', ['dance', 'celebrate', 'farewell']],
-        ['Class 10 trip', ['himal', 'boat', 'tripbus', 'outing', 'heart', 'dalbhat']],
-        ['Giving back', ['ashram']],
-        ['Celebrations', ['gateevent', 'birthday']],
-      ]],
-    ] as [string, string, string, [string, string[]][]][],
+    // three folders, as the school asked: [id, name, its name in the other language, a line under it, photos].
+    // The lines say what kind of day a folder keeps, never what a photo shows: the photos change.
+    folders: [
+      ['days', 'School days', 'विद्यालयका दिन', 'The ordinary days that make up a school year.', ['cls1', 'cls2', 'cls3', 'cls4', 'cls5', 'cls6', 'write1', 'write2', 'ey1', 'ey2', 'ey3', 'ey4', 'ey5', 'building', 'hero', 'staff', 'teachers', 'batch', 'lawn']],
+      ['proud', 'Proud moments', 'गर्वका क्षण', 'Whenever our students make us proud, in class and beyond.', ['award', 'medal', 'medal2', 'medal3', 'cert', 'gpa']],
+      ['celebrate', 'Celebrations', 'उत्सवहरू', 'The festivals and functions we look forward to every year.', ['dance', 'rice', 'rice2', 'celebrate', 'farewell', 'himal', 'boat', 'tripbus', 'outing', 'heart', 'dalbhat', 'ashram', 'gateevent', 'birthday']],
+    ] as [string, string, string, string, string[]][],
   },
   life: {
     title: 'School life.', other: 'विद्यालय जीवन।',
@@ -112,26 +100,13 @@ const ne: Pages = {
   },
   gallery: {
     title: 'तस्बिरमा विद्यालय जीवन।', other: 'School life, in photos.',
-    intro: 'यहाँका सबै तस्बिर विद्यालयले आफ्नै पेजमा राखेका हुन्: विद्यालयको दैनिक जीवन, हाम्रा विद्यार्थीले जितेका कुरा, र हामीले मनाउने दिनहरू।',
-    close: 'बन्द गर्नुहोस्', prev: 'अघिल्लो तस्बिर', next: 'अर्को तस्बिर', of: 'मध्ये',
+    intro: 'हामीले सम्झिरहने दिनहरू, तीनवटा फोल्डरमा। एउटा खोल्नुहोस्, तस्बिरहरू बाहिर आउँछन्।',
+    close: 'बन्द गर्नुहोस्', prev: 'अघिल्लो तस्बिर', next: 'अर्को तस्बिर', of: 'मध्ये', photos: 'तस्बिर', all: 'सबै फोल्डर',
     consent: '[यी तस्बिर अनलाइन देखाउन परिवारको अनुमति]',
-    sections: [
-      ['general', 'सामान्य', 'विद्यालयको दैनिक जीवन: कक्षा, काममा व्यस्त साना नानीहरू, भवन र यहाँका मानिस।', [
-        ['पत्रिका दिवस', ['cls1', 'cls2', 'cls3', 'cls4', 'cls5', 'cls6', 'write1', 'write2']],
-        ['बुबा दिवसका कार्ड', ['ey1', 'ey2', 'ey3', 'ey4', 'ey5']],
-        ['हाम्रो विद्यालय र मानिस', ['building', 'hero', 'staff', 'teachers', 'batch', 'lawn']],
-      ]],
-      ['achievements', 'उपलब्धि', 'विद्यालयभित्र र बाहिर जितेका पदक, प्रमाणपत्र र सम्मान।', [
-        ['पदक र सम्मान', ['medal', 'medal2', 'medal3', 'cert', 'gpa']],
-        ['पुरस्कार दिवस', ['award']],
-      ]],
-      ['events', 'कार्यक्रम', 'विद्यालयभित्र र बाहिरका चाडपर्व, समारोह र भ्रमण।', [
-        ['असार १५', ['rice', 'rice2']],
-        ['मञ्चमा', ['dance', 'celebrate', 'farewell']],
-        ['कक्षा १० को भ्रमण', ['himal', 'boat', 'tripbus', 'outing', 'heart', 'dalbhat']],
-        ['समाजलाई फर्काउँदै', ['ashram']],
-        ['उत्सव', ['gateevent', 'birthday']],
-      ]],
+    folders: [
+      ['days', 'विद्यालयका दिन', 'School days', 'विद्यालयको वर्ष बनाउने साधारण दिनहरू।', ['cls1', 'cls2', 'cls3', 'cls4', 'cls5', 'cls6', 'write1', 'write2', 'ey1', 'ey2', 'ey3', 'ey4', 'ey5', 'building', 'hero', 'staff', 'teachers', 'batch', 'lawn']],
+      ['proud', 'गर्वका क्षण', 'Proud moments', 'कक्षामा र बाहिर, हाम्रा विद्यार्थीले गर्व गराउँदाका क्षण।', ['award', 'medal', 'medal2', 'medal3', 'cert', 'gpa']],
+      ['celebrate', 'उत्सवहरू', 'Celebrations', 'हरेक वर्ष हामी पर्खने चाडपर्व र कार्यक्रमहरू।', ['dance', 'rice', 'rice2', 'celebrate', 'farewell', 'himal', 'boat', 'tripbus', 'outing', 'heart', 'dalbhat', 'ashram', 'gateevent', 'birthday']],
     ],
   },
   life: {

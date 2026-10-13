@@ -1,98 +1,239 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import gsap from 'gsap';
 import { useLang } from '../lang';
+import { scroller } from '../scroll';
 import { pages } from './pages';
-import { PageHead, Section, T } from './ui';
+import { T } from './ui';
 
 /** The route: /gallery, /ne/gallery (it also replaces the old School life page). */
 export function Gallery() {
   const lang = useLang(); const g = pages[lang].gallery;
   return (
-    <>
-      <PageHead title={g.title} other={g.other} intro={g.intro} photo="rice2" alt="Students planting rice on Asar 15" />
+    <section className="gal-paper" aria-labelledby="gallery-title">
+      <header className="sheet-head">
+        <h1 className="wide" id="gallery-title">{g.title}</h1>
+        <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{g.other}</p>
+        <p className="lede">{g.intro}</p>
+      </header>
       <GalleryBody />
-    </>
+    </section>
   );
 }
 
-type Shot = { name: string; caption: string };
+const TONE: Record<string, string> = { days: 'sky', proud: 'royal', celebrate: 'crest' };
+const thumb = (p: string) => `/photos/t/${p}.webp`;
+const full = (p: string) => `/photos/p/${p}.webp`;
 
-/** The gallery in the three sections the school asked for: General (everyday school life), Achievements and Events.
-    One section at a time, as tabs; each shows its albums, and a photo opens in a lightbox that steps through the
-    section. Shared by the route and by the home page, which reaches it through the classroom's whiteboard. */
+/* The doodles round the edges of the copy, drawn the way the children draw on the classroom wall: soft sunflowers,
+   and a blue pen's sun, cloud, paper plane, butterfly, pencil, house and stars. [shape, left %, top %, size px, tilt] */
+const SHAPES: Record<string, (s: number) => string> = {
+  sunflower: (s) => `<svg width="${s}" height="${s * 1.6}" viewBox="-50 -50 100 160"><path class="leaf" d="M0 40 Q-30 70 -38 58 Q-20 50 0 62"/><path class="leaf" d="M0 75 Q28 95 36 84 Q20 76 0 88"/><path d="M0 40 C2 70 -2 90 0 108"/>${Array.from({ length: 12 }, (_, i) => `<ellipse class="petal" cx="0" cy="-27" rx="9" ry="17" transform="rotate(${i * 30})"/>`).join('')}<circle class="seed" r="15"/><circle r="15"/></svg>`,
+  sun: (s) => `<svg width="${s}" height="${s}" viewBox="-50 -50 100 100"><circle r="16"/>${Array.from({ length: 10 }, (_, i) => `<path d="M0 -26 L0 -38" transform="rotate(${i * 36})"/>`).join('')}<path d="M-6 -2 Q0 6 6 -2"/></svg>`,
+  plane: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><path d="M8 52 L92 18 L60 86 L46 60 Z M46 60 L92 18"/><path d="M8 52 Q-20 70 -30 92" stroke-dasharray="4 7"/></svg>`,
+  star: (s) => `<svg width="${s}" height="${s}" viewBox="-50 -50 100 100"><path d="M0 -40 L11 -12 L40 -12 L17 6 L26 36 L0 18 L-26 36 L-17 6 L-40 -12 L-11 -12 Z"/></svg>`,
+  pencil: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><path d="M18 82 L26 62 L72 16 L84 28 L38 74 Z M26 62 L38 74 M64 24 L76 36 M18 82 L30 78"/></svg>`,
+  cloud: (s) => `<svg width="${s}" height="${s * 0.6}" viewBox="0 0 120 70"><path d="M20 60 Q2 60 4 44 Q6 30 22 32 Q24 12 46 14 Q60 2 76 14 Q98 10 100 32 Q118 34 116 50 Q114 62 98 60 Z"/></svg>`,
+  butterfly: (s) => `<svg width="${s}" height="${s}" viewBox="-50 -50 100 100"><path d="M0 -20 L0 26"/><path d="M0 -6 Q-30 -40 -38 -14 Q-40 6 0 2 Q-34 10 -28 30 Q-16 40 0 14"/><path d="M0 -6 Q30 -40 38 -14 Q40 6 0 2 Q34 10 28 30 Q16 40 0 14"/></svg>`,
+  house: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><path d="M14 48 L50 16 L86 48 M24 40 L24 86 L76 86 L76 40"/><path d="M42 86 L42 62 L58 62 L58 86"/></svg>`,
+};
+const DOODLES: [string, number, number, number, number][] = [
+  ['sunflower', 4, 52, 66, -8], ['sunflower', 92, 46, 80, 6], ['sunflower', 74, 80, 50, -4],
+  ['sun', 86, 8, 64, 0], ['cloud', 66, 8, 84, 0], ['plane', 56, 22, 60, -6], ['star', 9, 10, 30, 12],
+  ['star', 47, 88, 24, -10], ['pencil', 20, 82, 54, 14], ['butterfly', 34, 6, 42, -12], ['house', 94, 84, 50, 0], ['star', 96, 28, 20, 8],
+];
+
+/** The gallery, written in a Nepali school copy: three glass folders (School days, Proud moments, Celebrations), the
+    photos peeking out of each. Opening one bursts its photos out, and they land as that folder's page; going back,
+    they fly home and the folder closes. A photo opens full size. Shared by the route and by the home page, which
+    reaches it through the classroom's whiteboard. */
 export function GalleryBody() {
   const lang = useLang(); const g = pages[lang].gallery;
-  const [tab, setTab] = useState(0);
+  const other = lang === 'en' ? 'ne' : 'en';
   const [open, setOpen] = useState<number | null>(null);
+  const [shot, setShot] = useState<number | null>(null);
+  const root = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const busy = useRef(false);
+  // the photos in flight between the folder and its page, while the page swaps under them
+  const fly = useRef<{ els: HTMLImageElement[]; dir: 'out' | 'in'; folder: number } | null>(null);
+  const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const photos = open === null ? [] : g.folders[open][4];
 
-  const [id, , note, albums] = g.sections[tab];
-  const shots: Shot[] = useMemo(() => albums.flatMap(([caption, photos]) => photos.map((name) => ({ name, caption }))), [albums]);
-  const current = open === null ? null : shots[open];
+  // The folders at rest: their photos rise and settle, folder after folder; hovered, one lifts and fans its photos.
+  // The doodles drift as if on a breeze.
+  useLayoutEffect(() => {
+    if (reduce || !root.current) return;
+    const ctx = gsap.context(() => {
+      root.current!.querySelectorAll<HTMLElement>('.gal-doodles > span').forEach((d) => {
+        gsap.to(d, { x: gsap.utils.random(-14, 14), y: gsap.utils.random(-12, 12), rotation: `+=${gsap.utils.random(-6, 6)}`,
+          duration: gsap.utils.random(5, 9), ease: 'sine.inOut', yoyo: true, repeat: -1, delay: gsap.utils.random(0, 3) });
+      });
+      if (open !== null) return;
+      root.current!.querySelectorAll<HTMLButtonElement>('.fold').forEach((b, i) => {
+        const peeks = b.querySelectorAll('.peek img');
+        const idle = gsap.timeline({ repeat: -1, repeatDelay: 1.2, delay: i * 0.9 })
+          .to(peeks, { y: -10, duration: 0.7, ease: 'sine.inOut', stagger: 0.12 })
+          .to(peeks, { y: 0, duration: 0.8, ease: 'sine.inOut', stagger: 0.12 });
+        const hover = gsap.timeline({ paused: true })
+          .to(b, { y: -10, duration: 0.35, ease: 'power2.out' }, 0)
+          .to(peeks, { y: (k) => [-34, -48, -30][k], rotation: (k) => [-12, 1, 13][k], duration: 0.45, ease: 'back.out(1.8)' }, 0)
+          .to(b.querySelector('.front'), { rotationX: -10, duration: 0.4, ease: 'power2.out' }, 0);
+        const on = () => { if (!busy.current) { idle.pause(); hover.play(); } };
+        const off = () => { if (!busy.current) { hover.reverse(); idle.resume(); } };
+        b.addEventListener('pointerenter', on); b.addEventListener('pointerleave', off);
+        b.addEventListener('focus', on); b.addEventListener('blur', off);
+      });
+    }, root);
+    return () => ctx.revert();
+  }, [open, reduce, lang]);
+
+  // Open: the flap swings open, the photos burst up and apart, the other folders drop away; then the page swaps in
+  // under the photos in flight (the effect below lands them).
+  const openFolder = (i: number, btn: HTMLButtonElement) => {
+    if (busy.current) return;
+    if (reduce) { setOpen(i); return; }
+    busy.current = true;
+    const list = g.folders[i][4];
+    const peek = btn.querySelector('.peek')!.getBoundingClientRect();
+    const w = peek.width * 0.5, h = w * 0.75;
+    const els = list.map((p, k) => {
+      const im = new Image(); im.src = k === 0 ? full(p) : thumb(p); im.alt = ''; im.className = 'gal-fly';
+      Object.assign(im.style, { left: `${peek.left + peek.width / 2 - w / 2}px`, top: `${peek.top + peek.height * 0.25}px`, width: `${w}px`, height: `${h}px` });
+      document.body.appendChild(im); return im;
+    });
+    gsap.set(els, { rotation: () => gsap.utils.random(-10, 10), opacity: (k) => (k < 3 ? 1 : 0) });
+    btn.querySelectorAll<HTMLElement>('.peek img').forEach((im) => { im.style.visibility = 'hidden'; });
+    const others = [...root.current!.querySelectorAll('.fold-item')].filter((e) => !e.contains(btn));
+    gsap.timeline()
+      .to(btn.querySelector('.front'), { rotationX: -72, duration: 0.45, ease: 'power2.inOut' }, 0)
+      .to(others, { y: 40, autoAlpha: 0, duration: 0.4, ease: 'power2.in' }, 0)
+      .to(els, { opacity: 1, duration: 0.1 }, 0.25)
+      .to(els, { x: () => gsap.utils.random(-260, 260), y: () => gsap.utils.random(-320, -140), rotation: () => gsap.utils.random(-35, 35),
+        scale: 1.15, duration: 0.55, ease: 'power2.out', stagger: 0.035 }, 0.28)
+      .to(btn.closest('.fold-item'), { autoAlpha: 0, y: -30, duration: 0.35, ease: 'power2.in' }, 0.55)
+      .add(() => { fly.current = { els, dir: 'out', folder: i }; setOpen(i); }, 0.9);
+  };
+
+  // Back: the photos lift off the page and fly home into their folder, which closes.
+  const back = () => {
+    if (busy.current || open === null) return;
+    if (reduce) { setOpen(null); return; }
+    busy.current = true;
+    const els = [...root.current!.querySelectorAll<HTMLImageElement>('.gal-cell img')].map((im) => {
+      const r = im.getBoundingClientRect(); const c = new Image(); c.src = im.src; c.alt = ''; c.className = 'gal-fly';
+      Object.assign(c.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderWidth: '0px' });
+      document.body.appendChild(c); return c;
+    });
+    fly.current = { els, dir: 'in', folder: open };
+    setOpen(null);
+  };
+
+  useLayoutEffect(() => {
+    const f = fly.current; if (!f || !root.current) return;
+    if (f.dir === 'out' && open !== null) {
+      const cells = [...root.current.querySelectorAll<HTMLElement>('.gal-cell')];
+      const tl = gsap.timeline({ onComplete: () => { cells.forEach((c) => c.classList.remove('wait')); f.els.forEach((e) => e.remove()); fly.current = null; busy.current = false; } });
+      f.els.forEach((im, k) => {
+        const r = cells[k].getBoundingClientRect();
+        tl.to(im, { left: r.left, top: r.top, width: r.width, height: r.height, x: 0, y: 0, rotation: 0, scale: 1, borderWidth: 0,
+          duration: 0.75, ease: 'power3.inOut' }, k * 0.04);
+      });
+      tl.fromTo(root.current.querySelector('.gal-top'), { autoAlpha: 0, y: -12 }, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.4);
+    }
+    if (f.dir === 'in' && open === null) {
+      // the folders are at the section's top: bring it into view if the reader had scrolled down the photos
+      const sec = root.current.closest('section') ?? root.current;
+      const top = sec.getBoundingClientRect().top;
+      if (top < 0) {
+        const y = top + scrollY;
+        if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y);
+      }
+      const item = root.current.querySelectorAll<HTMLElement>('.fold-item')[f.folder];
+      const btn = item.querySelector<HTMLElement>('.fold')!, front = btn.querySelector('.front');
+      btn.querySelectorAll<HTMLElement>('.peek img').forEach((im) => { im.style.visibility = 'hidden'; });
+      gsap.set(front, { rotationX: -72 });
+      const peek = btn.querySelector('.peek')!.getBoundingClientRect(), w = peek.width * 0.5;
+      const others = [...root.current.querySelectorAll('.fold-item')].filter((e) => e !== item);
+      gsap.timeline({ onComplete: () => {
+        f.els.forEach((e) => e.remove()); btn.querySelectorAll<HTMLElement>('.peek img').forEach((im) => { im.style.visibility = ''; });
+        fly.current = null; busy.current = false;
+      } })
+        .from(others, { y: 40, autoAlpha: 0, duration: 0.45, ease: 'power2.out' }, 0.1)
+        .to(f.els, { left: peek.left + peek.width / 2 - w / 2, top: peek.top + peek.height * 0.25, width: w, height: w * 0.75,
+          rotation: () => gsap.utils.random(-10, 10), borderWidth: 5, duration: 0.6, ease: 'power3.inOut', stagger: 0.03 }, 0)
+        .to(front, { rotationX: 0, duration: 0.45, ease: 'back.out(1.6)' }, 0.5);
+    }
+  }, [open]);
+  // nothing left in flight if the page goes away mid-way
+  useEffect(() => () => { fly.current?.els.forEach((e) => e.remove()); }, []);
 
   // The lightbox is a native modal dialog: focus stays inside, Escape closes it.
   useEffect(() => {
-    const d = dialog.current;
-    if (!d) return;
-    if (open !== null && !d.open) d.showModal();
-    if (open === null && d.open) d.close();
-  }, [open]);
-  const step = (k: number) => setOpen((i) => (i === null ? i : (i + k + shots.length) % shots.length));
-  // tabs as the pattern has them: arrow keys move between them, the chosen one is the only stop for Tab
-  const keys = (e: React.KeyboardEvent) => {
-    const n = g.sections.length, k = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-    if (!k) return;
-    e.preventDefault(); const next = (tab + k + n) % n; setTab(next); tabs.current[next]?.focus();
-  };
+    const d = dialog.current; if (!d) return;
+    if (shot !== null && !d.open) d.showModal();
+    if (shot === null && d.open) d.close();
+  }, [shot]);
+  const step = (k: number) => setShot((i) => (i === null ? i : (i + k + photos.length) % photos.length));
+  const current = shot === null || open === null ? null : photos[shot];
+  const waiting = fly.current?.dir === 'out';
 
-  let at = 0;
   return (
-    <>
-      <Section className="albums">
-        <div className="chips" role="tablist" aria-label={g.title} onKeyDown={keys}>
-          {g.sections.map(([sid, name, , al], i) => (
-            <button type="button" role="tab" key={sid} id={`gal-tab-${sid}`} aria-controls={`gal-${sid}`} aria-selected={i === tab}
-              tabIndex={i === tab ? 0 : -1} ref={(el) => { tabs.current[i] = el; }} onClick={() => setTab(i)}>
-              {name}<span>{al.reduce((n, [, ph]) => n + ph.length, 0)}</span>
-            </button>
+    <div className="gal" ref={root}>
+      <div className="gal-margin" aria-hidden="true" />
+      <div className="gal-doodles" aria-hidden="true">
+        {DOODLES.map(([k, x, y, s, r], i) => (
+          <span key={i} style={{ left: `calc(${x}% - ${s / 2}px)`, top: `calc(${y}% - ${s / 2}px)`, rotate: `${r}deg` }}
+            dangerouslySetInnerHTML={{ __html: SHAPES[k](s) }} />
+        ))}
+      </div>
+
+      {open === null ? (
+        <div className="gal-desk">
+          {g.folders.map(([id, name, oth, line, list], i) => (
+            <div className="fold-item" key={id}>
+              <button type="button" className={`fold ${TONE[id]}`} onClick={(e) => openFolder(i, e.currentTarget)} aria-label={`${name}, ${list.length} ${g.photos}`}>
+                <span className="fold-back" />
+                <span className="peek">{list.slice(0, 3).map((p) => <img key={p} src={thumb(p)} alt="" />)}</span>
+                <span className="front">
+                  <b>{name}</b><em lang={other}>{oth}</em><small>{list.length} {g.photos}</small>
+                </span>
+              </button>
+              <p className="fold-line">{line}</p>
+            </div>
           ))}
         </div>
-        <div role="tabpanel" id={`gal-${id}`} aria-labelledby={`gal-tab-${id}`} key={id}>
-          <p className="album-note">{note}</p>
-          {albums.map(([caption, photos]) => {
-            const first = at; at += photos.length;
-            return (
-              <div className="album" key={caption}>
-                <h3 className="album-h">{caption}<span>{photos.length}</span></h3>
-                <ul className="grid">
-                  {photos.map((name, j) => (
-                    <li key={name}>
-                      <button type="button" onClick={() => setOpen(first + j)} aria-label={`${caption}, ${first + j + 1} ${g.of} ${shots.length}`}>
-                        <img src={`/photos/t/${name}.webp`} alt="" loading="lazy" decoding="async" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+      ) : (
+        <div className="gal-open">
+          <div className="gal-top">
+            <button type="button" className="gal-back" onClick={back}>‹ {g.all}</button>
+            <h3 className="gal-title">{g.folders[open][1]}<small>{photos.length} {g.photos}</small></h3>
+          </div>
+          <ul className="gal-grid">
+            {photos.map((p, k) => (
+              <li key={p} className={'gal-cell' + (k === 0 ? ' big' : '') + (waiting ? ' wait' : '')}>
+                <button type="button" onClick={() => setShot(k)} aria-label={`${g.folders[open][1]}, ${k + 1} ${g.of} ${photos.length}`}>
+                  <img src={k === 0 ? full(p) : thumb(p)} alt="" loading={k < 8 ? 'eager' : 'lazy'} decoding="async" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="consent"><T>{g.consent}</T></p>
         </div>
-        <p className="consent"><T>{g.consent}</T></p>
-      </Section>
+      )}
 
-      <dialog className="lightbox" ref={dialog} onClose={() => setOpen(null)} aria-label={current?.caption}
+      <dialog className="lightbox" ref={dialog} onClose={() => setShot(null)} aria-label={open === null ? undefined : g.folders[open][1]}
         onKeyDown={(e) => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); }}
-        onClick={(e) => { if (e.target === dialog.current) setOpen(null); }}>
-        {current ? (
+        onClick={(e) => { if (e.target === dialog.current) setShot(null); }}>
+        {current && open !== null ? (
           <figure>
-            <img src={`/photos/p/${current.name}.webp`} alt={current.caption} />
-            <figcaption><b>{current.caption}</b><span>{(open ?? 0) + 1} {g.of} {shots.length}</span></figcaption>
+            <img src={full(current)} alt={g.folders[open][1]} />
+            <figcaption><b>{g.folders[open][1]}</b><span>{(shot ?? 0) + 1} {g.of} {photos.length}</span></figcaption>
           </figure>
         ) : null}
-        <button type="button" className="lb-close" onClick={() => setOpen(null)}>{g.close}</button>
+        <button type="button" className="lb-close" onClick={() => setShot(null)}>{g.close}</button>
         <button type="button" className="lb-prev" onClick={() => step(-1)} aria-label={g.prev}>‹</button>
         <button type="button" className="lb-next" onClick={() => step(1)} aria-label={g.next}>›</button>
       </dialog>
-    </>
+    </div>
   );
 }
