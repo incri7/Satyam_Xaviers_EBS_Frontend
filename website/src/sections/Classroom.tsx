@@ -4,24 +4,26 @@ import { room } from '../three/rig';
 import { FRONT } from './Arrival';
 
 /**
- * The way into Gallery: from the school's front view, in through a classroom's door: the first-floor door beside the
- * stairs' red grill gate, which on the inside is the room's WELCOME door. The early-years room,
+ * The way into Gallery: from the school's front view, in through a classroom's door: the first-floor doorway beside
+ * the stairs' red grill gate, where the classroom's own double door stands (WELCOME, To Our Class). The early-years room,
  * rebuilt from the school's own photographs (its four walls are the photos, set straight; the benches, fans and
  * cabinet modelled after them) and walked through in Blender: through the double door with the children's paper
  * letters, one slow turn across the room, square onto the whiteboard and in, until its white fills the screen and
  * becomes the Gallery page's. Rendered frames, scrubbed by the scroll (Story, scene-class), like the street's flight.
  *
  * One canvas draws the whole scene: first the front view itself (the same picture, cropped the same way as the
- * street's), zooming into that door until it is as large as the walk's first frame has it; then the walk's frames over it; then the page's
- * colour over them. Frames load once Programmes is near, at low priority, coarse to fine; until a frame close to
+ * street's) with that double door drawn into its doorway (model/class/door_front.py), zooming into it until it is as
+ * large as the walk's first frame has it; then the walk's frames over it; then the page's colour over them. Frames load once Programmes is near, at low priority, coarse to fine; until a frame close to
  * where the reader is has arrived, the zoomed front view holds and the walk simply waits.
  */
 const N = 241;
 const STAMP = '10131930';
 const frame = (k: number, w: number, ext: string) => `/models/class/${w}/${String(k).padStart(3, '0')}_${STAMP}.${ext}`;
-// the first-floor classroom door beside the grill gate on the front view (in its 1920 x 1080 picture), and how far
-// the zoom goes into it: until the door stands about as large as in the walk's first frame
-const ENTRANCE = [702, 712];
+// the first-floor classroom doorway beside the grill gate on the front view (in its 1920 x 1080 picture), the double
+// door drawn into it, and how far the zoom goes into it: until the door stands about as large as in the walk's first frame
+const DOOR = [676, 669, 745, 770];
+const DOOR_SRC = `/models/class/door_front_${STAMP}.webp`;
+const ENTRANCE = [(DOOR[0] + DOOR[2]) / 2, (DOOR[1] + DOOR[3]) / 2];
 const ZOOM = 12;
 const PAGE = '#F4F7FA';
 const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
@@ -44,6 +46,8 @@ export function Classroom() {
     let alive = true, begun = false;
     const front = new Image(); front.decoding = 'async'; front.src = FRONT.src;
     let frontReady = false; front.decode().then(() => { frontReady = true; }, () => {});
+    const door = new Image(); door.decoding = 'async'; door.src = DOOR_SRC;
+    let doorReady = false; door.decode().then(() => { doorReady = true; }, () => {});
 
     // coarse to fine, the first and last frames first, four at a time
     const begin = () => {
@@ -98,7 +102,9 @@ export function Classroom() {
         const z = room.z, Z = 1 + (ZOOM - 1) * z * z;
         const px = c.ox + ENTRANCE[0] * c.s * (front.width / 1920), py = c.oy + ENTRANCE[1] * c.s * (front.height / 1080);
         const tx = px + (W / 2 - px) * z, ty = py + (H / 2 - py) * z;
-        ctx.drawImage(front, tx - (px - c.ox) * Z, ty - (py - c.oy) * Z, c.dw * Z, c.dh * Z);
+        const fx = tx - (px - c.ox) * Z, fy = ty - (py - c.oy) * Z, k = c.s * Z * (front.width / 1920);
+        ctx.drawImage(front, fx, fy, c.dw * Z, c.dh * Z);
+        if (doorReady) ctx.drawImage(door, fx + DOOR[0] * k, fy + DOOR[1] * k, (DOOR[2] - DOOR[0]) * k, (DOOR[3] - DOOR[1]) * k);
       } else if (walk < 1) { ctx.fillStyle = PAGE; ctx.fillRect(0, 0, W, H); }
       // the walk's frames: the two either side blended, as the street's flight does
       if (walk > 0) {
