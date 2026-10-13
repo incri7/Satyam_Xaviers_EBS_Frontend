@@ -73,10 +73,11 @@ export function GalleryBody() {
   // The doodles drift as if on a breeze.
   useLayoutEffect(() => {
     if (reduce || !root.current) return;
+    const loops: gsap.core.Animation[] = [];
     const ctx = gsap.context(() => {
       root.current!.querySelectorAll<HTMLElement>('.gal-doodles > span').forEach((d) => {
-        gsap.to(d, { x: gsap.utils.random(-14, 14), y: gsap.utils.random(-12, 12), rotation: `+=${gsap.utils.random(-6, 6)}`,
-          duration: gsap.utils.random(5, 9), ease: 'sine.inOut', yoyo: true, repeat: -1, delay: gsap.utils.random(0, 3) });
+        loops.push(gsap.to(d, { x: gsap.utils.random(-14, 14), y: gsap.utils.random(-12, 12), rotation: `+=${gsap.utils.random(-6, 6)}`,
+          duration: gsap.utils.random(5, 9), ease: 'sine.inOut', yoyo: true, repeat: -1, delay: gsap.utils.random(0, 3) }));
       });
       if (open !== null) return;
       root.current!.querySelectorAll<HTMLButtonElement>('.fold').forEach((b, i) => {
@@ -84,6 +85,7 @@ export function GalleryBody() {
         const idle = gsap.timeline({ repeat: -1, repeatDelay: 1.2, delay: i * 0.9 })
           .to(peeks, { y: -10, duration: 0.7, ease: 'sine.inOut', stagger: 0.12 })
           .to(peeks, { y: 0, duration: 0.8, ease: 'sine.inOut', stagger: 0.12 });
+        loops.push(idle);
         const hover = gsap.timeline({ paused: true })
           .to(b, { y: -10, duration: 0.35, ease: 'power2.out' }, 0)
           .to(peeks, { y: (k) => [-34, -48, -30][k], rotation: (k) => [-12, 1, 13][k], duration: 0.45, ease: 'back.out(1.8)' }, 0)
@@ -94,7 +96,10 @@ export function GalleryBody() {
         b.addEventListener('focus', on); b.addEventListener('blur', off);
       });
     }, root);
-    return () => ctx.revert();
+    // the idle motion runs only while the gallery is on screen
+    const io = new IntersectionObserver(([e]) => loops.forEach((t) => (e.isIntersecting ? t.resume() : t.pause())));
+    io.observe(root.current);
+    return () => { io.disconnect(); ctx.revert(); };
   }, [open, reduce, lang]);
 
   // Open: the flap swings open, the photos burst up and apart, the other folders drop away; then the page swaps in

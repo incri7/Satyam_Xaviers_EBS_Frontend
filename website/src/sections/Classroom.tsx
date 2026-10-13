@@ -74,7 +74,7 @@ export function Classroom() {
       ctx.globalAlpha = a;
       ctx.drawImage(img, Math.min(0, Math.max(W - dw, W / 2 - f[0] * dw)), Math.min(0, Math.max(H - dh, H / 2 - f[1] * dh)), dw, dh);
     };
-    let shown = false;
+    let shown = false, drawn = '';
     const tick = () => {
       const on = room.q > 0.001;
       if (on) begin();
@@ -84,9 +84,14 @@ export function Classroom() {
       const vis = on && (near || room.w > 0);
       if (vis !== shown) { shown = vis; cv.style.visibility = vis ? 'visible' : 'hidden'; }
       room.covers = near;
-      if (!vis) return;
-      const dpr = Math.min(devicePixelRatio || 1, 1.5);
+      if (!vis) { drawn = ''; return; }
+      // no finer than the frames themselves (as the street's flight), and drawn only when something has changed
+      const src = imgs[ka] ?? imgs[kb];
+      const dpr = Math.min(devicePixelRatio || 1, 1.5, src ? src.width / cv.clientWidth : 1);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
+      const key = `${x.toFixed(2)}|${ka}|${kb}|${room.w.toFixed(3)}|${W}x${H}`;
+      if (key === drawn) return;
+      drawn = key;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
       if (near) {
