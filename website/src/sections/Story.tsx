@@ -120,8 +120,10 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const back = root.current!.querySelector<HTMLElement>('.back-card')!;
         back.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
         const vw0 = innerWidth, vh0 = innerHeight, va = vw0 / vh0;
-        const bw = vw0 <= 760 ? 120 : 168;
-        const badge = { left: vw0 - bw - (vw0 <= 760 ? 12 : 28), top: vw0 <= 760 ? 64 : 86 + bw * 0.12, width: bw, height: bw / va };
+        // the badge sits clear of the nav bar: its ring (88% of its width across) stands taller than the picture's box
+        const bw = vw0 <= 760 ? 92 : 128;
+        const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+        const badge = { left: vw0 - bw - (vw0 <= 760 ? 10 : 24), top: navB + 12 + Math.max(0, (bw * 0.88 - bw / va) / 2), width: bw, height: bw / va };
         const sb = gsap.timeline({ defaults: { ease: 'none' } });
         sb.fromTo(card.querySelector('.pickup-school'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0)
           .fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
@@ -147,9 +149,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const P = at(pickup.current!);
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        // the return starts while the end of Programmes is still leaving: once 15% of the screen below it is blueprint;
-        // the building rises in front of the page, the page's white mist over its top
-        const lead = vh * 0.85;
+        // the return starts as the end of Programmes reaches the foot of the screen: the badge grows back into the
+        // building right over the page, no empty stretch first
+        const lead = vh;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 0.7), P.top + P.h - vh)
           .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);

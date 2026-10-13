@@ -1,26 +1,22 @@
 /* Programmes: one navy world, the signboard's own (the first page's opening band), ruled like the blueprint the
    school is picked up onto (styles.css .pickup-bg), its lines light on the navy. The page fades into it from white,
    the climb holds on it, and everything after stays on it as glass panels (white at a low alpha, a thin light edge),
-   until the page fades back to the light canvas for the gallery. The app's text styles
+   until the school's badge grows back over its end. The app's text styles
    1:1 (h1 30, h2 24, h3 19; card radius 20, row 14, chip 8). Selectors start at .prog so they outrank styles.css. */
 .prog {
   --navy-a: #0F223D; --navy-b: #172B48; --navy-c: #233856;
   --glass: rgb(255 255 255 / .06); --glass-line: rgb(255 255 255 / .13); --dim: rgb(255 255 255 / .62); --soft-t: rgb(255 255 255 / .82);
   --st0: #B4D8E4; --st1: #86BBD6; --st2: #4F8FC9; --st3: #ECEDE8;
-  --mist: clamp(240px, 26vw, 360px);
-  position: relative; color: #fff; font-size: 16px; padding-bottom: calc(var(--mist) - 40px);
+  position: relative; color: #fff; font-size: 16px; padding-bottom: clamp(56px, 6vw, 88px);
 }
-/* the navy ground stops short of the page's foot; there the navy thins into a white mist and then into nothing, over
-   whatever is behind (the blueprint, and the school rising back in front of it: Story's scene 3) */
-.prog::before { content: ""; position: absolute; inset: 0 0 var(--mist) 0; z-index: 0;
+/* the navy ground, ruled as a blueprint; the school's badge grows back over its end (Story's scene 3) */
+.prog::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background:
     linear-gradient(rgb(180 216 228 / .09) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .09) 1px, transparent 1px),
     linear-gradient(rgb(180 216 228 / .035) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .035) 1px, transparent 1px),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
     linear-gradient(90deg, var(--navy-a) 0%, var(--navy-b) 50%, var(--navy-c) 100%);
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px, auto, auto; }
-.prog::after { content: ""; position: absolute; inset: auto 0 0 0; height: var(--mist); z-index: 3; pointer-events: none;
-  background: linear-gradient(180deg, var(--navy-b) 0%, rgb(160 178 200 / .9) 22%, rgb(244 247 250 / .82) 46%, rgb(244 247 250 / .45) 72%, rgb(244 247 250 / 0) 100%); }
 /* on its own route it opens under the light page head: the navy fades in */
 .prog.from-light > .fade-in { display: block; position: relative; z-index: 1; height: clamp(120px, 12vw, 180px);
   background: linear-gradient(180deg, var(--canvas) 0%, rgb(244 247 250 / 0) 100%); }
