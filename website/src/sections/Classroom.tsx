@@ -4,23 +4,25 @@ import { room } from '../three/rig';
 import { FRONT } from './Arrival';
 
 /**
- * The way into Gallery: from the school's front view, in through a classroom's WELCOME door. The early-years room,
+ * The way into Gallery: from the school's front view, in through a classroom's door: the first-floor door beside the
+ * stairs' red grill gate, which on the inside is the room's WELCOME door. The early-years room,
  * rebuilt from the school's own photographs (its four walls are the photos, set straight; the benches, fans and
  * cabinet modelled after them) and walked through in Blender: through the double door with the children's paper
  * letters, one slow turn across the room, square onto the whiteboard and in, until its white fills the screen and
  * becomes the Gallery page's. Rendered frames, scrubbed by the scroll (Story, scene-class), like the street's flight.
  *
  * One canvas draws the whole scene: first the front view itself (the same picture, cropped the same way as the
- * street's), zooming into the WELCOME on the ground floor's entrance; then the walk's frames over it; then the page's
+ * street's), zooming into that door until it is as large as the walk's first frame has it; then the walk's frames over it; then the page's
  * colour over them. Frames load once Programmes is near, at low priority, coarse to fine; until a frame close to
  * where the reader is has arrived, the zoomed front view holds and the walk simply waits.
  */
 const N = 241;
 const STAMP = '10131930';
 const frame = (k: number, w: number, ext: string) => `/models/class/${w}/${String(k).padStart(3, '0')}_${STAMP}.${ext}`;
-// the entrance's WELCOME on the front view (in its 1920 x 1080 picture), and how far the zoom goes into it
-const ENTRANCE = [1050, 868];
-const ZOOM = 7;
+// the first-floor classroom door beside the grill gate on the front view (in its 1920 x 1080 picture), and how far
+// the zoom goes into it: until the door stands about as large as in the walk's first frame
+const ENTRANCE = [702, 712];
+const ZOOM = 12;
 const PAGE = '#F4F7FA';
 const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
 function plan(avif: boolean) {

@@ -22,7 +22,7 @@ if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
      the street → its signboard becomes the first page (About us) → back on the street, the view rises to the
      school's front, its long side with the balconies straight on → that view is picked up as the second page's
      picture (Programmes)
-     → the school whole again → in through a classroom's WELCOME door, across the room, onto its whiteboard, whose
+     → the school whole again → in through a first-floor classroom's door (WELCOME on it), across the room, onto its whiteboard, whose
      white becomes the Gallery page → the rest read as pages (Gallery, Admissions).
    One fixed stage sits behind it all (Arrival, SignIntro); scenes are empty scroll lengths over it, pages slide
    over it. GSAP owns every continuous value, on one master timeline whose time is the scroll position in pixels
@@ -159,9 +159,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
-        // Scene 4, the way into Gallery: the school's front view zooms into the WELCOME on its ground floor's entrance,
-        // and the classroom's walk (Classroom) takes over: through the room's own WELCOME door, one turn across the
-        // room, square onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
+        // Scene 4, the way into Gallery: the school's front view zooms into the first-floor classroom door beside the
+        // stairs' grill gate, and the classroom's walk (Classroom) takes over at that door: through its WELCOME leaves,
+        // one turn across the room, square onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
         s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
           .fromTo(room, { z: 0 }, { z: 1, duration: 0.15, ease: 'power1.in', immediateRender: false }, 0.001)
