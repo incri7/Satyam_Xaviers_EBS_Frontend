@@ -114,16 +114,27 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
           .set({}, {}, 1);
 
-        // Scene 3, the return: past the end of Programmes the school comes back to its own place. The building alone
-        // rises from the page's blueprint and grows to fill the screen, its surroundings coming back round it, and
-        // hands over to the street's front view, which the next page (Gallery) then slides up over.
+        // The badge: as the reader scrolls on from the opening, the building lifts out of its place beside the heading
+        // and flies to the top right, where it settles as a round badge (the building on a blueprint disc) and stays
+        // through the rest of Programmes. The same picture throughout, cropped the same way, so nothing jumps.
         const back = root.current!.querySelector<HTMLElement>('.back-card')!;
         back.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
-        const vw0 = innerWidth, vh0 = innerHeight;
-        const small = { left: vw0 * 0.24, top: vh0 * 0.42, width: vw0 * 0.52, height: vh0 * 0.52 };
+        const vw0 = innerWidth, vh0 = innerHeight, va = vw0 / vh0;
+        const bw = vw0 <= 760 ? 120 : 168;
+        const badge = { left: vw0 - bw - (vw0 <= 760 ? 12 : 28), top: vw0 <= 760 ? 64 : 86 + bw * 0.12, width: bw, height: bw / va };
+        const sb = gsap.timeline({ defaults: { ease: 'none' } });
+        sb.fromTo(card.querySelector('.pickup-school'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(back, to, { ...badge, duration: 0.8, ease: 'power2.inOut', immediateRender: false }, 0)
+          .fromTo(back, { '--badge': 0 }, { '--badge': 1, duration: 0.35, ease: 'power1.out', immediateRender: false }, 0.5)
+          .set({}, {}, 1);
+
+        // Scene 3, the return: as Programmes finishes, the badge grows: the disc falls away and the building comes out
+        // of it, growing to fill the screen, its surroundings coming back round it, and hands over to the street's
+        // front view, which the next page (Gallery) then slides up over.
         const s3 = gsap.timeline({ defaults: { ease: 'none' } });
-        s3.fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0)
-          .fromTo(back, small, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.64, ease: 'power2.inOut', immediateRender: false }, 0)
+        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.25, ease: 'power1.in', immediateRender: false }, 0)
+          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.64, ease: 'power2.inOut', immediateRender: false }, 0)
           .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: 'power1.inOut', immediateRender: false }, 0.4)
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.7)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.701)
@@ -140,6 +151,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // the building rises in front of the page, the page's white mist over its top
         const lead = vh * 0.85;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
+          .add(sb.duration(vh * 0.7), P.top + P.h - vh)
           .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);
         const end = R.top + R.h - vh;
         master.set({}, {}, end);
