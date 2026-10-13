@@ -131,33 +131,35 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(back, { '--badge': 0 }, { '--badge': 1, duration: 0.35, ease: 'power1.out', immediateRender: false }, 0.5)
           .set({}, {}, 1);
 
-        // Scene 3, the return: as Programmes finishes, the badge grows: the disc falls away and the building comes out
-        // of it, growing to fill the screen, its surroundings coming back round it, and hands over to the street's
-        // front view, which the next page (Gallery) then slides up over.
-        const s3 = gsap.timeline({ defaults: { ease: 'none' } });
-        // It is whole before the page's end reaches the foot of the screen, so the page scrolls away under the school
-        // and no empty ground ever shows; it holds there until the page has gone, then the street's view takes over.
-        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.1, ease: 'power1.in', immediateRender: false }, 0)
-          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: 0.3, ease: 'power2.inOut', immediateRender: false }, 0)
-          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12, ease: 'power1.inOut', immediateRender: false }, 0.17)
-          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
-          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
-          .set({}, {}, 1);
+        // Scene 3, the return. Programmes holds at its end (its last row pinned for a screen of scrolling) while the
+        // badge grows slowly back into the building over it: the disc falls away, the building comes out of it and
+        // fills the screen, its surroundings coming back round it. The page then scrolls away under the whole school,
+        // no empty ground showing, and the street's front view takes over, which Gallery then slides up over.
+        const hold = vh0;
+        const lastRow = root.current!.querySelector<HTMLElement>('.home-pages.clear .prog > .prog-block:last-child');
+        const held = lastRow ? ScrollTrigger.create({ trigger: lastRow, start: 'bottom bottom-=48', end: '+=' + hold, pin: true, pinSpacing: true }) : null;
 
-        // Lay the scenes out in scroll pixels: scene 0 and 1 over their sections, the pick-up while its picture is
-        // held on screen (its section's height less one screen), the return over its section.
+        // Lay the scenes out in scroll pixels (after the hold has added its length): scene 0 and 1 over their
+        // sections, the pick-up while its picture is held on screen (its section's height less one screen), the
+        // badge's flight after it, the return from the hold's start to the end of its section.
         const at = (el: HTMLElement) => ({ top: el.getBoundingClientRect().top + scrollY, h: el.offsetHeight });
         const [A, B, R] = scenes.current.map((el) => at(el!));
         const P = at(pickup.current!);
         const vh = innerHeight;
+        const r0 = held ? held.start : R.top - vh - hold;
+        const r1 = R.top + R.h - vh;
+        const g = (hold * 0.9) / (r1 - r0);      // the growth, as a share of the return
+        const s3 = gsap.timeline({ defaults: { ease: 'none' } });
+        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.25 * g, ease: 'power1.in', immediateRender: false }, 0)
+          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: g, ease: 'sine.inOut', immediateRender: false }, 0)
+          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 * g, ease: 'power1.inOut', immediateRender: false }, 0.6 * g)
+          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
+          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
+          .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        // the return starts once the last of Programmes is on screen (its end just below the foot of the screen) and
-        // is quick: the building is whole within a third of a screen, before more than a sliver of the page's end
-        // has come up, so the page scrolls away under the school
-        const lead = vh * 1.15;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
-          .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);
+          .add(s3.duration(r1 - r0), r0);
         const end = R.top + R.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
