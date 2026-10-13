@@ -103,6 +103,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 /* the return (scene 3): the building alone growing back into the street's front view, on the blueprint it was
    picked up onto; both live in the fixed stage, under the pages */
 .scene-back { height: 100vh; }
+.scene-class { height: 620vh; }   /* in through the classroom's WELCOME door, onto its whiteboard (Classroom) */
 .stage .back-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
   background-image:
     linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
@@ -140,6 +141,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 .stage .arrival[hidden] { display: none; }
 /* the camera's flight from the street to the front (Travel), over the street view while it plays */
 .stage .travel { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
+.stage .classroom { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
 /* The first scroll (SignIntro): the signboard, repainted clean, lifts its lettering and fills the screen. Each
    piece is placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
 .sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; opacity: 0; }
@@ -204,6 +206,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 
 @media (max-width: 760px) {
   .scene-rise { height: 330vh; }
+  .scene-class { height: 560vh; }
   .pickup-pin { grid-template-columns: 1fr; align-content: center; gap: 24px; padding-top: 84px; }
   .pickup-slot { aspect-ratio: 4 / 3; max-height: 46vh; }
   .scene-sign { height: 160vh; }

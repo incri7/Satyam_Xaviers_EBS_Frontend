@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
-import { arrive, sign } from '../three/rig';
+import { arrive, room, sign } from '../three/rig';
 import { pages } from '../pages/pages';
 import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
@@ -10,6 +10,7 @@ import { Parents } from './Sections';
 import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
+import { Classroom } from './Classroom';
 import { markMoment } from '../scroll';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
@@ -21,7 +22,8 @@ if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
      the street → its signboard becomes the first page (About us) → back on the street, the view rises to the
      school's front, its long side with the balconies straight on → that view is picked up as the second page's
      picture (Programmes)
-     → the rest of the pages, read as pages (Gallery, Admissions).
+     → the school whole again → in through a classroom's WELCOME door, across the room, onto its whiteboard, whose
+     white becomes the Gallery page → the rest read as pages (Gallery, Admissions).
    One fixed stage sits behind it all (Arrival, SignIntro); scenes are empty scroll lengths over it, pages slide
    over it. GSAP owns every continuous value, on one master timeline whose time is the scroll position in pixels
    (gsap-timeline, gsap-scrolltrigger); React owns only whether the street has loaded. */
@@ -68,6 +70,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // swings forward and fills the screen, the cover the first page (About us) slides over.
         Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
         Object.assign(sign, { lift: 0, fill: 0, out: 0 });
+        Object.assign(room, { q: 0, z: 0, x: 0, f: 0, w: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
           .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
@@ -143,7 +146,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // sections, the pick-up while its picture is held on screen (its section's height less one screen), the
         // badge's flight after it, the return from the hold's start to the end of its section.
         const at = (el: HTMLElement) => ({ top: el.getBoundingClientRect().top + scrollY, h: el.offsetHeight });
-        const [A, B, R] = scenes.current.map((el) => at(el!));
+        const [A, B, R, C] = scenes.current.map((el) => at(el!));
         const P = at(pickup.current!);
         const vh = innerHeight;
         const r0 = held ? held.start : R.top - vh - hold;
@@ -156,11 +159,23 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
+        // Scene 4, the way into Gallery: the school's front view zooms into the WELCOME on its ground floor's entrance,
+        // and the classroom's walk (Classroom) takes over: through the room's own WELCOME door, one turn across the
+        // room, square onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
+        const s4 = gsap.timeline({ defaults: { ease: 'none' } });
+        s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(room, { z: 0 }, { z: 1, duration: 0.15, ease: 'power1.in', immediateRender: false }, 0.001)
+          .fromTo(room, { x: 0 }, { x: 1, duration: 0.04, immediateRender: false }, 0.12)
+          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.001, immediateRender: false }, 0.165)
+          .fromTo(room, { f: 0 }, { f: 1, duration: 0.78, immediateRender: false }, 0.155)
+          .fromTo(room, { w: 0 }, { w: 1, duration: 0.06, ease: 'power1.in', immediateRender: false }, 0.94)
+          .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
-          .add(s3.duration(r1 - r0), r0);
-        const end = R.top + R.h - vh;
+          .add(s3.duration(r1 - r0), r0)
+          .add(s4.duration(Math.max(1, C.h - vh)), C.top);
+        const end = C.top + C.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
         // catch-up tween that restarts on every wheel notch.
@@ -215,6 +230,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       <div className={'stage' + (ready ? ' ready' : '')}>
         <Arrival reduce={reduce} onReady={lift} />
         <Travel start={ready} />
+        <Classroom />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
         {/* the return's ground: the blueprint the building grows back on (scene 3) */}
@@ -270,6 +286,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         </div>
       </div>
       <section className="scene scene-back" ref={sceneRef(2)} aria-hidden="true" />
+      <section className="scene scene-class" ref={sceneRef(3)} aria-hidden="true" />
       <div className="home-pages">
         {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
       </div>

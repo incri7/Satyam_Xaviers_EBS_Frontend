@@ -160,8 +160,12 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
   font: 600 15px var(--font); color: var(--ink); cursor: pointer; transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease); }
 .chips button span { font-weight: 500; font-size: 13px; color: var(--slate); }
 .chips button:hover { border-color: var(--royal); }
-.chips button[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
-.chips button[aria-pressed="true"] span { color: var(--sky); }
+.chips button[aria-pressed="true"], .chips button[aria-selected="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.chips button[aria-pressed="true"] span, .chips button[aria-selected="true"] span { color: var(--sky); }
+.album { margin-top: clamp(28px, 3.4vw, 48px); }
+.album-h { display: flex; align-items: baseline; gap: 10px; margin: 0; font: 700 22px/1.2 var(--display); font-stretch: 88%; letter-spacing: -.02em; color: var(--ink); }
+.album-h span { font: 500 14px var(--font); color: var(--slate); }
+.album .grid { margin-top: 16px; }
 .album-note { margin-top: 18px; color: var(--slate); max-width: 60ch; min-height: 1.6em; }
 .grid { list-style: none; margin: clamp(24px, 3vw, 40px) 0 0; padding: 0; columns: 4 240px; column-gap: 14px; animation: gridIn .45s var(--ease) both; }
 .grid li { break-inside: avoid; margin-bottom: 14px; }

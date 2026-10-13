@@ -14,20 +14,21 @@ export function Gallery() {
   );
 }
 
-type Shot = { name: string; album: string; caption: string };
+type Shot = { name: string; caption: string };
 
-/** School life in albums by real event, a grid, and a lightbox; then the year and the activities.
-    Shared by the route and by the page the laptop screen opens in the story (storyline v4). */
+/** The gallery in the three sections the school asked for: General (everyday school life), Achievements and Events.
+    One section at a time, as tabs; each shows its albums, and a photo opens in a lightbox that steps through the
+    section. Shared by the route and by the home page, which reaches it through the classroom's whiteboard. */
 export function GalleryBody() {
-  const lang = useLang(); const g = pages[lang].gallery, l = pages[lang].life;
-  const [album, setAlbum] = useState<string | null>(null);
+  const lang = useLang(); const g = pages[lang].gallery;
+  const [tab, setTab] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const all: Shot[] = useMemo(() => g.albums.flatMap(([id, name, , photos]) => photos.map((p) => ({ name: p, album: id, caption: name }))), [g]);
-  const shown = album ? all.filter((s) => s.album === album) : all;
-  const current = open === null ? null : shown[open];
-  const about = album ? g.albums.find(([id]) => id === album) : null;
+  const [id, , note, albums] = g.sections[tab];
+  const shots: Shot[] = useMemo(() => albums.flatMap(([caption, photos]) => photos.map((name) => ({ name, caption }))), [albums]);
+  const current = open === null ? null : shots[open];
 
   // The lightbox is a native modal dialog: focus stays inside, Escape closes it.
   useEffect(() => {
@@ -36,27 +37,46 @@ export function GalleryBody() {
     if (open !== null && !d.open) d.showModal();
     if (open === null && d.open) d.close();
   }, [open]);
-  const step = (k: number) => setOpen((i) => (i === null ? i : (i + k + shown.length) % shown.length));
+  const step = (k: number) => setOpen((i) => (i === null ? i : (i + k + shots.length) % shots.length));
+  // tabs as the pattern has them: arrow keys move between them, the chosen one is the only stop for Tab
+  const keys = (e: React.KeyboardEvent) => {
+    const n = g.sections.length, k = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!k) return;
+    e.preventDefault(); const next = (tab + k + n) % n; setTab(next); tabs.current[next]?.focus();
+  };
 
+  let at = 0;
   return (
     <>
       <Section className="albums">
-        <div className="chips" role="group" aria-label={g.title}>
-          <button type="button" aria-pressed={album === null} onClick={() => setAlbum(null)}>{g.all}<span>{all.length}</span></button>
-          {g.albums.map(([id, name, , photos]) => (
-            <button type="button" key={id} aria-pressed={album === id} onClick={() => setAlbum(id)}>{name}<span>{photos.length}</span></button>
+        <div className="chips" role="tablist" aria-label={g.title} onKeyDown={keys}>
+          {g.sections.map(([sid, name, , al], i) => (
+            <button type="button" role="tab" key={sid} id={`gal-tab-${sid}`} aria-controls={`gal-${sid}`} aria-selected={i === tab}
+              tabIndex={i === tab ? 0 : -1} ref={(el) => { tabs.current[i] = el; }} onClick={() => setTab(i)}>
+              {name}<span>{al.reduce((n, [, ph]) => n + ph.length, 0)}</span>
+            </button>
           ))}
         </div>
-        <p className="album-note">{about ? about[2] : g.intro}</p>
-        <ul className="grid" key={album ?? 'all'}>
-          {shown.map((s, i) => (
-            <li key={s.name}>
-              <button type="button" onClick={() => setOpen(i)} aria-label={`${s.caption}, ${i + 1} ${g.of} ${shown.length}`}>
-                <img src={`/photos/t/${s.name}.webp`} alt="" loading="lazy" decoding="async" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div role="tabpanel" id={`gal-${id}`} aria-labelledby={`gal-tab-${id}`} key={id}>
+          <p className="album-note">{note}</p>
+          {albums.map(([caption, photos]) => {
+            const first = at; at += photos.length;
+            return (
+              <div className="album" key={caption}>
+                <h3 className="album-h">{caption}<span>{photos.length}</span></h3>
+                <ul className="grid">
+                  {photos.map((name, j) => (
+                    <li key={name}>
+                      <button type="button" onClick={() => setOpen(first + j)} aria-label={`${caption}, ${first + j + 1} ${g.of} ${shots.length}`}>
+                        <img src={`/photos/t/${name}.webp`} alt="" loading="lazy" decoding="async" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
         <p className="consent"><T>{g.consent}</T></p>
       </Section>
 
@@ -66,20 +86,13 @@ export function GalleryBody() {
         {current ? (
           <figure>
             <img src={`/photos/p/${current.name}.webp`} alt={current.caption} />
-            <figcaption><b>{current.caption}</b><span>{(open ?? 0) + 1} {g.of} {shown.length}</span></figcaption>
+            <figcaption><b>{current.caption}</b><span>{(open ?? 0) + 1} {g.of} {shots.length}</span></figcaption>
           </figure>
         ) : null}
         <button type="button" className="lb-close" onClick={() => setOpen(null)}>{g.close}</button>
         <button type="button" className="lb-prev" onClick={() => step(-1)} aria-label={g.prev}>‹</button>
         <button type="button" className="lb-next" onClick={() => step(1)} aria-label={g.next}>›</button>
       </dialog>
-
-      <Section title={l.yearTitle} className="dark">
-        <ol className="months">{l.months.map(([m, e]) => <li key={m} className={e ? 'has' : ''}><span>{m}</span>{e ? <b><T>{e}</T></b> : null}</li>)}</ol>
-      </Section>
-      <Section title={l.activitiesTitle}>
-        <dl className="activities">{l.activities.map(([h, b]) => <div key={h}><dt>{h}</dt><dd><T>{b}</T></dd></div>)}</dl>
-      </Section>
     </>
   );
 }
