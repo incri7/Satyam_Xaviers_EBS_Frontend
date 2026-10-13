@@ -103,7 +103,6 @@ html:lang(ne) .prog .hour-t b { font-family: "Mukta", sans-serif; letter-spacing
 .prog .bus { grid-column: span 4; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .prog .bus-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: 50% 62%; }
 .prog .bus-body { padding: clamp(18px, 2vw, 24px); display: flex; flex-direction: column; flex: 1; }
-.prog .bus mark.tbc { background: rgb(255 255 255 / .08); color: var(--sky); border: 1px dashed rgb(180 216 228 / .55); border-radius: 6px; padding: 1px 6px; }
 .prog .bus-call { margin-top: auto; padding-top: 16px; font: 600 15px var(--font); color: var(--sky); text-decoration: none; }
 .prog .bus-call:hover { text-decoration: underline; }
 .prog .bus-call:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; border-radius: 4px; }

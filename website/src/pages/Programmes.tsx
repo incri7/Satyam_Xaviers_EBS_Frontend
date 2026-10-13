@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { pagePath, useLang } from '../lang';
-import { Photo, T } from './ui';
+import { Photo } from './ui';
 import './programmes.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -42,7 +42,7 @@ const COPY = {
       ['4:30', 'PM', 'Home time', 'The school day comes to an end.'],
     ],
     busTitle: 'School buses.', bus: 'Yellow school buses carry students between home and school.',
-    busTbc: '[Routes, stops and bus fees]', busCall: 'Ask the school office: 057-525563',
+    busCall: 'Ask the school office about the stop nearest you: 057-525563',
     approvedTitle: 'Approved at every level.', approved: 'The school grew one level at a time, and each level was approved as it opened.',
     levels: [['Early childhood (ECD)', 'Nursery, LKG, UKG', '2048/11/11'], ['Basic level', 'Classes 1–5', '2048/11/11'],
       ['Basic level', 'Classes 6–8', '2051/02/22'], ['Secondary level', 'Classes 9–10', '2062/03/27']],
@@ -81,7 +81,7 @@ const COPY = {
       ['४:३०', 'बेलुका', 'छुट्टी', 'विद्यालयको दिन सकिन्छ।'],
     ],
     busTitle: 'विद्यालय बस।', bus: 'पहेँला विद्यालय बसले विद्यार्थीलाई घरदेखि विद्यालय र विद्यालयदेखि घरसम्म पुर्‍याउँछन्।',
-    busTbc: '[बसका रुट, स्टप र शुल्क]', busCall: 'विद्यालय कार्यालयमा सोध्नुहोस्: ०५७-५२५५६३',
+    busCall: 'नजिकको स्टपबारे विद्यालय कार्यालयमा सोध्नुहोस्: ०५७-५२५५६३',
     approvedTitle: 'हरेक तहमा स्वीकृत।', approved: 'विद्यालय एक-एक तह गर्दै बढ्यो, र हरेक तह खुल्दा स्वीकृत भयो।',
     levels: [['प्रारम्भिक बाल विकास', 'नर्सरी, LKG, UKG', '२०४८/११/११'], ['आधारभूत तह', 'कक्षा १–५', '२०४८/११/११'],
       ['आधारभूत तह', 'कक्षा ६–८', '२०५१/०२/२२'], ['माध्यमिक तह', 'कक्षा ९–१०', '२०६२/०३/२७']],
@@ -199,7 +199,6 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
           <div className="bus-body">
             <h3 className="card-h">{c.busTitle}</h3>
             <p className="card-p">{c.bus}</p>
-            <p className="card-p tbc-line"><T>{c.busTbc}</T></p>
             <a className="bus-call" href="tel:057525563">{c.busCall}</a>
           </div>
         </article>
