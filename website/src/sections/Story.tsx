@@ -70,7 +70,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // swings forward and fills the screen, the cover the first page (About us) slides over.
         Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
         Object.assign(sign, { lift: 0, fill: 0, out: 0 });
-        Object.assign(room, { q: 0, f: 0, w: 0 });
+        Object.assign(room, { q: 0, f: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
           .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
@@ -160,12 +160,16 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
         // Scene 4, the way into Gallery, one shot (Classroom): from the front view itself down to the first-floor
-        // classroom's double door beside the stairs' grill gate, which opens, and in; one turn across the room, square
-        // onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
+        // classroom's double door beside the stairs' grill gate, which opens, and in; one turn across the room and
+        // square onto the whiteboard, where the Gallery page is drawn in marker. The camera comes in until the
+        // drawing fills the screen, and the page itself comes in over it, every word and folder where the marker
+        // had it (the Gallery stands a screen up, over the scene's end: .home-pages.after).
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
         s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
-          .fromTo(room, { f: 0 }, { f: 1, duration: 0.92, immediateRender: false }, 0.01)
-          .fromTo(room, { w: 0 }, { w: 1, duration: 0.06, ease: 'power1.in', immediateRender: false }, 0.94)
+          .fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
+          .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, ease: 'power1.inOut' }, 0.91)
+          // held at the top of the screen while it comes in: the scroll would carry it up from below
+          .fromTo('#gallery', { y: -0.09 * (C.h - innerHeight) }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
           .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
@@ -284,7 +288,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       </div>
       <section className="scene scene-back" ref={sceneRef(2)} aria-hidden="true" />
       <section className="scene scene-class" ref={sceneRef(3)} aria-hidden="true" />
-      <div className="home-pages">
+      <div className="home-pages after">
         {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
       </div>
     </div>
