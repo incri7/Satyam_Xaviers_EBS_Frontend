@@ -5,7 +5,7 @@
 import bpy, sys, traceback
 OUT = sys.argv[sys.argv.index('--') + 1]
 HERE = r'C:/Users/legio/Workspace/Satyam_Xaviers_EBS_Frontend/website/model/env'
-SCHOOL = ('GEO-school_', 'GEO-entrance_', 'GEO-floor_gate_', 'GEO-roof_board')
+SCHOOL = ('GEO-school_', 'GEO-entrance_', 'GEO-floor_gate_', 'GEO-roof_board', 'GEO-classdoor_')
 log = open(HERE + '/renders/job_cutout.log', 'w', buffering=1); sys.stdout = sys.stderr = log
 try:
     sc = bpy.context.scene

@@ -14,6 +14,9 @@ python make_flag.py
 rm -f renders/job_street.log renders/job_render.log renders/job_depth.log
 "$L" -b "$H/sxebs_environment_v1.blend" --python "$H/job_street.py" </dev/null; wait_for renders/job_street.log
 if grep -q Traceback renders/job_street.log; then cat renders/job_street.log; exit 1; fi
+# the early-years classroom's double door, for good, in the first-floor doorway beside the grill gate (model/class)
+rm -f renders/job_door.log
+"$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_door.py" </dev/null; wait_for renders/job_door.log
 ARGS=$(echo "$VIEWS" | awk -F: '{printf "%s:%s:%s:%s ", $2, $3, $4, $5}')
 "$L" -b "$H/sxebs_street_v1.blend" --python "$H/job_render.py" -- $ARGS </dev/null; wait_for renders/job_render.log
 EXRS=$(echo "$VIEWS" | awk -F: '{c=$2; sub(/^CAM-/, "", c); printf "street_%s.exr ", c}')

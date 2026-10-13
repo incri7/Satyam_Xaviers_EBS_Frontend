@@ -19,7 +19,7 @@ import { FRONT } from './Arrival';
 const N = 180;
 const SIZE = [1280, 720];
 const T0 = 20 / 89;              // where the flight starts showing (Story): above the driveway's trees
-const frame = (k: number, w: number, ext: string) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10122230.${ext}`;
+const frame = (k: number, w: number, ext: string) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10131530.${ext}`;
 // the smallest AVIF there is: whether this browser can show the frames' own format
 const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
 function plan(avif: boolean) {

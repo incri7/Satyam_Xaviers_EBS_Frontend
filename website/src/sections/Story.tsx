@@ -22,8 +22,8 @@ if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
      the street → its signboard becomes the first page (About us) → back on the street, the view rises to the
      school's front, its long side with the balconies straight on → that view is picked up as the second page's
      picture (Programmes)
-     → the school whole again → in through a first-floor classroom's door (WELCOME on it), across the room, onto its whiteboard, whose
-     white becomes the Gallery page → the rest read as pages (Gallery, Admissions).
+     → the school whole again → down to a first-floor classroom's door and in, across the room, onto its
+     whiteboard, whose white becomes the Gallery page → the rest read as pages (Gallery, Admissions).
    One fixed stage sits behind it all (Arrival, SignIntro); scenes are empty scroll lengths over it, pages slide
    over it. GSAP owns every continuous value, on one master timeline whose time is the scroll position in pixels
    (gsap-timeline, gsap-scrolltrigger); React owns only whether the street has loaded. */
@@ -70,7 +70,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // swings forward and fills the screen, the cover the first page (About us) slides over.
         Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
         Object.assign(sign, { lift: 0, fill: 0, out: 0 });
-        Object.assign(room, { q: 0, z: 0, x: 0, f: 0, w: 0 });
+        Object.assign(room, { q: 0, f: 0, w: 0 });
         const s0 = gsap.timeline({ defaults: { ease: 'none' } });
         s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
           .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
@@ -159,15 +159,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
-        // Scene 4, the way into Gallery: the school's front view zooms into the first-floor classroom door beside the
-        // stairs' grill gate, and the classroom's walk (Classroom) takes over at that door: through its WELCOME leaves,
-        // one turn across the room, square onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
+        // Scene 4, the way into Gallery, one shot (Classroom): from the front view itself down to the first-floor
+        // classroom's double door beside the stairs' grill gate, which opens, and in; one turn across the room, square
+        // onto the whiteboard and in. The board's white turns into the page's, and Gallery slides up.
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
         s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
-          .fromTo(room, { z: 0 }, { z: 1, duration: 0.15, ease: 'power1.in', immediateRender: false }, 0.001)
-          .fromTo(room, { x: 0 }, { x: 1, duration: 0.04, immediateRender: false }, 0.12)
-          .fromTo(arrive, { o: 1 }, { o: 0, duration: 0.001, immediateRender: false }, 0.165)
-          .fromTo(room, { f: 0 }, { f: 1, duration: 0.78, immediateRender: false }, 0.155)
+          .fromTo(room, { f: 0 }, { f: 1, duration: 0.92, immediateRender: false }, 0.01)
           .fromTo(room, { w: 0 }, { w: 1, duration: 0.06, ease: 'power1.in', immediateRender: false }, 0.94)
           .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });

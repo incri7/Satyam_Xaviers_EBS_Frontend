@@ -139,7 +139,7 @@ export const glInfo = { mode: 'starting', cw: 0, ch: 0, bw: 0, bh: 0, dbw: 0, db
     leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
     screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */
 export const sign = { lift: 0, fill: 0, out: 0 };
-/** The way into Gallery (sections/Classroom.tsx): the school's front view zooms into a first-floor classroom door (z, 0 .. 1),
-    the classroom's walk takes over from it (x, 0 .. 1) and plays (f, 0 .. 1: through the WELCOME door, one turn
-    across the room, onto the whiteboard), and the board's white becomes the page's (w, 0 .. 1). q: on screen at all. */
-export const room = { q: 0, z: 0, x: 0, f: 0, w: 0 };
+/** The way into Gallery (sections/Classroom.tsx), one shot from the school's front view to the first-floor classroom
+    door, in, and onto its whiteboard: f, how far along it is (0 .. 1); w, the board's white turning into the page's
+    (0 .. 1); q: on screen at all. covers: a frame is drawn over the whole stage (the street view need not draw). */
+export const room = { q: 0, f: 0, w: 0, covers: false };

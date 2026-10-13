@@ -4,27 +4,20 @@ import { room } from '../three/rig';
 import { FRONT } from './Arrival';
 
 /**
- * The way into Gallery: from the school's front view, in through a classroom's door: the first-floor doorway beside
- * the stairs' red grill gate, where the classroom's own double door stands (WELCOME, To Our Class). The early-years room,
- * rebuilt from the school's own photographs (its four walls are the photos, set straight; the benches, fans and
- * cabinet modelled after them) and walked through in Blender: through the double door with the children's paper
- * letters, one slow turn across the room, square onto the whiteboard and in, until its white fills the screen and
- * becomes the Gallery page's. Rendered frames, scrubbed by the scroll (Story, scene-class), like the street's flight.
+ * The way into Gallery, one shot in the school's own scene (website/model/class/build_entry.py): from the front view
+ * itself (its first frame is the very picture the page shows), down to the first-floor corridor and the classroom's
+ * double door beside the stairs' grill gate (WELCOME, To Our Class: part of the building in every view,
+ * model/env/job_door.py), which opens, and in: the early-years room, rebuilt from the school's own photographs and
+ * set inside the building behind that door; one turn across the room, square onto the whiteboard and in, until its
+ * white fills the screen and becomes the Gallery page's. Rendered frames, scrubbed by the scroll (Story,
+ * scene-class), drawn the way the street's flight draws its own.
  *
- * One canvas draws the whole scene: first the front view itself (the same picture, cropped the same way as the
- * street's) with that double door drawn into its doorway (model/class/door_front.py), zooming into it until it is as
- * large as the walk's first frame has it; then the walk's frames over it; then the page's colour over them. Frames load once Programmes is near, at low priority, coarse to fine; until a frame close to
- * where the reader is has arrived, the zoomed front view holds and the walk simply waits.
+ * Frames load once Programmes is near, at low priority, coarse to fine. Until a frame close to where the reader is
+ * has arrived, the canvas stays out of the way and the front view under it holds.
  */
-const N = 241;
-const STAMP = '10131930';
+const N = 306;
+const STAMP = '10131530';
 const frame = (k: number, w: number, ext: string) => `/models/class/${w}/${String(k).padStart(3, '0')}_${STAMP}.${ext}`;
-// the first-floor classroom doorway beside the grill gate on the front view (in its 1920 x 1080 picture), the double
-// door drawn into it, and how far the zoom goes into it: until the door stands about as large as in the walk's first frame
-const DOOR = [676, 669, 745, 770];
-const DOOR_SRC = `/models/class/door_front_${STAMP}.webp`;
-const ENTRANCE = [(DOOR[0] + DOOR[2]) / 2, (DOOR[1] + DOOR[3]) / 2];
-const ZOOM = 12;
 const PAGE = '#F4F7FA';
 const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
 function plan(avif: boolean) {
@@ -44,10 +37,6 @@ export function Classroom() {
     const ctx = cv.getContext('2d')!;
     const imgs: (HTMLImageElement | null)[] = Array(N).fill(null);
     let alive = true, begun = false;
-    const front = new Image(); front.decoding = 'async'; front.src = FRONT.src;
-    let frontReady = false; front.decode().then(() => { frontReady = true; }, () => {});
-    const door = new Image(); door.decoding = 'async'; door.src = DOOR_SRC;
-    let doorReady = false; door.decode().then(() => { doorReady = true; }, () => {});
 
     // coarse to fine, the first and last frames first, four at a time
     const begin = () => {
@@ -78,43 +67,35 @@ export function Classroom() {
 
     const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
     const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
-    // cover-fit a picture of size iw x ih, keeping the point f in view; returns where it lands
-    const cover = (iw: number, ih: number, f: readonly number[]) => {
-      const W = cv.width, H = cv.height, s = Math.max(W / iw, H / ih), dw = iw * s, dh = ih * s;
-      return { s, dw, dh, ox: Math.min(0, Math.max(W - dw, W / 2 - f[0] * dw)), oy: Math.min(0, Math.max(H - dh, H / 2 - f[1] * dh)) };
+    // cover-fit, keeping the front view's focus point in view: the first frame lies exactly over the front view
+    const draw = (img: HTMLImageElement, a: number) => {
+      const W = cv.width, H = cv.height, s = Math.max(W / img.width, H / img.height), dw = img.width * s, dh = img.height * s;
+      const f = FRONT.focus;
+      ctx.globalAlpha = a;
+      ctx.drawImage(img, Math.min(0, Math.max(W - dw, W / 2 - f[0] * dw)), Math.min(0, Math.max(H - dh, H / 2 - f[1] * dh)), dw, dh);
     };
     let shown = false;
     const tick = () => {
       const on = room.q > 0.001;
-      if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; if (on) begin(); }
-      if (!on) return;
+      if (on) begin();
+      const x = room.f * (N - 1);
+      const ka = below(x), kb = above(x);
+      const near = on && Math.min(ka >= 0 ? x - ka : Infinity, kb >= 0 ? kb - x : Infinity) <= 24;
+      const vis = on && (near || room.w > 0);
+      if (vis !== shown) { shown = vis; cv.style.visibility = vis ? 'visible' : 'hidden'; }
+      room.covers = near;
+      if (!vis) return;
       const dpr = Math.min(devicePixelRatio || 1, 1.5);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-      ctx.globalAlpha = 1;
-      const x = room.f * (N - 1);
-      const ka = below(x), kb = above(x);
-      const near = Math.min(ka >= 0 ? x - ka : Infinity, kb >= 0 ? kb - x : Infinity) <= 24;
-      const walk = near ? room.x : 0;
-      // the front view, zooming into the entrance; the point drifts to the centre as it comes
-      if (walk < 1 && frontReady) {
-        const c = cover(front.width, front.height, FRONT.focus);
-        const z = room.z, Z = 1 + (ZOOM - 1) * z * z;
-        const px = c.ox + ENTRANCE[0] * c.s * (front.width / 1920), py = c.oy + ENTRANCE[1] * c.s * (front.height / 1080);
-        const tx = px + (W / 2 - px) * z, ty = py + (H / 2 - py) * z;
-        const fx = tx - (px - c.ox) * Z, fy = ty - (py - c.oy) * Z, k = c.s * Z * (front.width / 1920);
-        ctx.drawImage(front, fx, fy, c.dw * Z, c.dh * Z);
-        if (doorReady) ctx.drawImage(door, fx + DOOR[0] * k, fy + DOOR[1] * k, (DOOR[2] - DOOR[0]) * k, (DOOR[3] - DOOR[1]) * k);
-      } else if (walk < 1) { ctx.fillStyle = PAGE; ctx.fillRect(0, 0, W, H); }
-      // the walk's frames: the two either side blended, as the street's flight does
-      if (walk > 0) {
-        const draw = (img: HTMLImageElement, a: number) => {
-          const c = cover(img.width, img.height, [0.5, 0.5]); ctx.globalAlpha = a; ctx.drawImage(img, c.ox, c.oy, c.dw, c.dh);
-        };
+      ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
+      if (near) {
+        // the two loaded frames either side, blended, when they are near each other; else the nearer alone
         if (ka >= 0 && kb > ka && kb - ka <= 24) {
-          draw(imgs[ka]!, walk); const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, walk * fr);
-        } else draw(imgs[ka >= 0 && (kb < 0 || x - ka <= kb - x) ? ka : kb]!, walk);
+          draw(imgs[ka]!, 1); const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, fr);
+        } else draw(imgs[ka >= 0 && (kb < 0 || x - ka <= kb - x) ? ka : kb]!, 1);
       }
+      // the whiteboard's white becomes the page's
       if (room.w > 0) { ctx.globalAlpha = room.w; ctx.fillStyle = PAGE; ctx.fillRect(0, 0, W, H); }
       ctx.globalAlpha = 1;
     };

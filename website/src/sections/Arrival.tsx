@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { arrive, glInfo, parallax, pointer, sign, travel } from '../three/rig';
+import { arrive, glInfo, parallax, pointer, room, sign, travel } from '../three/rig';
 
 /**
  * The arrival: the school's real street, rendered from the Blender model of the real place (website/model/env),
@@ -16,12 +16,12 @@ export const STREET = { size: [1920, 1024], focus: [0.78, 0.66] } as const;
 const VIEWS = [
   { name: 'street', focus: STREET.focus, dolly: 0.55 },
   { name: 'front', focus: [0.48, 0.45], dolly: 0.4 },   // a wide screen keeps the board and flag clear of the nav bar
-].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10122230.webp`, depth: `/models/env/${w.name}_depth_10122230.png` }));
+].map((w) => ({ ...w, color: `/models/env/${w.name}_color_10131530.webp`, depth: `/models/env/${w.name}_depth_10131530.png` }));
 const DOLLY = ['d0', 'd1'] as const;
 /** The front view, for the page that picks it up (its picture, size and the point its cover-fit keeps). */
 export const FRONT = { src: VIEWS[1].color, size: [1920, 1080], focus: VIEWS[1].focus } as const;
 /** The front view with only the school building in it, on a transparent ground (job_cutout.py). */
-export const FRONT_SCHOOL = `/models/env/front_school_10122230.webp`;
+export const FRONT_SCHOOL = `/models/env/front_school_10131530.webp`;
 /** CSS object-position that crops a picture the way the shader's cover-fit does on a box of aspect va. */
 export function coverPosition(va: number, size: readonly number[], f: readonly number[]) {
   const ia = size[0] / size[1];
@@ -126,7 +126,7 @@ export function Arrival({ reduce, onReady }: { reduce: boolean; onReady: () => v
       cv.style.opacity = String(arrive.o);
       if (!visible) return;
       // while the flight's frames cover the screen, there is nothing of this to see: leave the GPU to them
-      if (travel.covers) return;
+      if (travel.covers || room.covers) return;
       // The two views being walked between: v runs 0 .. VIEWS.length - 1.
       let i = Math.min(Math.floor(arrive.v), VIEWS.length - 2);
       while (i > 0 && !loaded[i]) i--;
