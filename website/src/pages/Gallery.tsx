@@ -36,6 +36,13 @@ const SHAPES: Record<string, (s: number) => string> = {
   butterfly: (s) => `<svg width="${s}" height="${s}" viewBox="-50 -50 100 100"><path d="M0 -20 L0 26"/><path d="M0 -6 Q-30 -40 -38 -14 Q-40 6 0 2 Q-34 10 -28 30 Q-16 40 0 14"/><path d="M0 -6 Q30 -40 38 -14 Q40 6 0 2 Q34 10 28 30 Q16 40 0 14"/></svg>`,
   house: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 100 100"><path d="M14 48 L50 16 L86 48 M24 40 L24 86 L76 86 L76 40"/><path d="M42 86 L42 62 L58 62 L58 86"/></svg>`,
 };
+const HEART = 'M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.6.7-1.4 2.2-2.6 4.3-2.6 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z';
+const heartSvg = (cls: string) => { const ns = 'http://www.w3.org/2000/svg'; const sv = document.createElementNS(ns, 'svg'); sv.setAttribute('viewBox', '0 0 24 24');
+  sv.setAttribute('class', cls); const pa = document.createElementNS(ns, 'path'); pa.setAttribute('d', HEART); sv.appendChild(pa); return sv; };
+/* The reader's loves, kept in this browser until the backend keeps them for everyone. */
+const LOVED_KEY = 'gallery-loved';
+const readLoved = (): Record<string, true> => { try { return JSON.parse(localStorage.getItem(LOVED_KEY) || '{}'); } catch { return {}; } };
+
 const DOODLES: [string, number, number, number, number][] = [
   ['sunflower', 4, 52, 66, -8], ['sunflower', 92, 46, 80, 6], ['sunflower', 74, 80, 50, -4],
   ['sun', 86, 8, 64, 0], ['cloud', 66, 8, 84, 0], ['plane', 56, 22, 60, -6], ['star', 9, 10, 30, 12],
@@ -51,6 +58,8 @@ export function GalleryBody() {
   const other = lang === 'en' ? 'ne' : 'en';
   const [open, setOpen] = useState<number | null>(null);
   const [shot, setShot] = useState<number | null>(null);
+  const [loved, setLoved] = useState<Record<string, true>>(readLoved);
+  const taps = useRef<Record<string, number>>({});
   const root = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const busy = useRef(false);
@@ -58,6 +67,7 @@ export function GalleryBody() {
   const fly = useRef<{ els: HTMLImageElement[]; dir: 'out' | 'in'; folder: number } | null>(null);
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const photos = open === null ? [] : g.folders[open][4];
+  const waiting = fly.current?.dir === 'out';
 
   // The folders at rest: their photos rise and settle, folder after folder; hovered, one lifts and fans its photos.
   // The doodles drift as if on a breeze.
@@ -119,7 +129,7 @@ export function GalleryBody() {
     if (busy.current || open === null) return;
     if (reduce) { setOpen(null); return; }
     busy.current = true;
-    const els = [...root.current!.querySelectorAll<HTMLImageElement>('.gal-cell img')].map((im) => {
+    const els = [...root.current!.querySelectorAll<HTMLImageElement>('.gal-posts .post-ph img')].map((im) => {
       const r = im.getBoundingClientRect(); const c = new Image(); c.src = im.src; c.alt = ''; c.className = 'gal-fly';
       Object.assign(c.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderWidth: '0px' });
       document.body.appendChild(c); return c;
@@ -131,12 +141,15 @@ export function GalleryBody() {
   useLayoutEffect(() => {
     const f = fly.current; if (!f || !root.current) return;
     if (f.dir === 'out' && open !== null) {
-      const cells = [...root.current.querySelectorAll<HTMLElement>('.gal-cell')];
-      const tl = gsap.timeline({ onComplete: () => { cells.forEach((c) => c.classList.remove('wait')); f.els.forEach((e) => e.remove()); fly.current = null; busy.current = false; } });
+      const posts = [...root.current.querySelectorAll<HTMLElement>('.gal-posts .post')];
+      const tl = gsap.timeline({ onComplete: () => { fly.current = null; busy.current = false; } });
       f.els.forEach((im, k) => {
-        const r = cells[k].getBoundingClientRect();
-        tl.to(im, { left: r.left, top: r.top, width: r.width, height: r.height, x: 0, y: 0, rotation: 0, scale: 1, borderWidth: 0,
-          duration: 0.75, ease: 'power3.inOut' }, k * 0.04);
+        const r = posts[k].querySelector('.post-ph')!.getBoundingClientRect();
+        tl.to(im, { left: r.left, top: r.top, width: r.width, height: r.height, x: 0, y: 0, rotation: 0, scale: 1, borderWidth: 0, borderRadius: 3,
+          duration: 0.75, ease: 'power3.inOut', onComplete: () => {
+            posts[k].classList.remove('wait'); im.remove();
+            if (!reduce) gsap.from(posts[k].querySelectorAll(':scope > :not(.post-ph)'), { opacity: 0, y: 6, duration: 0.35, stagger: 0.05 });
+          } }, k * 0.04);
       });
       tl.fromTo(root.current.querySelector('.gal-top'), { autoAlpha: 0, y: -12 }, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.4);
     }
@@ -167,6 +180,62 @@ export function GalleryBody() {
   // nothing left in flight if the page goes away mid-way
   useEffect(() => () => { fly.current?.els.forEach((e) => e.remove()); }, []);
 
+  // Love: the heart fills and pops, a few small hearts float up from it, the count goes up (a second tap takes it
+  // back). A double-tapped photo only ever loves, as on any social app, with a big heart on the photo.
+  const love = (p: string, el: HTMLElement, fromPhoto: boolean) => {
+    const on = !loved[p];
+    if (fromPhoto && !on) { pop(el); return; }
+    const next = { ...loved }; if (on) next[p] = true; else delete next[p];
+    setLoved(next); try { localStorage.setItem(LOVED_KEY, JSON.stringify(next)); } catch { /* private window: this visit only */ }
+    if (reduce) return;
+    const btn = el.querySelector<HTMLElement>('.love')!;
+    gsap.fromTo(btn.querySelector('svg'), { scale: on ? 0.6 : 1 }, { scale: 1, duration: 0.5, ease: 'back.out(3)' });
+    if (!on) return;
+    const r = btn.getBoundingClientRect();
+    for (let k = 0; k < 6; k++) {
+      const sv = heartSvg('love-spark'); document.body.appendChild(sv);
+      gsap.set(sv, { left: r.left + r.width / 2 - 7, top: r.top + r.height / 2 - 7, scale: gsap.utils.random(0.6, 1.1) });
+      gsap.to(sv, { x: gsap.utils.random(-34, 34), y: gsap.utils.random(-90, -50), rotation: gsap.utils.random(-30, 30), opacity: 0,
+        duration: gsap.utils.random(0.7, 1.1), ease: 'power2.out', delay: k * 0.03, onComplete: () => sv.remove() });
+    }
+    if (fromPhoto) pop(el);
+  };
+  const pop = (el: HTMLElement) => {
+    if (reduce) return;
+    const ph = el.querySelector('.post-ph')!; const sv = heartSvg('love-pop'); ph.appendChild(sv);
+    gsap.timeline({ onComplete: () => sv.remove() }).fromTo(sv, { scale: 0.3, opacity: 0 }, { scale: 1.1, opacity: 1, duration: 0.25, ease: 'back.out(2.5)' })
+      .to(sv, { scale: 1, duration: 0.15 }).to(sv, { opacity: 0, y: -20, duration: 0.35, delay: 0.25 });
+  };
+  // one tap on a photo opens it large, a double tap loves it
+  const tapPhoto = (p: string, k: number, el: HTMLElement, big: boolean) => {
+    const t = taps.current[p];
+    if (t) { clearTimeout(t); delete taps.current[p]; love(p, el, true); return; }
+    taps.current[p] = window.setTimeout(() => { delete taps.current[p]; if (!big) setShot(k); }, 260);
+  };
+  // a photo as the school posts it: its words on top, the photo, and love below
+  const post = (p: string, k: number, big: boolean) => {
+    const [text, when, n] = g.posts[p] ?? ['', '', 0];
+    const on = !!loved[p];
+    return (
+      <article key={p} className={'post' + (big ? ' big' : '') + (!big && waiting ? ' wait' : '')} data-p={p}>
+        <span className="post-tape" aria-hidden="true" />
+        <header className="post-who"><img src="/photos/crest.png" alt="" width={26} height={26} /><b>{g.school}</b><time>{when}</time></header>
+        {text ? <p className="post-status">{text}</p> : null}
+        <div className="post-ph" role={big ? undefined : 'button'} tabIndex={big ? undefined : 0} aria-label={big ? undefined : g.openPhoto}
+          onClick={(e) => tapPhoto(p, k, e.currentTarget.closest('article')!, big)}
+          onKeyDown={(e) => { if (!big && e.key === 'Enter') setShot(k); }}>
+          <img src={big || k === 0 ? full(p) : thumb(p)} alt={big ? text : ''} loading={big || k < 6 ? 'eager' : 'lazy'} decoding="async" />
+        </div>
+        <footer className="post-acts">
+          <button type="button" className="love" aria-pressed={on} aria-label={g.love} onClick={(e) => love(p, e.currentTarget.closest('article')!, false)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={HEART} /></svg>
+          </button>
+          <span className="post-count"><b>{n + (on ? 1 : 0)}</b> {g.loves}</span>
+        </footer>
+      </article>
+    );
+  };
+
   // The lightbox is a native modal dialog: focus stays inside, Escape closes it.
   useEffect(() => {
     const d = dialog.current; if (!d) return;
@@ -175,7 +244,6 @@ export function GalleryBody() {
   }, [shot]);
   const step = (k: number) => setShot((i) => (i === null ? i : (i + k + photos.length) % photos.length));
   const current = shot === null || open === null ? null : photos[shot];
-  const waiting = fly.current?.dir === 'out';
 
   return (
     <div className="gal" ref={root}>
@@ -208,28 +276,15 @@ export function GalleryBody() {
             <button type="button" className="gal-back" onClick={back}>‹ {g.all}</button>
             <h3 className="gal-title">{g.folders[open][1]}<small>{photos.length} {g.photos}</small></h3>
           </div>
-          <ul className="gal-grid">
-            {photos.map((p, k) => (
-              <li key={p} className={'gal-cell' + (k === 0 ? ' big' : '') + (waiting ? ' wait' : '')}>
-                <button type="button" onClick={() => setShot(k)} aria-label={`${g.folders[open][1]}, ${k + 1} ${g.of} ${photos.length}`}>
-                  <img src={k === 0 ? full(p) : thumb(p)} alt="" loading={k < 8 ? 'eager' : 'lazy'} decoding="async" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="gal-posts">{photos.map((p, k) => post(p, k, false))}</div>
           <p className="consent"><T>{g.consent}</T></p>
         </div>
       )}
 
-      <dialog className="lightbox" ref={dialog} onClose={() => setShot(null)} aria-label={open === null ? undefined : g.folders[open][1]}
+      <dialog className="lightbox gal-lb" ref={dialog} onClose={() => setShot(null)} aria-label={open === null ? undefined : g.folders[open][1]}
         onKeyDown={(e) => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); }}
         onClick={(e) => { if (e.target === dialog.current) setShot(null); }}>
-        {current && open !== null ? (
-          <figure>
-            <img src={full(current)} alt={g.folders[open][1]} />
-            <figcaption><b>{g.folders[open][1]}</b><span>{(shot ?? 0) + 1} {g.of} {photos.length}</span></figcaption>
-          </figure>
-        ) : null}
+        {current && shot !== null ? post(current, shot, true) : null}
         <button type="button" className="lb-close" onClick={() => setShot(null)}>{g.close}</button>
         <button type="button" className="lb-prev" onClick={() => step(-1)} aria-label={g.prev}>‹</button>
         <button type="button" className="lb-next" onClick={() => step(1)} aria-label={g.next}>›</button>

@@ -205,19 +205,49 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
 .gal-back:hover { color: var(--navy); }
 .gal-title { margin: 0; font: 700 32px/56px var(--hand); color: var(--navy); }
 .gal-title small { margin-left: 10px; font: 400 16px var(--hand); color: var(--pen); }
-.gal-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-.gal-cell { aspect-ratio: 4 / 3; }
-.gal-cell.big { grid-column: span 2; grid-row: span 2; }
-.gal-cell.wait img { visibility: hidden; }
-.gal-cell button { display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 14px; overflow: hidden; cursor: zoom-in; background: rgb(31 82 166 / .06); }
-.gal-cell img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .5s var(--ease); }
-.gal-cell button:hover img { transform: scale(1.035); }
+/* each photo a print taped into the copy, posted by the school: its words on top, the photo, love below */
+.gal-posts { columns: 3 300px; column-gap: 32px; margin-top: 18px; }
+.post { --tilt: 0deg; position: relative; break-inside: avoid; margin: 0 0 36px; padding: 12px 12px 8px; background: #FFFEFA; border-radius: 4px;
+  rotate: var(--tilt); box-shadow: 0 1px 0 rgb(0 0 0 / .04), 0 14px 26px -18px rgb(11 26 61 / .5); }
+.post:nth-child(3n + 1) { --tilt: -.7deg; } .post:nth-child(3n + 2) { --tilt: .5deg; } .post:nth-child(3n) { --tilt: -.3deg; }
+.post.wait > :not(.post-ph), .post.wait .post-ph img { opacity: 0; }
+.post-tape { position: absolute; left: 50%; top: -11px; width: 84px; height: 22px; translate: -50% 0; rotate: -3deg; background: rgb(255 226 150 / .7); box-shadow: 0 1px 2px rgb(0 0 0 / .1); }
+.post:nth-child(even) .post-tape { rotate: 4deg; background: rgb(180 216 228 / .75); }
+.post-who { display: flex; align-items: center; gap: 8px; font: 700 15px/1 var(--hand); color: var(--navy); }
+.post-who img { width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+.post-who time { margin-left: auto; font-weight: 400; font-size: 13px; color: var(--slate); }
+.post-status { margin: 6px 2px 10px; font: 400 17px/1.4 var(--hand); color: var(--pen); }
+.post-ph { position: relative; aspect-ratio: 4 / 3; border-radius: 3px; overflow: hidden; background: rgb(31 82 166 / .06); cursor: zoom-in; }
+.post-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.post-ph:focus-visible { outline: 3px solid var(--royal); outline-offset: 3px; }
+.post-acts { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
+.love { display: grid; place-items: center; width: 44px; height: 44px; margin-left: -6px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.love svg { width: 26px; height: 26px; fill: none; stroke: var(--navy); stroke-width: 1.8; transition: fill .2s, stroke .2s; }
+.love[aria-pressed="true"] svg { fill: #E0485A; stroke: #E0485A; }
+.love:focus-visible { outline: 2px solid var(--royal); outline-offset: 2px; }
+.post-count { font: 400 16px/1 var(--hand); color: var(--pen); }
+.post-count b { font-weight: 700; color: var(--navy); }
+/* the love moment: small hearts float up from the button; a big one pops on a double-tapped photo */
+.love-spark { position: fixed; z-index: 90; width: 14px; height: 14px; fill: #E0485A; pointer-events: none; }
+.love-pop { position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; margin: -46px 0 0 -46px; fill: #fff; opacity: 0; pointer-events: none;
+  filter: drop-shadow(0 6px 18px rgb(224 72 90 / .6)); }
+/* a photo, large: the same post */
+.gal-lb { --hand: "Kalam", "Mukta", cursive; --pen: #24448A; width: min(94vw, 1000px); background: transparent; overflow: visible; }
+.gal-lb .post { --tilt: 0deg; margin: 0; }
+.gal-lb .post-ph { aspect-ratio: auto; cursor: default; background: var(--deep); }
+.gal-lb .post-ph img { width: 100%; max-height: calc(94vh - 170px); object-fit: contain; border-radius: 0; background: var(--deep); }
+/* the site's lightbox styles every img and button in it: put the post's own back */
+.gal-lb .post-who img { width: 26px; height: 26px; max-height: none; border-radius: 50%; background: #fff; }
+.gal-lb .love { position: static; min-width: 0; min-height: 0; width: 44px; height: 44px; background: none; backdrop-filter: none; color: inherit; }
+.gal-lb .love:hover { background: rgb(224 72 90 / .08); }
+.gal-lb .lb-close { top: 0; right: -96px; }
+.gal-lb .lb-prev { left: -58px; } .gal-lb .lb-next { right: -58px; }
+@media (max-width: 1100px) { .gal-lb .lb-prev { left: 8px; } .gal-lb .lb-next { right: 8px; } .gal-lb .lb-close { top: 58px; right: 20px; } }
 .gal-open .consent { margin: 28px 0 0; font: 400 15px/28px var(--hand); color: var(--pen); }
 @media (max-width: 760px) {
   .gal-desk { gap: 40px; padding-top: 48px; }
   .fold-item { width: min(78vw, 300px); }
-  .gal-cell.big { grid-column: auto; grid-row: auto; }
-  .gal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .gal-posts { columns: 1; }
 }
 .lightbox { width: min(1200px, 94vw); max-width: none; max-height: 94vh; padding: 0; border: 0; border-radius: 24px; background: var(--deep); color: #fff; overflow: visible; }
 .lightbox::backdrop { background: rgb(6 12 30 / .82); backdrop-filter: blur(6px); }
