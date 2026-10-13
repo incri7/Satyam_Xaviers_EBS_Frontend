@@ -146,6 +146,7 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
 
   return (
     <div className={'prog' + (lead === 'light' ? ' from-light' : '')} ref={root}>
+      {lead === 'light' && <div className="fade-in" aria-hidden="true" />}
       <section className="journey" aria-labelledby="pg-stages">
         <div className="journey-inner">
           <header className="journey-head">

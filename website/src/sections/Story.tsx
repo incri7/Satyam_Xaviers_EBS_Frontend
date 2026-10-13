@@ -136,8 +136,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const P = at(pickup.current!);
         const vh = innerHeight;
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        // the return starts while the end of Programmes is still leaving: once 30% of the screen below it is blueprint
-        const lead = vh * 0.7;
+        // the return starts while the end of Programmes is still leaving: once 15% of the screen below it is blueprint;
+        // the building rises in front of the page, the page's white mist over its top
+        const lead = vh * 0.85;
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(s3.duration(Math.max(1, R.h - vh + lead)), R.top - lead);
         const end = R.top + R.h - vh;
@@ -197,12 +198,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         <Travel start={ready} />
         <div className="shade" aria-hidden="true" />
         <SignIntro />
-        {/* the return: the building alone growing back into the street's front view (scene 3) */}
+        {/* the return's ground: the blueprint the building grows back on (scene 3) */}
         <div className="back-bg" aria-hidden="true" />
-        <div className="back-card" aria-hidden="true">
-          <img className="back-full" src={FRONT.src} alt="" />
-          <img className="back-school" src={FRONT_SCHOOL} alt="" />
-        </div>
         <div className="curtain" aria-hidden="true">
           <img src="/photos/crest.png" alt="" width={64} height={64} />
           <span>{t.loading}</span>
@@ -244,8 +241,14 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           </div>
         </div>
       </section>
-      <div className="home-pages">
+      <div className="home-pages clear">
         <section className="home-page" aria-label={p.academics.title}><AcademicsBody lead="light" /></section>
+        {/* the return: the building alone growing back into the street's front view (scene 3). It stands in front of
+            Programmes, under the page's white mist, so it rises through the mist rather than from behind an edge. */}
+        <div className="back-card" aria-hidden="true">
+          <img className="back-full" src={FRONT.src} alt="" />
+          <img className="back-school" src={FRONT_SCHOOL} alt="" />
+        </div>
       </div>
       <section className="scene scene-back" ref={sceneRef(2)} aria-hidden="true" />
       <div className="home-pages">
