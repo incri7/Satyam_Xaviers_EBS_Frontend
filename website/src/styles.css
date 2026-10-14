@@ -130,29 +130,23 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 .home-pages.after > #gallery { z-index: 1; }
 .home-pages.after > #news { position: relative; z-index: 3; }
 /* scene 5: the plane in flight, the sheet it unfolds into; over the Gallery, under the News page */
-.paper-fly { position: fixed; inset: 0; z-index: 2; pointer-events: none; visibility: hidden; opacity: 0; }
-.paper-veil { position: absolute; inset: 0; background: rgb(255 255 255 / .72); opacity: 0; }
-.paper-plane { position: absolute; }
-/* the Gallery's own doodle, drawn just as the copy draws it: a faint blue pen line, no fill */
-.paper-plane svg { display: block; width: 100%; height: 100%; overflow: visible; fill: none; stroke: rgb(31 82 166 / .28); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.paper-plane svg path:last-child { fill: none !important; }
-/* the dashed trail the plane leaves, in the copy's blue pen */
+/* scene 5: the Gallery's paper plane, a real folded sheet in 3D, its flight's trail; over the Gallery, under News */
+.paper-fly { position: fixed; inset: 0; z-index: 2; pointer-events: none; visibility: hidden; opacity: 0; perspective: 1500px; }
 .paper-trail { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.paper-trail path { fill: none; stroke: rgb(36 68 138 / .55); stroke-width: 2; stroke-dasharray: 6 9; stroke-linecap: round; }
-/* the paper plane in 3D (Story, scene 5): the sheet the screen's size, its four panels each the whole sheet clipped to
-   its part, so the folds' lines and the creases' drawing (--folds) meet exactly when it lies flat. The halves turn
-   about the centre crease, the flaps about the diagonals from the top's middle. */
-.paper-fly { perspective: 1500px; }
-.fold3d { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 50%; visibility: hidden; opacity: 0; --shL: .2; --shF: .2; }
+.paper-trail path { fill: none; stroke: rgb(36 68 138 / .5); stroke-width: 2; stroke-dasharray: 6 9; stroke-linecap: round; }
+/* four panels, each the whole sheet clipped to its part, so its folds' lines and the creases' drawing (--folds) meet
+   exactly when it lies flat; each outlines its own edges in the plane's pen (--edge, --sw: kept at the same width on
+   screen whatever its scale). --fill: its paper, from see-through (drawn) to white. */
+.fold3d { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 50%;
+  --fill: 0; --edge: rgb(31 82 166 / .3); --sw: 2; --shL: 0; --shF: 0; }
 .fold3d .half { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 0; }
-.fold3d .pc { position: absolute; inset: 0; background: #fff var(--folds) 0 0 / 100% 100% no-repeat; backface-visibility: visible; }
+.fold3d .pc { position: absolute; inset: 0; backface-visibility: visible;
+  background: rgb(255 255 255 / var(--fill)) var(--folds) 0 0 / 100% 100% no-repeat; }
+.fold3d .pc svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fold3d .pc polygon { fill: none; stroke: var(--edge); stroke-width: var(--sw); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .fold3d .pc::after { content: ""; position: absolute; inset: 0; background: rgb(20 28 48); opacity: 0; }
 .fold3d .half.l .pc::after { opacity: var(--shL); }
 .fold3d .flap::after { opacity: var(--shF) !important; }
-.fold3d { --shR: .05; }
-.fold3d .half.r .body::after { opacity: var(--shR); }
-.paper-shadow { position: absolute; inset: 0; visibility: hidden; opacity: 0;
-  background: radial-gradient(ellipse 34% 30% at 50% 56%, rgb(20 28 48 / .28), rgb(20 28 48 / 0) 70%); filter: blur(10px); }
 .fold3d .flap { transform-origin: 50% 0; }
 .fold3d .half.l .body { clip-path: polygon(0 59%, 24% 59%, 50% 0, 50% 100%, 0 100%); }
 .fold3d .half.l .flap { clip-path: polygon(0 0, 50% 0, 24% 59%, 0 59%); }

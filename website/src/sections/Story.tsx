@@ -69,8 +69,10 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   // flick) lands on the right state.
   useLayoutEffect(() => {
     let ctx: gsap.Context | null = null;
+    const cleanups: (() => void)[] = [];
     const build = () => {
       ctx?.revert();
+      cleanups.splice(0).forEach((f) => f());
       ctx = gsap.context(() => {
         const dy = reduce ? 0 : 28;
 
@@ -219,51 +221,59 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // catch-up tween that restarts on every wheel notch.
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
 
-        // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
-        // (the very doodle, from where it is drifting) takes off and circles once round the page, clockwise, the circle
-        // tightening evenly into the middle of the screen: a clean spiral, the plane turned to its heading, nearer and
-        // larger all the while, a dashed trail drawn behind it. In the middle it is a paper plane in 3D, and it unfolds as hands would unfold
-        // one: its two halves open out about the centre crease, then its two nose flaps fold back out, and the flat
-        // sheet, creases and all, turns to face the reader and opens out to the whole screen: the paper the News page
-        // is printed on, which comes in over it. (News stands a screen up,
-        // under the hold's end, and is kept still while it comes in.)
+        // Scene 5, the way into News. The paper plane among the Gallery's doodles is a real one: a sheet of paper
+        // folded into a plane, in 3D (CSS 3D, .fold3d: four panels, the two halves about the centre crease and the two
+        // nose flaps about the diagonals), drawn on the page as the doodles are, a thin pale-blue line, see-through.
+        // Scrolling on from the Gallery, it holds while that same plane takes off, nose first, and circles once round
+        // the page into its middle on a clean spiral, its paper filling in white as it comes nearer and larger, a
+        // dashed trail drawn behind it; there it unfolds, its halves opening out, then its flaps, and the flat sheet,
+        // creases and all, comes round to face the reader and opens out to the whole screen: the paper the News page
+        // is printed on, which comes in over it. (News stands a screen up, under the hold's end, kept still meanwhile.)
         const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
         const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
         if (gal && news && fly && planeAt && !reduce) {
           news.style.marginTop = '-100vh';
           const D = vh * 2.2;
-          const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.fold3d')!;
+          const sheet = fly.querySelector<HTMLElement>('.fold3d')!, trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
           const [halfL, halfR] = sheet.querySelectorAll<HTMLElement>('.half');
-          const shadow = fly.querySelector<HTMLElement>('.paper-shadow')!;
           const [flapL, flapR] = sheet.querySelectorAll<HTMLElement>('.flap');
-          const trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
-          plane.innerHTML = planeAt.innerHTML;
-          const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
+          const drawn = planeAt.firstElementChild as HTMLElement | null;        // the drawn plane: kept for its place only
+          if (drawn) drawn.style.visibility = 'hidden';
+          const W = vw0, H = vh, big = 4.2, NOSE = 22;
           const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
-          // its nose points 22 degrees above its tail (the doodle's drawing): it flies nose first
-          const NOSE = 22;
-          // its flight: a spiral about the middle of the screen, from wherever the plane starts, once round clockwise,
-          // its radius (on an ellipse the screen's shape) shrinking smoothly to nothing at the middle
-          let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
-          const lay = (sx: number, sy: number) => {
+          // Folded as paper planes are: the top corners down to the centre line (creases at 45 degrees from the top's
+          // middle), then in half along the keel. At rest its halves stand 130 degrees apart, and it is seen from
+          // above and a little behind, so both its wings show as the drawn plane's did. Its middle (from the sheet's
+          // centre, unscaled) and its width at rest, measured.
+          const REST_WING = 130, REST_TILT = 35, ROLL = 20, LX = 0, LY = 0.1 * H, REST_W = 0.68 * W;
+          const fy = Math.min(100, (50 * W) / H);
+          const folds = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M50 0 L0 ${fy} L0 100 L50 100Z' fill='#000' fill-opacity='.018'/><path d='M50 0 L100 ${fy} L100 100 L50 100Z' fill='#000' fill-opacity='.03'/><g stroke='#22252b' stroke-opacity='.13' fill='none'><path d='M50 0V100' vector-effect='non-scaling-stroke'/><path d='M50 0L0 ${fy}' vector-effect='non-scaling-stroke'/><path d='M50 0L100 ${fy}' vector-effect='non-scaling-stroke'/></g></svg>`)}")`;
+          document.documentElement.style.setProperty('--folds', folds);
+          const PANELS: Record<string, string> = { 'l body': `0,${fy} 50,0 50,100 0,100`, 'l flap': `0,0 50,0 0,${fy}`, 'r body': `100,${fy} 50,0 50,100 100,100`, 'r flap': `100,0 50,0 100,${fy}` };
+          sheet.querySelectorAll<HTMLElement>('.pc').forEach((pc) => {
+            const key = `${pc.parentElement!.classList.contains('l') ? 'l' : 'r'} ${pc.classList.contains('flap') ? 'flap' : 'body'}`;
+            pc.querySelector('polygon')!.setAttribute('points', PANELS[key]);
+            pc.style.clipPath = 'polygon(' + PANELS[key].split(' ').map((q) => q.split(',').map((v) => v + '%').join(' ')).join(', ') + ')';
+          });
+          const st = { T: 0, ink: 0, wing: REST_WING, flap: 179, open: 0, gone: 0 };
+          // its flight: a clean spiral about the screen's middle from wherever it is, once round clockwise, its radius
+          // (on an ellipse the screen's shape) easing to nothing, its turning easing off at the end; and before that a
+          // take-off that leaves the way its nose points and bends smoothly into the circle
+          let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0], tail = '';
+          const lay = (sx: number, sy: number, size: number) => {
             start = [sx, sy];
-            const mx = vw0 / 2, my = vh / 2, ax = vw0 * 0.36, ay = vh * 0.36;
+            const mx = W / 2, my = H / 2, ax = W * 0.36, ay = H * 0.36;
             const u0 = (sx - mx) / ax, v0 = (sy - my) / ay, r0 = Math.max(0.35, Math.hypot(u0, v0)), a0 = Math.atan2(v0, u0);
-            // wide: the circle swells out past where the plane started before it closes in; and its turning eases off
-            // as it nears the middle, so the plane glides in rather than spinning on the spot
-            const SWEEP = Math.PI * 2 * 0.85, N = 480, top = navB + 24, bot = vh - 28;
+            const SWEEP = Math.PI * 2 * 0.85, N = 480, top = navB + 24, bot = H - 28;
             pts = [];
             for (let i = 0; i <= N; i++) {
               const t = i / N, r = r0 * (1 + 0.32 * Math.sin(Math.PI * Math.min(1, t * 1.15))) * (1 - Math.pow(t, 2.2));
               const a = a0 + SWEEP * (1 - Math.pow(1 - t, 1.7));
-              pts.push([Math.min(vw0 - 40, Math.max(40, mx + ax * r * Math.cos(a))), Math.min(bot, Math.max(top, my + ay * r * Math.sin(a)))]);
+              pts.push([Math.min(W - 40, Math.max(40, mx + ax * r * Math.cos(a))), Math.min(bot, Math.max(top, my + ay * r * Math.sin(a)))]);
             }
-            // the take-off: it leaves the way its nose already points (22 degrees above its tail, up and to the right),
-            // and bends from there smoothly into the circle: a curve whose start runs along the nose and whose end runs
-            // along the circle, so the plane turns as it travels, never on the spot
             const iq = Math.round(N * 0.16), Q = pts[iq];
             const tq = [pts[iq + 1][0] - pts[iq - 1][0], pts[iq + 1][1] - pts[iq - 1][1]], tl = Math.hypot(tq[0], tq[1]) || 1;
-            const nose = [Math.cos(-NOSE * Math.PI / 180), Math.sin(-NOSE * Math.PI / 180)];
+            const nose = [Math.cos((-NOSE * Math.PI) / 180), Math.sin((-NOSE * Math.PI) / 180)];
             const Lq = Math.hypot(Q[0] - sx, Q[1] - sy);
             const c1 = [sx + nose[0] * Lq * 0.4, sy + nose[1] * Lq * 0.4], c2 = [Q[0] - (tq[0] / tl) * Lq * 0.4, Q[1] - (tq[1] / tl) * Lq * 0.4];
             const lead: [number, number][] = [];
@@ -274,87 +284,70 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             }
             pts = [...lead, ...pts.slice(iq)];
             let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
+            // the little dotted swoop it has already flown, behind its tail, as the doodle has
+            const bx = sx - nose[0] * size * 0.45, by = sy - nose[1] * size * 0.45;
+            tail = `M${(bx - size * 0.55).toFixed(1)} ${(by + size * 0.65).toFixed(1)}Q${(bx - size * 0.5).toFixed(1)} ${(by + size * 0.1).toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
           };
-          const fly1 = { t: 0 };
-          const place = () => {
-            const T = fly1.t, L = len[len.length - 1] * T;
-            let i = len.findIndex((v) => v >= L); if (i < 1) i = 1;
-            const q = pts[i - 1], r = pts[i], u = (L - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
-            const x = q[0] + (r[0] - q[0]) * u, y = q[1] + (r[1] - q[1]) * u;
-            const ang = (Math.atan2(r[1] - q[1], r[0] - q[0]) * 180) / Math.PI;
-            gsap.set(plane, { x: x - start[0], y: y - start[1], rotation: ang + NOSE, scale: 1 + (big - 1) * Math.pow(T, 2.2) });
-            trail.setAttribute('d', T > 0.001 ? 'M' + pts.slice(0, i).map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + `L${x.toFixed(1)} ${y.toFixed(1)}` : '');
+          const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+          let shown = false;
+          const render = () => {
+            const r = (drawn ?? planeAt).getBoundingClientRect();
+            const galO = parseFloat(getComputedStyle(gal).opacity || '1');
+            const on = !st.gone && galO > 0.01 && (st.T > 0 || (r.bottom > 0 && r.top < H));
+            if (on !== shown) { shown = on; fly.style.visibility = on ? 'visible' : 'hidden'; fly.style.opacity = on ? '1' : '0'; }
+            if (!on) return;
+            if (st.T === 0) lay(r.left + r.width / 2, r.top + r.height / 2, r.width);
+            // where it is along its flight, and its heading
+            let cx = start[0], cy = start[1], head = -NOSE, i = 1;
+            if (st.T > 0) {
+              const Lt = len[len.length - 1] * st.T;
+              i = len.findIndex((v) => v >= Lt); if (i < 1) i = 1;
+              const q = pts[i - 1], n = pts[i], u = (Lt - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
+              cx = q[0] + (n[0] - q[0]) * u; cy = q[1] + (n[1] - q[1]) * u;
+              head = (Math.atan2(n[1] - q[1], n[0] - q[0]) * 180) / Math.PI;
+              trail.setAttribute('d', tail + 'M' + pts.slice(0, i).map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + `L${cx.toFixed(1)} ${cy.toFixed(1)}`);
+            } else trail.setAttribute('d', tail);
+            // the paper's nose points up: turned to the heading
+            let rot = head + 90; rot = ((rot + 540) % 360) - 180;
+            const o = st.open, sRest = r.width / REST_W, sc = lerp(sRest * (1 + (big - 1) * Math.pow(st.T, 2.2)), 1, o);
+            const x = lerp(cx, W / 2, o) - W / 2, y = lerp(cy, H / 2, o) - H / 2;
+            const lean = 1 - Math.max(o, (REST_WING - st.wing) / REST_WING);   // its 3D lean, gone as it opens flat
+            sheet.style.transform = `translate(${x}px, ${y}px) rotate(${lerp(rot, 0, o)}deg) rotateY(${ROLL * lean}deg) rotateX(${REST_TILT * lean}deg) scale3d(${sc}, ${sc}, ${sc}) translate(${-LX * (1 - o)}px, ${-LY * (1 - o)}px)`;
+            halfL.style.transform = `rotateY(${-st.wing / 2}deg)`;
+            halfR.style.transform = `rotateY(${st.wing / 2}deg)`;
+            flapL.style.transform = `rotate3d(${-Math.SQRT1_2}, ${Math.SQRT1_2}, 0, ${st.flap}deg)`;
+            flapR.style.transform = `rotate3d(${Math.SQRT1_2}, ${Math.SQRT1_2}, 0, ${-st.flap}deg)`;
+            // drawn at rest as the doodles are (a thin pale line, see-through); in flight its paper fills in, its line
+            // firming; flat, the line is only the creases' faint grey
+            const k = st.ink, flat = o;
+            sheet.style.setProperty('--fill', String(k));
+            sheet.style.setProperty('--edge', flat > 0 ? `rgba(34, 37, 43, ${lerp(0.75, 0.13, flat).toFixed(3)})` : `rgba(${Math.round(lerp(31, 36, k))}, ${Math.round(lerp(82, 68, k))}, ${Math.round(lerp(166, 138, k))}, ${lerp(0.3, 0.9, k).toFixed(3)})`);
+            sheet.style.setProperty('--sw', String(lerp(4.4, 1.4, flat) / sc));   // half of it is clipped at a panel's edge
+            sheet.style.setProperty('--shL', String(0.1 * k * (st.wing / REST_WING)));
+            sheet.style.setProperty('--shF', String(0.08 * k * (st.flap / 179)));
+            sheet.style.opacity = String(galO);
           };
-          // the plane as it ends its loop, where the sheet takes over from it
-          let px = 0, py = 0;
-          for (let e: HTMLElement | null = planeAt; e && e !== gal; e = e.offsetParent as HTMLElement | null) { px += e.offsetLeft; py += e.offsetTop; }
-          lay(px + w / 2, py + vh - gal.offsetHeight + h / 2);
-          const e1 = pts[pts.length - 2], e2 = pts[pts.length - 1];
-          const endRot = (Math.atan2(e2[1] - e1[1], e2[0] - e1[0]) * 180) / Math.PI + NOSE;
-          // The paper in 3D: the sheet (the screen's size, scaled down) folded as a plane is: its two nose flaps folded
-          // in over the diagonals from the top's middle, its left half folded under onto the right about the centre
-          // crease. Seen from above it is the plane's narrow shape, nose up; unfolding is those folds undone, in order.
-          const fold = { wing: 172, flap: 180 };
-          const axL = [-0.26 * vw0, 0.59 * vh], axR = [0.26 * vw0, 0.59 * vh];
-          const nL = Math.hypot(axL[0], axL[1]);
-          const shapeFold = () => {
-            halfL.style.transform = `rotateY(${-fold.wing}deg)`;
-            halfR.style.transform = `rotateY(${fold.wing * 0.04}deg)`;
-            flapL.style.transform = `rotate3d(${axL[0] / nL}, ${axL[1] / nL}, 0, ${fold.flap}deg)`;
-            flapR.style.transform = `rotate3d(${axR[0] / nL}, ${axR[1] / nL}, 0, ${-fold.flap}deg)`;
-            // the folded parts lie in shade; flat, the sheet is evenly lit
-            sheet.style.setProperty('--shL', String(0.1 * (fold.wing / 172)));
-            sheet.style.setProperty('--shF', String(0.09 * (fold.flap / 180)));
-            sheet.style.setProperty('--shR', String(0.05 * Math.max(fold.wing / 172, fold.flap / 180)));
-          };
-          shapeFold();
-          // (scaled in depth too: a 2D scale would leave its folds standing out at the full sheet's depth)
-          // folded, the paper lies on the right half's place: carried left so the plane sits where the doodle ended,
-          // turned to its heading (the paper's nose points up; the doodle's, 22 degrees above its tail), its size
-          const s0 = (w * big * 1.15) / (0.5 * vw0), nose0 = endRot - NOSE + 90;
-          // the folded paper's middle (its flaps in, its left half under the right: a narrow shape along the keel, a
-          // little right of and below the sheet's centre), turned with it, put on the plane's middle
-          const rad = (nose0 * Math.PI) / 180, lx = 0.08 * vw0 * s0, ly = 0.05 * vh * s0;
-          const ox = -(lx * Math.cos(rad) - ly * Math.sin(rad)), oy = -(lx * Math.sin(rad) + ly * Math.cos(rad));
+          gsap.ticker.add(render);
           const s5 = gsap.timeline({ defaults: { ease: 'none' } });
-          s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
-            // the flight
-            .fromTo(fly1, { t: 0 }, { t: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false, onUpdate: place }, 0.03)
-            // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer
-            .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.2, immediateRender: false }, 0.04)
-            .fromTo(plane.querySelector('path'), { fill: 'rgba(255, 255, 255, 0)' }, { fill: 'rgba(255, 255, 255, 1)', duration: 0.18, immediateRender: false }, 0.08)
-            .fromTo(plane.querySelectorAll('path')[1], { opacity: 1 }, { opacity: 0, duration: 0.06, immediateRender: false }, 0.03)
-            // the doodle gives way to the paper plane in 3D, in the same place and heading
-            .to(plane, { autoAlpha: 0, duration: 0.025 }, 0.5)
-            .set(sheet, { x: ox, y: oy, scale: s0, scaleZ: s0, rotation: nose0, rotationX: 18 }, 0.488)
-            // a soft shadow on the page under the paper, which follows it and fades as it opens out to the screen
-            .fromTo(shadow, { autoAlpha: 0, scale: s0 }, { autoAlpha: 1, duration: 0.04, immediateRender: false }, 0.49)
-            .to(shadow, { scale: 1, autoAlpha: 0, duration: 0.16, ease: 'power2.inOut' }, 0.72)
-            .fromTo(sheet, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.025, immediateRender: false }, 0.49)
+          s5.set(news, { autoAlpha: 0 }, 0)
+            // the flight, its paper filling in as it comes nearer
+            .fromTo(st, { T: 0 }, { T: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false }, 0.03)
+            .fromTo(st, { ink: 0 }, { ink: 1, duration: 0.2, immediateRender: false }, 0.04)
             .to(trail, { opacity: 0, duration: 0.08 }, 0.52)
-            // its halves open out about the centre crease, the paper coming round to face up and back to the middle
-            .fromTo(fold, { wing: 172 }, { wing: 0, duration: 0.12, ease: 'power2.inOut', onUpdate: shapeFold, immediateRender: false }, 0.52)
-            .to(sheet, { x: 0, y: 0, rotation: 0, duration: 0.16, ease: 'power2.inOut' }, 0.52)
-            // then its nose flaps fold back out over the diagonals
-            .fromTo(fold, { flap: 180 }, { flap: 0, duration: 0.12, ease: 'power2.inOut', onUpdate: shapeFold, immediateRender: false }, 0.62)
-            // the flat sheet tilts up to face the reader and opens out to the whole screen
-            .to(sheet, { rotationX: 0, scale: 1, scaleZ: 1, duration: 0.16, ease: 'power2.inOut' }, 0.72)
+            // the unfold: its halves open out about the centre crease, then its nose flaps fold back out
+            .fromTo(st, { wing: REST_WING }, { wing: 0, duration: 0.12, ease: 'power2.inOut', immediateRender: false }, 0.5)
+            .fromTo(st, { flap: 179 }, { flap: 0, duration: 0.12, ease: 'power2.inOut', immediateRender: false }, 0.6)
+            // the flat sheet comes round to face the reader and opens out to the whole screen
+            .fromTo(st, { open: 0 }, { open: 1, duration: 0.18, ease: 'power2.inOut', immediateRender: false }, 0.68)
             // the News page, held at the top, comes in over the sheet; then the sheet goes from under it
-            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.84)
-            .fromTo(news, { y: -D * 0.16 }, { y: 0, duration: 0.16, immediateRender: false }, 0.84)
-            .set(fly, { autoAlpha: 0 }, 0.999)
+            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.86)
+            .fromTo(news, { y: -D * 0.14 }, { y: 0, duration: 0.14, immediateRender: false }, 0.86)
+            .fromTo(st, { gone: 0 }, { gone: 1, duration: 0.001, immediateRender: false }, 0.999)
             .set({}, {}, 1);
-          // it takes off from exactly where the doodle is drifting at that moment
-          const fromDoodle = () => {
-            const svg = planeAt.firstElementChild as Element | null, r = (svg ?? planeAt).getBoundingClientRect();
-            plane.style.left = `${r.left}px`; plane.style.top = `${r.top}px`;
-            plane.style.width = `${r.width}px`; plane.style.height = `${r.height}px`;
-            lay(r.left + r.width / 2, r.top + r.height / 2); place();
-          };
-          Object.assign(plane.style, { left: `${px}px`, top: `${py + vh - gal.offsetHeight}px`, width: `${w}px`, height: `${h}px` });
           ScrollTrigger.create({ trigger: gal, start: 'bottom bottom', end: '+=' + D, pin: true, pinSpacing: true, scrub: true, animation: s5,
-            onToggle: (self) => { if (self.isActive) fromDoodle(); },
             onRefresh: (self) => { storyMarks.news = Math.round(self.end); } });
+          // the ticker belongs to this build: the context's revert removes it
+          cleanups.push(() => { gsap.ticker.remove(render); if (drawn) drawn.style.visibility = ''; });
         }
         // A rebuild starts every value from the top of the story; put them straight back where the reader is.
         // Opened at /#gallery: the board's place moves as fonts and photos settle the layout, so until the reader moves
@@ -394,7 +387,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(mark); };
     addEventListener('scroll', onScroll, { passive: true });
-    return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
+    return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); cleanups.splice(0).forEach((f) => f()); removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
   }, [reduce]);
 
   const other = lang === 'en' ? 'ne' : 'en';
@@ -483,13 +476,16 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
         {/* the Gallery's paper plane, in flight and unfolded into the News page's sheet (scene 5) */}
         <div className="paper-fly" aria-hidden="true">
-          <div className="paper-veil" />
           <svg className="paper-trail"><path /></svg>
-          <div className="paper-plane" />
-          <div className="paper-shadow" />
           <div className="fold3d">
-            <div className="half l"><i className="pc body" /><i className="pc flap" /></div>
-            <div className="half r"><i className="pc body" /><i className="pc flap" /></div>
+            <div className="half l">
+              <i className="pc body"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,59 24,59 50,0 50,100 0,100" /></svg></i>
+              <i className="pc flap"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 50,0 24,59 0,59" /></svg></i>
+            </div>
+            <div className="half r">
+              <i className="pc body"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,59 76,59 50,0 50,100 100,100" /></svg></i>
+              <i className="pc flap"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 50,0 76,59 100,59" /></svg></i>
+            </div>
           </div>
         </div>
       </div>
