@@ -229,7 +229,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
         if (gal && news && fly && planeAt && !reduce) {
           news.style.marginTop = '-100vh';
-          const D = vh * 1.4;
+          const D = vh * 2.2;
           const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.paper-sheet')!;
           const trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
           plane.innerHTML = planeAt.innerHTML;
@@ -240,13 +240,16 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
           const lay = (sx: number, sy: number) => {
             start = [sx, sy];
-            const mx = vw0 / 2, my = vh / 2, ax = vw0 * 0.34, ay = vh * 0.38;
+            const mx = vw0 / 2, my = vh / 2, ax = vw0 * 0.36, ay = vh * 0.36;
             const u0 = (sx - mx) / ax, v0 = (sy - my) / ay, r0 = Math.max(0.35, Math.hypot(u0, v0)), a0 = Math.atan2(v0, u0);
-            const SWEEP = Math.PI * 2 * 0.92, N = 360, top = navB + 20;
+            // wide: the circle swells out past where the plane started before it closes in; and its turning eases off
+            // as it nears the middle, so the plane glides in rather than spinning on the spot
+            const SWEEP = Math.PI * 2 * 0.85, N = 480, top = navB + 24, bot = vh - 28;
             pts = [];
             for (let i = 0; i <= N; i++) {
-              const t = i / N, r = r0 * (1 - Math.pow(t, 1.5)), a = a0 + SWEEP * t;
-              pts.push([mx + ax * r * Math.cos(a), Math.max(top, my + ay * r * Math.sin(a))]);
+              const t = i / N, r = r0 * (1 + 0.32 * Math.sin(Math.PI * Math.min(1, t * 1.15))) * (1 - Math.pow(t, 2.2));
+              const a = a0 + SWEEP * (1 - Math.pow(1 - t, 1.7));
+              pts.push([Math.min(vw0 - 40, Math.max(40, mx + ax * r * Math.cos(a))), Math.min(bot, Math.max(top, my + ay * r * Math.sin(a)))]);
             }
             let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
           };
