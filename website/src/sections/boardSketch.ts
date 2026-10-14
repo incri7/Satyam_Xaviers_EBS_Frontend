@@ -1,5 +1,6 @@
 /**
- * The Gallery page drawn in marker on the classroom's whiteboard (sections/Classroom.tsx lays it over the board).
+ * The Gallery page drawn in marker, for the classroom's whiteboard: not part of the site's bundle, a tool. It is run
+ * in the page at a 1600 x 900 screen to make the board's ink (model/class/add_board.py bakes it into the board).
  * Drawn from the page itself: every word, folder and doodle is measured where the Gallery has it on this screen, so
  * when the camera reaches the board and the drawing fills the screen, each stroke sits exactly where the real thing
  * then appears. Written straight on the board: strokes only, no patch of colour under them (the canvas is clear
@@ -88,9 +89,6 @@ export async function drawSketch(cv: HTMLCanvasElement, section: HTMLElement, cs
       wipe(() => ctx.roundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 9));
       stroke(tone, 3.2, (o) => box(r, o, 8));
       // a few quick strokes of shading across the front, as a marker fills a shape in a hurry
-      ctx.save(); ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 7); ctx.clip();   // the shading stays inside
-      stroke(tone, 1.4, (o) => { if (o) return; for (let k = 1; k < 9; k++) { const x0 = r.x + (r.w * k) / 9; line(x0, r.y + r.h - 6, x0 + r.h * 0.35, r.y + r.h * 0.45, 1); } });
-      ctx.restore();
       write(front.querySelector('b'), tone);
       write(front.querySelector('em'), tone);
       write(front.querySelector('small'), MARKER);
