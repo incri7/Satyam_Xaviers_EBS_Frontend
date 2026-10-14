@@ -222,15 +222,20 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
         // (the very doodle, from where it is drifting) takes off and circles once round the page, clockwise, the circle
         // tightening evenly into the middle of the screen: a clean spiral, the plane turned to its heading, nearer and
-        // larger all the while, a dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
-        // the whole screen: the paper the News page is printed on, which comes in over it. (News stands a screen up,
+        // larger all the while, a dashed trail drawn behind it. In the middle it is a paper plane in 3D, and it unfolds as hands would unfold
+        // one: its two halves open out about the centre crease, then its two nose flaps fold back out, and the flat
+        // sheet, creases and all, turns to face the reader and opens out to the whole screen: the paper the News page
+        // is printed on, which comes in over it. (News stands a screen up,
         // under the hold's end, and is kept still while it comes in.)
         const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
         const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
         if (gal && news && fly && planeAt && !reduce) {
           news.style.marginTop = '-100vh';
           const D = vh * 2.2;
-          const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.paper-sheet')!;
+          const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.fold3d')!;
+          const [halfL, halfR] = sheet.querySelectorAll<HTMLElement>('.half');
+          const shadow = fly.querySelector<HTMLElement>('.paper-shadow')!;
+          const [flapL, flapR] = sheet.querySelectorAll<HTMLElement>('.flap');
           const trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
           plane.innerHTML = planeAt.innerHTML;
           const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
@@ -286,7 +291,31 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           lay(px + w / 2, py + vh - gal.offsetHeight + h / 2);
           const e1 = pts[pts.length - 2], e2 = pts[pts.length - 1];
           const endRot = (Math.atan2(e2[1] - e1[1], e2[0] - e1[0]) * 180) / Math.PI + NOSE;
-          const PLANE = 'polygon(8% 52%, 92% 18%, 60% 86%, 46% 60%)', SHEET = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+          // The paper in 3D: the sheet (the screen's size, scaled down) folded as a plane is: its two nose flaps folded
+          // in over the diagonals from the top's middle, its left half folded under onto the right about the centre
+          // crease. Seen from above it is the plane's narrow shape, nose up; unfolding is those folds undone, in order.
+          const fold = { wing: 172, flap: 180 };
+          const axL = [-0.26 * vw0, 0.59 * vh], axR = [0.26 * vw0, 0.59 * vh];
+          const nL = Math.hypot(axL[0], axL[1]);
+          const shapeFold = () => {
+            halfL.style.transform = `rotateY(${-fold.wing}deg)`;
+            halfR.style.transform = `rotateY(${fold.wing * 0.04}deg)`;
+            flapL.style.transform = `rotate3d(${axL[0] / nL}, ${axL[1] / nL}, 0, ${fold.flap}deg)`;
+            flapR.style.transform = `rotate3d(${axR[0] / nL}, ${axR[1] / nL}, 0, ${-fold.flap}deg)`;
+            // the folded parts lie in shade; flat, the sheet is evenly lit
+            sheet.style.setProperty('--shL', String(0.1 * (fold.wing / 172)));
+            sheet.style.setProperty('--shF', String(0.09 * (fold.flap / 180)));
+            sheet.style.setProperty('--shR', String(0.05 * Math.max(fold.wing / 172, fold.flap / 180)));
+          };
+          shapeFold();
+          // (scaled in depth too: a 2D scale would leave its folds standing out at the full sheet's depth)
+          // folded, the paper lies on the right half's place: carried left so the plane sits where the doodle ended,
+          // turned to its heading (the paper's nose points up; the doodle's, 22 degrees above its tail), its size
+          const s0 = (w * big * 1.15) / (0.5 * vw0), nose0 = endRot - NOSE + 90;
+          // the folded paper's middle (its flaps in, its left half under the right: a narrow shape along the keel, a
+          // little right of and below the sheet's centre), turned with it, put on the plane's middle
+          const rad = (nose0 * Math.PI) / 180, lx = 0.08 * vw0 * s0, ly = 0.05 * vh * s0;
+          const ox = -(lx * Math.cos(rad) - ly * Math.sin(rad)), oy = -(lx * Math.sin(rad) + ly * Math.cos(rad));
           const s5 = gsap.timeline({ defaults: { ease: 'none' } });
           s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
             // the flight
@@ -295,13 +324,21 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.2, immediateRender: false }, 0.04)
             .fromTo(plane.querySelector('path'), { fill: 'rgba(255, 255, 255, 0)' }, { fill: 'rgba(255, 255, 255, 1)', duration: 0.18, immediateRender: false }, 0.08)
             .fromTo(plane.querySelectorAll('path')[1], { opacity: 1 }, { opacity: 0, duration: 0.06, immediateRender: false }, 0.03)
-            // the unfold: the plane gives way to a flat sheet of its own shape, which opens out to a page
-            .to(plane, { autoAlpha: 0, duration: 0.03 }, 0.5)
-            .fromTo(sheet, { autoAlpha: 0, width: w * big, height: h * big, rotation: endRot, clipPath: PLANE },
-              { autoAlpha: 1, duration: 0.03, immediateRender: false }, 0.49)
-            .to(sheet, { width: vw0 * 0.46, height: vh * 0.62, rotation: 0, clipPath: SHEET, duration: 0.13, ease: 'power2.out' }, 0.51)
-            .to(trail, { opacity: 0, duration: 0.1 }, 0.55)
-            .to(sheet, { width: vw0, height: vh, borderRadius: 0, duration: 0.2, ease: 'power2.inOut' }, 0.64)
+            // the doodle gives way to the paper plane in 3D, in the same place and heading
+            .to(plane, { autoAlpha: 0, duration: 0.025 }, 0.5)
+            .set(sheet, { x: ox, y: oy, scale: s0, scaleZ: s0, rotation: nose0, rotationX: 18 }, 0.488)
+            // a soft shadow on the page under the paper, which follows it and fades as it opens out to the screen
+            .fromTo(shadow, { autoAlpha: 0, scale: s0 }, { autoAlpha: 1, duration: 0.04, immediateRender: false }, 0.49)
+            .to(shadow, { scale: 1, autoAlpha: 0, duration: 0.16, ease: 'power2.inOut' }, 0.72)
+            .fromTo(sheet, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.025, immediateRender: false }, 0.49)
+            .to(trail, { opacity: 0, duration: 0.08 }, 0.52)
+            // its halves open out about the centre crease, the paper coming round to face up and back to the middle
+            .fromTo(fold, { wing: 172 }, { wing: 0, duration: 0.12, ease: 'power2.inOut', onUpdate: shapeFold, immediateRender: false }, 0.52)
+            .to(sheet, { x: 0, y: 0, rotation: 0, duration: 0.16, ease: 'power2.inOut' }, 0.52)
+            // then its nose flaps fold back out over the diagonals
+            .fromTo(fold, { flap: 180 }, { flap: 0, duration: 0.12, ease: 'power2.inOut', onUpdate: shapeFold, immediateRender: false }, 0.62)
+            // the flat sheet tilts up to face the reader and opens out to the whole screen
+            .to(sheet, { rotationX: 0, scale: 1, scaleZ: 1, duration: 0.16, ease: 'power2.inOut' }, 0.72)
             // the News page, held at the top, comes in over the sheet; then the sheet goes from under it
             .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.84)
             .fromTo(news, { y: -D * 0.16 }, { y: 0, duration: 0.16, immediateRender: false }, 0.84)
@@ -449,7 +486,11 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           <div className="paper-veil" />
           <svg className="paper-trail"><path /></svg>
           <div className="paper-plane" />
-          <div className="paper-sheet" />
+          <div className="paper-shadow" />
+          <div className="fold3d">
+            <div className="half l"><i className="pc body" /><i className="pc flap" /></div>
+            <div className="half r"><i className="pc body" /><i className="pc flap" /></div>
+          </div>
         </div>
       </div>
     </div>
