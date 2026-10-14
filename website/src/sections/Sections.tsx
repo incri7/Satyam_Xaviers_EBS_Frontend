@@ -3,8 +3,8 @@ import { jumpTo, markMoment, rememberPlace } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
-const PAGES = ['about', 'programmes', 'gallery', 'admissions', 'news', 'contact'] as const;
-const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery' } as const;   // their moments on the home page (scroll.ts MOMENTS)
+const PAGES = ['about', 'programmes', 'gallery', 'news', 'contact'] as const;
+const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery', news: 'news' } as const;   // their moments on the home page (scroll.ts MOMENTS)
 
 export function Nav() {
   const lang = useLang();
@@ -100,7 +100,7 @@ export function Admissions({ lang }: { lang: Lang }) {
       <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{a.other}</p>
       <p className="lede">{a.body}</p>
       <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span>{b}</span></li>)}</ol>
-      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={pagePath(lang, 'admissions')}>{t.more.admissions}</Link><Link className="btn line" to={pagePath(lang, 'contact')}>{a.directions}</Link></div>
+      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={{ pathname: pagePath(lang), hash: '#news' }}>{t.more.admissions}</Link><Link className="btn line" to={pagePath(lang, 'contact')}>{a.directions}</Link></div>
     </section>
   );
 }

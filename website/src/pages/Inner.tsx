@@ -62,26 +62,58 @@ export function AdmissionsBody() {
   );
 }
 
+/** The route: /news, /ne/news. */
 export function News() {
-  const lang = useLang(); const n = pages[lang].news;
+  return <section className="paper-page"><NewsBody /></section>;
+}
+
+/** The News page, as a school newspaper: a masthead, the admissions story pinned first while admissions are open,
+    the rest of the news below in columns. Plain website text on a newsprint ground. Shared by the route and by the
+    home page, where the Gallery's paper plane unfolds into it (Story). */
+export function NewsBody() {
+  const lang = useLang(); const n = pages[lang].news, a = pages[lang].admissions, c = copy[lang];
+  const today = new Intl.DateTimeFormat(lang === 'ne' ? 'ne-NP' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
   return (
-    <>
-      <PageHead title={n.title} other={n.other} intro={n.intro} />
-      <Section className="news-wrap">
-        <div className="news">
-          {n.items.map(([cat, date, title, body, img], i) => (
-            <article key={title} className={'news-item' + (i === 0 ? ' lead' : '')}>
-              {img ? <Photo name={img} alt="" /> : <div className="news-tile" aria-hidden="true">{cat}</div>}
-              <div className="news-body">
-                <p className="meta"><span className={'cat ' + (i === 4 ? 'notice' : '')}>{cat}</span><T>{date}</T></p>
-                <h2>{title}</h2>
-                <p><T>{body}</T></p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </Section>
-    </>
+    <div className="paper">
+      <header className="paper-mast">
+        <p className="paper-kicker">{c.school}</p>
+        <h2 className="paper-title" id="news-title">{n.title}</h2>
+        <p className="paper-line"><span>{c.hero.label}</span><span>{today}</span></p>
+      </header>
+      {c.admissions.open ? (
+        <article className="paper-lead" aria-labelledby="admit-title">
+          <p className="paper-cat">{c.nav.admissions}</p>
+          <h3 id="admit-title">{c.admissions.title}</h3>
+          <p className="paper-standfirst">{c.admissions.body}</p>
+          <div className="paper-lead-cols">
+            <div>
+              <h4>{a.stepsTitle}</h4>
+              <ol className="paper-steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b> <T>{b}</T></li>)}</ol>
+            </div>
+            <div>
+              <h4>{a.docsTitle}</h4>
+              <ul className="paper-list">{a.docs.map((d) => <li key={d}><T>{d}</T></li>)}</ul>
+            </div>
+            <div>
+              <h4>{a.agesTitle}</h4>
+              <table className="paper-ages"><tbody>{a.ages.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
+              <p className="paper-note"><T>{a.fees}</T></p>
+            </div>
+          </div>
+          <div className="ctas"><a className="btn" href="tel:057525563">{c.call}</a><a className="btn line" href="mailto:mailme.satyamxaviers@gmail.com">mailme.satyamxaviers@gmail.com</a></div>
+        </article>
+      ) : null}
+      <div className="paper-cols">
+        {n.items.map(([cat, date, title, body, img]) => (
+          <article key={title} className="paper-item">
+            {img ? <Photo name={img} alt="" /> : null}
+            <p className="paper-cat">{cat}<span><T>{date}</T></span></p>
+            <h3>{title}</h3>
+            <p><T>{body}</T></p>
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 

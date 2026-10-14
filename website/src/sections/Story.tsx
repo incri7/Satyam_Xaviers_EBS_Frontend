@@ -4,7 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
 import { arrive, room, sign } from '../three/rig';
 import { pages } from '../pages/pages';
-import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
+import { AcademicsBody, NewsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
 import { Parents } from './Sections';
 import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
@@ -12,7 +12,7 @@ import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { Classroom } from './Classroom';
 import BOARD from './boardLayout.json';
-import { markMoment, scroller, storyMarks } from '../scroll';
+import { jumpTo, markMoment, scroller, storyMarks } from '../scroll';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
 
@@ -211,17 +211,80 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
           .add(s3.duration(r1 - r0), r0)
           .add(s4.duration(walk), r1);
-        storyMarks.gallery = Math.round(r1 + walk * 0.9);   // the board filling the screen, the page not yet in (Gallery in the nav)   // the walk starts the moment the school is whole again: no still screen before it
+        // the walk starts the moment the school is whole again: no still screen before it
+        storyMarks.gallery = Math.round(r1 + walk * 0.9);   // the board filling the screen, the page not yet in (Gallery in the nav)
         const end = C.top + C.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
         // catch-up tween that restarts on every wheel notch.
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
+
+        // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
+        // takes off from its place, swoops up and comes in to the middle, unfolds there into a flat sheet, and the
+        // sheet opens out to the whole screen: the newsprint the News page stands on, which comes in over it. (News
+        // stands a screen up, under the hold's end, and is kept still while it comes in.)
+        const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
+        const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
+        if (gal && news && fly && planeAt && !reduce) {
+          news.style.marginTop = '-100vh';
+          const D = vh * 1.8;
+          const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.paper-sheet')!;
+          plane.innerHTML = planeAt.innerHTML;
+          // where the plane stands when the hold begins (the Gallery's bottom on the screen's bottom), its drift aside
+          let px = 0, py = 0;
+          for (let e: HTMLElement | null = planeAt; e && e !== gal; e = e.offsetParent as HTMLElement | null) { px += e.offsetLeft; py += e.offsetTop; }
+          py += vh - gal.offsetHeight;
+          const w = planeAt.offsetWidth, h = planeAt.offsetHeight;
+          Object.assign(plane.style, { left: `${px}px`, top: `${py}px`, width: `${w}px`, height: `${h}px` });
+          const dx = vw0 / 2 - (px + w / 2), dy = vh / 2 - (py + h / 2), big = 3.2;
+          // its climb stays below the nav bar (it grows as it climbs: half its grown size above its top)
+          const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+          const climb = Math.min(Math.max(navB + 24 + h * 0.4 - py, -160), 40);
+          const PLANE = 'polygon(8% 52%, 92% 18%, 60% 86%, 46% 60%)', SHEET = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+          const s5 = gsap.timeline({ defaults: { ease: 'none' } });
+          s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
+            // the Gallery fades back under a veil of the copy's own paper (not see-through: the board is behind it)
+            .fromTo(fly.querySelector('.paper-veil'), { opacity: 0 }, { opacity: 1, duration: 0.3, immediateRender: false }, 0.02)
+            // the take-off: a little back, then up and away, and round into the middle, nearer and nearer
+            .fromTo(plane, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: -14, y: 8, rotation: -10, duration: 0.07, ease: 'power1.inOut', immediateRender: false }, 0.02)
+            // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer, its dotted trail left behind
+            .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.22, immediateRender: false }, 0.06)
+            .fromTo(plane.querySelector('path'), { fill: 'rgba(255, 254, 250, 0)' }, { fill: 'rgba(255, 254, 250, 1)', duration: 0.2, immediateRender: false }, 0.1)
+            .fromTo(plane.querySelectorAll('path')[1], { opacity: 1 }, { opacity: 0, duration: 0.1, immediateRender: false }, 0.04)
+            .to(plane, { x: dx * 0.35 + 140, y: climb, rotation: 18, scale: 1.8, duration: 0.15, ease: 'power1.out' }, 0.09)
+            .to(plane, { x: dx, y: dy, rotation: -4, scale: big, duration: 0.15, ease: 'power2.inOut' }, 0.24)
+            // the unfold: the plane gives way to a flat sheet of its own shape, which opens out to a page, creases and all
+            .to(plane, { autoAlpha: 0, duration: 0.04 }, 0.4)
+            .fromTo(sheet, { autoAlpha: 0, width: w * big, height: h * big, rotation: -4, clipPath: PLANE },
+              { autoAlpha: 1, duration: 0.04, immediateRender: false }, 0.39)
+            .to(sheet, { width: vw0 * 0.46, height: vh * 0.62, rotation: 2, clipPath: SHEET, duration: 0.19, ease: 'power2.out' }, 0.41)
+            .to(sheet, { width: vw0, height: vh, rotation: 0, borderRadius: 0, duration: 0.28, ease: 'power2.inOut' }, 0.6)
+            .to(sheet.querySelectorAll('i'), { opacity: 0.25, duration: 0.28 }, 0.6)
+            // the News page, held at the top, comes in over the sheet; then the sheet goes from under it
+            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.88)
+            .fromTo(news, { y: -D * 0.12 }, { y: 0, duration: 0.12, immediateRender: false }, 0.88)
+            .set(fly, { autoAlpha: 0 }, 0.999)
+            .set({}, {}, 1);
+          // it takes off from exactly where the doodle is drifting at that moment
+          const fromDoodle = () => {
+            const svg = planeAt.firstElementChild as Element | null, r = (svg ?? planeAt).getBoundingClientRect();
+            plane.style.left = `${r.left}px`; plane.style.top = `${r.top}px`;
+            plane.style.width = `${r.width}px`; plane.style.height = `${r.height}px`;
+          };
+          ScrollTrigger.create({ trigger: gal, start: 'bottom bottom', end: '+=' + D, pin: true, pinSpacing: true, scrub: true, animation: s5,
+            onToggle: (self) => { if (self.isActive) fromDoodle(); },
+            onRefresh: (self) => { storyMarks.news = Math.round(self.end); } });
+        }
         // A rebuild starts every value from the top of the story; put them straight back where the reader is.
         // Opened at /#gallery: the board's place moves as fonts and photos settle the layout, so until the reader moves
         // the page themselves, every new layout lands them back on it
-        if (location.hash === '#gallery' && !moved.current && storyMarks.gallery !== undefined) {
-          if (scroller.lenis) scroller.lenis.scrollTo(storyMarks.gallery, { immediate: true, force: true }); else scrollTo(0, storyMarks.gallery);
+        const opened = location.hash.slice(1);
+        if ((opened === 'gallery' || opened === 'news') && !moved.current) {
+          requestAnimationFrame(() => {
+            const y = storyMarks[opened];
+            if (y === undefined || moved.current) return;
+            if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y);
+          });
         }
         master.time(Math.min(Math.max(scrollY, 0), end));
       }, root);
@@ -236,14 +299,14 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
     const ro = new ResizeObserver(() => { if (where() !== laid) again(); });
     if (root.current) ro.observe(root.current);
     // The address bar follows the reader: / at the top, /#about on the first page, /#programmes from the school's
-    // pick-up to its return, then /#gallery and /#admissions.
+    // pick-up to its return, then /#gallery and /#news.
     let raf = 0;
     const mark = () => {
       raf = 0;
       const y = scrollY + innerHeight * 0.5;
       const top = (sel: string) => { const el = document.querySelector<HTMLElement>(sel); return el ? el.getBoundingClientRect().top + scrollY : Infinity; };
       const marks: [string, number][] = [['about', top('#intro')], ['', top('.scene-rise')], ['programmes', top('#programmes')],
-        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['admissions', top('#admissions')]];
+        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['news', storyMarks.news !== undefined ? storyMarks.news + innerHeight * 0.5 - 1 : top('#news')]];
       let at = '';
       for (const [h, t] of marks) if (y >= t) at = h;
       markMoment(at);
@@ -263,7 +326,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   );
   const after: [string, ReactNode][] = [
     ['gallery', <>{head('gallery', p.gallery.title, p.gallery.other, p.gallery.intro)}<GalleryBody /></>],
-    ['admissions', <>{head('admissions', p.admissions.title, p.admissions.other, p.admissions.intro)}<AdmissionsBody /><Parents lang={lang} /></>],
+    ['news', <><NewsBody /><Parents lang={lang} /></>],
   ];
   const sceneRef = (i: number) => (el: HTMLElement | null) => { scenes.current[i] = el; };
 
@@ -287,6 +350,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="other hero-fade" lang={other}>{t.hero.other}</p>
             <p className="body hero-fade">{t.hero.body}</p>
             <p className="meta-line hero-fade">{t.hero.label}</p>
+            {/* while admissions are open: the first thing on the first screen, to the story pinned first on the News page */}
+            {t.admissions.open ? (
+              <a className="admit-banner hero-fade" href="#news" onClick={(e) => { if (jumpTo('news')) { e.preventDefault(); markMoment('news'); } }}>
+                {t.admissions.banner}<span>{t.admissions.read}</span>
+              </a>
+            ) : null}
           </div>
         </div>
         <p className="scroll-cue"><span className="hero-fade">{t.scroll}</span></p>
@@ -331,6 +400,12 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       <section className="scene scene-class" ref={sceneRef(3)} aria-hidden="true" />
       <div className="home-pages after">
         {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
+        {/* the Gallery's paper plane, in flight and unfolded into the News page's sheet (scene 5) */}
+        <div className="paper-fly" aria-hidden="true">
+          <div className="paper-veil" />
+          <div className="paper-plane" />
+          <div className="paper-sheet"><i className="c1" /><i className="c2" /><i className="c3" /></div>
+        </div>
       </div>
     </div>
   );

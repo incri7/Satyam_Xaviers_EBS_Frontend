@@ -45,6 +45,9 @@ const en = {
     ] as [string, string, string][],
   },
   admissions: {
+    // while the school's admissions are open: the banner on the home page's first screen, and the pinned first story
+    // on the News page
+    open: true, banner: 'Admissions for 2084 are open', read: 'Read more',
     title: 'Admissions for 2084 are open.', other: 'वि.सं. २०८४ को भर्ना खुला छ।',
     body: 'Nursery to Class 10. Dates and fees will be confirmed by the school office.',
     steps: [
@@ -100,6 +103,7 @@ const ne: Copy = {
     ],
   },
   admissions: {
+    open: true, banner: 'वि.सं. २०८४ को भर्ना खुला छ', read: 'थप पढ्नुहोस्',
     title: 'वि.सं. २०८४ को भर्ना खुला छ।', other: 'Admissions for 2084 are open.',
     body: 'नर्सरीदेखि कक्षा १० सम्म। मिति र शुल्क विद्यालयको कार्यालयले पुष्टि गर्नेछ।',
     steps: [

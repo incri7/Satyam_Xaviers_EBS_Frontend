@@ -215,7 +215,7 @@ export function ProgrammesBody({ lead }: { lead?: 'light' }) {
           <h3 className="card-h">{c.ageTitle}</h3>
           <dl className="age-list">{c.ages.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
           <p className="card-note">{c.ageNote}</p>
-          <div className="ages-cta"><Link className="btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link></div>
+          <div className="ages-cta"><Link className="btn" to={{ pathname: pagePath(lang), hash: '#news' }}>{c.admissions}</Link></div>
         </article>
       </section>
     </div>

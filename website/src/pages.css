@@ -153,6 +153,41 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
   .people-row, .facts { grid-template-columns: 1fr; }
 }
 
+/* ---------- News: a school newspaper. Newsprint, a masthead between rules, the admissions story pinned first, the
+   rest in columns divided by hairlines; the site's own type throughout ---------- */
+.paper-page, #news { background-color: #F1EEE6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .2  0 0 0 0 .18  0 0 0 0 .14  0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.paper { max-width: 1240px; margin: 0 auto; padding: 104px var(--gutter) clamp(48px, 6vw, 88px); color: #22252B; }
+.paper-mast { text-align: center; border-top: 3px double #22252B; border-bottom: 1px solid #22252B; padding: 14px 0 10px; }
+.paper-kicker { margin: 0; font: 600 14px/1.2 var(--font); color: #5B5F66; }
+.paper-title { margin: 6px 0 4px; font: 700 clamp(38px, 5vw, 68px)/1 var(--display); font-stretch: 88%; letter-spacing: -.03em; color: #16181D; }
+.paper-line { display: flex; justify-content: space-between; gap: 16px; margin: 10px 0 0; padding-top: 8px; border-top: 1px solid #22252B; font-size: 14px; color: #44484F; }
+.paper-cat { margin: 0; font: 700 13px/1.2 var(--font); color: var(--crest); }
+.paper-cat span { margin-left: 10px; font-weight: 500; color: #5B5F66; }
+.paper-lead { padding: 28px 0 30px; border-bottom: 1px solid #22252B; }
+.paper-lead h3 { margin: 8px 0 0; font: 700 clamp(30px, 3.4vw, 46px)/1.05 var(--display); font-stretch: 88%; letter-spacing: -.025em; color: #16181D; }
+.paper-standfirst { margin: 10px 0 0; max-width: 62ch; font-size: 19px; line-height: 1.5; color: #33363C; }
+.paper-lead-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 22px; }
+.paper-lead-cols > div { padding: 0 22px; border-left: 1px solid rgb(34 37 43 / .35); }
+.paper-lead-cols > div:first-child { padding-left: 0; border-left: 0; }
+.paper-lead h4 { margin: 0 0 8px; font: 700 17px/1.2 var(--display); color: #16181D; }
+.paper-steps, .paper-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; line-height: 1.5; }
+.paper-ages { width: 100%; border-collapse: collapse; font-size: 15px; }
+.paper-ages th, .paper-ages td { padding: 5px 0; border-bottom: 1px solid rgb(34 37 43 / .2); text-align: left; font-weight: 500; }
+.paper-ages td { text-align: right; }
+.paper-note { margin: 10px 0 0; font-size: 14px; color: #5B5F66; }
+.paper-lead .ctas { margin-top: 22px; }
+.paper-cols { columns: 3 280px; column-gap: 0; column-rule: 1px solid rgb(34 37 43 / .3); padding-top: 22px; }
+.paper-item { break-inside: avoid; padding: 0 22px 26px; }
+.paper-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; margin-bottom: 12px; filter: saturate(.85) contrast(1.02); }
+.paper-item h3 { margin: 6px 0 0; font: 700 21px/1.2 var(--display); letter-spacing: -.015em; color: #16181D; }
+.paper-item p:not(.paper-cat) { margin: 8px 0 0; font-size: 15px; line-height: 1.55; color: #33363C; }
+@media (max-width: 760px) {
+  .paper-lead-cols { grid-template-columns: 1fr; gap: 18px; }
+  .paper-lead-cols > div { padding: 0; border-left: 0; }
+  .paper-line { flex-direction: column; gap: 2px; }
+}
+
 /* ---------- Gallery: a Nepali school copy, three glass folders, the lightbox ---------- */
 /* The page itself (the home page's #gallery, the route's .gal-paper): soft paper ruled every 28 px, the red margin,
    everything written in one hand (Kalam writes English and Nepali alike), every line on a rule. One screen. */

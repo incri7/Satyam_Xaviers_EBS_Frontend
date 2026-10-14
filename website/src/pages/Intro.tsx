@@ -227,7 +227,7 @@ export function IntroBody() {
           <h3 className="card-h" id="bp-join">{c.joinTitle}</h3>
           <p className="card-p">{c.join}</p>
           <div className="join-links">
-            <Link className="btn" to={pagePath(lang, 'admissions')}>{c.admissions}</Link>
+            <Link className="btn" to={{ pathname: pagePath(lang), hash: '#news' }}>{c.admissions}</Link>
             <Link className="btn line" to={pagePath(lang, 'contact')}>{c.contact}</Link>
           </div>
         </section>

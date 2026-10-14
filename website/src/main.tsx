@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
 import { Home, Layout } from './App';
-import { Academics, AdmissionsPage, Contact, News } from './pages/Inner';
+import { Academics, Contact, News } from './pages/Inner';
 import { Gallery } from './pages/Gallery';
 import './styles.css';
 
@@ -29,7 +29,7 @@ const pages = [
   { path: 'academics', element: <Navigate to="../programmes" replace /> },
   { path: 'gallery', element: <Gallery /> },
   { path: 'life', element: <Navigate to="../gallery" replace /> },
-  { path: 'admissions', element: <AdmissionsPage /> },
+  { path: 'admissions', element: <Navigate to="../#news" replace /> },   // admissions are the News page's first story
   { path: 'news', element: <News /> },
   { path: 'contact', element: <Contact /> },
 ];
