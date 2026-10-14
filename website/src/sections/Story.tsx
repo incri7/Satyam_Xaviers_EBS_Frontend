@@ -289,8 +289,6 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           const PLANE = 'polygon(8% 52%, 92% 18%, 60% 86%, 46% 60%)', SHEET = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
           const s5 = gsap.timeline({ defaults: { ease: 'none' } });
           s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
-            // the Gallery fades back under a veil of its own white paper
-            .fromTo(fly.querySelector('.paper-veil'), { opacity: 0 }, { opacity: 1, duration: 0.22, immediateRender: false }, 0.02)
             // the flight
             .fromTo(fly1, { t: 0 }, { t: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false, onUpdate: place }, 0.03)
             // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer
