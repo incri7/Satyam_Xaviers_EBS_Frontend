@@ -11,6 +11,7 @@ import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { Classroom } from './Classroom';
+import BOARD from './boardLayout.json';
 import { markMoment } from '../scroll';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
@@ -171,10 +172,31 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         const walk = Math.max(1, C.top + C.h - vh - r1);
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
         s4.fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
-          .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, ease: 'power1.inOut' }, 0.91)
+          .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.04, ease: 'power1.inOut' }, 0.91)
           // held at the top of the screen while it comes in: the scroll would carry it up from below
           .fromTo('#gallery', { y: -0.09 * walk }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
           .set({}, {}, 1);
+        // The board's ink was drawn from the Gallery as a 1600 x 900 screen lays it out (boardLayout.json); this screen
+        // may lay it out otherwise. So each part of the page comes in standing exactly on its own drawing, where the
+        // frame's cover-fit puts that on this screen, and once the page is solid it settles into its own place.
+        const gal = document.getElementById('gallery');
+        if (gal && !reduce) {
+          const s = Math.max(vw0 / 1600, vh0 / 900), dw = 1600 * s, dh = 900 * s, f = FRONT.focus;
+          const ox = Math.min(0, Math.max(vw0 - dw, vw0 / 2 - f[0] * dw)), oy = Math.min(0, Math.max(vh0 - dh, vh0 / 2 - f[1] * dh));
+          const gb = gal.getBoundingClientRect();
+          const box = (el: Element) => { const r = el.getBoundingClientRect(); return [r.left - gb.left, r.top - gb.top, r.width]; };
+          const lay = (el: HTMLElement) => { let x = 0, y = 0; for (let e: HTMLElement | null = el; e && e !== gal; e = e.offsetParent as HTMLElement | null) { x += e.offsetLeft; y += e.offsetTop; } return [x, y, el.offsetWidth]; };
+          const parts: [Element, number[], number[]][] = [];
+          ['.wide', '.other', '.lede'].forEach((c, i) => { const el = gal.querySelector('.sheet-head ' + c); if (el) parts.push([el, box(el), BOARD.head[i]]); });
+          gal.querySelectorAll('.fold-item').forEach((el, i) => { if (BOARD.folds[i]) parts.push([el, box(el), BOARD.folds[i]]); });
+          // a doodle's own drift moves its holder; it is its drawing (the svg inside) that is carried
+          gal.querySelectorAll<HTMLElement>('.gal-doodles > span').forEach((el, i) => { const sv = el.firstElementChild; if (sv && BOARD.doodles[i]) parts.push([sv, lay(el), BOARD.doodles[i]]); });
+          for (const [el, [nx, ny, nw], [rx, ry, rw]] of parts) {
+            if (!nw) continue;
+            const from = { x: ox + rx * s - nx, y: oy + ry * s - ny, scale: (rw * s) / nw, transformOrigin: '0 0' };
+            s4.set(el, from, 0.909).fromTo(el, from, { x: 0, y: 0, scale: 1, duration: 0.05, ease: 'power2.inOut', immediateRender: false }, 0.95);
+          }
+        }
         const master = gsap.timeline({ defaults: { ease: 'none' } });
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h + vh * 0.5), B.top - vh * 0.5)   // under way while the first page slides off
           .add(s2.duration(Math.max(1, P.h - vh)), P.top)
