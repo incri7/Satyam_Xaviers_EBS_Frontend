@@ -28,9 +28,11 @@ export type Frames = {
   start(): void;
   /** Where the reader is (a fractional frame): the decoded window follows it. */
   seek(x: number): void;
-  /** The decoded frame nearest x (within `reach` frames), or null. Always one whole frame, never two mixed: a mix of
-      neighbours shows as a double picture the moment the reader stops between them. */
-  nearest(x: number, reach: number): ImageBitmap | null;
+  /** What to draw at x, settled: while the reader scrolls, the two frames either side (when both are decoded and
+      next to each other) with the share of the second, so the motion runs smooth between frames; once the scroll
+      rests, that share eases to the nearest whole frame within a fifth of a second, so a stopped picture is always
+      one clean frame, never two mixed. Else the nearest decoded frame within `reach`, alone. */
+  at(x: number, reach: number, now: number): { a: ImageBitmap; b: ImageBitmap | null; t: number } | null;
   stop(): void;
 };
 
@@ -39,6 +41,7 @@ export function frames(n: number, url: (k: number, w: number, ext: string) => st
   const maps = new Map<number, ImageBitmap>();
   const pending = new Set<number>();
   let alive = true, started = false, pos = 0, dir = 1;
+  let lastX = -1, movedAt = 0, lastNow = 0, share = 0;
   const KEEP = 14, AHEAD = 22;              // frames kept decoded behind and ahead of the reader
 
   const start = () => {
@@ -84,13 +87,21 @@ export function frames(n: number, url: (k: number, w: number, ext: string) => st
   return {
     start,
     seek(x) { if (x !== pos) { dir = x > pos ? 1 : -1; pos = x; } pump(); },
-    nearest(x, reach) {
+    at(x, reach, now) {
+      if (x !== lastX) { lastX = x; movedAt = now; }
+      const k0 = Math.floor(x), k1 = k0 + 1, raw = x - k0;
+      // the share of the second frame: the true one while moving, easing to 0 or 1 once still
+      const still = now - movedAt > 90;
+      const goal = still ? Math.round(raw) : raw;
+      const dt = Math.min(0.1, Math.max(0, (now - lastNow) / 1000)); lastNow = now;
+      share = still ? share + (goal - share) * (1 - Math.exp(-dt / 0.06)) : raw;
+      if (Math.abs(share - goal) < 0.002) share = goal;
+      if (maps.has(k0) && maps.has(k1) && k1 < n) return { a: maps.get(k0)!, b: share > 0.001 ? maps.get(k1)! : null, t: share };
       const c = Math.round(x);
       for (let d = 0; d <= reach; d++) {
-        // the nearer side first: at an equal distance, the frame the reader is heading towards
         const first = x - c >= 0 ? c + d : c - d, second = x - c >= 0 ? c - d : c + d;
-        if (maps.has(first)) return maps.get(first)!;
-        if (d && maps.has(second)) return maps.get(second)!;
+        if (maps.has(first)) return { a: maps.get(first)!, b: null, t: 0 };
+        if (d && maps.has(second)) return { a: maps.get(second)!, b: null, t: 0 };
       }
       return null;
     },

@@ -20,8 +20,8 @@ import { frames } from './frames';
  * the screen shows on the walk's last frame, so on that frame it fills the screen exactly.
  *
  * The frames play through frames.ts (fetched once, a small window round the reader kept decoded). They start loading
- * once Programmes is near. One whole frame is shown at a time, never two mixed. On the first frame the page's own
- * full-quality front picture stands in for it, so the picture never visibly drops in quality.
+ * once Programmes is near: smooth between frames while scrolling, one clean frame whenever the scroll rests. On
+ * the first frame the page's own full-quality front picture stands in for it, so the picture never drops in quality.
  */
 const N = 306;
 const STAMP = '10131530';
@@ -115,29 +115,34 @@ export function Classroom() {
     const onResize = () => { sketched = ''; sketchKey = ''; soon(() => sketchFor()); };
     addEventListener('resize', onResize);
 
-    let shown = false, last: CanvasImageSource | null = null;
+    let shown = false, last = '';
     const tick = () => {
       const on = room.q > 0.001;
       const x = room.f * (N - 1);
       if (on) { seq.start(); if (x >= KEYS[0] - 40) sketchFor(); }   // a fallback: it is normally made long before
       seq.seek(x);
-      // one whole frame, the nearest; on the first one, the page's own full-quality picture of the same view
+      // the frames, settled (frames.ts: smooth between frames while scrolling, one clean frame at rest); on the first
+      // frame, the page's own full-quality picture of the same view
       const crisp = on && frontReady && x < 0.5;
-      const fr = on && !crisp ? seq.nearest(x, 24) : null;
-      const pic = crisp ? front : fr;
+      const fr = on && !crisp ? seq.at(x, 24, performance.now()) : null;
+      const pic = crisp ? front : fr?.a ?? null;
       const vis = on && !!pic;
       if (vis !== shown) { shown = vis; cv.style.visibility = vis ? 'visible' : 'hidden'; }
       room.covers = vis;
       placeSketch(x, vis);
-      if (!vis || !pic) { last = null; return; }
+      if (!vis || !pic) { last = ''; return; }
       // no finer than the picture itself (as the street's flight), and drawn only when the picture changes
       const dpr = Math.min(devicePixelRatio || 1, 1.5, pic.width / cv.clientWidth);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
-      if (pic === last && cv.width === W && cv.height === H) return;
-      last = pic;
+      const key = `${crisp ? 'front' : Math.floor(x)}|${fr?.b ? fr.t.toFixed(3) : 0}|${W}x${H}`;
+      if (key === last) return;
+      last = key;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       ctx.clearRect(0, 0, W, H); draw(pic, 1);
+      if (fr?.b) draw(fr.b, fr.t);
+      ctx.globalAlpha = 1;
     };
+
     gsap.ticker.add(tick);
     return () => { seq.stop(); io?.disconnect(); gsap.ticker.remove(tick); removeEventListener('resize', onResize); };
   }, []);

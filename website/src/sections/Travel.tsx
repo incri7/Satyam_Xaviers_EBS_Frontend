@@ -9,8 +9,8 @@ import { frames } from './frames';
  * (website/model/env/job_travel.py) and scrubbed by the scroll: arrive.t is how far along it is (0 .. 1), arrive.q
  * how much of it shows over the street view (Arrival). It is rendered at the front view's size and its last frame
  * is the front view, which the next page picks up (Story). Its first frames (the street) are never shown: the
- * flight starts above the driveway's trees, where the first page's board fades away onto it. One whole frame is
- * shown at a time, never two mixed (a mix shows double the moment the reader stops).
+ * flight starts above the driveway's trees, where the first page's board fades away onto it. It runs smooth between
+ * frames while the reader scrolls and settles on one clean frame whenever the scroll rests (frames.ts).
  *
  * Light as it can be for the screen it plays on: AVIF where the browser reads it (WebP otherwise), 1600 wide on large
  * or dense screens, 1280 on laptops, 720 on phones; on a phone or a slow or data-saving connection every other frame.
@@ -47,29 +47,35 @@ export function Travel({ start }: { start: boolean }) {
       else { sw = img.height * va; sx = Math.min(Math.max(f[0] * img.width - sw / 2, 0), img.width - sw); }
       ctx.globalAlpha = alpha; ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
     };
-    let shown = false, last: CanvasImageSource | null = null;
+    let shown = false, last = '';
     const tick = () => {
       // shown only while a frame close to where the reader is has been decoded; otherwise the street view's own rise
       // (Arrival) carries on underneath until it has
       const x = arrive.t * (N - 1);
       const active = arrive.q > 0.001 && arrive.t >= T0 - 0.005;
       if (active) seq.seek(x);
-      // one whole frame, the nearest; on the last one, the page's own full-quality picture of the same view
+      // the frames, settled (frames.ts: smooth between frames while scrolling, one clean frame at rest); on the last
+      // frame, the page's own full-quality picture of the same view
       const crisp = active && frontReady && x > N - 1.5;
-      const pic = crisp ? front : active ? seq.nearest(x, 14) : null;
+      const fr = active && !crisp ? seq.at(x, 14, performance.now()) : null;
+      const pic = crisp ? front : fr?.a ?? null;
       const on = active && !!pic;
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       travel.shown = on; travel.covers = on && arrive.q >= 0.999; travel.x = x; travel.n = N;
-      if (!on || !pic) { last = null; return; }
+      if (!on || !pic) { last = ''; return; }
       cv.style.opacity = String(arrive.q);
       // no finer than the picture itself, and drawn only when the picture changes
       const dpr = Math.min(devicePixelRatio || 1, 1.5, pic.width / cv.clientWidth);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
-      if (pic === last && cv.width === W && cv.height === H) return;
-      last = pic;
+      const key = `${crisp ? 'front' : Math.floor(x)}|${fr?.b ? fr.t.toFixed(3) : 0}|${W}x${H}`;
+      if (key === last) return;
+      last = key;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       draw(pic, 1, FRONT.focus);
+      if (fr?.b) draw(fr.b, fr.t, FRONT.focus);
+      ctx.globalAlpha = 1;
     };
+
     gsap.ticker.add(tick);
     return () => { seq.stop(); gsap.ticker.remove(tick); };
   }, [start]);
