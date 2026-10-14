@@ -20,8 +20,8 @@ import { frames } from './frames';
  * the screen shows on the walk's last frame, so on that frame it fills the screen exactly.
  *
  * The frames play through frames.ts (fetched once, a small window round the reader kept decoded). They start loading
- * once Programmes is near. On the first frames the full-quality front picture the page was showing stays on top and
- * gives way to the moving frames over the first few, so the picture never visibly drops in quality.
+ * once Programmes is near. One whole frame is shown at a time, never two mixed. On the first frame the page's own
+ * full-quality front picture stands in for it, so the picture never visibly drops in quality.
  */
 const N = 306;
 const STAMP = '10131530';
@@ -55,8 +55,9 @@ export function Classroom() {
     const ctx = cv.getContext('2d')!;
     const seq = frames(N, frame);
     // the page's own full-quality front picture: the walk's first frame, at its best
-    const front = new Image(); front.decoding = 'async'; front.src = FRONT.src;
-    let frontReady = false; front.decode().then(() => { frontReady = true; }, () => {});
+    // kept decoded, ready to draw, like the frames (a plain <img> may be thrown away and decoded again when drawn)
+    let front: ImageBitmap | null = null, frontReady = false;
+    fetch(FRONT.src).then((r) => r.blob()).then((b) => createImageBitmap(b)).then((bm) => { front = bm; frontReady = true; }, () => {});
     // start when Programmes comes near: there are several screens of it to read while the frames arrive
     const target = document.getElementById('programmes');
     // and the marker drawing made then too, while the browser is idle: never at the moment the walk starts
@@ -114,32 +115,28 @@ export function Classroom() {
     const onResize = () => { sketched = ''; sketchKey = ''; soon(() => sketchFor()); };
     addEventListener('resize', onResize);
 
-    let shown = false, drawn = '';
-    const CRISP = 3;      // frames over which the full-quality front picture gives way to the moving frames
+    let shown = false, last: CanvasImageSource | null = null;
     const tick = () => {
       const on = room.q > 0.001;
       const x = room.f * (N - 1);
       if (on) { seq.start(); if (x >= KEYS[0] - 40) sketchFor(); }   // a fallback: it is normally made long before
       seq.seek(x);
-      const fr = on ? seq.around(x, 24) : null;
-      const crisp = on && frontReady ? Math.max(0, 1 - x / CRISP) : 0;
-      const vis = on && (!!fr || crisp >= 1);
+      // one whole frame, the nearest; on the first one, the page's own full-quality picture of the same view
+      const crisp = on && frontReady && x < 0.5;
+      const fr = on && !crisp ? seq.nearest(x, 24) : null;
+      const pic = crisp ? front : fr;
+      const vis = on && !!pic;
       if (vis !== shown) { shown = vis; cv.style.visibility = vis ? 'visible' : 'hidden'; }
       room.covers = vis;
       placeSketch(x, vis);
-      if (!vis) { drawn = ''; return; }
-      // no finer than the pictures themselves (as the street's flight), and drawn only when something has changed
-      const srcW = crisp > 0 ? front.width : fr!.a.width;
-      const dpr = Math.min(devicePixelRatio || 1, 1.5, srcW / cv.clientWidth);
+      if (!vis || !pic) { last = null; return; }
+      // no finer than the picture itself (as the street's flight), and drawn only when the picture changes
+      const dpr = Math.min(devicePixelRatio || 1, 1.5, pic.width / cv.clientWidth);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
-      const key = `${x.toFixed(2)}|${fr ? fr.a.width + ':' + fr.t.toFixed(3) : '-'}|${!!fr?.b}|${crisp.toFixed(3)}|${W}x${H}`;
-      if (key === drawn) return;
-      drawn = key;
+      if (pic === last && cv.width === W && cv.height === H) return;
+      last = pic;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-      ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
-      if (fr && crisp < 1) { draw(fr.a, 1); if (fr.b && fr.t > 0.01) draw(fr.b, fr.t); }
-      if (crisp > 0) draw(front, crisp);
-      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, W, H); draw(pic, 1);
     };
     gsap.ticker.add(tick);
     return () => { seq.stop(); io?.disconnect(); gsap.ticker.remove(tick); removeEventListener('resize', onResize); };

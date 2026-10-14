@@ -13,8 +13,7 @@ let avif: Promise<boolean> | null = null;
 const canAvif = () => (avif ??= new Promise((res) => { const im = new Image(); im.src = AVIF_PROBE; im.decode().then(() => res(im.width > 0), () => res(false)); }));
 
 /** The size and format of frame for this screen: AVIF where the browser reads it (WebP otherwise), 1600 wide on large
-    or dense screens, 1280 on laptops, 720 on phones; on a phone or a slow or data-saving connection every other frame
-    (the blend covers the gaps). */
+    or dense screens, 1280 on laptops, 720 on phones; on a phone or a slow or data-saving connection every other frame. */
 export function plan(useAvif: boolean) {
   const nav = navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } };
   const slow = !!nav.connection?.saveData || /(^|-)(2g|3g)$/.test(nav.connection?.effectiveType || '');
@@ -29,8 +28,9 @@ export type Frames = {
   start(): void;
   /** Where the reader is (a fractional frame): the decoded window follows it. */
   seek(x: number): void;
-  /** The decoded frames either side of x, for drawing (nearest within `reach` frames), or null. */
-  around(x: number, reach: number): { a: ImageBitmap; b: ImageBitmap | null; t: number } | null;
+  /** The decoded frame nearest x (within `reach` frames), or null. Always one whole frame, never two mixed: a mix of
+      neighbours shows as a double picture the moment the reader stops between them. */
+  nearest(x: number, reach: number): ImageBitmap | null;
   stop(): void;
 };
 
@@ -38,13 +38,13 @@ export function frames(n: number, url: (k: number, w: number, ext: string) => st
   const blobs: (Blob | null)[] = Array(n).fill(null);
   const maps = new Map<number, ImageBitmap>();
   const pending = new Set<number>();
-  let alive = true, started = false, pos = 0, dir = 1, stride = 1;
+  let alive = true, started = false, pos = 0, dir = 1;
   const KEEP = 14, AHEAD = 22;              // frames kept decoded behind and ahead of the reader
 
   const start = () => {
     if (started) return; started = true;
     canAvif().then((ok) => {
-      const p = plan(ok); stride = p.stride;
+      const p = plan(ok);
       const order: number[] = [0, n - 1];
       for (const step of [16, 8, 4, 2, 1]) if (step >= p.stride) for (let k = 0; k < n; k += step) if (!order.includes(k)) order.push(k);
       let next = 0;
@@ -84,16 +84,15 @@ export function frames(n: number, url: (k: number, w: number, ext: string) => st
   return {
     start,
     seek(x) { if (x !== pos) { dir = x > pos ? 1 : -1; pos = x; } pump(); },
-    around(x, reach) {
-      let ka = -1, kb = -1;
-      for (let k = Math.floor(x); k >= Math.max(0, Math.floor(x) - reach); k--) if (maps.has(k)) { ka = k; break; }
-      for (let k = Math.ceil(x); k <= Math.min(n - 1, Math.ceil(x) + reach); k++) if (maps.has(k)) { kb = k; break; }
-      if (ka < 0 && kb < 0) return null;
-      if (ka < 0) return { a: maps.get(kb)!, b: null, t: 0 };
-      if (kb < 0 || kb === ka) return { a: maps.get(ka)!, b: null, t: 0 };
-      // blend two neighbours only when they are close (a step of the coarse load, or every other frame on phones)
-      if (kb - ka > Math.max(2, stride * 2) * 4) return { a: maps.get(x - ka <= kb - x ? ka : kb)!, b: null, t: 0 };
-      return { a: maps.get(ka)!, b: maps.get(kb)!, t: (x - ka) / (kb - ka) };
+    nearest(x, reach) {
+      const c = Math.round(x);
+      for (let d = 0; d <= reach; d++) {
+        // the nearer side first: at an equal distance, the frame the reader is heading towards
+        const first = x - c >= 0 ? c + d : c - d, second = x - c >= 0 ? c - d : c + d;
+        if (maps.has(first)) return maps.get(first)!;
+        if (d && maps.has(second)) return maps.get(second)!;
+      }
+      return null;
     },
     stop() { alive = false; for (const bm of maps.values()) bm.close(); maps.clear(); },
   };
