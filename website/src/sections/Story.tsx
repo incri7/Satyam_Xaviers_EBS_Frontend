@@ -156,6 +156,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.25 * g, ease: 'power1.in', immediateRender: false }, 0)
           .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: g, ease: 'sine.inOut', immediateRender: false }, 0)
           .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 * g, ease: 'power1.inOut', immediateRender: false }, 0.6 * g)
+          // the classroom walk's first frame (the very same view) is already under the building when it goes, so the
+          // walk takes over from it directly: nothing else shows in between
+          .fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0.975)
           .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
           .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
           .set({}, {}, 1);
@@ -167,8 +170,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // from the return's end (the school whole again) to the scene's end, a screen above the Gallery's place
         const walk = Math.max(1, C.top + C.h - vh - r1);
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
-        s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
-          .fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
+        s4.fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
           .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, ease: 'power1.inOut' }, 0.91)
           // held at the top of the screen while it comes in: the scroll would carry it up from below
           .fromTo('#gallery', { y: -0.09 * walk }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
