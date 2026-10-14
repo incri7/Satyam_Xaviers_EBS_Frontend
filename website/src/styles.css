@@ -149,7 +149,8 @@ main > .block, .foot { position: relative; z-index: 1; }
 .stage .travel { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
 .stage .classroom { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
 /* the Gallery drawn in marker, laid over the whiteboard in perspective (Classroom) */
-.stage .board-sketch { position: absolute; left: 0; top: 0; z-index: 0; transform-origin: 0 0; visibility: hidden; pointer-events: none; }
+.stage .board-sketch { position: absolute; left: 0; top: 0; z-index: 0; transform-origin: 0 0; visibility: hidden; pointer-events: none;
+  mix-blend-mode: multiply; opacity: .9; }   /* ink on the board: its own surface shows through every stroke */
 /* The first scroll (SignIntro): the signboard, repainted clean, lifts its lettering and fills the screen. Each
    piece is placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
 .sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; opacity: 0; }

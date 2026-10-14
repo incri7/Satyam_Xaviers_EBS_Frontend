@@ -2,12 +2,10 @@
  * The Gallery page drawn in marker on the classroom's whiteboard (sections/Classroom.tsx lays it over the board).
  * Drawn from the page itself: every word, folder and doodle is measured where the Gallery has it on this screen, so
  * when the camera reaches the board and the drawing fills the screen, each stroke sits exactly where the real thing
- * then appears. One hand, several markers: the heading and the words in blue, each folder in its own colour, the
- * sunflowers in yellow.
+ * then appears. Written straight on the board: strokes only, no patch of colour under them (the canvas is clear
+ * where nothing is drawn, and it is laid on the board multiplied, as ink), all in one black whiteboard marker.
  */
-const BOARD = '#B2B3B1';                       // the board's white as the render has it
-const INK = { blue: '#1F3F95', royal: '#1E4FB0', sky: '#2786B8', crest: '#C8232F', black: '#2A2E36', yellow: '#D9A21B', green: '#3E8A4E' };
-const TONE: Record<string, string> = { sky: INK.sky, royal: INK.royal, crest: INK.crest };
+const MARKER = '#1B1D22';                      // a black whiteboard marker: every stroke and word
 
 type R = { x: number; y: number; w: number; h: number };
 
@@ -26,10 +24,10 @@ export async function drawSketch(cv: HTMLCanvasElement, section: HTMLElement, cs
   const rel = (r: DOMRect): R => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
   const j = hand(7);
 
-  // the board, its scribbles cleaned off where the drawing goes; its edges soft, so it melts into the board round it
-  ctx.save(); ctx.filter = 'blur(18px)'; ctx.fillStyle = BOARD; ctx.fillRect(24, 24, cssW - 48, cssH - 48); ctx.restore();
-  ctx.fillStyle = BOARD; ctx.fillRect(40, 40, cssW - 80, cssH - 80);
+  ctx.clearRect(0, 0, cssW, cssH);
 
+  // wipes the ink under a shape that stands in front (the board shows there again; nothing is painted)
+  const wipe = (path: () => void) => { ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); path(); ctx.fill(); ctx.restore(); };
   const stroke = (color: string, width: number, path: (o: number) => void) => {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const o of [0, 1]) { ctx.globalAlpha = o ? 0.55 : 0.92; ctx.beginPath(); path(o); ctx.stroke(); }   // a marker goes over twice
@@ -64,14 +62,14 @@ export async function drawSketch(cv: HTMLCanvasElement, section: HTMLElement, cs
     }
   };
   const head = section.querySelector('.sheet-head');
-  write(head?.querySelector('.wide') ?? null, INK.blue);
-  write(head?.querySelector('.other') ?? null, INK.royal);
-  write(head?.querySelector('.lede') ?? null, INK.blue);
+  write(head?.querySelector('.wide') ?? null, MARKER);
+  write(head?.querySelector('.other') ?? null, MARKER);
+  write(head?.querySelector('.lede') ?? null, MARKER);
 
   // the folders: a tabbed back, three photos sticking out (each a little mountain and sun), the front with its words
   section.querySelectorAll<HTMLElement>('.fold-item').forEach((item) => {
     const fold = item.querySelector<HTMLElement>('.fold'); if (!fold) return;
-    const tone = TONE[[...fold.classList].find((c) => c in TONE) ?? 'royal'];
+    const tone = MARKER;
     const f = rel(fold.getBoundingClientRect());
     const tab: R = { x: f.x, y: f.y - f.h * 0.08, w: f.w * 0.42, h: f.h * 0.1 };
     stroke(tone, 3.2, (o) => { box({ x: f.x, y: f.y, w: f.w, h: f.h }, o, 10); line(tab.x + 4, f.y, tab.x + 4, tab.y + 6, o); line(tab.x + 4, tab.y + 6, tab.x + tab.w - 10, tab.y + 6, o); line(tab.x + tab.w - 10, tab.y + 6, tab.x + tab.w, f.y, o); });
@@ -79,27 +77,29 @@ export async function drawSketch(cv: HTMLCanvasElement, section: HTMLElement, cs
       const b = rel(im.getBoundingClientRect()); const w = im.offsetWidth, h = im.offsetHeight;
       const ang = parseFloat(getComputedStyle(im).rotate) || [-7, 2, 8][k] || 0;
       ctx.save(); ctx.translate(b.x + b.w / 2, b.y + b.h / 2); ctx.rotate((ang * Math.PI) / 180);
-      ctx.fillStyle = BOARD; ctx.fillRect(-w / 2, -h / 2, w, h);
-      stroke(INK.black, 2.4, (o) => { box({ x: -w / 2, y: -h / 2, w, h }, o); line(-w * 0.4, h * 0.3, -w * 0.1, -h * 0.1, o); line(-w * 0.1, -h * 0.1, w * 0.1, h * 0.12, o); line(w * 0.05, h * 0.05, w * 0.22, -h * 0.05, o); line(w * 0.22, -h * 0.05, w * 0.4, h * 0.3, o); });
-      stroke(INK.yellow, 2.4, () => { ctx.arc(w * 0.26, -h * 0.24, Math.min(w, h) * 0.09, 0, Math.PI * 2); });
+      wipe(() => ctx.rect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4));
+      stroke(MARKER, 2.4, (o) => { box({ x: -w / 2, y: -h / 2, w, h }, o); line(-w * 0.4, h * 0.3, -w * 0.1, -h * 0.1, o); line(-w * 0.1, -h * 0.1, w * 0.1, h * 0.12, o); line(w * 0.05, h * 0.05, w * 0.22, -h * 0.05, o); line(w * 0.22, -h * 0.05, w * 0.4, h * 0.3, o); });
+      stroke(MARKER, 2.4, () => { ctx.arc(w * 0.26, -h * 0.24, Math.min(w, h) * 0.09, 0, Math.PI * 2); });
       ctx.restore();
     });
     const front = fold.querySelector<HTMLElement>('.front');
     if (front) {
       const r = rel(front.getBoundingClientRect());
-      ctx.fillStyle = BOARD; ctx.fillRect(r.x, r.y, r.w, r.h);
+      wipe(() => ctx.roundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 9));
       stroke(tone, 3.2, (o) => box(r, o, 8));
       // a few quick strokes of shading across the front, as a marker fills a shape in a hurry
+      ctx.save(); ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 7); ctx.clip();   // the shading stays inside
       stroke(tone, 1.4, (o) => { if (o) return; for (let k = 1; k < 9; k++) { const x0 = r.x + (r.w * k) / 9; line(x0, r.y + r.h - 6, x0 + r.h * 0.35, r.y + r.h * 0.45, 1); } });
+      ctx.restore();
       write(front.querySelector('b'), tone);
       write(front.querySelector('em'), tone);
-      write(front.querySelector('small'), INK.black);
+      write(front.querySelector('small'), MARKER);
     }
-    write(item.querySelector('.fold-line'), INK.blue);
+    write(item.querySelector('.fold-line'), MARKER);
   });
 
-  // the doodles, in marker: the sunflowers' petals yellow, their stems green, everything else the blue marker
-  const style = `<style>*{fill:none;stroke:${INK.blue};stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}.petal{stroke:${INK.yellow}}.seed{fill:#8A5A20;stroke:none}.leaf{stroke:${INK.green}}</style>`;
+  // the doodles, in the same black marker, outlines only
+  const style = `<style>*{fill:none;stroke:${MARKER};stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.seed{fill:${MARKER};stroke:none}</style>`;
   await Promise.all([...section.querySelectorAll<SVGSVGElement>('.gal-doodles svg')].map((sv) => new Promise<void>((done) => {
     const r = rel(sv.getBoundingClientRect()); if (!r.w) { done(); return; }
     const src = sv.outerHTML.replace(/<svg([^>]*)>/, `<svg$1 xmlns="http://www.w3.org/2000/svg">${style}`);
