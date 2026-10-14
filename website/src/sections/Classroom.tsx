@@ -4,6 +4,7 @@ import { room } from '../three/rig';
 import { FRONT } from './Arrival';
 import { drawSketch } from './boardSketch';
 import QUAD from './boardQuad.json';
+import { frames } from './frames';
 
 /**
  * The way into Gallery, one shot in the school's own scene (website/model/class/build_entry.py): from the front view
@@ -18,8 +19,9 @@ import QUAD from './boardQuad.json';
  * as the render's camera saw them (boardQuad.json, model/class/board_quad.py). It takes the part of the board that
  * the screen shows on the walk's last frame, so on that frame it fills the screen exactly.
  *
- * Frames load once Programmes is near, at low priority, coarse to fine. Until a frame close to where the reader is
- * has arrived, the canvas stays out of the way and the front view under it holds.
+ * The frames play through frames.ts (fetched once, a small window round the reader kept decoded). They start loading
+ * once Programmes is near. On the first frames the full-quality front picture the page was showing stays on top and
+ * gives way to the moving frames over the first few, so the picture never visibly drops in quality.
  */
 const N = 306;
 const STAMP = '10131530';
@@ -44,16 +46,6 @@ function invert(m: number[]) {
 }
 const QUADS = QUAD as unknown as Record<string, P[]>;
 const KEYS = Object.keys(QUADS).map(Number).filter((k) => QUADS[k].every(([u, v]) => u > -3 && u < 4 && v > -3 && v < 4)).sort((a, b) => a - b);
-const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
-function plan(avif: boolean) {
-  const nav = navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } };
-  const slow = !!nav.connection?.saveData || /(^|-)(2g|3g)$/.test(nav.connection?.effectiveType || '');
-  const phone = innerWidth <= 760 || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 820);
-  const px = innerWidth * Math.min(devicePixelRatio || 1, 2);
-  const w = !avif ? 1280 : phone || slow ? 720 : px >= 1700 ? 1600 : 1280;
-  return { w, ext: avif ? 'avif' : 'webp', stride: phone || slow ? 2 : 1 };
-}
-
 export function Classroom() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const sketch = useRef<HTMLCanvasElement>(null);
@@ -61,40 +53,21 @@ export function Classroom() {
   useEffect(() => {
     const cv = canvas.current!, sk = sketch.current!;
     const ctx = cv.getContext('2d')!;
-    const imgs: (HTMLImageElement | null)[] = Array(N).fill(null);
-    let alive = true, begun = false;
-
-    // coarse to fine, the first and last frames first, four at a time
-    const begin = () => {
-      if (begun) return; begun = true;
-      const probe = new Image();
-      probe.src = AVIF_PROBE;
-      probe.decode().then(() => load(probe.width > 0), () => load(false));
-    };
-    const load = (avif: boolean) => {
-      const { w, ext, stride } = plan(avif);
-      const order: number[] = [0, N - 1];
-      for (const step of [16, 8, 4, 2, 1]) if (step >= stride) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
-      let next = 0;
-      const worker = async () => {
-        while (alive && next < order.length) {
-          const k = order[next++];
-          const img = new Image() as HTMLImageElement & { fetchPriority?: string };
-          img.decoding = 'async'; img.fetchPriority = 'low'; img.src = frame(k, w, ext);
-          try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
-        }
-      };
-      for (let i = 0; i < 4; i++) worker();
-    };
+    const seq = frames(N, frame);
+    // the page's own full-quality front picture: the walk's first frame, at its best
+    const front = new Image(); front.decoding = 'async'; front.src = FRONT.src;
+    let frontReady = false; front.decode().then(() => { frontReady = true; }, () => {});
     // start when Programmes comes near: there are several screens of it to read while the frames arrive
     const target = document.getElementById('programmes');
-    const io = target ? new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { begin(); io?.disconnect(); } }, { rootMargin: '100% 0px' }) : null;
-    if (io && target) io.observe(target); else begin();
+    // and the marker drawing made then too, while the browser is idle: never at the moment the walk starts
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const soon = (fn: () => void) => (ric ? ric(fn, { timeout: 2000 }) : setTimeout(fn, 200));
+    const prepare = () => { seq.start(); soon(() => sketchFor()); };
+    const io = target ? new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { prepare(); io?.disconnect(); } }, { rootMargin: '100% 0px' }) : null;
+    if (io && target) io.observe(target); else prepare();
 
-    const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
-    const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
     // cover-fit, keeping the front view's focus point in view: the first frame lies exactly over the front view
-    const draw = (img: HTMLImageElement, a: number) => {
+    const draw = (img: CanvasImageSource & { width: number; height: number }, a: number) => {
       const W = cv.width, H = cv.height, s = Math.max(W / img.width, H / img.height), dw = img.width * s, dh = img.height * s;
       const f = FRONT.focus;
       ctx.globalAlpha = a;
@@ -138,40 +111,38 @@ export function Classroom() {
       // the drawing's own rect (w x h) onto those four points: the unit-square map, scaled to the rect, as a CSS matrix3d
       sk.style.transform = `matrix3d(${m[0] / w},${m[3] / w},0,${m[6] / w},${m[1] / h},${m[4] / h},0,${m[7] / h},0,0,1,0,${m[2]},${m[5]},0,1)`;
     };
-    const onResize = () => { sketched = ''; sketchKey = ''; };
+    const onResize = () => { sketched = ''; sketchKey = ''; soon(() => sketchFor()); };
     addEventListener('resize', onResize);
 
     let shown = false, drawn = '';
+    const CRISP = 3;      // frames over which the full-quality front picture gives way to the moving frames
     const tick = () => {
       const on = room.q > 0.001;
-      if (on) { begin(); sketchFor(); }
       const x = room.f * (N - 1);
-      const ka = below(x), kb = above(x);
-      const near = on && Math.min(ka >= 0 ? x - ka : Infinity, kb >= 0 ? kb - x : Infinity) <= 24;
-      const vis = on && near;
+      if (on) { seq.start(); if (x >= KEYS[0] - 40) sketchFor(); }   // a fallback: it is normally made long before
+      seq.seek(x);
+      const fr = on ? seq.around(x, 24) : null;
+      const crisp = on && frontReady ? Math.max(0, 1 - x / CRISP) : 0;
+      const vis = on && (!!fr || crisp >= 1);
       if (vis !== shown) { shown = vis; cv.style.visibility = vis ? 'visible' : 'hidden'; }
-      room.covers = near;
+      room.covers = vis;
       placeSketch(x, vis);
       if (!vis) { drawn = ''; return; }
-      // no finer than the frames themselves (as the street's flight), and drawn only when something has changed
-      const src = imgs[ka] ?? imgs[kb];
-      const dpr = Math.min(devicePixelRatio || 1, 1.5, src ? src.width / cv.clientWidth : 1);
+      // no finer than the pictures themselves (as the street's flight), and drawn only when something has changed
+      const srcW = crisp > 0 ? front.width : fr!.a.width;
+      const dpr = Math.min(devicePixelRatio || 1, 1.5, srcW / cv.clientWidth);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
-      const key = `${x.toFixed(2)}|${ka}|${kb}|${W}x${H}`;
+      const key = `${x.toFixed(2)}|${fr ? fr.a.width + ':' + fr.t.toFixed(3) : '-'}|${!!fr?.b}|${crisp.toFixed(3)}|${W}x${H}`;
       if (key === drawn) return;
       drawn = key;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
-      if (near) {
-        // the two loaded frames either side, blended, when they are near each other; else the nearer alone
-        if (ka >= 0 && kb > ka && kb - ka <= 24) {
-          draw(imgs[ka]!, 1); const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, fr);
-        } else draw(imgs[ka >= 0 && (kb < 0 || x - ka <= kb - x) ? ka : kb]!, 1);
-      }
+      if (fr && crisp < 1) { draw(fr.a, 1); if (fr.b && fr.t > 0.01) draw(fr.b, fr.t); }
+      if (crisp > 0) draw(front, crisp);
       ctx.globalAlpha = 1;
     };
     gsap.ticker.add(tick);
-    return () => { alive = false; io?.disconnect(); gsap.ticker.remove(tick); removeEventListener('resize', onResize); };
+    return () => { seq.stop(); io?.disconnect(); gsap.ticker.remove(tick); removeEventListener('resize', onResize); };
   }, []);
 
   return (

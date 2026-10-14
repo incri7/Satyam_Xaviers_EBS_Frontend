@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { arrive, travel } from '../three/rig';
 import { FRONT } from './Arrival';
+import { frames } from './frames';
 
 /**
  * The camera's flight from the street to the school's front, rendered in Blender from the model of the real place
@@ -14,23 +15,13 @@ import { FRONT } from './Arrival';
  * Light as it can be for the screen it plays on: AVIF where the browser reads it (WebP otherwise), 1600 wide on large
  * or dense screens, 1280 on laptops, 720 on phones; on a phone or a slow or data-saving connection every other frame
  * (the blend covers the gaps). Frames start loading once the street is on screen and the browser is idle, at low
- * priority, so they never hold up the page.
+ * priority, so they never hold up the page; they play through frames.ts, which keeps only a small window round the
+ * reader decoded, ready to draw.
  */
 const N = 180;
 const SIZE = [1280, 720];
 const T0 = 20 / 89;              // where the flight starts showing (Story): above the driveway's trees
 const frame = (k: number, w: number, ext: string) => `/models/env/travel/${w}/${String(k).padStart(3, '0')}_10131530.${ext}`;
-// the smallest AVIF there is: whether this browser can show the frames' own format
-const AVIF_PROBE = 'data:image/avif;base64,AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAACJpbG9jAAAAAERAAAEAAQAAAAAA+gABAAAAAAAAACIAAAAjaWluZgAAAAAAAQAAABVpbmZlAgAAAAABAABhdjAxAAAAAA5waXRtAAAAAAABAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAAAEAAAABAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAqbWRhdBIACgc4AAaQENBpMhUZQmMEwAA0IgCQQM6Xt1/tDFf0qOQ=';
-function plan(avif: boolean) {
-  const nav = navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } };
-  const slow = !!nav.connection?.saveData || /(^|-)(2g|3g)$/.test(nav.connection?.effectiveType || '');
-  // a phone by its width, or by a touch screen that is small itself (a short laptop window is not a phone)
-  const phone = innerWidth <= 760 || (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 820);
-  const px = innerWidth * Math.min(devicePixelRatio || 1, 2);
-  const w = !avif ? 1280 : phone || slow ? 720 : px >= 1700 ? 1600 : 1280;
-  return { w, ext: avif ? 'avif' : 'webp', stride: phone || slow ? 2 : 1 };
-}
 
 export function Travel({ start }: { start: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -39,66 +30,53 @@ export function Travel({ start }: { start: boolean }) {
     if (!start) return;
     const cv = canvas.current!;
     const ctx = cv.getContext('2d')!;
-    const imgs: (HTMLImageElement | null)[] = Array(N).fill(null);
-    let alive = true;
-    // coarse to fine: every eighth frame first, then every fourth, every second, the rest; so wherever the reader
-    // has scrolled to, a frame close to it is already here
-    // has scrolled to, a frame close to it is already here. The first and last frames come first of all, and four
-    // load at a time.
-    const begin = (avif: boolean) => {
-      const { w, ext, stride } = plan(avif);
-      const order: number[] = [0, N - 1];
-      for (const step of [16, 8, 4, 2, 1]) if (step >= stride) for (let k = 0; k < N; k += step) if (!order.includes(k)) order.push(k);
-      let next = 0;
-      const worker = async () => {
-        while (alive && next < order.length) {
-          const k = order[next++];
-          const img = new Image() as HTMLImageElement & { fetchPriority?: string };
-          img.decoding = 'async'; img.fetchPriority = 'low'; img.src = frame(k, w, ext);
-          try { await img.decode(); if (alive) imgs[k] = img; } catch { /* a missing frame: its neighbours stand in */ }
-        }
-      };
-      for (let i = 0; i < 4; i++) worker();
-    };
-    const probe = new Image();
-    const go = () => probe.decode().then(() => begin(probe.width > 0), () => begin(false));
+    // the frames (frames.ts: fetched once, a small window round the reader kept decoded), once the street is on
+    // screen and the browser is idle
+    const seq = frames(N, frame);
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-    if (idle) idle(() => { probe.src = AVIF_PROBE; go(); }, { timeout: 1500 }); else setTimeout(() => { probe.src = AVIF_PROBE; go(); }, 300);
-    // the nearest frames here on either side of x
-    const below = (x: number) => { for (let k = Math.floor(x); k >= 0; k--) if (imgs[k]) return k; return -1; };
-    const above = (x: number) => { for (let k = Math.ceil(x); k < N; k++) if (imgs[k]) return k; return -1; };
+    if (idle) idle(() => seq.start(), { timeout: 1500 }); else setTimeout(() => seq.start(), 300);
+    // the flight's last frame is the front view: at its end the page's own full-quality front picture takes over from
+    // the lighter frames, so the view the flight holds on (and the next page picks up) is crisp
+    const front = new Image(); front.decoding = 'async'; front.src = FRONT.src;
+    let frontReady = false; front.decode().then(() => { frontReady = true; }, () => {});
+    const CRISP = 2.5;
     // cover-fit, keeping the front view's focus point in view, so its last frame lies exactly over the front view
-    const draw = (img: HTMLImageElement, alpha: number, f: readonly number[]) => {
+    const draw = (img: CanvasImageSource & { width: number; height: number }, alpha: number, f: readonly number[]) => {
       const W = cv.width, H = cv.height, ia = SIZE[0] / SIZE[1], va = W / H;
       let sw = img.width, sh = img.height, sx = 0, sy = 0;
       if (va > ia) { sh = img.width / va; sy = Math.min(Math.max(f[1] * img.height - sh / 2, 0), img.height - sh); }
       else { sw = img.height * va; sx = Math.min(Math.max(f[0] * img.width - sw / 2, 0), img.width - sw); }
       ctx.globalAlpha = alpha; ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
     };
-    let shown = false;
+    let shown = false, drawn = '';
     const tick = () => {
-      // shown only while a frame close to where the reader is has loaded (within a coarse step); otherwise the
-      // street view's own rise (Arrival) carries on underneath until it has
+      // shown only while a frame close to where the reader is has been decoded; otherwise the street view's own rise
+      // (Arrival) carries on underneath until it has
       const x = arrive.t * (N - 1);
-      const ka = below(x), kb = above(x);
-      const da = ka >= 0 ? x - ka : Infinity, db = kb >= 0 ? kb - x : Infinity;
-      const on = arrive.q > 0.001 && arrive.t >= T0 - 0.005 && Math.min(da, db) <= 14;
+      const active = arrive.q > 0.001 && arrive.t >= T0 - 0.005;
+      if (active) seq.seek(x);
+      const fr = active ? seq.around(x, 14) : null;
+      const end = active && frontReady ? Math.min(1, Math.max(0, (x - (N - 1 - CRISP)) / CRISP)) : 0;
+      const on = active && (!!fr || end >= 1);
       if (on !== shown) { shown = on; cv.style.visibility = on ? 'visible' : 'hidden'; }
       travel.shown = on; travel.covers = on && arrive.q >= 0.999; travel.x = x; travel.n = N;
-      if (!on) return;
+      if (!on) { drawn = ''; return; }
       cv.style.opacity = String(arrive.q);
-      const dpr = Math.min(devicePixelRatio || 1, 1.5, (imgs[ka] ?? imgs[kb])!.width / cv.clientWidth);   // no finer than the frames themselves
+      // no finer than the pictures themselves, and drawn only when something has changed
+      const dpr = Math.min(devicePixelRatio || 1, 1.5, (end > 0 ? front.width : fr!.a.width) / cv.clientWidth);
       const W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
+      const key = `${x.toFixed(2)}|${fr ? fr.a.width + ':' + fr.t.toFixed(3) + ':' + !!fr.b : '-'}|${end.toFixed(3)}|${W}x${H}`;
+      if (key === drawn) return;
+      drawn = key;
       if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
       const f = FRONT.focus;
-      // blend the two loaded frames either side, when they are near each other; else the nearer alone
-      if (ka >= 0 && kb > ka && kb - ka <= 24) {
-        draw(imgs[ka]!, 1, f);
-        const fr = (x - ka) / (kb - ka); if (fr > 0.01) draw(imgs[kb]!, fr, f);
-      } else draw(imgs[da <= db ? ka : kb]!, 1, f);
+      // the two decoded frames either side, blended; the crisp front picture over them at the end
+      if (fr && end < 1) { draw(fr.a, 1, f); if (fr.b && fr.t > 0.01) draw(fr.b, fr.t, f); }
+      if (end > 0) draw(front, end, f);
+      ctx.globalAlpha = 1;
     };
     gsap.ticker.add(tick);
-    return () => { alive = false; gsap.ticker.remove(tick); };
+    return () => { seq.stop(); gsap.ticker.remove(tick); };
   }, [start]);
 
   return <canvas ref={canvas} className="travel" aria-hidden="true" />;
