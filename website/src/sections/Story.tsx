@@ -235,6 +235,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           plane.innerHTML = planeAt.innerHTML;
           const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
           const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+          // its nose points 22 degrees above its tail (the doodle's drawing): it flies nose first
+          const NOSE = 22;
           // its flight: a spiral about the middle of the screen, from wherever the plane starts, once round clockwise,
           // its radius (on an ellipse the screen's shape) shrinking smoothly to nothing at the middle
           let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
@@ -251,10 +253,23 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
               const a = a0 + SWEEP * (1 - Math.pow(1 - t, 1.7));
               pts.push([Math.min(vw0 - 40, Math.max(40, mx + ax * r * Math.cos(a))), Math.min(bot, Math.max(top, my + ay * r * Math.sin(a)))]);
             }
+            // the take-off: it leaves the way its nose already points (22 degrees above its tail, up and to the right),
+            // and bends from there smoothly into the circle: a curve whose start runs along the nose and whose end runs
+            // along the circle, so the plane turns as it travels, never on the spot
+            const iq = Math.round(N * 0.16), Q = pts[iq];
+            const tq = [pts[iq + 1][0] - pts[iq - 1][0], pts[iq + 1][1] - pts[iq - 1][1]], tl = Math.hypot(tq[0], tq[1]) || 1;
+            const nose = [Math.cos(-NOSE * Math.PI / 180), Math.sin(-NOSE * Math.PI / 180)];
+            const Lq = Math.hypot(Q[0] - sx, Q[1] - sy);
+            const c1 = [sx + nose[0] * Lq * 0.4, sy + nose[1] * Lq * 0.4], c2 = [Q[0] - (tq[0] / tl) * Lq * 0.4, Q[1] - (tq[1] / tl) * Lq * 0.4];
+            const lead: [number, number][] = [];
+            for (let j = 0; j < 90; j++) {
+              const u = j / 90, m = 1 - u;
+              lead.push([m * m * m * sx + 3 * m * m * u * c1[0] + 3 * m * u * u * c2[0] + u * u * u * Q[0],
+                m * m * m * sy + 3 * m * m * u * c1[1] + 3 * m * u * u * c2[1] + u * u * u * Q[1]]);
+            }
+            pts = [...lead, ...pts.slice(iq)];
             let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
           };
-          // its nose points 22 degrees above its tail (the doodle's drawing): banked into its heading
-          const NOSE = 22;
           const fly1 = { t: 0 };
           const place = () => {
             const T = fly1.t, L = len[len.length - 1] * T;
@@ -262,7 +277,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             const q = pts[i - 1], r = pts[i], u = (L - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
             const x = q[0] + (r[0] - q[0]) * u, y = q[1] + (r[1] - q[1]) * u;
             const ang = (Math.atan2(r[1] - q[1], r[0] - q[0]) * 180) / Math.PI;
-            gsap.set(plane, { x: x - start[0], y: y - start[1], rotation: T > 0.001 ? ang + NOSE : 0, scale: 1 + (big - 1) * Math.pow(T, 2.2) });
+            gsap.set(plane, { x: x - start[0], y: y - start[1], rotation: ang + NOSE, scale: 1 + (big - 1) * Math.pow(T, 2.2) });
             trail.setAttribute('d', T > 0.001 ? 'M' + pts.slice(0, i).map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + `L${x.toFixed(1)} ${y.toFixed(1)}` : '');
           };
           // the plane as it ends its loop, where the sheet takes over from it
