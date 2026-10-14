@@ -24,7 +24,7 @@ import { frames } from './frames';
  * the first frame the page's own full-quality front picture stands in for it, so the picture never drops in quality.
  */
 const N = 306;
-const STAMP = '10131530';
+const STAMP = '10141215';
 const frame = (k: number, w: number, ext: string) => `/models/class/${w}/${String(k).padStart(3, '0')}_${STAMP}.${ext}`;
 type P = [number, number];
 /** The projective map taking the unit square ((0,0) (1,0) (1,1) (0,1)) onto the quad q, as [a b c d e f g h]. */
