@@ -22,7 +22,7 @@ import { frames } from './frames';
  * the first frame the page's own full-quality front picture stands in for it, so the picture never drops in quality.
  */
 const N = 306;
-const STAMP = '10141900';
+const STAMP = '10142130';
 const frame = (k: number, w: number, ext: string) => `/models/class/${w}/${String(k).padStart(3, '0')}_${STAMP}.${ext}`;
 export function Classroom() {
   const canvas = useRef<HTMLCanvasElement>(null);

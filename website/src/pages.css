@@ -155,8 +155,8 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
 
 /* ---------- News: a school newspaper. Newsprint, a masthead between rules, the admissions story pinned first, the
    rest in columns divided by hairlines; the site's own type throughout ---------- */
-.paper-page, #news { background-color: #F1EEE6;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .2  0 0 0 0 .18  0 0 0 0 .14  0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"); }
+/* the News page is printed on the unfolded plane: white paper, its folds on the first screen */
+.paper-page, #news { background: #fff var(--folds) 0 0 / 100% 100vh no-repeat; }
 .paper { max-width: 1240px; margin: 0 auto; padding: 104px var(--gutter) clamp(48px, 6vw, 88px); color: #22252B; }
 .paper-mast { text-align: center; border-top: 3px double #22252B; border-bottom: 1px solid #22252B; padding: 14px 0 10px; }
 .paper-kicker { margin: 0; font: 600 14px/1.2 var(--font); color: #5B5F66; }
@@ -191,7 +191,7 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
 /* ---------- Gallery: a Nepali school copy, three glass folders, the lightbox ---------- */
 /* The page itself (the home page's #gallery, the route's .gal-paper): soft paper ruled every 28 px, the red margin,
    everything written in one hand (Kalam writes English and Nepali alike), every line on a rule. One screen. */
-#gallery, .gal-paper { --paper: #F3F1E9; --rule: rgb(110 150 205 / .32); --red: rgb(214 74 86 / .5); --hand: "Kalam", "Mukta", cursive; --pen: #24448A;
+#gallery, .gal-paper { --paper: #FFFFFF; --rule: rgb(110 150 205 / .32); --red: rgb(214 74 86 / .5); --hand: "Kalam", "Mukta", cursive; --pen: #24448A;
   position: relative; overflow: hidden; min-height: 100vh; padding-bottom: 28px; background-color: var(--paper);
   background-image: repeating-linear-gradient(180deg, transparent 0 27px, var(--rule) 27px 28px); }
 #gallery .sheet-head, .gal-paper .sheet-head { position: relative; z-index: 1; max-width: 900px; padding: 112px var(--gutter) 0; }
