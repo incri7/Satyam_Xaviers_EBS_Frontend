@@ -220,8 +220,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
 
         // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
-        // (the very doodle, from where it is drifting) takes off and flies straight to the middle of the screen,
-        // turned to its heading, nearer and larger all the while, a straight dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
+        // (the very doodle, from where it is drifting) takes off and circles once round the page, clockwise, the circle
+        // tightening evenly into the middle of the screen: a clean spiral, the plane turned to its heading, nearer and
+        // larger all the while, a dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
         // the whole screen: the paper the News page is printed on, which comes in over it. (News stands a screen up,
         // under the hold's end, and is kept still while it comes in.)
         const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
@@ -234,24 +235,19 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           plane.innerHTML = planeAt.innerHTML;
           const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
           const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
-          // its flight: from wherever the plane starts, straight to the middle (a share of the screen across and down)
-          const WAY: [number, number][] = [[0.5, 0.47]];
+          // its flight: a spiral about the middle of the screen, from wherever the plane starts, once round clockwise,
+          // its radius (on an ellipse the screen's shape) shrinking smoothly to nothing at the middle
           let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
           const lay = (sx: number, sy: number) => {
             start = [sx, sy];
-            const k: [number, number][] = [[sx, sy], ...WAY.map(([u, v]): [number, number] => [u * vw0, v < 0 ? navB + 34 : v * vh])];
-            // Catmull-Rom through them, sampled, with the length along it
-            pts = []; len = [];
-            const at = (i: number) => k[Math.max(0, Math.min(k.length - 1, i))];
-            for (let i = 0; i < k.length - 1; i++) {
-              const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
-              for (let j = 0; j < 40; j++) {
-                const t = j / 40, t2 = t * t, t3 = t2 * t;
-                const f = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-                pts.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
-              }
+            const mx = vw0 / 2, my = vh / 2, ax = vw0 * 0.34, ay = vh * 0.38;
+            const u0 = (sx - mx) / ax, v0 = (sy - my) / ay, r0 = Math.max(0.35, Math.hypot(u0, v0)), a0 = Math.atan2(v0, u0);
+            const SWEEP = Math.PI * 2 * 0.92, N = 360, top = navB + 20;
+            pts = [];
+            for (let i = 0; i <= N; i++) {
+              const t = i / N, r = r0 * (1 - Math.pow(t, 1.5)), a = a0 + SWEEP * t;
+              pts.push([mx + ax * r * Math.cos(a), Math.max(top, my + ay * r * Math.sin(a))]);
             }
-            pts.push(k[k.length - 1]);
             let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
           };
           // its nose points 22 degrees above its tail (the doodle's drawing): banked into its heading
