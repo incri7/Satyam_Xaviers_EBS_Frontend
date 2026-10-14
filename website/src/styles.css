@@ -103,7 +103,7 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 /* the return (scene 3): the building alone growing back into the street's front view, on the blueprint it was
    picked up onto; both live in the fixed stage, under the pages */
 .scene-back { height: 100vh; }
-.scene-class { height: 720vh; }   /* down to a classroom's door, in, onto its whiteboard (Classroom) */
+.scene-class { height: 620vh; }   /* down to a classroom's door, in, onto its whiteboard (Classroom); the walk starts on .scene-back */
 .stage .back-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
   background-image:
     linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
@@ -212,7 +212,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 
 @media (max-width: 760px) {
   .scene-rise { height: 330vh; }
-  .scene-class { height: 660vh; }
+  .scene-class { height: 560vh; }
   .pickup-pin { grid-template-columns: 1fr; align-content: center; gap: 24px; padding-top: 84px; }
   .pickup-slot { aspect-ratio: 4 / 3; max-height: 46vh; }
   .scene-sign { height: 160vh; }

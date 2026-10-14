@@ -164,18 +164,20 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         // square onto the whiteboard, where the Gallery page is drawn in marker. The camera comes in until the
         // drawing fills the screen, and the page itself comes in over it, every word and folder where the marker
         // had it (the Gallery stands a screen up, over the scene's end: .home-pages.after).
+        // from the return's end (the school whole again) to the scene's end, a screen above the Gallery's place
+        const walk = Math.max(1, C.top + C.h - vh - r1);
         const s4 = gsap.timeline({ defaults: { ease: 'none' } });
         s4.fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0)
           .fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
           .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, ease: 'power1.inOut' }, 0.91)
           // held at the top of the screen while it comes in: the scroll would carry it up from below
-          .fromTo('#gallery', { y: -0.09 * (C.h - innerHeight) }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
+          .fromTo('#gallery', { y: -0.09 * walk }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
           .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });
         master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
           .add(s3.duration(r1 - r0), r0)
-          .add(s4.duration(Math.max(1, C.h - vh)), C.top);
+          .add(s4.duration(walk), r1);   // the walk starts the moment the school is whole again: no still screen before it
         const end = C.top + C.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
