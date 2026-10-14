@@ -130,6 +130,8 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 /* A page opened from an object: a sheet that slides up over the object's cover and away again. */
 .portal-page { position: relative; z-index: 2; pointer-events: none; }
 .portal-page .gap { height: 100vh; }
+/* after the page, no still screen: the flight is already under way as the page slides off (Story, scene 1) */
+.portal-page .gap:last-child { height: 0; }
 .sheet { pointer-events: auto; position: relative; background: var(--canvas); color: var(--text); border-radius: 28px; overflow: hidden;
   box-shadow: 0 -30px 70px -30px rgb(6 12 30 / .55), 0 30px 70px -30px rgb(6 12 30 / .55); }
 .sheet-head { padding: clamp(64px, 8vw, 120px) var(--gutter) 0; }

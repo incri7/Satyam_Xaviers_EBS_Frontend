@@ -176,7 +176,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .fromTo('#gallery', { y: -0.09 * walk }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
           .set({}, {}, 1);
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        master.add(s0.duration(A.h), A.top).add(s1.duration(B.h), B.top).add(s2.duration(Math.max(1, P.h - vh)), P.top)
+        master.add(s0.duration(A.h), A.top).add(s1.duration(B.h + vh * 0.5), B.top - vh * 0.5)   // under way while the first page slides off
+          .add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
           .add(s3.duration(r1 - r0), r0)
           .add(s4.duration(walk), r1);   // the walk starts the moment the school is whole again: no still screen before it
