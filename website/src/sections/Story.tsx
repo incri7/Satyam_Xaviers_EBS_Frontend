@@ -12,7 +12,7 @@ import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { Classroom } from './Classroom';
 import BOARD from './boardLayout.json';
-import { markMoment } from '../scroll';
+import { markMoment, scroller, storyMarks } from '../scroll';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
 
@@ -34,6 +34,14 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   const scenes = useRef<(HTMLElement | null)[]>([]);
   const pickup = useRef<HTMLElement>(null);
   const [ready, setReady] = useState(false);
+  // whether the reader has moved the page themselves since it opened (a jump to a moment holds until they do)
+  const moved = useRef(false);
+  useEffect(() => {
+    const on = () => { moved.current = true; };
+    const evs = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const;
+    evs.forEach((e) => addEventListener(e, on, { passive: true }));
+    return () => evs.forEach((e) => removeEventListener(e, on));
+  }, []);
   const doneRef = useRef(false);
   const lift = useCallback(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, []);
   // If the street cannot load (slow network), the page must not wait forever.
@@ -202,13 +210,19 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           .add(s2.duration(Math.max(1, P.h - vh)), P.top)
           .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
           .add(s3.duration(r1 - r0), r0)
-          .add(s4.duration(walk), r1);   // the walk starts the moment the school is whole again: no still screen before it
+          .add(s4.duration(walk), r1);
+        storyMarks.gallery = Math.round(r1 + walk * 0.9);   // the board filling the screen, the page not yet in (Gallery in the nav)   // the walk starts the moment the school is whole again: no still screen before it
         const end = C.top + C.h - vh;
         master.set({}, {}, end);
         // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
         // catch-up tween that restarts on every wheel notch.
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
         // A rebuild starts every value from the top of the story; put them straight back where the reader is.
+        // Opened at /#gallery: the board's place moves as fonts and photos settle the layout, so until the reader moves
+        // the page themselves, every new layout lands them back on it
+        if (location.hash === '#gallery' && !moved.current && storyMarks.gallery !== undefined) {
+          if (scroller.lenis) scroller.lenis.scrollTo(storyMarks.gallery, { immediate: true, force: true }); else scrollTo(0, storyMarks.gallery);
+        }
         master.time(Math.min(Math.max(scrollY, 0), end));
       }, root);
     };
@@ -229,7 +243,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       const y = scrollY + innerHeight * 0.5;
       const top = (sel: string) => { const el = document.querySelector<HTMLElement>(sel); return el ? el.getBoundingClientRect().top + scrollY : Infinity; };
       const marks: [string, number][] = [['about', top('#intro')], ['', top('.scene-rise')], ['programmes', top('#programmes')],
-        ['', top('.scene-back')], ['gallery', top('#gallery')], ['admissions', top('#admissions')]];
+        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['admissions', top('#admissions')]];
       let at = '';
       for (const [h, t] of marks) if (y >= t) at = h;
       markMoment(at);

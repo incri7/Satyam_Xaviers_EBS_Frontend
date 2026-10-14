@@ -4,7 +4,7 @@ import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
 const PAGES = ['about', 'programmes', 'gallery', 'admissions', 'news', 'contact'] as const;
-const STORY = { about: 'about', programmes: 'programmes' } as const;   // their moments on the home page (scroll.ts MOMENTS)
+const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery' } as const;   // their moments on the home page (scroll.ts MOMENTS)
 
 export function Nav() {
   const lang = useLang();
@@ -16,8 +16,9 @@ export function Nav() {
       <Link className="brand" to={pagePath(lang)}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
       <ul>
         {PAGES.map((p) => {
-          // About and Programmes are moments of the home story: the sign's board become the first page's cover, and
-          // the school's front view the second page picks up. A click goes straight there, in one blink.
+          // About, Programmes and Gallery are moments of the home story: the sign's board become the first page's cover,
+          // the school's front view the second page picks up, and the classroom's whiteboard with the Gallery written
+          // on it. A click goes straight there, in one blink.
           const at = STORY[p as keyof typeof STORY];
           return <li key={p}>{at
             ? <Link to={{ pathname: pagePath(lang), hash: '#' + at }} onClick={(e) => { if (pathname === pagePath(lang) && jumpTo(at === 'about' ? 'intro' : at)) { e.preventDefault(); markMoment(at); } }}>{t.nav[p]}</Link>

@@ -42,7 +42,11 @@ export function restorePlace() {
 /** About and Programmes in the nav, on the home page: straight to their moment in the story, in one blink, no
     scrolling to watch. #intro is where the sign's board has become the first page's cover; #programmes is where the
     school's front view stands whole, just as the second page picks it up. */
+/** Places in the story only its timeline knows, set as it lays itself out (Story): gallery, where the classroom's
+    whiteboard, with the Gallery written on it, fills the screen just before the page comes in over it. */
+export const storyMarks: Record<string, number> = {};
 export function storyY(el: HTMLElement) {
+  if (storyMarks[el.id] !== undefined) return storyMarks[el.id];
   const top = el.getBoundingClientRect().top + window.scrollY;
   // #programmes: a step into its section, past the flight's last frame, where the full-quality front picture the page
   // picks up already fills the screen (before it starts to shrink)
