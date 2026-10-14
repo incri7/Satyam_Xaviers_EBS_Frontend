@@ -220,49 +220,80 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
 
         // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
-        // takes off from its place, swoops up and comes in to the middle, unfolds there into a flat sheet, and the
-        // sheet opens out to the whole screen: the newsprint the News page stands on, which comes in over it. (News
-        // stands a screen up, under the hold's end, and is kept still while it comes in.)
+        // (the very doodle, from where it is drifting) takes off and flies a loop round the page: out to the right,
+        // down, along the bottom and up into the middle, banking into its turns, nearer and larger all the while, a
+        // dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
+        // the whole screen: the paper the News page is printed on, which comes in over it. (News stands a screen up,
+        // under the hold's end, and is kept still while it comes in.)
         const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
         const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
         if (gal && news && fly && planeAt && !reduce) {
           news.style.marginTop = '-100vh';
-          const D = vh * 1.8;
+          const D = vh * 1.4;
           const plane = fly.querySelector<HTMLElement>('.paper-plane')!, sheet = fly.querySelector<HTMLElement>('.paper-sheet')!;
+          const trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
           plane.innerHTML = planeAt.innerHTML;
-          // where the plane stands when the hold begins (the Gallery's bottom on the screen's bottom), its drift aside
+          const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
+          const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+          // the loop, through these points (a share of the screen across and down) from wherever the plane starts
+          const WAY: [number, number][] = [[0.73, -1], [0.87, 0.3], [0.85, 0.6], [0.7, 0.83], [0.5, 0.88], [0.36, 0.74], [0.39, 0.53], [0.5, 0.47]];
+          let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
+          const lay = (sx: number, sy: number) => {
+            start = [sx, sy];
+            const k: [number, number][] = [[sx, sy], ...WAY.map(([u, v]): [number, number] => [u * vw0, v < 0 ? navB + 34 : v * vh])];
+            // Catmull-Rom through them, sampled, with the length along it
+            pts = []; len = [];
+            const at = (i: number) => k[Math.max(0, Math.min(k.length - 1, i))];
+            for (let i = 0; i < k.length - 1; i++) {
+              const [p0, p1, p2, p3] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+              for (let j = 0; j < 40; j++) {
+                const t = j / 40, t2 = t * t, t3 = t2 * t;
+                const f = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+                pts.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+              }
+            }
+            pts.push(k[k.length - 1]);
+            let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
+          };
+          // its nose points 22 degrees above its tail (the doodle's drawing): banked into its heading
+          const NOSE = 22;
+          const fly1 = { t: 0 };
+          const place = () => {
+            const T = fly1.t, L = len[len.length - 1] * T;
+            let i = len.findIndex((v) => v >= L); if (i < 1) i = 1;
+            const q = pts[i - 1], r = pts[i], u = (L - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
+            const x = q[0] + (r[0] - q[0]) * u, y = q[1] + (r[1] - q[1]) * u;
+            const ang = (Math.atan2(r[1] - q[1], r[0] - q[0]) * 180) / Math.PI;
+            gsap.set(plane, { x: x - start[0], y: y - start[1], rotation: T > 0.001 ? ang + NOSE : 0, scale: 1 + (big - 1) * Math.pow(T, 2.2) });
+            trail.setAttribute('d', T > 0.001 ? 'M' + pts.slice(0, i).map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + `L${x.toFixed(1)} ${y.toFixed(1)}` : '');
+          };
+          // the plane as it ends its loop, where the sheet takes over from it
           let px = 0, py = 0;
           for (let e: HTMLElement | null = planeAt; e && e !== gal; e = e.offsetParent as HTMLElement | null) { px += e.offsetLeft; py += e.offsetTop; }
-          py += vh - gal.offsetHeight;
-          const w = planeAt.offsetWidth, h = planeAt.offsetHeight;
-          Object.assign(plane.style, { left: `${px}px`, top: `${py}px`, width: `${w}px`, height: `${h}px` });
-          const dx = vw0 / 2 - (px + w / 2), dy = vh / 2 - (py + h / 2), big = 3.2;
-          // its climb stays below the nav bar (it grows as it climbs: half its grown size above its top)
-          const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
-          const climb = Math.min(Math.max(navB + 24 + h * 0.4 - py, -160), 40);
+          lay(px + w / 2, py + vh - gal.offsetHeight + h / 2);
+          const e1 = pts[pts.length - 2], e2 = pts[pts.length - 1];
+          const endRot = (Math.atan2(e2[1] - e1[1], e2[0] - e1[0]) * 180) / Math.PI + NOSE;
           const PLANE = 'polygon(8% 52%, 92% 18%, 60% 86%, 46% 60%)', SHEET = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
           const s5 = gsap.timeline({ defaults: { ease: 'none' } });
           s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
-            // the Gallery fades back under a veil of the copy's own paper (not see-through: the board is behind it)
-            .fromTo(fly.querySelector('.paper-veil'), { opacity: 0 }, { opacity: 1, duration: 0.3, immediateRender: false }, 0.02)
-            // the take-off: a little back, then up and away, and round into the middle, nearer and nearer
-            .fromTo(plane, { x: 0, y: 0, rotation: 0, scale: 1 }, { x: -14, y: 8, rotation: -10, duration: 0.07, ease: 'power1.inOut', immediateRender: false }, 0.02)
-            // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer, its dotted trail left behind
-            .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.22, immediateRender: false }, 0.06)
-            .fromTo(plane.querySelector('path'), { fill: 'rgba(255, 254, 250, 0)' }, { fill: 'rgba(255, 254, 250, 1)', duration: 0.2, immediateRender: false }, 0.1)
-            .fromTo(plane.querySelectorAll('path')[1], { opacity: 1 }, { opacity: 0, duration: 0.1, immediateRender: false }, 0.04)
-            .to(plane, { x: dx * 0.35 + 140, y: climb, rotation: 18, scale: 1.8, duration: 0.15, ease: 'power1.out' }, 0.09)
-            .to(plane, { x: dx, y: dy, rotation: -4, scale: big, duration: 0.15, ease: 'power2.inOut' }, 0.24)
-            // the unfold: the plane gives way to a flat sheet of its own shape, which opens out to a page, creases and all
-            .to(plane, { autoAlpha: 0, duration: 0.04 }, 0.4)
-            .fromTo(sheet, { autoAlpha: 0, width: w * big, height: h * big, rotation: -4, clipPath: PLANE },
-              { autoAlpha: 1, duration: 0.04, immediateRender: false }, 0.39)
-            .to(sheet, { width: vw0 * 0.46, height: vh * 0.62, rotation: 2, clipPath: SHEET, duration: 0.19, ease: 'power2.out' }, 0.41)
-            .to(sheet, { width: vw0, height: vh, rotation: 0, borderRadius: 0, duration: 0.28, ease: 'power2.inOut' }, 0.6)
-            .to(sheet.querySelectorAll('i'), { opacity: 0.25, duration: 0.28 }, 0.6)
+            // the Gallery fades back under a veil of its own white paper
+            .fromTo(fly.querySelector('.paper-veil'), { opacity: 0 }, { opacity: 1, duration: 0.22, immediateRender: false }, 0.02)
+            // the loop
+            .fromTo(fly1, { t: 0 }, { t: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false, onUpdate: place }, 0.03)
+            // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer
+            .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.2, immediateRender: false }, 0.04)
+            .fromTo(plane.querySelector('path'), { fill: 'rgba(255, 255, 255, 0)' }, { fill: 'rgba(255, 255, 255, 1)', duration: 0.18, immediateRender: false }, 0.08)
+            .fromTo(plane.querySelectorAll('path')[1], { opacity: 1 }, { opacity: 0, duration: 0.06, immediateRender: false }, 0.03)
+            // the unfold: the plane gives way to a flat sheet of its own shape, which opens out to a page
+            .to(plane, { autoAlpha: 0, duration: 0.03 }, 0.5)
+            .fromTo(sheet, { autoAlpha: 0, width: w * big, height: h * big, rotation: endRot, clipPath: PLANE },
+              { autoAlpha: 1, duration: 0.03, immediateRender: false }, 0.49)
+            .to(sheet, { width: vw0 * 0.46, height: vh * 0.62, rotation: 0, clipPath: SHEET, duration: 0.13, ease: 'power2.out' }, 0.51)
+            .to(trail, { opacity: 0, duration: 0.1 }, 0.55)
+            .to(sheet, { width: vw0, height: vh, borderRadius: 0, duration: 0.2, ease: 'power2.inOut' }, 0.64)
             // the News page, held at the top, comes in over the sheet; then the sheet goes from under it
-            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.88)
-            .fromTo(news, { y: -D * 0.12 }, { y: 0, duration: 0.12, immediateRender: false }, 0.88)
+            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.84)
+            .fromTo(news, { y: -D * 0.16 }, { y: 0, duration: 0.16, immediateRender: false }, 0.84)
             .set(fly, { autoAlpha: 0 }, 0.999)
             .set({}, {}, 1);
           // it takes off from exactly where the doodle is drifting at that moment
@@ -270,7 +301,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             const svg = planeAt.firstElementChild as Element | null, r = (svg ?? planeAt).getBoundingClientRect();
             plane.style.left = `${r.left}px`; plane.style.top = `${r.top}px`;
             plane.style.width = `${r.width}px`; plane.style.height = `${r.height}px`;
+            lay(r.left + r.width / 2, r.top + r.height / 2); place();
           };
+          Object.assign(plane.style, { left: `${px}px`, top: `${py + vh - gal.offsetHeight}px`, width: `${w}px`, height: `${h}px` });
           ScrollTrigger.create({ trigger: gal, start: 'bottom bottom', end: '+=' + D, pin: true, pinSpacing: true, scrub: true, animation: s5,
             onToggle: (self) => { if (self.isActive) fromDoodle(); },
             onRefresh: (self) => { storyMarks.news = Math.round(self.end); } });
@@ -403,8 +436,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         {/* the Gallery's paper plane, in flight and unfolded into the News page's sheet (scene 5) */}
         <div className="paper-fly" aria-hidden="true">
           <div className="paper-veil" />
+          <svg className="paper-trail"><path /></svg>
           <div className="paper-plane" />
-          <div className="paper-sheet"><i className="c1" /><i className="c2" /><i className="c3" /></div>
+          <div className="paper-sheet" />
         </div>
       </div>
     </div>
