@@ -220,9 +220,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
 
         // Scene 5, the way into News: scrolling on from the Gallery, it holds while the paper plane drawn in its copy
-        // (the very doodle, from where it is drifting) takes off and flies a loop round the page: out to the right,
-        // down, along the bottom and up into the middle, banking into its turns, nearer and larger all the while, a
-        // dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
+        // (the very doodle, from where it is drifting) takes off and flies straight to the middle of the screen,
+        // turned to its heading, nearer and larger all the while, a straight dashed trail drawn behind it. In the middle it unfolds into a flat sheet, creases and all, which opens out to
         // the whole screen: the paper the News page is printed on, which comes in over it. (News stands a screen up,
         // under the hold's end, and is kept still while it comes in.)
         const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
@@ -235,8 +234,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           plane.innerHTML = planeAt.innerHTML;
           const w = planeAt.offsetWidth, h = planeAt.offsetHeight, big = 4.2;
           const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
-          // the loop, through these points (a share of the screen across and down) from wherever the plane starts
-          const WAY: [number, number][] = [[0.73, -1], [0.87, 0.3], [0.85, 0.6], [0.7, 0.83], [0.5, 0.88], [0.36, 0.74], [0.39, 0.53], [0.5, 0.47]];
+          // its flight: from wherever the plane starts, straight to the middle (a share of the screen across and down)
+          const WAY: [number, number][] = [[0.5, 0.47]];
           let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0];
           const lay = (sx: number, sy: number) => {
             start = [sx, sy];
@@ -278,7 +277,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           s5.set(fly, { autoAlpha: 1 }, 0.001).set(planeAt, { autoAlpha: 0 }, 0.001).set(news, { autoAlpha: 0 }, 0)
             // the Gallery fades back under a veil of its own white paper
             .fromTo(fly.querySelector('.paper-veil'), { opacity: 0 }, { opacity: 1, duration: 0.22, immediateRender: false }, 0.02)
-            // the loop
+            // the flight
             .fromTo(fly1, { t: 0 }, { t: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false, onUpdate: place }, 0.03)
             // the very doodle: its faint pen line firms up and its paper fills in as it comes nearer
             .fromTo(plane.querySelector('svg'), { stroke: 'rgba(31, 82, 166, 0.28)' }, { stroke: 'rgba(36, 68, 138, 1)', duration: 0.2, immediateRender: false }, 0.04)
