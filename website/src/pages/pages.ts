@@ -114,7 +114,7 @@ const en = {
   },
   news: {
     title: 'Notices and news.', other: 'सूचना र समाचार।',
-    all: 'Everything', notices: 'Notices', news: 'News',
+    all: 'Everything', notices: 'Notices', news: 'News', app: 'About the app',
     admit: { title: 'Admissions for 2084 are open', body: 'Nursery to Class 10. Visit, call or write, and the office will walk you through the rest.', cta: 'Talk to the office' },
     // Every item is [kind, tag, date, title, body, photo]: a notice or news; a tag (Notice, Achievement, Event...);
     // any of title, body and photo may be empty, so an item is text only, a photo only, or both. Static for now; the
@@ -251,7 +251,7 @@ const ne: Pages = {
   },
   news: {
     title: 'सूचना र समाचार।', other: 'Notices and news.',
-    all: 'सबै', notices: 'सूचना', news: 'समाचार',
+    all: 'सबै', notices: 'सूचना', news: 'समाचार', app: 'एपबारे',
     admit: { title: 'वि.सं. २०८४ को भर्ना खुला छ', body: 'नर्सरीदेखि कक्षा १० सम्म। आउनुहोस्, फोन वा इमेल गर्नुहोस्, बाँकी कार्यालयले बताउनेछ।', cta: 'कार्यालयसँग कुरा गर्नुहोस्' },
     items: [
       ['notice', 'सूचना', '[मिति]', 'मौसम चेतावनी: १५ जिल्लामा रेड अलर्ट।', 'जल तथा मौसम विज्ञान विभागबाट साझा गरिएको। [विद्यालय बन्द भयो कि भएन]', ''],

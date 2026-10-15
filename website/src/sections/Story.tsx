@@ -6,7 +6,6 @@ import { arrive, room, sign } from '../three/rig';
 import { pages } from '../pages/pages';
 import { AcademicsBody, NewsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
-import { Parents } from './Sections';
 import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
@@ -402,7 +401,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   );
   const after: [string, ReactNode][] = [
     ['gallery', <>{head('gallery', p.gallery.title, p.gallery.other, p.gallery.intro)}<GalleryBody /></>],
-    ['news', <><NewsBody /><Parents lang={lang} /></>],
+    ['news', <NewsBody />],
   ];
   const sceneRef = (i: number) => (el: HTMLElement | null) => { scenes.current[i] = el; };
 

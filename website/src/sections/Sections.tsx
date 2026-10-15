@@ -34,10 +34,10 @@ export function Nav() {
   );
 }
 
-export function Parents({ lang }: { lang: Lang }) {
+/** The school's app, as a parent sees it: its home on a phone, and what it is for. */
+export function ParentsApp({ lang }: { lang: Lang }) {
   const t = copy[lang].parents, p = t.phone, kid = p.kid.split(',')[0];
   return (
-    <section className="block parent" id="parents">
       <div className="split">
         <figure className="phone" aria-label={p.example}>
           {/* The app's parent home, drawn with the app's own card styles (v3 logo blue). */}
@@ -60,7 +60,6 @@ export function Parents({ lang }: { lang: Lang }) {
           <p className="lede">{t.body}</p>
         </div>
       </div>
-    </section>
   );
 }
 

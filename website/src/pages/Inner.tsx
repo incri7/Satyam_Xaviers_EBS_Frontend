@@ -8,6 +8,7 @@ import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { pagePath } from '../lang';
 import { PageHead, Photo, Section, T } from './ui';
+import { ParentsApp } from '../sections/Sections';
 
 gsap.registerPlugin(Flip);
 
@@ -81,19 +82,27 @@ export function News() {
     items move to their new places rather than jumping. Shared by the route and by the home page (Story). */
 export function NewsBody() {
   const lang = useLang(); const n = pages[lang].news, c = copy[lang];
-  const [show, setShow] = useState<'all' | 'notice' | 'news'>('all');
+  // the board's three views, and the app: not a filter but a page of its own, in the board's place
+  const [show, setShow] = useState<'all' | 'notice' | 'news' | 'app'>('all');
+  const panel = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const flip = useRef<Flip.FlipState | null>(null);
+  const shown = useRef(show);
   const today = new Intl.DateTimeFormat(lang === 'ne' ? 'ne-NP' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-  const items = n.items.filter(([kind]) => show === 'all' || kind === show);
+  const items = show === 'app' ? [] : n.items.filter(([kind]) => show === 'all' || kind === show);
   const count = (k: string) => n.items.filter(([kind]) => k === 'all' || kind === k).length;
   const choose = (k: typeof show) => {
     if (k === show) return;
-    if (board.current && !matchMedia('(prefers-reduced-motion: reduce)').matches) flip.current = Flip.getState(board.current.querySelectorAll('.pin'));
+    if (board.current && k !== 'app' && !matchMedia('(prefers-reduced-motion: reduce)').matches) flip.current = Flip.getState(board.current.querySelectorAll('.pin'));
     setShow(k);
   };
   useLayoutEffect(() => {
     const st = flip.current; flip.current = null;
+    if (shown.current === show) return; shown.current = show;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // the board and the app take each other's place: the one coming in rises into it
+    const into = show === 'app' ? panel.current : board.current;
+    if (!st && into) { gsap.fromTo(into, { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'power2.out' }); return; }
     if (!st || !board.current) return;
     Flip.from(st, { duration: 0.55, ease: 'power3.inOut', absolute: true, scale: true,
       onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.4, delay: 0.15 }),
@@ -118,7 +127,9 @@ export function NewsBody() {
             {k === 'all' ? n.all : k === 'notice' ? n.notices : n.news}<span>{count(k)}</span>
           </button>
         ))}
+        <button type="button" className="nb-app-tab" aria-pressed={show === 'app'} onClick={() => choose('app')}>{n.app}</button>
       </div>
+      {show === 'app' ? <div className="nb-app" ref={panel}><ParentsApp lang={lang} /></div> : (
       <div className="nb-board" ref={board}>
         {items.map(([kind, tag, date, title, body, photo], i) => (
           <article key={kind + date + title + photo + i} data-flip-id={kind + date + title + photo}
@@ -131,6 +142,7 @@ export function NewsBody() {
           </article>
         ))}
       </div>
+      )}
     </div>
   );
 }
