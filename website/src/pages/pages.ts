@@ -132,7 +132,7 @@ const en = {
     ] as [string, string, string, string, string, string][],
   },
   contact: {
-    title: 'Come and say namaste.', other: 'हामीलाई भेट्न आउनुहोस्।',
+    title: 'Talk to the school.', other: 'विद्यालयसँग कुरा गर्नुहोस्।',
     intro: 'Ask about admission, fees, a visit or anything else. Write to the office here, or call, email or come in.',
     letter: 'Write to the office', letterNote: 'The office reads every message on school days and replies by phone or by email, as you choose.',
     name: 'Your name', phone: 'Phone number', phoneHint: 'A mobile number, or a landline with its area code.',
@@ -284,7 +284,7 @@ const ne: Pages = {
     ],
   },
   contact: {
-    title: 'हामीलाई भेट्न आउनुहोस्।', other: 'Come and say namaste.',
+    title: 'विद्यालयसँग कुरा गर्नुहोस्।', other: 'Talk to the school.',
     intro: 'भर्ना, शुल्क, भ्रमण वा अरू जे पनि सोध्नुहोस्। यहीँबाट कार्यालयलाई लेख्नुहोस्, वा फोन, इमेल गर्नुहोस् वा आउनुहोस्।',
     letter: 'कार्यालयलाई लेख्नुहोस्', letterNote: 'कार्यालयले विद्यालय दिनमा हरेक सन्देश पढ्छ र तपाईंले रोजेअनुसार फोन वा इमेलबाट जवाफ दिन्छ।',
     name: 'तपाईंको नाम', phone: 'फोन नम्बर', phoneHint: 'मोबाइल नम्बर, वा क्षेत्र कोडसहितको ल्यान्डलाइन।',
