@@ -4,6 +4,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { pagePath, useLang } from '../lang';
 import { Photo } from './ui';
+import { ToContact } from './Contact';
 import './intro.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -228,7 +229,7 @@ export function IntroBody() {
           <p className="card-p">{c.join}</p>
           <div className="join-links">
             <Link className="btn" to={{ pathname: pagePath(lang), hash: '#news' }}>{c.admissions}</Link>
-            <Link className="btn line" to={pagePath(lang, 'contact')}>{c.contact}</Link>
+            <ToContact className="btn line">{c.contact}</ToContact>
           </div>
         </section>
       </div>

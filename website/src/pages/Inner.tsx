@@ -3,12 +3,11 @@ import { useLang } from '../lang';
 import { copy } from '../content';
 import { pages } from './pages';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { pagePath } from '../lang';
-import { PageHead, Photo, Section, T } from './ui';
+import { PageHead, Section, T } from './ui';
 import { ParentsApp } from '../sections/Sections';
+import { ToContact } from './Contact';
 
 gsap.registerPlugin(Flip);
 
@@ -116,10 +115,10 @@ export function NewsBody() {
         <p className="nb-date">{today}</p>
       </header>
       {c.admissions.open ? (
-        <Link className="nb-admit" to={pagePath(lang, 'contact')}>
+        <ToContact className="nb-admit" topic="admission">
           <span className="nb-admit-text"><b>{n.admit.title}</b><span>{n.admit.body}</span></span>
           <span className="nb-admit-cta">{n.admit.cta}</span>
-        </Link>
+        </ToContact>
       ) : null}
       <div className="nb-filter" role="group" aria-label={n.title}>
         {(['all', 'notice', 'news'] as const).map((k) => (
@@ -144,28 +143,5 @@ export function NewsBody() {
       </div>
       )}
     </div>
-  );
-}
-
-export function Contact() {
-  const lang = useLang(); const c = pages[lang].contact, f = copy[lang].footer;
-  const map = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent("Satyam Xavier's English Boarding School, Hetauda");
-  return (
-    <>
-      <PageHead title={c.title} other={c.other} intro={f.address.join(', ')} />
-      <Section className="contact-cards">
-        <div className="cards three">
-          <div className="card solid"><h2>{c.callTitle}</h2><a className="big" href="tel:057525563">057-525563</a><p><T>{c.hours}</T></p></div>
-          <div className="card"><h2>{c.emailTitle}</h2><a className="mid" href="mailto:mailme.satyamxaviers@gmail.com">mailme.satyamxaviers@gmail.com</a><p>{c.emailNote}</p></div>
-          <div className="card yellow"><h2>{c.visitTitle}</h2><p className="mid">{f.address[0]}<br />{f.address[1]}</p><a className="btn line" href={map} target="_blank" rel="noreferrer">{c.mapLink}</a></div>
-        </div>
-      </Section>
-      <Section title={c.findTitle} className="tint">
-        <div className="split top">
-          <dl className="find">{c.find.map(([h, b]) => <div key={h}><dt>{h}</dt><dd><T>{b}</T></dd></div>)}</dl>
-          <Photo name="building" alt="The yellow building with blue balconies" ratio="4 / 3" />
-        </div>
-      </Section>
-    </>
   );
 }

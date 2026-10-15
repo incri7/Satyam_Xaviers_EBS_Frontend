@@ -4,7 +4,7 @@ import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
 const PAGES = ['about', 'programmes', 'gallery', 'news', 'contact'] as const;
-const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery', news: 'news' } as const;   // their moments on the home page (scroll.ts MOMENTS)
+const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery', news: 'news', contact: 'contact' } as const;   // their moments on the home page (scroll.ts MOMENTS)
 
 export function Nav() {
   const lang = useLang();

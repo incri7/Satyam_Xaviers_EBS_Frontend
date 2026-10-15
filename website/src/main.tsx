@@ -2,7 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider, useLocation } from 'react-router-dom';
 import { Home, Layout } from './App';
-import { Academics, Contact, News } from './pages/Inner';
+import { Academics, News } from './pages/Inner';
+import { Contact } from './pages/Contact';
 import { Gallery } from './pages/Gallery';
 import './styles.css';
 

@@ -6,14 +6,13 @@ import { arrive, room, sign } from '../three/rig';
 import { pages } from '../pages/pages';
 import { AcademicsBody, NewsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
+import { ContactBody, ToContact } from '../pages/Contact';
 import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
 import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { Classroom } from './Classroom';
 import BOARD from './boardLayout.json';
 import { markMoment, scroller, storyMarks } from '../scroll';
-import { Link } from 'react-router-dom';
-import { pagePath } from '../lang';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
 
@@ -297,7 +296,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             const on = !st.gone && galO > 0.01 && (st.T > 0 || (r.bottom > 0 && r.top < H));
             if (on !== shown) { shown = on; fly.style.visibility = on ? 'visible' : 'hidden'; fly.style.opacity = on ? '1' : '0'; }
             if (!on) return;
-            if (st.T === 0) lay(r.left + r.width / 2, r.top + r.height / 2, r.width);
+            // (opened past the take-off, at /#news, it has no path yet: it lays one from the drawing's place)
+            if (st.T === 0 || !pts.length) lay(r.left + r.width / 2, r.top + r.height / 2, r.width);
             // where it is along its flight, and its heading
             let cx = start[0], cy = start[1], head = -NOSE, i = 1;
             if (st.T > 0) {
@@ -350,11 +350,32 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
           // the ticker belongs to this build: the context's revert removes it
           cleanups.push(() => { gsap.ticker.remove(render); if (drawn) drawn.style.visibility = ''; });
         }
+        // Scene 6, the way into Contact: the Notices page lifts off like the top sheet of a writing pad, turning up from
+        // its corner as it goes, and the Contact page is underneath, held still (pinned) until it is clear; it comes up
+        // from the shadow of the sheet, its letter rising into its place. (Contact stands a screen up, under the
+        // Notices' last screen.)
+        const contact = document.getElementById('contact');
+        if (news && contact && !reduce) {
+          contact.style.marginTop = '-100vh';
+          const inner = contact.querySelector<HTMLElement>('.ct-inner')!;
+          const s6 = gsap.timeline({ defaults: { ease: 'none' } })
+            .fromTo(news, { rotation: 0, transformOrigin: '0% 100%' }, { rotation: -2.2, duration: 1, ease: 'power1.in', immediateRender: false }, 0)
+            .fromTo(news, { boxShadow: '0 0 0 0 rgb(0 0 0 / 0)' }, { boxShadow: '0 50px 90px -10px rgb(0 0 0 / .55)', duration: 0.35, immediateRender: false }, 0)
+            .fromTo(inner, { scale: 0.93, autoAlpha: 0.25 }, { scale: 1, autoAlpha: 1, duration: 0.9, ease: 'power2.out', immediateRender: false }, 0.05)
+            .fromTo(inner.querySelectorAll('.ct-air, .ct-reach > *, .ct-visit'), { y: 70 }, { y: 0, duration: 0.7, ease: 'power2.out', stagger: 0.06, immediateRender: false }, 0.2);
+          ScrollTrigger.create({ trigger: contact, start: 'top top', end: '+=' + vh, pin: true, pinSpacing: true, scrub: true, animation: s6,
+            onRefresh: (self) => { storyMarks.contact = Math.round(self.end); } });
+          // the Notices page changes height (a tab, its photos loading): the pin is measured again
+          let first = true, t6 = 0;
+          const ro6 = new ResizeObserver(() => { if (first) { first = false; return; } clearTimeout(t6); t6 = window.setTimeout(() => ScrollTrigger.refresh(), 200); });
+          ro6.observe(news);
+          cleanups.push(() => { ro6.disconnect(); clearTimeout(t6); contact.style.marginTop = ''; });
+        }
         // A rebuild starts every value from the top of the story; put them straight back where the reader is.
         // Opened at /#gallery: the board's place moves as fonts and photos settle the layout, so until the reader moves
         // the page themselves, every new layout lands them back on it
         const opened = location.hash.slice(1);
-        if ((opened === 'gallery' || opened === 'news') && !moved.current) {
+        if ((opened === 'gallery' || opened === 'news' || opened === 'contact') && !moved.current) {
           requestAnimationFrame(() => {
             const y = storyMarks[opened];
             if (y === undefined || moved.current) return;
@@ -381,7 +402,8 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
       const y = scrollY + innerHeight * 0.5;
       const top = (sel: string) => { const el = document.querySelector<HTMLElement>(sel); return el ? el.getBoundingClientRect().top + scrollY : Infinity; };
       const marks: [string, number][] = [['about', top('#intro')], ['', top('.scene-rise')], ['programmes', top('#programmes')],
-        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['news', storyMarks.news !== undefined ? storyMarks.news + innerHeight * 0.5 - 1 : top('#news')]];
+        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['news', storyMarks.news !== undefined ? storyMarks.news + innerHeight * 0.5 - 1 : top('#news')],
+        ['contact', storyMarks.contact !== undefined ? storyMarks.contact + innerHeight * 0.5 - 1 : top('#contact')]];
       let at = '';
       for (const [h, t] of marks) if (y >= t) at = h;
       markMoment(at);
@@ -402,6 +424,7 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
   const after: [string, ReactNode][] = [
     ['gallery', <>{head('gallery', p.gallery.title, p.gallery.other, p.gallery.intro)}<GalleryBody /></>],
     ['news', <NewsBody />],
+    ['contact', <ContactBody />],
   ];
   const sceneRef = (i: number) => (el: HTMLElement | null) => { scenes.current[i] = el; };
 
@@ -427,9 +450,9 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="meta-line hero-fade">{t.hero.label}</p>
             {/* while admissions are open: the first thing on the first screen, to the office (Contact) */}
             {t.admissions.open ? (
-              <Link className="admit-banner hero-fade" to={pagePath(lang, 'contact')}>
+              <ToContact className="admit-banner hero-fade" topic="admission">
                 {t.admissions.banner}<span>{t.admissions.read}</span>
-              </Link>
+              </ToContact>
             ) : null}
           </div>
         </div>

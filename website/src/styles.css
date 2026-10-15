@@ -126,7 +126,9 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
 /* the pages after the classroom: the Gallery stands a screen up, over the walk's end, and comes in over the marker
    drawing in place (Story, scene 4); the pages after it are opaque as ever */
 .home-pages.after { margin-top: -100vh; background: transparent; }
-.home-pages.after > .home-page:not([id="gallery"]):not([id="news"]) { background: var(--canvas); }
+.home-pages.after > .home-page:not([id="gallery"]):not([id="news"]):not([id="contact"]) { background: var(--canvas); }
+/* the Contact page, under the Notices' last screen: the Notices page lifts off it (scene 6) */
+.home-pages.after #contact { position: relative; z-index: 2; background: var(--deep); }
 .home-pages.after > #gallery { z-index: 1; }
 .home-pages.after > #news { position: relative; z-index: 3; }
 /* scene 5: the plane in flight, the sheet it unfolds into; over the Gallery, under the News page */
