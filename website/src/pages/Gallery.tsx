@@ -4,7 +4,6 @@ import gsap from 'gsap';
 import { useLang } from '../lang';
 import { scroller } from '../scroll';
 import { pages } from './pages';
-import { T } from './ui';
 
 /** The route: /gallery, /ne/gallery (it also replaces the old School life page). */
 export function Gallery() {
@@ -298,7 +297,6 @@ export function GalleryBody() {
               <h3 className="gal-title" id="gal-open-title">{g.folders[open][1]}<small>{photos.length} {g.photos}</small></h3>
             </div>
             <div className="gal-posts">{photos.map((p, k) => post(p, k, false))}</div>
-            <p className="consent"><T>{g.consent}</T></p>
           </div>
         </div>, document.body)}
 

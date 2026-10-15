@@ -5,7 +5,7 @@ import { pages } from './pages';
 import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
-import { PageHead, Section, T } from './ui';
+import { PageHead, T } from './ui';
 import { ParentsApp } from '../sections/Sections';
 import { ToContact } from './Contact';
 
@@ -24,51 +24,7 @@ export function Academics() {
 /** The programmes themselves: shared by the route and by the home page, under the picked-up school. */
 export const AcademicsBody = ProgrammesBody;
 
-export function AdmissionsPage() {
-  const lang = useLang(); const a = pages[lang].admissions;
-  return (
-    <>
-      <PageHead title={a.title} other={a.other} intro={a.intro} photo="gateevent" alt="Students and teachers at the school gate" />
-      <AdmissionsBody />
-    </>
-  );
-}
-
 /** Admissions itself: shared by the route and by the page the gate sign opens in the story. */
-export function AdmissionsBody() {
-  const lang = useLang(); const a = pages[lang].admissions, c = copy[lang];
-  return (
-    <>
-      <Section title={a.stepsTitle}>
-        <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span><T>{b}</T></span></li>)}</ol>
-      </Section>
-      <Section className="tint">
-        <div className="split top">
-          <div>
-            <h2 className="wide">{a.docsTitle}</h2>
-            <p className="lede">{a.docsNote}</p>
-            <ul className="checks">{a.docs.map((d) => <li key={d}><T>{d}</T></li>)}</ul>
-          </div>
-          <div>
-            <h2 className="wide">{a.agesTitle}</h2>
-            <p className="lede"><T>{a.agesNote}</T></p>
-            <table className="ages"><tbody>{a.ages.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
-            <h2 className="wide small-gap">{a.feesTitle}</h2>
-            <p className="lede"><T>{a.fees}</T></p>
-            <p className="lede">{a.feesApp}</p>
-          </div>
-        </div>
-      </Section>
-      <Section title={a.faqTitle}>
-        <div className="faq">{a.faq.map(([q, ans], i) => <details key={q} open={i === 0}><summary>{q}</summary><p><T>{ans}</T></p></details>)}</div>
-      </Section>
-      <Section title={a.reachTitle} className="admit">
-        <div className="ctas"><a className="btn" href="tel:057525563">{c.call}</a><a className="btn line" href="mailto:mailme.satyamxaviers@gmail.com">mailme.satyamxaviers@gmail.com</a></div>
-      </Section>
-    </>
-  );
-}
-
 /** The route: /news, /ne/news. */
 export function News() {
   return <section className="paper-page"><NewsBody /></section>;

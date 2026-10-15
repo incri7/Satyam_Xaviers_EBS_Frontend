@@ -63,47 +63,6 @@ export function ParentsApp({ lang }: { lang: Lang }) {
   );
 }
 
-export function Result({ lang }: { lang: Lang }) {
-  const t = copy[lang].result;
-  return (
-    <section className="block result">
-      <div className="split">
-        <div><h2 className="wide">{t.title}</h2><p className="lede">{t.body}</p></div>
-        <figure><img src="/photos/gpa.webp" alt={t.caption} loading="lazy" width={1000} height={1250} /><figcaption>{t.caption}</figcaption></figure>
-      </div>
-    </section>
-  );
-}
-
-export function Life({ lang }: { lang: Lang }) {
-  const t = copy[lang].life;
-  return (
-    <section className="block life" id="life">
-      <h2 className="wide">{t.title}</h2>
-      <p className="lede">{t.body}</p>
-      <div className="life-grid">
-        {t.photos.map(([img, cap, alt], i) => (
-          <figure className={'p' + i} key={img}><img src={`/photos/${img}.webp`} alt={alt} loading="lazy" /><figcaption>{cap}</figcaption></figure>
-        ))}
-      </div>
-      <p className="more"><Link className="btn line" to={pagePath(lang, 'gallery')}>{copy[lang].more.life}</Link></p>
-    </section>
-  );
-}
-
-export function Admissions({ lang }: { lang: Lang }) {
-  const t = copy[lang], a = t.admissions;
-  return (
-    <section className="block admit" id="admissions">
-      <h2 className="wide">{a.title}</h2>
-      <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{a.other}</p>
-      <p className="lede">{a.body}</p>
-      <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span>{b}</span></li>)}</ol>
-      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={{ pathname: pagePath(lang), hash: '#news' }}>{t.more.admissions}</Link><Link className="btn line" to={pagePath(lang, 'contact')}>{a.directions}</Link></div>
-    </section>
-  );
-}
-
 export function Footer() {
   const lang = useLang();
   const t = copy[lang].footer;
