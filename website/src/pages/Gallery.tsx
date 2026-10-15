@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import gsap from 'gsap';
 import { useLang } from '../lang';
 import { scroller } from '../scroll';
@@ -52,7 +53,8 @@ const DOODLES: [string, number, number, number, number][] = [
 /** The gallery, written in a Nepali school copy: three glass folders (School days, Proud moments, Celebrations), the
     photos peeking out of each. Opening one bursts its photos out, and they land as that folder's page; going back,
     they fly home and the folder closes. A photo opens full size. Shared by the route and by the home page, which
-    reaches it through the classroom's whiteboard. */
+    reaches it through the classroom's whiteboard. An opened folder is a page of its own, over everything: only it
+    scrolls, and the page under it (the home page's story and all) stands still until the reader goes back. */
 export function GalleryBody() {
   const lang = useLang(); const g = pages[lang].gallery;
   const other = lang === 'en' ? 'ne' : 'en';
@@ -61,6 +63,7 @@ export function GalleryBody() {
   const [loved, setLoved] = useState<Record<string, true>>(readLoved);
   const taps = useRef<Record<string, number>>({});
   const root = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const busy = useRef(false);
   // the photos in flight between the folder and its page, while the page swaps under them
@@ -73,7 +76,7 @@ export function GalleryBody() {
   // The doodles drift as if on a breeze.
   useLayoutEffect(() => {
     if (reduce || !root.current) return;
-    const loops: gsap.core.Animation[] = [];
+    const loops: gsap.core.Animation[] = [], offs: (() => void)[] = [];
     const ctx = gsap.context(() => {
       root.current!.querySelectorAll<HTMLElement>('.gal-doodles > span').forEach((d) => {
         loops.push(gsap.to(d, { x: gsap.utils.random(-14, 14), y: gsap.utils.random(-12, 12), rotation: `+=${gsap.utils.random(-6, 6)}`,
@@ -92,14 +95,15 @@ export function GalleryBody() {
           .to(b.querySelector('.front'), { rotationX: -10, duration: 0.4, ease: 'power2.out' }, 0);
         const on = () => { if (!busy.current) { idle.pause(); hover.play(); } };
         const off = () => { if (!busy.current) { hover.reverse(); idle.resume(); } };
-        b.addEventListener('pointerenter', on); b.addEventListener('pointerleave', off);
-        b.addEventListener('focus', on); b.addEventListener('blur', off);
+        const ev = [['pointerenter', on], ['pointerleave', off], ['focus', on], ['blur', off]] as const;
+        ev.forEach(([n, f]) => b.addEventListener(n, f));
+        offs.push(() => ev.forEach(([n, f]) => b.removeEventListener(n, f)));
       });
     }, root);
     // the idle motion runs only while the gallery is on screen
     const io = new IntersectionObserver(([e]) => loops.forEach((t) => (e.isIntersecting ? t.resume() : t.pause())));
     io.observe(root.current);
-    return () => { io.disconnect(); ctx.revert(); };
+    return () => { io.disconnect(); offs.forEach((f) => f()); ctx.revert(); };
   }, [open, reduce, lang]);
 
   // Open: the flap swings open, the photos burst up and apart, the other folders drop away; then the page swaps in
@@ -134,7 +138,7 @@ export function GalleryBody() {
     if (busy.current || open === null) return;
     if (reduce) { setOpen(null); return; }
     busy.current = true;
-    const els = [...root.current!.querySelectorAll<HTMLImageElement>('.gal-posts .post-ph img')].map((im) => {
+    const els = [...page.current!.querySelectorAll<HTMLImageElement>('.gal-posts .post-ph img')].map((im) => {
       const r = im.getBoundingClientRect(); const c = new Image(); c.src = im.src; c.alt = ''; c.className = 'gal-fly';
       Object.assign(c.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderWidth: '0px' });
       document.body.appendChild(c); return c;
@@ -142,11 +146,24 @@ export function GalleryBody() {
     fly.current = { els, dir: 'in', folder: open };
     setOpen(null);
   };
+  const backRef = useRef(back); backRef.current = back;
+
+  // While a folder is open nothing under its page moves: no smooth scroll, no scrollbar; Escape goes back
+  // (unless a photo is open large, which Escape closes first).
+  useLayoutEffect(() => {
+    if (open === null) return;
+    const html = document.documentElement;
+    scroller.lenis?.stop(); html.classList.add('gal-locked');
+    page.current?.querySelector<HTMLElement>('.gal-back')?.focus({ preventScroll: true });
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !dialog.current?.open) backRef.current(); };
+    addEventListener('keydown', key);
+    return () => { removeEventListener('keydown', key); html.classList.remove('gal-locked'); scroller.lenis?.start(); };
+  }, [open]);
 
   useLayoutEffect(() => {
     const f = fly.current; if (!f || !root.current) return;
-    if (f.dir === 'out' && open !== null) {
-      const posts = [...root.current.querySelectorAll<HTMLElement>('.gal-posts .post')];
+    if (f.dir === 'out' && open !== null && page.current) {
+      const posts = [...page.current.querySelectorAll<HTMLElement>('.gal-posts .post')];
       const tl = gsap.timeline({ onComplete: () => { fly.current = null; busy.current = false; } });
       f.els.forEach((im, k) => {
         const r = posts[k].querySelector('.post-ph')!.getBoundingClientRect();
@@ -156,17 +173,12 @@ export function GalleryBody() {
             if (!reduce) gsap.from(posts[k].querySelectorAll(':scope > :not(.post-ph)'), { opacity: 0, y: 6, duration: 0.35, stagger: 0.05 });
           } }, k * 0.04);
       });
-      tl.fromTo(root.current.querySelector('.gal-top'), { autoAlpha: 0, y: -12 }, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.4);
+      tl.fromTo(page.current.querySelector('.gal-top'), { autoAlpha: 0, y: -12 }, { autoAlpha: 1, y: 0, duration: 0.4 }, 0.4);
     }
     if (f.dir === 'in' && open === null) {
-      // the folders are at the section's top: bring it into view if the reader had scrolled down the photos
-      const sec = root.current.closest('section') ?? root.current;
-      const top = sec.getBoundingClientRect().top;
-      if (top < 0) {
-        const y = top + scrollY;
-        if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y);
-      }
+      // the desk stood still under the folder's page, as the burst left it: the folder back, its flap open
       const item = root.current.querySelectorAll<HTMLElement>('.fold-item')[f.folder];
+      gsap.set(item, { autoAlpha: 1, y: 0 });
       const btn = item.querySelector<HTMLElement>('.fold')!, front = btn.querySelector('.front');
       btn.querySelectorAll<HTMLElement>('.peek img').forEach((im) => { im.style.visibility = 'hidden'; });
       gsap.set(front, { rotationX: -72 });
@@ -176,7 +188,7 @@ export function GalleryBody() {
         f.els.forEach((e) => e.remove()); btn.querySelectorAll<HTMLElement>('.peek img').forEach((im) => { im.style.visibility = ''; });
         fly.current = null; busy.current = false;
       } })
-        .from(others, { y: 40, autoAlpha: 0, duration: 0.45, ease: 'power2.out' }, 0.1)
+        .fromTo(others, { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power2.out' }, 0.1)
         .to(f.els, { left: peek.left + peek.width / 2 - w / 2, top: peek.top + peek.height * 0.25, width: w, height: w * 0.75,
           rotation: () => gsap.utils.random(-10, 10), borderWidth: 5, duration: 0.6, ease: 'power3.inOut', stagger: 0.03 }, 0)
         .to(front, { rotationX: 0, duration: 0.45, ease: 'back.out(1.6)' }, 0.5);
@@ -260,8 +272,7 @@ export function GalleryBody() {
         ))}
       </div>
 
-      {open === null ? (
-        <div className="gal-desk">
+      <div className="gal-desk" aria-hidden={open !== null || undefined}>
           {g.folders.map(([id, name, oth, line, list], i) => (
             <div className="fold-item" key={id}>
               <button type="button" className={`fold ${TONE[id]}`} onClick={(e) => openFolder(i, e.currentTarget)} aria-label={`${name}, ${list.length} ${g.photos}`}>
@@ -274,17 +285,20 @@ export function GalleryBody() {
               <p className="fold-line">{line}</p>
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="gal-open">
-          <div className="gal-top">
-            <button type="button" className="gal-back" onClick={back}>‹ {g.all}</button>
-            <h3 className="gal-title">{g.folders[open][1]}<small>{photos.length} {g.photos}</small></h3>
+      </div>
+
+      {open === null ? null : createPortal(
+        <div className="gal-page" ref={page} data-lenis-prevent role="dialog" aria-modal="true" aria-labelledby="gal-open-title">
+          <div className="gal-paper gal-open">
+            <div className="gal-margin" aria-hidden="true" />
+            <div className="gal-top">
+              <button type="button" className="gal-back" onClick={back}>‹ {g.all}</button>
+              <h3 className="gal-title" id="gal-open-title">{g.folders[open][1]}<small>{photos.length} {g.photos}</small></h3>
+            </div>
+            <div className="gal-posts">{photos.map((p, k) => post(p, k, false))}</div>
+            <p className="consent"><T>{g.consent}</T></p>
           </div>
-          <div className="gal-posts">{photos.map((p, k) => post(p, k, false))}</div>
-          <p className="consent"><T>{g.consent}</T></p>
-        </div>
-      )}
+        </div>, document.body)}
 
       <dialog className="lightbox gal-lb" ref={dialog} onClose={() => setShot(null)} aria-label={open === null ? undefined : g.folders[open][1]}
         onKeyDown={(e) => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); }}
