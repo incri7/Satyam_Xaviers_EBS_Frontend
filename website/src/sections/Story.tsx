@@ -12,7 +12,9 @@ import { SignIntro } from './SignIntro';
 import { Travel } from './Travel';
 import { Classroom } from './Classroom';
 import BOARD from './boardLayout.json';
-import { jumpTo, markMoment, scroller, storyMarks } from '../scroll';
+import { markMoment, scroller, storyMarks } from '../scroll';
+import { Link } from 'react-router-dom';
+import { pagePath } from '../lang';
 import { IntroBody, introHead } from '../pages/Intro';
 import { ProgrammesGlance } from '../pages/Programmes';
 
@@ -424,11 +426,11 @@ export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean })
             <p className="other hero-fade" lang={other}>{t.hero.other}</p>
             <p className="body hero-fade">{t.hero.body}</p>
             <p className="meta-line hero-fade">{t.hero.label}</p>
-            {/* while admissions are open: the first thing on the first screen, to the story pinned first on the News page */}
+            {/* while admissions are open: the first thing on the first screen, to the office (Contact) */}
             {t.admissions.open ? (
-              <a className="admit-banner hero-fade" href="#news" onClick={(e) => { if (jumpTo('news')) { e.preventDefault(); markMoment('news'); } }}>
+              <Link className="admit-banner hero-fade" to={pagePath(lang, 'contact')}>
                 {t.admissions.banner}<span>{t.admissions.read}</span>
-              </a>
+              </Link>
             ) : null}
           </div>
         </div>

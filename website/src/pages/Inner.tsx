@@ -2,7 +2,14 @@ import { ProgrammesBody } from './Programmes';
 import { useLang } from '../lang';
 import { copy } from '../content';
 import { pages } from './pages';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
+import { pagePath } from '../lang';
 import { PageHead, Photo, Section, T } from './ui';
+
+gsap.registerPlugin(Flip);
 
 export function Academics() {
   const lang = useLang(); const a = pages[lang].academics;
@@ -67,49 +74,60 @@ export function News() {
   return <section className="paper-page"><NewsBody /></section>;
 }
 
-/** The News page, as a school newspaper: a masthead, the admissions story pinned first while admissions are open,
-    the rest of the news below in columns. Plain website text on a newsprint ground. Shared by the route and by the
-    home page, where the Gallery's paper plane unfolds into it (Story). */
+/** Notices and news, on the paper the Gallery's plane unfolds into: a header, the admissions banner while admissions
+    are open (to Contact), and the items pinned up on the paper, filtered by kind. Every item has the same shape, and
+    carries text, a photo or both: a notice is a slip of paper, its tag in the school's red; news is a print, or a
+    slip when it has no photo, its tag in royal blue; a photo alone is a print with its date. Changing the filter, the
+    items move to their new places rather than jumping. Shared by the route and by the home page (Story). */
 export function NewsBody() {
-  const lang = useLang(); const n = pages[lang].news, a = pages[lang].admissions, c = copy[lang];
+  const lang = useLang(); const n = pages[lang].news, c = copy[lang];
+  const [show, setShow] = useState<'all' | 'notice' | 'news'>('all');
+  const board = useRef<HTMLDivElement>(null);
+  const flip = useRef<Flip.FlipState | null>(null);
   const today = new Intl.DateTimeFormat(lang === 'ne' ? 'ne-NP' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
+  const items = n.items.filter(([kind]) => show === 'all' || kind === show);
+  const count = (k: string) => n.items.filter(([kind]) => k === 'all' || kind === k).length;
+  const choose = (k: typeof show) => {
+    if (k === show) return;
+    if (board.current && !matchMedia('(prefers-reduced-motion: reduce)').matches) flip.current = Flip.getState(board.current.querySelectorAll('.pin'));
+    setShow(k);
+  };
+  useLayoutEffect(() => {
+    const st = flip.current; flip.current = null;
+    if (!st || !board.current) return;
+    Flip.from(st, { duration: 0.55, ease: 'power3.inOut', absolute: true, scale: true,
+      onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.4, delay: 0.15 }),
+      onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.9, duration: 0.25 }) });
+  }, [show]);
   return (
-    <div className="paper">
-      <header className="paper-mast">
-        <p className="paper-kicker">{c.school}</p>
-        <h2 className="paper-title" id="news-title">{n.title}</h2>
-        <p className="paper-line"><span>{c.hero.label}</span><span>{today}</span></p>
+    <div className="notices">
+      <header className="nb-head">
+        <h2 className="nb-title" id="news-title">{n.title}</h2>
+        <p className="nb-other" lang={lang === 'en' ? 'ne' : 'en'}>{n.other}</p>
+        <p className="nb-date">{today}</p>
       </header>
       {c.admissions.open ? (
-        <article className="paper-lead" aria-labelledby="admit-title">
-          <p className="paper-cat">{c.nav.admissions}</p>
-          <h3 id="admit-title">{c.admissions.title}</h3>
-          <p className="paper-standfirst">{c.admissions.body}</p>
-          <div className="paper-lead-cols">
-            <div>
-              <h4>{a.stepsTitle}</h4>
-              <ol className="paper-steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b> <T>{b}</T></li>)}</ol>
-            </div>
-            <div>
-              <h4>{a.docsTitle}</h4>
-              <ul className="paper-list">{a.docs.map((d) => <li key={d}><T>{d}</T></li>)}</ul>
-            </div>
-            <div>
-              <h4>{a.agesTitle}</h4>
-              <table className="paper-ages"><tbody>{a.ages.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
-              <p className="paper-note"><T>{a.fees}</T></p>
-            </div>
-          </div>
-          <div className="ctas"><a className="btn" href="tel:057525563">{c.call}</a><a className="btn line" href="mailto:mailme.satyamxaviers@gmail.com">mailme.satyamxaviers@gmail.com</a></div>
-        </article>
+        <Link className="nb-admit" to={pagePath(lang, 'contact')}>
+          <span className="nb-admit-text"><b>{n.admit.title}</b><span>{n.admit.body}</span></span>
+          <span className="nb-admit-cta">{n.admit.cta}</span>
+        </Link>
       ) : null}
-      <div className="paper-cols">
-        {n.items.map(([cat, date, title, body, img]) => (
-          <article key={title} className="paper-item">
-            {img ? <Photo name={img} alt="" /> : null}
-            <p className="paper-cat">{cat}<span><T>{date}</T></span></p>
-            <h3>{title}</h3>
-            <p><T>{body}</T></p>
+      <div className="nb-filter" role="group" aria-label={n.title}>
+        {(['all', 'notice', 'news'] as const).map((k) => (
+          <button key={k} type="button" aria-pressed={show === k} onClick={() => choose(k)}>
+            {k === 'all' ? n.all : k === 'notice' ? n.notices : n.news}<span>{count(k)}</span>
+          </button>
+        ))}
+      </div>
+      <div className="nb-board" ref={board}>
+        {items.map(([kind, tag, date, title, body, photo], i) => (
+          <article key={kind + date + title + photo + i} data-flip-id={kind + date + title + photo}
+            className={`pin ${kind} ${photo ? (title || body ? 'with-photo' : 'photo-only') : 'text-only'}`}>
+            <span className="pin-tape" aria-hidden="true" />
+            {photo ? <img src={`/photos/p/${photo}.webp`} alt={title || tag} loading="lazy" decoding="async" /> : null}
+            <p className="pin-meta"><span className="pin-tag">{tag}</span><T>{date}</T></p>
+            {title ? <h3>{title}</h3> : null}
+            {body ? <p className="pin-body"><T>{body}</T></p> : null}
           </article>
         ))}
       </div>

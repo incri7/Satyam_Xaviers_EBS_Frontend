@@ -6,7 +6,7 @@ export type Lang = 'en' | 'ne';
 const en = {
   school: "Satyam Xavier's",
   schoolSub: 'English Secondary Boarding School, Hetauda',
-  nav: { classes: 'Classes', about: 'About', programmes: 'Programmes', gallery: 'Gallery', admissions: 'Admissions', news: 'News', contact: 'Contact' },
+  nav: { classes: 'Classes', about: 'About', programmes: 'Programmes', gallery: 'Gallery', admissions: 'Admissions', news: 'Notices', contact: 'Contact' },
   more: { life: 'More from school life', admissions: 'Everything about admissions', academics: 'How each stage learns' },
   switchTo: 'नेपाली',
   start: 'Start admission',
@@ -65,7 +65,7 @@ type Copy = typeof en;
 const ne: Copy = {
   school: 'सत्यम जेभियर्स',
   schoolSub: 'इङ्लिस माध्यमिक बोर्डिङ स्कुल, हेटौंडा',
-  nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', programmes: 'पढाइ', gallery: 'तस्बिर', admissions: 'भर्ना', news: 'समाचार', contact: 'सम्पर्क' },
+  nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', programmes: 'पढाइ', gallery: 'तस्बिर', admissions: 'भर्ना', news: 'सूचना', contact: 'सम्पर्क' },
   more: { life: 'विद्यालय जीवन थप', admissions: 'भर्नाबारे सबै', academics: 'हरेक चरणको पढाइ' },
   switchTo: 'English',
   start: 'भर्ना सुरु गर्नुहोस्',
