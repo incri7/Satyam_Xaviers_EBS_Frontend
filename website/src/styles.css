@@ -1,6 +1,8 @@
 /* The app's v3 logo-blue system (Satyam_Xaviers_EBS_Frontend/src/styles/tokens.css), worn by the
    public site. Plan and reasons: website/docs/design-v3.md. The building is the only warm thing. */
 :root {
+  /* an unfolded paper plane: the fold down the middle, the two folds from the top's middle, the panels faintly shaded */
+  --folds: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 0 L24 59 L50 100 Z' fill='%23000' fill-opacity='.018'/%3E%3Cpath d='M50 0 L76 59 L50 100 Z' fill='%23000' fill-opacity='.032'/%3E%3Cpath d='M0 0 L50 0 L24 59 L0 70 Z' fill='%23000' fill-opacity='.01'/%3E%3Cg stroke='%2322252b' stroke-opacity='.13' stroke-width='1' vector-effect='non-scaling-stroke' fill='none'%3E%3Cpath d='M50 0V100' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M50 0L24 59' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M50 0L76 59' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E");
   --navy: #13295B; --deep: #0B1A3D; --royal: #1F52A6; --royal-hover: #1A418A; --sky: #B4D8E4; --crest: #D12A3C;
   --canvas: #F4F7FA; --surface: #FFFFFF; --sunken: #EAF0F5; --line: #DCE4EC;
   --ink: #13295B; --text: #111A24; --slate: #4B5B6E; --ok: #0F8A5F;
@@ -71,18 +73,99 @@ html:lang(ne) .nav ul a { font-size: 16.5px; }
    pages and the sections after the story are opaque and slide over it. */
 .stage { --haze: #E9C7A6; position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--haze); color: #fff; }
 .scene { position: relative; z-index: 1; pointer-events: none; }
-.scene-a { height: 640vh; }
-/* Board to book, book to laptop, laptop to gate, gate to the end. */
-.scene-b { height: 300vh; }
-.scene-c { height: 480vh; }
-.scene-d { height: 520vh; }
-.scene-e { height: 360vh; }
-/* The board as the screen sees it at the end of the zoom (covers.ts); the scenes fade it in and out. */
-.cover-view { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; visibility: hidden; opacity: 0; }
+.scene-rise { height: 360vh; }   /* the board fades onto the flight to the school's front */
+/* The second page picks the view of the whole school up as its picture: while its section is held on screen the
+   picture (a copy of the street's front view) shrinks from the full screen into its place beside the heading. */
+.pickup { position: relative; z-index: 2; height: 190vh; }
+.pickup-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; align-items: center; align-content: center;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.25fr); gap: clamp(28px, 4vw, 64px); padding: 88px var(--gutter) 40px; }
+/* the page the school is picked up onto: white, drawn on like an engineer's blueprint, a grid of the app's royal blue
+   (a fine line every 24 px, a stronger one every 120 px) */
+.pickup-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
+  background-image:
+    linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
+    linear-gradient(rgb(31 82 166 / .07) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .07) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px; }
+/* --dk (0..1): the page head turning light as the page deepens into navy */
+.pickup-pin { --dk: 0; }
+.pickup-head { position: relative; z-index: 1; visibility: hidden; opacity: 0; }
+.pickup-head h2 { font-size: clamp(36px, 4.2vw, 64px); color: color-mix(in srgb, #ECEDE8 calc(var(--dk) * 100%), var(--ink)); }
+.pickup-head .other { color: color-mix(in srgb, var(--sky) calc(var(--dk) * 100%), var(--royal)); }
+.pickup-head .lede { max-width: 44ch; color: color-mix(in srgb, rgb(255 255 255 / .78) calc(var(--dk) * 100%), var(--slate)); }
+.prog-glance { margin: 24px 0 0; display: flex; flex-wrap: wrap; gap: 8px; max-width: 560px; }
+.prog-glance div { padding: 8px 12px; border-radius: 14px;
+  background: color-mix(in srgb, rgb(255 255 255 / .07) calc(var(--dk) * 100%), var(--surface));
+  border: 1px solid color-mix(in srgb, rgb(255 255 255 / .14) calc(var(--dk) * 100%), var(--line)); }
+.prog-glance dt { margin: 0; font-size: 12px; font-weight: 500; color: color-mix(in srgb, rgb(255 255 255 / .6) calc(var(--dk) * 100%), var(--slate)); }
+.prog-glance dd { margin: 2px 0 0; font-size: 15px; font-weight: 600; color: color-mix(in srgb, #fff calc(var(--dk) * 100%), var(--ink)); }
+.pickup-slot { aspect-ratio: var(--va, 16 / 10); width: 100%; max-height: calc(100vh - 160px); }
+.pickup-card { position: absolute; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; visibility: hidden; opacity: 0; }
+.pickup-card img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.pickup-school { filter: drop-shadow(0 26px 30px rgb(11 26 61 / .3)); }
+/* the return (scene 3): the building alone growing back into the street's front view, on the blueprint it was
+   picked up onto; both live in the fixed stage, under the pages */
+.scene-back { height: 100vh; }
+.scene-class { height: 620vh; }   /* down to a classroom's door, in, onto its whiteboard (Classroom); the walk starts on .scene-back */
+.stage .back-bg { position: absolute; inset: 0; visibility: hidden; opacity: 0; background-color: var(--canvas);
+  background-image:
+    linear-gradient(rgb(31 82 166 / .16) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .16) 1px, transparent 1px),
+    linear-gradient(rgb(31 82 166 / .07) 1px, transparent 1px), linear-gradient(90deg, rgb(31 82 166 / .07) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px; }
+.back-card { --badge: 0; position: fixed; z-index: 2; left: 0; top: 0; width: 100%; height: 100%; visibility: hidden; opacity: 0; pointer-events: none; }
+/* the badge: a thin ring of the app's royal blue round the building, the page showing through; --badge (0..1) shows it */
+.back-card::before { content: ""; position: absolute; left: 50%; top: 50%; width: 88%; aspect-ratio: 1; border-radius: 50%;
+  transform: translate(-50%, -50%) scale(calc(.85 + var(--badge) * .15)); opacity: var(--badge);
+  border: 2px solid rgb(134 187 214 / .85); box-shadow: 0 8px 22px -12px rgb(0 0 0 / .5); }
+.back-card img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+.back-school { filter: drop-shadow(0 calc(26px - var(--badge) * 22px) calc(30px - var(--badge) * 26px) rgb(11 26 61 / .3)); }
+.back-full { visibility: hidden; opacity: 0; }
+/* the page Programmes stands on is see-through below its navy, so the blueprint and the building show through its mist */
+.home-pages.clear { background: transparent; }   /* the surroundings come back only as it fills the screen */
+/* the pages after it, read as pages */
+.home-pages { position: relative; z-index: 2; background: var(--canvas); }
+/* the pages after the classroom: the Gallery stands a screen up, over the walk's end, and comes in over the marker
+   drawing in place (Story, scene 4); the pages after it are opaque as ever */
+.home-pages.after { margin-top: -100vh; background: transparent; }
+.home-pages.after > .home-page:not([id="gallery"]):not([id="news"]):not([id="contact"]) { background: var(--canvas); }
+/* the Contact page, under the Notices' last screen: the Notices page lifts off it (scene 6) */
+.home-pages.after #contact { position: relative; z-index: 2; background: var(--deep); }
+.home-pages.after > #gallery { z-index: 1; }
+.home-pages.after > #news { position: relative; z-index: 3; }
+/* scene 5: the plane in flight, the sheet it unfolds into; over the Gallery, under the News page */
+/* scene 5: the Gallery's paper plane, a real folded sheet in 3D, its flight's trail; over the Gallery, under News */
+.paper-fly { position: fixed; inset: 0; z-index: 2; pointer-events: none; visibility: hidden; opacity: 0; perspective: 1500px; }
+.paper-trail { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.paper-trail path { fill: none; stroke: rgb(36 68 138 / .5); stroke-width: 2; stroke-dasharray: 6 9; stroke-linecap: round; }
+/* four panels, each the whole sheet clipped to its part, so its folds' lines and the creases' drawing (--folds) meet
+   exactly when it lies flat; each outlines its own edges in the plane's pen (--edge, --sw: kept at the same width on
+   screen whatever its scale). --fill: its paper, from see-through (drawn) to white. */
+.fold3d { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 50%;
+  --fill: 0; --edge: rgb(31 82 166 / .3); --sw: 2; --shL: 0; --shF: 0; }
+.fold3d .half { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 0; }
+.fold3d .pc { position: absolute; inset: 0; backface-visibility: visible;
+  background: rgb(255 255 255 / var(--fill)) var(--folds) 0 0 / 100% 100% no-repeat; }
+.fold3d .pc svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fold3d .pc polygon { fill: none; stroke: var(--edge); stroke-width: var(--sw); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.fold3d .pc::after { content: ""; position: absolute; inset: 0; background: rgb(20 28 48); opacity: 0; }
+.fold3d .half.l .pc::after { opacity: var(--shL); }
+.fold3d .flap::after { opacity: var(--shF) !important; }
+.fold3d .flap { transform-origin: 50% 0; }
+.fold3d .half.l .body { clip-path: polygon(0 59%, 24% 59%, 50% 0, 50% 100%, 0 100%); }
+.fold3d .half.l .flap { clip-path: polygon(0 0, 50% 0, 24% 59%, 0 59%); }
+.fold3d .half.r .body { clip-path: polygon(100% 59%, 76% 59%, 50% 0, 50% 100%, 100% 100%); }
+.fold3d .half.r .flap { clip-path: polygon(100% 0, 50% 0, 76% 59%, 100% 59%); }
+/* the home page's first screen, while admissions are open */
+.admit-banner { display: inline-flex; align-items: center; gap: 14px; margin-top: 18px; padding: 10px 12px 10px 18px; border-radius: 999px;
+  background: var(--crest); color: #fff; font: 600 15px/1.2 var(--font); text-decoration: none; box-shadow: 0 14px 30px -14px rgb(0 0 0 / .6); pointer-events: auto; }
+.admit-banner span { padding: 6px 12px; border-radius: 999px; background: rgb(255 255 255 / .18); }
+.admit-banner:hover span { background: #fff; color: var(--crest); }
+.home-page { padding-bottom: clamp(40px, 5vw, 80px); }
 
 /* A page opened from an object: a sheet that slides up over the object's cover and away again. */
 .portal-page { position: relative; z-index: 2; pointer-events: none; }
 .portal-page .gap { height: 100vh; }
+/* after the page, no still screen: the flight is already under way as the page slides off (Story, scene 1) */
+.portal-page .gap:last-child { height: 0; }
 .sheet { pointer-events: auto; position: relative; background: var(--canvas); color: var(--text); border-radius: 28px; overflow: hidden;
   box-shadow: 0 -30px 70px -30px rgb(6 12 30 / .55), 0 30px 70px -30px rgb(6 12 30 / .55); }
 .sheet-head { padding: clamp(64px, 8vw, 120px) var(--gutter) 0; }
@@ -92,6 +175,38 @@ main > .block, .foot { position: relative; z-index: 1; }
 :where(main > .block) { background: var(--canvas); }
 .stage.day { --haze: #D3DEE6; }
 .stage canvas { position: absolute !important; inset: 0; }
+/* The real street (Arrival): over the 3D scene until the walk reaches the door, under the text. */
+.stage .arrival { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+/* The plain-picture fallback (no WebGL) is hidden until Arrival shows it: display above must not undo [hidden]. */
+.stage .arrival[hidden] { display: none; }
+/* the camera's flight from the street to the front (Travel), over the street view while it plays */
+.stage .travel { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
+.stage .classroom { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; visibility: hidden; }
+/* The first scroll (SignIntro): the signboard, repainted clean, lifts its lettering and fills the screen. Each
+   piece is placed by a matrix3d from its four corners, so it is laid out from the top-left with no size of its own. */
+.sign-intro { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; visibility: hidden; opacity: 0; }
+.sign-board, .sign-part { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
+.sign-part { overflow: visible; }
+/* The board in its own colours, measured on the client's photo of it: navy, deepening into the shaded end
+   (#0B1D36 .. #172B48 .. #233856), a little brushed, its thin light edge. */
+.sign-board {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgb(255 255 255 / .03), rgb(0 0 0 / .1)),
+    linear-gradient(90deg, #0F223D 0%, #172B48 50%, #233856 100%);
+}
+.sign-board::after { content: ""; position: absolute; inset: 0; border: 3px solid rgb(205 212 220 / .35); border-radius: 4px; }
+/* The board as the opening render shows it, measured inside its four corners: slate navy, darker at the far end
+   (#1C2431) and the bottom, lighter at the near end (#233247). It covers the enamel until the board swings out. */
+.sign-board-wall img { display: block; width: 100%; height: 100%; }
+.sign-cut { max-width: none; }
+.sign-plate { position: absolute; left: 0; top: 0; max-width: none; opacity: 0; transform-origin: 0 0; }
+.sign-board-wall { position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .025), rgb(0 0 0 / .09)),
+    linear-gradient(90deg, #1C2431 0%, #1F2C3F 45%, #243449 100%); }
+.scene-sign { height: 180vh; }
+.stage-who { display: block; margin: 2px 0 6px; font-size: 14px; color: var(--slate); }
 
 /* One shade behind all the text: deep navy from the bottom-left corner, like a film's lower third. */
 .shade { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -110,7 +225,7 @@ main > .block, .foot { position: relative; z-index: 1; }
 .cap { grid-area: 1 / 1; align-self: end; }
 .cap:not(.hero) { visibility: hidden; opacity: 0; }
 .cap .wide { color: #fff; }
-.cap h1 { font-size: clamp(48px, min(6.4vw, 11.5vh), 112px); }
+.cap h1 { font-size: clamp(44px, min(5.6vw, 9.6vh), 96px); }   /* four short lines: the client's "A Place to Learn. A Place to Become." */
 .cap h2 { font-size: clamp(36px, min(4.2vw, 8.4vh), 72px); }
 .cap .other { color: var(--sky); }
 .cap .body { margin-top: 14px; color: rgb(255 255 255 / .88); max-width: 46ch; font-size: 18px; }
@@ -130,11 +245,15 @@ main > .block, .foot { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .stage:not(.ready) .hero-line { transform: none; } .stage:not(.ready) .hero-fade { opacity: 1; } }
 
 @media (max-width: 760px) {
-  .scene-a { height: 600vh; }
+  .scene-rise { height: 330vh; }
+  .scene-class { height: 560vh; }
+  .pickup-pin { grid-template-columns: 1fr; align-content: center; gap: 24px; padding-top: 84px; }
+  .pickup-slot { aspect-ratio: 4 / 3; max-height: 46vh; }
+  .scene-sign { height: 160vh; }
   .sheet { border-radius: 22px; }
   .shade { background: linear-gradient(0deg, rgb(11 26 61 / .88) 0%, rgb(11 26 61 / .6) 30%, rgb(11 26 61 / 0) 56%); }
   .copy { right: calc(var(--gutter) + 46px); width: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-  .cap h1 { font-size: clamp(40px, 11.5vw, 58px); }
+  .cap h1 { font-size: clamp(38px, 10.5vw, 52px); }
   .cap h2 { font-size: clamp(30px, 8.6vw, 42px); }
   .cap .body { font-size: 16px; }
   .cap .meta-line { display: none; }

@@ -1,212 +1,416 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { copy, type Lang } from '../content';
-import { cam, light, photos, rise, rail, STOP, SURFACES, fitRegion, type Stop, type SurfaceId } from '../three/rig';
-import { coverReady, drawCoverView } from '../covers';
+import { arrive, room, sign } from '../three/rig';
 import { pages } from '../pages/pages';
-import { AcademicsBody, AdmissionsBody } from '../pages/Inner';
-import { AboutBody } from '../pages/About';
+import { AcademicsBody, NewsBody } from '../pages/Inner';
 import { GalleryBody } from '../pages/Gallery';
-import { Parents } from './Sections';
+import { ContactBody, ToContact } from '../pages/Contact';
+import { Arrival, FRONT, FRONT_SCHOOL, coverPosition } from './Arrival';
+import { SignIntro } from './SignIntro';
+import { Travel } from './Travel';
+import { Classroom } from './Classroom';
+import BOARD from './boardLayout.json';
+import { markMoment, scroller, storyMarks } from '../scroll';
+import { IntroBody, introHead } from '../pages/Intro';
+import { ProgrammesGlance } from '../pages/Programmes';
 
 gsap.registerPlugin(ScrollTrigger);
 if (import.meta.env.DEV) Object.assign(window, { __ST: ScrollTrigger });
-// three.js, the model and the effects arrive in their own chunk, after the text is on screen.
-const Experience = lazy(() => import('../three/Experience'));
-type Tier = 'desktop' | 'mobile';
 
-/* Storyline v4 (website/docs/storyline-v4.md). Each chapter: a scene walks to an object, the object
-   becomes a page, and the next scene turns the page back into the object and walks on.
-     hero → board → Programmes → book → About → laptop → Gallery → gate sign → Admissions → end
-   One fixed stage sits behind it all.
-
-   Ownership (web3d-integration-patterns): GSAP owns every continuous value (the camera rail, the
-   cover overlays, captions); React owns discrete state (ready, inside a room, at a portal).
-   Each scene has its own top-level timeline and ScrollTrigger, created in page order
-   (gsap-scrolltrigger). Where two timelines touch the same value, the later one uses
-   immediateRender: false (gsap-core). */
-type Chapter = { id: string; kind: SurfaceId; stop: Stop };
-const CHAPTERS: Chapter[] = [
-  { id: 'programmes', kind: 'board', stop: 'board' },
-  { id: 'about', kind: 'book', stop: 'book' },
-  { id: 'gallery', kind: 'laptop', stop: 'laptop' },
-  { id: 'admissions', kind: 'gate', stop: 'gate' },
-];
-
-export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; reduce: boolean }) {
+/* The home page, kept simple: the school's real street, rendered from the model of the real place.
+     the street → its signboard becomes the first page (About us) → back on the street, the view rises to the
+     school's front, its long side with the balconies straight on → that view is picked up as the second page's
+     picture (Programmes)
+     → the school whole again → down to a first-floor classroom's door and in, across the room, onto its
+     whiteboard, whose white becomes the Gallery page → the rest read as pages (Gallery, Admissions).
+   One fixed stage sits behind it all (Arrival, SignIntro); scenes are empty scroll lengths over it, pages slide
+   over it. GSAP owns every continuous value, on one master timeline whose time is the scroll position in pixels
+   (gsap-timeline, gsap-scrolltrigger); React owns only whether the street has loaded. */
+export default function Story({ lang, reduce }: { lang: Lang; reduce: boolean }) {
   const t = copy[lang], p = pages[lang];
   const root = useRef<HTMLDivElement>(null);
   const scenes = useRef<(HTMLElement | null)[]>([]);
-  const covers = useRef<Partial<Record<SurfaceId, HTMLCanvasElement | null>>>({});
+  const pickup = useRef<HTMLElement>(null);
   const [ready, setReady] = useState(false);
-  const [active, setActive] = useState(true);
-  const [inside, setInside] = useState(false);
-  const [atPortal, setAtPortal] = useState(false);
-  const [progress, setProgress] = useState(0);
+  // whether the reader has moved the page themselves since it opened (a jump to a moment holds until they do)
+  const moved = useRef(false);
+  useEffect(() => {
+    const on = () => { moved.current = true; };
+    const evs = ['wheel', 'touchmove', 'keydown', 'pointerdown'] as const;
+    evs.forEach((e) => addEventListener(e, on, { passive: true }));
+    return () => evs.forEach((e) => removeEventListener(e, on));
+  }, []);
   const doneRef = useRef(false);
-  const onProgress = useCallback((pr: number, done: boolean) => {
-    setProgress(pr);
-    if (done && !doneRef.current) { doneRef.current = true; setReady(true); }
-  }, []);
-  // If the 3D scene can't load (no WebGL, slow network), the page must not wait forever.
+  const lift = useCallback(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, []);
+  // If the street cannot load (slow network), the page must not wait forever.
   useEffect(() => {
-    const id = setTimeout(() => { if (!doneRef.current) { doneRef.current = true; setReady(true); } }, 12000);
+    const id = setTimeout(lift, 12000);
     return () => clearTimeout(id);
-  }, []);
+  }, [lift]);
 
-  // Render the 3D scene only while a scene is on screen; over a page it rests.
-  useEffect(() => {
-    const seen = new Set<Element>();
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target)));
-      setActive(seen.size > 0);
-    }, { rootMargin: '15% 0px' });
-    scenes.current.forEach((el) => el && io.observe(el));
-    return () => io.disconnect();
-  }, []);
-
-  // The cover overlays: each object as the screen sees it at the end of its zoom, drawn by the same
-  // function as the object's texture (covers.ts), at the screen's own resolution.
-  useEffect(() => {
-    let live = true;
-    const draw = () => coverReady().then(() => {
-      if (!live) return;
-      CHAPTERS.forEach(({ kind }) => {
-        const c = covers.current[kind];
-        if (!c) return;
-        const w = c.clientWidth, h = c.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
-        c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
-        drawCoverView(kind, c.getContext('2d')!, c.width, c.height, fitRegion(SURFACES[kind], w / Math.max(1, h)), lang);
-      });
-    });
-    draw();
-    const ro = new ResizeObserver(() => draw());
-    const stage = root.current?.querySelector('.stage');
-    if (stage) ro.observe(stage);
-    return () => { live = false; ro.disconnect(); };
-  }, [lang]);
-
-  // The one load moment: the navy curtain lifts, the building rises floor by floor, the headline
-  // sets from condensed to full width as it rises, and the people come out once the floors stand.
+  // The one load moment: the navy curtain lifts on the street and the headline sets from condensed to full width.
   useLayoutEffect(() => {
     if (!ready) return;
     const ctx = gsap.context(() => {
-      if (reduce) {
-        Object.keys(rise).forEach((k) => (rise[k] = 1));
-        Object.keys(photos).forEach((k) => (photos[k] = 1));
-        gsap.set('.curtain', { autoAlpha: 0 });
-        return;
-      }
-      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-      tl.to('.curtain', { yPercent: -100, duration: 0.95, ease: 'power3.inOut' }, 0)
+      if (reduce) { gsap.set('.curtain', { autoAlpha: 0 }); return; }
+      gsap.timeline({ defaults: { ease: 'power3.out' } })
+        .to('.curtain', { yPercent: -100, duration: 0.95, ease: 'power3.inOut' }, 0)
         .set('.curtain', { autoAlpha: 0 })
-        .to(rise, { f0: 1, duration: 1.0 }, 0.35)
-        .to(rise, { f1: 1, duration: 1.0 }, 0.63)
-        .to(rise, { f2: 1, duration: 1.0 }, 0.91)
-        .to(rise, { f3: 1, duration: 1.0 }, 1.19)
-        .to(rise, { tower: 1, duration: 1.8, ease: 'power2.out' }, 0.45)
-        .to(rise, { roof: 1, duration: 0.8 }, 1.65)
-        .to(rise, { gate: 1, duration: 0.9, ease: 'back.out(1.5)' }, 1.85)
         .fromTo('.hero-line', { yPercent: 110, fontStretch: '75%' }, { yPercent: 0, fontStretch: '88%', duration: 1.4, stagger: 0.12, ease: 'expo.out' }, 0.6)
-        .fromTo('.hero-fade', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, stagger: 0.08, ease: 'power1.out' }, 1.3)
-        .to(photos, { f0: 1, f1: 1, f2: 1, f3: 1, duration: 0.8, ease: 'power1.out' }, 2.2)
-        .to(rise, { students: 1, duration: 0.9, ease: 'power1.out' }, 2.5);
+        .fromTo('.hero-fade', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, stagger: 0.08, ease: 'power1.out' }, 1.3);
     }, root);
     return () => ctx.revert();
   }, [ready, reduce]);
 
-  // The scenes, on ONE master timeline whose time is scroll position in pixels (gsap-timeline: one
-  // timeline sequencing everything; gsap-scrolltrigger: one ScrollTrigger on the top-level timeline).
-  // Each scene is a sub-timeline sized to its section and placed at the section's top; the pages are
-  // simply the time between scenes. Every value then has exactly one owner, so even a long jump
-  // (a nav click, a flick) renders the scenes in order and lands on the right state.
+  // The scenes, on ONE master timeline whose time is scroll position in pixels: each scene is a sub-timeline sized
+  // to its section and placed at the section's top. Every value has one owner, so even a long jump (a nav click, a
+  // flick) lands on the right state.
   useLayoutEffect(() => {
-    // Developer view: ?u=4 parks the camera at that point on the rail and ignores scrolling.
-    const parked = new URLSearchParams(location.search).get('u');
-    if (parked !== null) {
-      rail.u = parseFloat(parked) || 0;
-      (window as unknown as { __rail: typeof rail }).__rail = rail;
-    }
     let ctx: gsap.Context | null = null;
+    const cleanups: (() => void)[] = [];
     const build = () => {
       ctx?.revert();
-      if (parked !== null) return;
+      cleanups.splice(0).forEach((f) => f());
       ctx = gsap.context(() => {
         const dy = reduce ? 0 : 28;
-        const coverIn = (tl: gsap.core.Timeline, kind: SurfaceId) =>
-          tl.fromTo(`.cover-view[data-kind="${kind}"]`, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35, ease: 'power1.inOut', immediateRender: false });
-        const coverOut = (tl: gsap.core.Timeline, kind: SurfaceId) =>
-          tl.fromTo(`.cover-view[data-kind="${kind}"]`, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.35, ease: 'power1.inOut', immediateRender: false }, 0.001);
 
-        // Scene A: the hero, across the yard, into the classroom, up to the board.
-        rail.u = 0;
-        const a = gsap.timeline({ defaults: { ease: 'none' } });
-        a.addLabel('hero', 0)
-          .to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.5)
-          .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.5)
-          .fromTo(rail, { u: 0 }, { u: STOP.room, duration: 3.2, ease: 'sine.inOut', immediateRender: false }, 0.55)
-          .addLabel('room')
-          // The text shade goes before the board arrives: nothing may tint a surface at its handoff.
-          .to('.shade', { autoAlpha: 0, duration: 0.6 }, 'room-=0.6')
-          .to(rail, { u: STOP.board, duration: 1.3, ease: 'power2.inOut' }, '+=0.45');
-        coverIn(a, 'board').set({}, {}, '+=0.05');
+        // Scene 0, the first scroll: nothing in the street moves. The school's signboard keeps its place, but its
+        // lettering lifts off piece by piece and comes round on a curve to face the viewer; then the blue board
+        // swings forward and fills the screen, the cover the first page (About us) slides over.
+        Object.assign(arrive, { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 });
+        Object.assign(sign, { lift: 0, fill: 0, out: 0 });
+        Object.assign(room, { q: 0, f: 0 });
+        const s0 = gsap.timeline({ defaults: { ease: 'none' } });
+        s0.to('.cap.hero', { autoAlpha: 0, y: -dy, duration: 0.4, ease: 'power2.in' }, 0.2)
+          .to('.scroll-cue', { autoAlpha: 0, duration: 0.3 }, 0.2)
+          .to('.shade', { autoAlpha: 0, duration: 0.5 }, 0.3)
+          .fromTo(sign, { lift: 0 }, { lift: 1, duration: 2.4, immediateRender: false }, 0.4)
+          .fromTo(sign, { fill: 0 }, { fill: 1, duration: 1.1, ease: 'sine.inOut', immediateRender: false }, 2.7)
+          .set({}, {}, '+=0.4');
 
-        // Scenes B to D: back out of one object, walk, into the next.
-        const walks = CHAPTERS.slice(1).map((ch, k) => {
-          const from = CHAPTERS[k];
-          const tl = gsap.timeline({ defaults: { ease: 'none' } });
-          coverOut(tl, from.kind);
-          const span = STOP[ch.stop] - STOP[from.stop];
-          const walk = 1 + span * 0.6;
-          tl.fromTo(rail, { u: STOP[from.stop] }, { u: STOP[ch.stop], duration: walk, ease: 'sine.inOut', immediateRender: false }, 0.3);
-          // Leaving the classroom for the balcony, the morning turns into day: from the door, over the
-          // railing, to the laptop. The light changes while the view does, so it reads as time passing.
-          if (from.kind === 'book') tl.fromTo(light, { day: 0 }, { day: 1, duration: walk * 0.55, ease: 'sine.inOut', immediateRender: false }, 0.3 + walk * 0.32);
-          coverIn(tl, ch.kind).set({}, {}, '+=0.05');
-          return tl;
-        });
-
-        // Scene E: back out of the gate sign and stand back from the whole school.
-        const e = gsap.timeline({ defaults: { ease: 'none' } });
-        coverOut(e, 'gate');
-        e.fromTo(rail, { u: STOP.gate }, { u: STOP.end, duration: 2.2, ease: 'sine.inOut', immediateRender: false }, 0.3)
-          .addLabel('end')
-          .fromTo('.shade', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8, immediateRender: false }, 'end-=1.1')
-          .fromTo('.cap.end', { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out', immediateRender: false }, '-=0.5')
+        // Scene 1: no going back to the street. The board that covered the first page fades away onto the camera's
+        // flight (Travel), already lifted above the driveway's trees with the school ahead; it flies on over the
+        // neighbours, round and down onto the open ground before the long side, and holds on its last frame, the
+        // front view, until the next page picks that up. Under the board the street view has already become the
+        // front view, so if the flight's frames have not loaded yet the board simply fades onto the school's front.
+        const T0 = 20 / 89;
+        const s1 = gsap.timeline({ defaults: { ease: 'none' } });
+        s1.fromTo(arrive, { r: 0, v: 0 }, { r: 1, v: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(arrive, { q: 0, t: 0 }, { q: 1, t: T0, duration: 0.001, immediateRender: false }, 0.002)
+          .fromTo(sign, { out: 0 }, { out: 1, duration: 0.8, ease: 'power1.inOut', immediateRender: false }, 0.1)
+          .fromTo(arrive, { t: T0 }, { t: 1, duration: 3.6, ease: 'sine.inOut', immediateRender: false }, 0.5)
           .set({}, {}, '+=0.6');
 
-        // Lay the scenes out in scroll pixels. A to D end when the next page reaches the top of the
-        // screen; E ends when the story's last screen is reached.
+        // Scene 2, the pick-up: when the Programmes section reaches the top of the screen, its copy of the front
+        // view (the same picture, cropped the same way) takes over from the street without a seam. Then the
+        // view's surroundings fall away (the sky, the ground, the neighbours), leaving the school building alone
+        // (a render of the building on its own, job_cutout.py, lying exactly under the full view), and the
+        // building settles into its place on the page as the page's heading comes up beside it.
+        const pin = pickup.current!.querySelector<HTMLElement>('.pickup-pin')!;
+        const slot = pin.querySelector<HTMLElement>('.pickup-slot')!;
+        const card = pin.querySelector<HTMLElement>('.pickup-card')!;
+        // the building's place on the page has the screen's proportions, so it only grows smaller on the way there
+        pin.style.setProperty('--va', String(innerWidth / innerHeight));
+        const pos = coverPosition(innerWidth / innerHeight, FRONT.size, FRONT.focus);
+        card.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
+        const to = { left: slot.offsetLeft, top: slot.offsetTop, width: slot.offsetWidth, height: slot.offsetHeight };
+        const s2 = gsap.timeline({ defaults: { ease: 'none' } });
+        // the card and the page's ground take over at once, and the street view and the flight under them go
+        s2.fromTo(card, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(pin.querySelector('.pickup-bg'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.001)
+          .fromTo(arrive, { o: 1, q: 1 }, { o: 0, q: 0, duration: 0.001, immediateRender: false }, 0.002)
+          // under the pages from here on, the blueprint the school comes back on (scene 3)
+          .fromTo('.back-bg', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0.003)
+          .fromTo(card.querySelector('.pickup-full'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.28, ease: 'power1.inOut', immediateRender: false }, 0.04)
+          .fromTo(card, { left: 0, top: 0, width: pin.offsetWidth, height: pin.offsetHeight }, { ...to, duration: 0.6, ease: 'power2.inOut', immediateRender: false }, 0.24)
+          .fromTo(pin.querySelector('.pickup-head'), { autoAlpha: 0, y: dy }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out', immediateRender: false }, 0.42)
+          .set({}, {}, 1);
+
+        // The badge: as the reader scrolls on from the opening, the building lifts out of its place beside the heading
+        // and flies to the top right, where it settles as a round badge (the building on a blueprint disc) and stays
+        // through the rest of Programmes. The same picture throughout, cropped the same way, so nothing jumps.
+        const back = root.current!.querySelector<HTMLElement>('.back-card')!;
+        back.querySelectorAll('img').forEach((im) => { im.style.objectPosition = pos; });
+        const vw0 = innerWidth, vh0 = innerHeight, va = vw0 / vh0;
+        // the badge sits clear of the nav bar: its ring (88% of its width across) stands taller than the picture's box
+        const bw = vw0 <= 760 ? 92 : 128;
+        const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+        const badge = { left: vw0 - bw - (vw0 <= 760 ? 10 : 24), top: navB + 12 + Math.max(0, (bw * 0.88 - bw / va) / 2), width: bw, height: bw / va };
+        const sb = gsap.timeline({ defaults: { ease: 'none' } });
+        sb.fromTo(card.querySelector('.pickup-school'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(back, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, 0)
+          .fromTo(back, to, { ...badge, duration: 0.85, ease: 'sine.inOut', immediateRender: false }, 0)
+          .fromTo(back, { '--badge': 0 }, { '--badge': 1, duration: 0.35, ease: 'power1.out', immediateRender: false }, 0.5)
+          .set({}, {}, 1);
+
+        // Scene 3, the return. Programmes holds at its end (its last row pinned for a screen of scrolling) while the
+        // badge grows slowly back into the building over it: the disc falls away, the building comes out of it and
+        // fills the screen, its surroundings coming back round it. The page then scrolls away under the whole school,
+        // no empty ground showing, and the street's front view takes over, which Gallery then slides up over.
+        const hold = vh0;
+        const lastRow = root.current!.querySelector<HTMLElement>('.home-pages.clear .prog > .prog-block:last-child');
+        const held = lastRow ? ScrollTrigger.create({ trigger: lastRow, start: 'bottom bottom-=48', end: '+=' + hold, pin: true, pinSpacing: true }) : null;
+
+        // Lay the scenes out in scroll pixels (after the hold has added its length): scene 0 and 1 over their
+        // sections, the pick-up while its picture is held on screen (its section's height less one screen), the
+        // badge's flight after it, the return from the hold's start to the end of its section.
         const at = (el: HTMLElement) => ({ top: el.getBoundingClientRect().top + scrollY, h: el.offsetHeight });
-        const S = scenes.current.map((el) => at(el!));
+        const [A, B, R, C] = scenes.current.map((el) => at(el!));
+        const P = at(pickup.current!);
         const vh = innerHeight;
+        const r0 = held ? held.start : R.top - vh - hold;
+        const r1 = R.top + R.h - vh;
+        const g = (hold * 0.9) / (r1 - r0);      // the growth, as a share of the return
+        const s3 = gsap.timeline({ defaults: { ease: 'none' } });
+        s3.fromTo(back, { '--badge': 1 }, { '--badge': 0, duration: 0.25 * g, ease: 'power1.in', immediateRender: false }, 0)
+          .fromTo(back, badge, { left: 0, top: 0, width: vw0, height: vh0, duration: g, ease: 'sine.inOut', immediateRender: false }, 0)
+          .fromTo(back.querySelector('.back-full'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35 * g, ease: 'power1.inOut', immediateRender: false }, 0.6 * g)
+          // the classroom walk's first frame (the very same view) is already under the building when it goes, so the
+          // walk takes over from it directly: nothing else shows in between
+          .fromTo(room, { q: 0 }, { q: 1, duration: 0.001, immediateRender: false }, 0.975)
+          .fromTo(arrive, { o: 0 }, { o: 1, duration: 0.001, immediateRender: false }, 0.98)
+          .fromTo([back, '.back-bg'], { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.001, immediateRender: false }, 0.981)
+          .set({}, {}, 1);
+        // Scene 4, the way into Gallery, one shot (Classroom): from the front view itself down to the first-floor
+        // classroom's double door beside the stairs' grill gate, which opens, and in; one turn across the room and
+        // square onto the whiteboard, where the Gallery page is drawn in marker. The camera comes in until the
+        // drawing fills the screen, and the page itself comes in over it, every word and folder where the marker
+        // had it (the Gallery stands a screen up, over the scene's end: .home-pages.after).
+        // from the return's end (the school whole again) to the scene's end, a screen above the Gallery's place
+        const walk = Math.max(1, C.top + C.h - vh - r1);
+        const s4 = gsap.timeline({ defaults: { ease: 'none' } });
+        s4.fromTo(room, { f: 0 }, { f: 1, duration: 0.87, immediateRender: false }, 0.01)
+          .fromTo('#gallery', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.04, ease: 'power1.inOut' }, 0.91)
+          // held at the top of the screen while it comes in: the scroll would carry it up from below
+          .fromTo('#gallery', { y: -0.09 * walk }, { y: 0, duration: 0.09, immediateRender: false }, 0.91)
+          .set({}, {}, 1);
+        // The board's ink was drawn from the Gallery as a 1600 x 900 screen lays it out (boardLayout.json); this screen
+        // may lay it out otherwise. So each part of the page comes in standing exactly on its own drawing, where the
+        // frame's cover-fit puts that on this screen, and once the page is solid it settles into its own place.
+        const gal = document.getElementById('gallery');
+        if (gal && !reduce) {
+          const s = Math.max(vw0 / 1600, vh0 / 900), dw = 1600 * s, dh = 900 * s, f = FRONT.focus;
+          const ox = Math.min(0, Math.max(vw0 - dw, vw0 / 2 - f[0] * dw)), oy = Math.min(0, Math.max(vh0 - dh, vh0 / 2 - f[1] * dh));
+          const gb = gal.getBoundingClientRect();
+          const box = (el: Element) => { const r = el.getBoundingClientRect(); return [r.left - gb.left, r.top - gb.top, r.width]; };
+          const lay = (el: HTMLElement) => { let x = 0, y = 0; for (let e: HTMLElement | null = el; e && e !== gal; e = e.offsetParent as HTMLElement | null) { x += e.offsetLeft; y += e.offsetTop; } return [x, y, el.offsetWidth]; };
+          const parts: [Element, number[], number[]][] = [];
+          ['.wide', '.other', '.lede'].forEach((c, i) => { const el = gal.querySelector('.sheet-head ' + c); if (el) parts.push([el, box(el), BOARD.head[i]]); });
+          gal.querySelectorAll('.fold-item').forEach((el, i) => { if (BOARD.folds[i]) parts.push([el, box(el), BOARD.folds[i]]); });
+          // a doodle's own drift moves its holder; it is its drawing (the svg inside) that is carried
+          gal.querySelectorAll<HTMLElement>('.gal-doodles > span').forEach((el, i) => { const sv = el.firstElementChild; if (sv && BOARD.doodles[i]) parts.push([sv, lay(el), BOARD.doodles[i]]); });
+          for (const [el, [nx, ny, nw], [rx, ry, rw]] of parts) {
+            if (!nw) continue;
+            const from = { x: ox + rx * s - nx, y: oy + ry * s - ny, scale: (rw * s) / nw, transformOrigin: '0 0' };
+            s4.set(el, from, 0.909).fromTo(el, from, { x: 0, y: 0, scale: 1, duration: 0.05, ease: 'power2.inOut', immediateRender: false }, 0.95);
+          }
+        }
         const master = gsap.timeline({ defaults: { ease: 'none' } });
-        [a, ...walks].forEach((tl, i) => master.add(tl.duration(S[i].h), S[i].top));
-        master.add(e.duration(Math.max(1, S[4].h - vh)), S[4].top);
-        const end = S[4].top + S[4].h - vh;
+        master.add(s0.duration(A.h), A.top).add(s1.duration(B.h + vh * 0.5), B.top - vh * 0.5)   // under way while the first page slides off
+          .add(s2.duration(Math.max(1, P.h - vh)), P.top)
+          .add(sb.duration(vh * 1.6), P.top + P.h - vh)   // an unhurried flight to the corner
+          .add(s3.duration(r1 - r0), r0)
+          .add(s4.duration(walk), r1);
+        // the walk starts the moment the school is whole again: no still screen before it
+        storyMarks.gallery = Math.round(r1 + walk * 0.9);   // the board filling the screen, the page not yet in (Gallery in the nav)
+        const end = C.top + C.h - vh;
         master.set({}, {}, end);
-        // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with
-        // a second catch-up tween that restarts on every wheel notch, so the camera's speed pulsed.
+        // scrub: true, not a number: Lenis already smooths the scroll, and a numeric scrub chases it with a second
+        // catch-up tween that restarts on every wheel notch.
         ScrollTrigger.create({ start: 0, end, scrub: true, animation: master });
+
+        // Scene 5, the way into News. The paper plane among the Gallery's doodles is a real one: a sheet of paper
+        // folded into a plane, in 3D (CSS 3D, .fold3d: four panels, the two halves about the centre crease and the two
+        // nose flaps about the diagonals), drawn on the page as the doodles are, a thin pale-blue line, see-through.
+        // Scrolling on from the Gallery, it holds while that same plane takes off, nose first, and circles once round
+        // the page into its middle on a clean spiral, its paper filling in white as it comes nearer and larger, a
+        // dashed trail drawn behind it; there it unfolds, its halves opening out, then its flaps, and the flat sheet,
+        // creases and all, comes round to face the reader and opens out to the whole screen: the paper the News page
+        // is printed on, which comes in over it. (News stands a screen up, under the hold's end, kept still meanwhile.)
+        const news = document.getElementById('news'), fly = root.current!.querySelector<HTMLElement>('.paper-fly');
+        const planeAt = gal?.querySelectorAll<HTMLElement>('.gal-doodles > span')[5];
+        if (gal && news && fly && planeAt && !reduce) {
+          news.style.marginTop = '-100vh';
+          const D = vh * 2.2;
+          const sheet = fly.querySelector<HTMLElement>('.fold3d')!, trail = fly.querySelector<SVGPathElement>('.paper-trail path')!;
+          const [halfL, halfR] = sheet.querySelectorAll<HTMLElement>('.half');
+          const [flapL, flapR] = sheet.querySelectorAll<HTMLElement>('.flap');
+          const drawn = planeAt.firstElementChild as HTMLElement | null;        // the drawn plane: kept for its place only
+          if (drawn) drawn.style.visibility = 'hidden';
+          const W = vw0, H = vh, big = 4.2, NOSE = 22;
+          const navB = document.querySelector('.nav')?.getBoundingClientRect().bottom ?? 76;
+          // Folded as paper planes are: the top corners down to the centre line (creases at 45 degrees from the top's
+          // middle), then in half along the keel. At rest its halves stand 130 degrees apart, and it is seen from
+          // above and a little behind, so both its wings show as the drawn plane's did. Its middle (from the sheet's
+          // centre, unscaled) and its width at rest, measured.
+          const REST_WING = 130, REST_TILT = 35, ROLL = 20, LX = 0, LY = 0.1 * H, REST_W = 0.68 * W;
+          const fy = Math.min(100, (50 * W) / H);
+          const folds = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M50 0 L0 ${fy} L0 100 L50 100Z' fill='#000' fill-opacity='.018'/><path d='M50 0 L100 ${fy} L100 100 L50 100Z' fill='#000' fill-opacity='.03'/><g stroke='#22252b' stroke-opacity='.13' fill='none'><path d='M50 0V100' vector-effect='non-scaling-stroke'/><path d='M50 0L0 ${fy}' vector-effect='non-scaling-stroke'/><path d='M50 0L100 ${fy}' vector-effect='non-scaling-stroke'/></g></svg>`)}")`;
+          document.documentElement.style.setProperty('--folds', folds);
+          const PANELS: Record<string, string> = { 'l body': `0,${fy} 50,0 50,100 0,100`, 'l flap': `0,0 50,0 0,${fy}`, 'r body': `100,${fy} 50,0 50,100 100,100`, 'r flap': `100,0 50,0 100,${fy}` };
+          sheet.querySelectorAll<HTMLElement>('.pc').forEach((pc) => {
+            const key = `${pc.parentElement!.classList.contains('l') ? 'l' : 'r'} ${pc.classList.contains('flap') ? 'flap' : 'body'}`;
+            pc.querySelector('polygon')!.setAttribute('points', PANELS[key]);
+            pc.style.clipPath = 'polygon(' + PANELS[key].split(' ').map((q) => q.split(',').map((v) => v + '%').join(' ')).join(', ') + ')';
+          });
+          const st = { T: 0, ink: 0, wing: REST_WING, flap: 179, open: 0, gone: 0 };
+          // its flight: a clean spiral about the screen's middle from wherever it is, once round clockwise, its radius
+          // (on an ellipse the screen's shape) easing to nothing, its turning easing off at the end; and before that a
+          // take-off that leaves the way its nose points and bends smoothly into the circle
+          let pts: [number, number][] = [], len: number[] = [], start: [number, number] = [0, 0], tail = '';
+          const lay = (sx: number, sy: number, size: number) => {
+            start = [sx, sy];
+            const mx = W / 2, my = H / 2, ax = W * 0.36, ay = H * 0.36;
+            const u0 = (sx - mx) / ax, v0 = (sy - my) / ay, r0 = Math.max(0.35, Math.hypot(u0, v0)), a0 = Math.atan2(v0, u0);
+            const SWEEP = Math.PI * 2 * 0.85, N = 480, top = navB + 24, bot = H - 28;
+            pts = [];
+            for (let i = 0; i <= N; i++) {
+              const t = i / N, r = r0 * (1 + 0.32 * Math.sin(Math.PI * Math.min(1, t * 1.15))) * (1 - Math.pow(t, 2.2));
+              const a = a0 + SWEEP * (1 - Math.pow(1 - t, 1.7));
+              pts.push([Math.min(W - 40, Math.max(40, mx + ax * r * Math.cos(a))), Math.min(bot, Math.max(top, my + ay * r * Math.sin(a)))]);
+            }
+            const iq = Math.round(N * 0.16), Q = pts[iq];
+            const tq = [pts[iq + 1][0] - pts[iq - 1][0], pts[iq + 1][1] - pts[iq - 1][1]], tl = Math.hypot(tq[0], tq[1]) || 1;
+            const nose = [Math.cos((-NOSE * Math.PI) / 180), Math.sin((-NOSE * Math.PI) / 180)];
+            const Lq = Math.hypot(Q[0] - sx, Q[1] - sy);
+            const c1 = [sx + nose[0] * Lq * 0.4, sy + nose[1] * Lq * 0.4], c2 = [Q[0] - (tq[0] / tl) * Lq * 0.4, Q[1] - (tq[1] / tl) * Lq * 0.4];
+            const lead: [number, number][] = [];
+            for (let j = 0; j < 90; j++) {
+              const u = j / 90, m = 1 - u;
+              lead.push([m * m * m * sx + 3 * m * m * u * c1[0] + 3 * m * u * u * c2[0] + u * u * u * Q[0],
+                m * m * m * sy + 3 * m * m * u * c1[1] + 3 * m * u * u * c2[1] + u * u * u * Q[1]]);
+            }
+            pts = [...lead, ...pts.slice(iq)];
+            let L = 0; len = pts.map((q, i) => (L += i ? Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) : 0));
+            // the little dotted swoop it has already flown, behind its tail, as the doodle has
+            const bx = sx - nose[0] * size * 0.45, by = sy - nose[1] * size * 0.45;
+            tail = `M${(bx - size * 0.55).toFixed(1)} ${(by + size * 0.65).toFixed(1)}Q${(bx - size * 0.5).toFixed(1)} ${(by + size * 0.1).toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
+          };
+          const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+          let shown = false;
+          const render = () => {
+            const r = (drawn ?? planeAt).getBoundingClientRect();
+            const galO = parseFloat(getComputedStyle(gal).opacity || '1');
+            const on = !st.gone && galO > 0.01 && (st.T > 0 || (r.bottom > 0 && r.top < H));
+            if (on !== shown) { shown = on; fly.style.visibility = on ? 'visible' : 'hidden'; fly.style.opacity = on ? '1' : '0'; }
+            if (!on) return;
+            // (opened past the take-off, at /#news, it has no path yet: it lays one from the drawing's place)
+            if (st.T === 0 || !pts.length) lay(r.left + r.width / 2, r.top + r.height / 2, r.width);
+            // where it is along its flight, and its heading
+            let cx = start[0], cy = start[1], head = -NOSE, i = 1;
+            if (st.T > 0) {
+              const Lt = len[len.length - 1] * st.T;
+              i = len.findIndex((v) => v >= Lt); if (i < 1) i = 1;
+              const q = pts[i - 1], n = pts[i], u = (Lt - len[i - 1]) / Math.max(1e-6, len[i] - len[i - 1]);
+              cx = q[0] + (n[0] - q[0]) * u; cy = q[1] + (n[1] - q[1]) * u;
+              head = (Math.atan2(n[1] - q[1], n[0] - q[0]) * 180) / Math.PI;
+              trail.setAttribute('d', tail + 'M' + pts.slice(0, i).map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L') + `L${cx.toFixed(1)} ${cy.toFixed(1)}`);
+            } else trail.setAttribute('d', tail);
+            // the paper's nose points up: turned to the heading
+            let rot = head + 90; rot = ((rot + 540) % 360) - 180;
+            const o = st.open, sRest = r.width / REST_W, sc = lerp(sRest * (1 + (big - 1) * Math.pow(st.T, 2.2)), 1, o);
+            const x = lerp(cx, W / 2, o) - W / 2, y = lerp(cy, H / 2, o) - H / 2;
+            const lean = 1 - Math.max(o, (REST_WING - st.wing) / REST_WING);   // its 3D lean, gone as it opens flat
+            sheet.style.transform = `translate(${x}px, ${y}px) rotate(${lerp(rot, 0, o)}deg) rotateY(${ROLL * lean}deg) rotateX(${REST_TILT * lean}deg) scale3d(${sc}, ${sc}, ${sc}) translate(${-LX * (1 - o)}px, ${-LY * (1 - o)}px)`;
+            halfL.style.transform = `rotateY(${-st.wing / 2}deg)`;
+            halfR.style.transform = `rotateY(${st.wing / 2}deg)`;
+            flapL.style.transform = `rotate3d(${-Math.SQRT1_2}, ${Math.SQRT1_2}, 0, ${st.flap}deg)`;
+            flapR.style.transform = `rotate3d(${Math.SQRT1_2}, ${Math.SQRT1_2}, 0, ${-st.flap}deg)`;
+            // drawn at rest as the doodles are (a thin pale line, see-through); in flight its paper fills in, its line
+            // firming; flat, the line is only the creases' faint grey
+            const k = st.ink, flat = o;
+            sheet.style.setProperty('--fill', String(k));
+            sheet.style.setProperty('--edge', flat > 0 ? `rgba(34, 37, 43, ${lerp(0.75, 0.13, flat).toFixed(3)})` : `rgba(${Math.round(lerp(31, 36, k))}, ${Math.round(lerp(82, 68, k))}, ${Math.round(lerp(166, 138, k))}, ${lerp(0.3, 0.9, k).toFixed(3)})`);
+            sheet.style.setProperty('--sw', String(lerp(4.4, 1.4, flat) / sc));   // half of it is clipped at a panel's edge
+            sheet.style.setProperty('--shL', String(0.1 * k * (st.wing / REST_WING)));
+            sheet.style.setProperty('--shF', String(0.08 * k * (st.flap / 179)));
+            sheet.style.opacity = String(galO);
+          };
+          gsap.ticker.add(render);
+          const s5 = gsap.timeline({ defaults: { ease: 'none' } });
+          s5.set(news, { autoAlpha: 0 }, 0)
+            // the flight, its paper filling in as it comes nearer
+            .fromTo(st, { T: 0 }, { T: 1, duration: 0.47, ease: 'sine.inOut', immediateRender: false }, 0.03)
+            .fromTo(st, { ink: 0 }, { ink: 1, duration: 0.2, immediateRender: false }, 0.04)
+            .to(trail, { opacity: 0, duration: 0.08 }, 0.52)
+            // the unfold: its halves open out about the centre crease, then its nose flaps fold back out
+            .fromTo(st, { wing: REST_WING }, { wing: 0, duration: 0.12, ease: 'power2.inOut', immediateRender: false }, 0.5)
+            .fromTo(st, { flap: 179 }, { flap: 0, duration: 0.12, ease: 'power2.inOut', immediateRender: false }, 0.6)
+            // the flat sheet comes round to face the reader and opens out to the whole screen
+            .fromTo(st, { open: 0 }, { open: 1, duration: 0.18, ease: 'power2.inOut', immediateRender: false }, 0.68)
+            // the News page, held at the top, comes in over the sheet; then the sheet goes from under it
+            .fromTo(news, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.08, immediateRender: false }, 0.86)
+            .fromTo(news, { y: -D * 0.14 }, { y: 0, duration: 0.14, immediateRender: false }, 0.86)
+            .fromTo(st, { gone: 0 }, { gone: 1, duration: 0.001, immediateRender: false }, 0.999)
+            .set({}, {}, 1);
+          ScrollTrigger.create({ trigger: gal, start: 'bottom bottom', end: '+=' + D, pin: true, pinSpacing: true, scrub: true, animation: s5,
+            onRefresh: (self) => { storyMarks.news = Math.round(self.end); } });
+          // the ticker belongs to this build: the context's revert removes it
+          cleanups.push(() => { gsap.ticker.remove(render); if (drawn) drawn.style.visibility = ''; });
+        }
+        // Scene 6, the way into Contact: the Notices page lifts off like the top sheet of a writing pad, turning up from
+        // its corner as it goes, and the Contact page is underneath, held still (pinned) until it is clear; it comes up
+        // from the shadow of the sheet, its letter rising into its place. (Contact stands a screen up, under the
+        // Notices' last screen.)
+        const contact = document.getElementById('contact');
+        if (news && contact && !reduce) {
+          contact.style.marginTop = '-100vh';
+          const inner = contact.querySelector<HTMLElement>('.ct-inner')!;
+          const s6 = gsap.timeline({ defaults: { ease: 'none' } })
+            .fromTo(news, { rotation: 0, transformOrigin: '0% 100%' }, { rotation: -2.2, duration: 1, ease: 'power1.in', immediateRender: false }, 0)
+            .fromTo(news, { boxShadow: '0 0 0 0 rgb(0 0 0 / 0)' }, { boxShadow: '0 50px 90px -10px rgb(0 0 0 / .55)', duration: 0.35, immediateRender: false }, 0)
+            .fromTo(inner, { scale: 0.93, autoAlpha: 0.25 }, { scale: 1, autoAlpha: 1, duration: 0.9, ease: 'power2.out', immediateRender: false }, 0.05)
+            .fromTo(inner.querySelectorAll('.ct-air, .ct-reach > *, .ct-visit'), { y: 70 }, { y: 0, duration: 0.7, ease: 'power2.out', stagger: 0.06, immediateRender: false }, 0.2);
+          ScrollTrigger.create({ trigger: contact, start: 'top top', end: '+=' + vh, pin: true, pinSpacing: true, scrub: true, animation: s6,
+            onRefresh: (self) => { storyMarks.contact = Math.round(self.end); } });
+          // the Notices page changes height (a tab, its photos loading): the pin is measured again
+          let first = true, t6 = 0;
+          const ro6 = new ResizeObserver(() => { if (first) { first = false; return; } clearTimeout(t6); t6 = window.setTimeout(() => ScrollTrigger.refresh(), 200); });
+          ro6.observe(news);
+          cleanups.push(() => { ro6.disconnect(); clearTimeout(t6); contact.style.marginTop = ''; });
+        }
+        // A rebuild starts every value from the top of the story; put them straight back where the reader is.
+        // Opened at /#gallery: the board's place moves as fonts and photos settle the layout, so until the reader moves
+        // the page themselves, every new layout lands them back on it
+        const opened = location.hash.slice(1);
+        if ((opened === 'gallery' || opened === 'news' || opened === 'contact') && !moved.current) {
+          requestAnimationFrame(() => {
+            const y = storyMarks[opened];
+            if (y === undefined || moved.current) return;
+            if (scroller.lenis) scroller.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y);
+          });
+        }
+        master.time(Math.min(Math.max(scrollY, 0), end));
       }, root);
     };
     build();
 
-    // Fonts, lazy photos and the gallery's album filter change the story's height: lay it out again.
-    let height = root.current?.offsetHeight ?? 0, timer = 0;
-    const ro = new ResizeObserver(() => {
-      const h = root.current?.offsetHeight ?? 0;
-      if (Math.abs(h - height) < 2) return;
-      height = h;
-      clearTimeout(timer);
-      timer = window.setTimeout(() => { build(); ScrollTrigger.refresh(); }, 150);
-    });
+    // Fonts, the first page's photos and the window's size move the scenes: lay them out again. Photos loading
+    // in the pages below the pick-up change the story's height but not where the scenes are, so they do not.
+    const where = () => [...scenes.current, pickup.current].map((el) => el ? `${el.offsetTop}:${el.offsetHeight}` : '').join() + `|${innerWidth}x${innerHeight}`;
+    let laid = where(), timer = 0;
+    const again = () => { clearTimeout(timer); timer = window.setTimeout(() => { laid = where(); build(); ScrollTrigger.refresh(); }, 150); };
+    const ro = new ResizeObserver(() => { if (where() !== laid) again(); });
     if (root.current) ro.observe(root.current);
-
-    const poll = () => { setInside(cam.ext < 0.4 && cam.lens > 0.5); setAtPortal(cam.lens < 0.5); };
-    gsap.ticker.add(poll);
-    return () => { gsap.ticker.remove(poll); ro.disconnect(); clearTimeout(timer); ctx?.revert(); };
+    // The address bar follows the reader: / at the top, /#about on the first page, /#programmes from the school's
+    // pick-up to its return, then /#gallery and /#news.
+    let raf = 0;
+    const mark = () => {
+      raf = 0;
+      const y = scrollY + innerHeight * 0.5;
+      const top = (sel: string) => { const el = document.querySelector<HTMLElement>(sel); return el ? el.getBoundingClientRect().top + scrollY : Infinity; };
+      const marks: [string, number][] = [['about', top('#intro')], ['', top('.scene-rise')], ['programmes', top('#programmes')],
+        ['', top('.scene-back')], ['gallery', storyMarks.gallery !== undefined ? storyMarks.gallery + innerHeight * 0.5 - 1 : top('#gallery')], ['news', storyMarks.news !== undefined ? storyMarks.news + innerHeight * 0.5 - 1 : top('#news')],
+        ['contact', storyMarks.contact !== undefined ? storyMarks.contact + innerHeight * 0.5 - 1 : top('#contact')]];
+      let at = '';
+      for (const [h, t] of marks) if (y >= t) at = h;
+      markMoment(at);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(mark); };
+    addEventListener('scroll', onScroll, { passive: true });
+    return () => { ro.disconnect(); clearTimeout(timer); ctx?.revert(); cleanups.splice(0).forEach((f) => f()); removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); };
   }, [reduce]);
 
   const other = lang === 'en' ? 'ne' : 'en';
@@ -217,58 +421,98 @@ export default function Story({ lang, tier, reduce }: { lang: Lang; tier: Tier; 
       <p className="lede">{intro}</p>
     </header>
   );
-  const bodies: Record<string, ReactNode> = {
-    programmes: <>{head('programmes', p.academics.title, p.academics.other, p.academics.intro)}<AcademicsBody /></>,
-    about: <>{head('about', p.about.title, p.about.other, p.about.intro)}<AboutBody /></>,
-    gallery: <>{head('gallery', p.gallery.title, p.gallery.other, p.gallery.intro)}<GalleryBody /></>,
-    admissions: <>{head('admissions', p.admissions.title, p.admissions.other, p.admissions.intro)}<AdmissionsBody /><Parents lang={lang} /></>,
-  };
+  const after: [string, ReactNode][] = [
+    ['gallery', <>{head('gallery', p.gallery.title, p.gallery.other, p.gallery.intro)}<GalleryBody /></>],
+    ['news', <NewsBody />],
+    ['contact', <ContactBody />],
+  ];
   const sceneRef = (i: number) => (el: HTMLElement | null) => { scenes.current[i] = el; };
 
   return (
     <div className="story" ref={root}>
-      <div className={'stage morning' + (ready ? ' ready' : '') + (atPortal ? ' at-portal' : '')}>
-        <Suspense fallback={null}>
-          <Experience tier={tier} reduce={reduce} active={active} lang={lang} onProgress={onProgress} />
-        </Suspense>
+      <div className={'stage' + (ready ? ' ready' : '')}>
+        <Arrival reduce={reduce} onReady={lift} />
+        <Travel start={ready} />
+        <Classroom />
         <div className="shade" aria-hidden="true" />
-        {CHAPTERS.map(({ kind }) => <canvas key={kind} className="cover-view" data-kind={kind} ref={(el) => { covers.current[kind] = el; }} aria-hidden="true" />)}
+        <SignIntro />
+        {/* the return's ground: the blueprint the building grows back on (scene 3) */}
+        <div className="back-bg" aria-hidden="true" />
         <div className="curtain" aria-hidden="true">
           <img src="/photos/crest.png" alt="" width={64} height={64} />
           <span>{t.loading}</span>
-          <i><b style={{ transform: `scaleX(${progress / 100})` }} /></i>
         </div>
         <div className="copy">
           <div className="cap hero">
-            <h1 className="wide">{t.hero.lines.map((l) => <span className="mask" key={l}><span className="hero-line">{l}</span></span>)}</h1>
+            <h1 className="wide">{t.hero.lines.map((l, i) => <span className="mask" key={i}><span className="hero-line">{l}</span></span>)}</h1>
             <p className="other hero-fade" lang={other}>{t.hero.other}</p>
-            <div className="ctas hero-fade"><a className="btn" href="#admissions">{t.start}</a><a className="btn ghost" href="tel:057525563">{t.call}</a></div>
+            <p className="body hero-fade">{t.hero.body}</p>
             <p className="meta-line hero-fade">{t.hero.label}</p>
-          </div>
-          <div className="cap end">
-            <h2 className="wide">{t.end.title}</h2>
-            <p className="other" lang={other}>{t.end.other}</p>
-            <p className="body">{t.end.label}</p>
-            <div className="ctas"><a className="btn" href="#admissions">{t.start}</a><a className="btn ghost" href="tel:057525563">{t.call}</a></div>
+            {/* while admissions are open: the first thing on the first screen, to the office (Contact) */}
+            {t.admissions.open ? (
+              <ToContact className="admit-banner hero-fade" topic="admission">
+                {t.admissions.banner}<span>{t.admissions.read}</span>
+              </ToContact>
+            ) : null}
           </div>
         </div>
         <p className="scroll-cue"><span className="hero-fade">{t.scroll}</span></p>
-        <p className={'note' + (inside ? ' show' : '')}>{t.illustrative}</p>
       </div>
 
-      {/* Scene, page, scene, page...: each page slides up over its object's cover like a sheet, and
-          at its end slides away to show the cover again, which the next scene turns back into the object. */}
-      <section className="scene scene-a" ref={sceneRef(0)} aria-label={t.nav.classes} />
-      {CHAPTERS.map((ch, i) => (
-        <div key={ch.id} className="chapter-run">
-          <section className="portal-page" id={ch.id} aria-labelledby={`${ch.id}-title`}>
-            <div className="gap" />
-            <div className="sheet">{bodies[ch.id]}</div>
-            <div className="gap" />
-          </section>
-          <section className={'scene scene-' + 'bcde'[i]} ref={sceneRef(i + 1)} aria-hidden="true" />
+      <section className="scene scene-sign" ref={sceneRef(0)} aria-label={introHead(lang).title} />
+      {/* The first page, opened by the school's own signboard: the school introduced. */}
+      <section className="portal-page" id="intro" aria-labelledby="intro-title">
+        <div className="gap" />
+        <div className="sheet sheet-board"><IntroBody /></div>
+        <div className="gap" />
+      </section>
+      <section className="scene scene-rise" ref={sceneRef(1)} aria-hidden="true" />
+
+      {/* The second page picks up the view of the whole school as its picture. */}
+      <section className="pickup" id="programmes" aria-labelledby="programmes-title" ref={pickup}>
+        <div className="pickup-pin">
+          <div className="pickup-bg" />
+          <header className="pickup-head">
+            <h2 className="wide" id="programmes-title">{p.academics.title}</h2>
+            <p className="other" lang={other}>{p.academics.other}</p>
+            <p className="lede">{p.academics.intro}</p>
+            <ProgrammesGlance />
+          </header>
+          <div className="pickup-slot" aria-hidden="true" />
+          <div className="pickup-card">
+            <img className="pickup-full" src={FRONT.src} alt="" />
+            <img className="pickup-school" src={FRONT_SCHOOL} alt={t.schoolView} />
+          </div>
         </div>
-      ))}
+      </section>
+      <div className="home-pages clear">
+        <section className="home-page" aria-label={p.academics.title}><AcademicsBody lead="light" /></section>
+        {/* the return: the building alone growing back into the street's front view (scene 3). It stands in front of
+            Programmes, under the page's white mist, so it rises through the mist rather than from behind an edge. */}
+        <div className="back-card" aria-hidden="true">
+          <img className="back-full" src={FRONT.src} alt="" />
+          <img className="back-school" src={FRONT_SCHOOL} alt="" />
+        </div>
+      </div>
+      <section className="scene scene-back" ref={sceneRef(2)} aria-hidden="true" />
+      <section className="scene scene-class" ref={sceneRef(3)} aria-hidden="true" />
+      <div className="home-pages after">
+        {after.map(([id, body]) => <section key={id} className="home-page" id={id} aria-labelledby={`${id}-title`}>{body}</section>)}
+        {/* the Gallery's paper plane, in flight and unfolded into the News page's sheet (scene 5) */}
+        <div className="paper-fly" aria-hidden="true">
+          <svg className="paper-trail"><path /></svg>
+          <div className="fold3d">
+            <div className="half l">
+              <i className="pc body"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,59 24,59 50,0 50,100 0,100" /></svg></i>
+              <i className="pc flap"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,0 50,0 24,59 0,59" /></svg></i>
+            </div>
+            <div className="half r">
+              <i className="pc body"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,59 76,59 50,0 50,100 100,100" /></svg></i>
+              <i className="pc flap"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 50,0 76,59 100,59" /></svg></i>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

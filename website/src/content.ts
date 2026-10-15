@@ -5,16 +5,19 @@ export type Lang = 'en' | 'ne';
 
 const en = {
   school: "Satyam Xavier's",
-  schoolSub: 'English Boarding School, Hetauda',
-  nav: { classes: 'Classes', about: 'About', programmes: 'Programmes', gallery: 'Gallery', admissions: 'Admissions', news: 'News', contact: 'Contact' },
+  schoolSub: 'English Secondary Boarding School, Hetauda',
+  nav: { classes: 'Classes', about: 'About', programmes: 'Programmes', gallery: 'Gallery', admissions: 'Admissions', news: 'Notices', contact: 'Contact' },
   more: { life: 'More from school life', admissions: 'Everything about admissions', academics: 'How each stage learns' },
   switchTo: 'नेपाली',
   start: 'Start admission',
   login: 'Log in',
   call: 'Call 057-525563',
   loading: 'Building the school',
+  schoolView: "Satyam Xavier's school building in Chisapani, Hetauda: its long side with the balconies",
   mood: { morning: 'Morning', day: 'Day' },
-  hero: { label: 'Hetauda-4, Chisapani. Nursery to Class 10.', lines: ['Growing up in', 'Chisapani', 'since 2059.'], other: '२०५९ देखि चिसापानीमा हुर्कँदै।' },
+  // The client's own line (their draft website doc, 11 October 2026), with the sentence they wrote for under it.
+  hero: { label: 'Hetauda-4, Chisapani. Since 2048 BS.', lines: ['A Place', 'to Learn.', 'A Place', 'to Become.'], other: 'पढ्ने ठाउँ, अघि बढ्ने ठाउँ।',
+    body: "At Satyam Xavier's, education is a journey of discovery, confidence, character, and possibility, inside the classroom and beyond it." },
   scroll: 'Scroll to walk in',
   storeys: 'Floors of the school',
   floors: [
@@ -30,44 +33,30 @@ const en = {
     body: "When the class teacher takes attendance, the school's parent app shows it straight away: in school today, and the time. Marks, fees and notices are there too, in English or Nepali.",
     phone: { date: 'Friday, 9 Ashwin', hello: 'Namaste', kid: 'Aarav, Class 4 A', status: 'In school today', marked: 'Marked present at 9:42 AM by the class teacher', fee: 'Fee due 15 Kartik', exam: 'First terminal', example: 'Example names and figures', week: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'], p: 'P', a: 'A', other: 'Riya' },
   },
-  result: { title: 'One of our students scored a 3.96 GPA and was honoured by the Ward No. 4 Office.', body: "We'll publish our SEE results here each year, with the school's permission and the families'.", caption: 'Honoured by the Ward No. 4 Office, Hetauda' },
-  life: {
-    title: 'School life, from our own page.', body: 'Every photo here was posted by the school.',
-    photos: [
-      ['rice2', 'Asar 15, planting rice', 'Students planting rice in a flooded paddy'],
-      ['himal', 'Class 10 at Chandragiri', 'Class 10 students at Chandragiri with snow mountains behind'],
-      ['dance', 'Cultural programme', 'Students in traditional dress on stage'],
-      ['medal3', 'Medal day', 'Two pupils showing their medals'],
-      ['ashram', 'Visiting Manav Sewa Ashram', 'Students and teachers outside Manav Sewa Ashram'],
-    ] as [string, string, string][],
-  },
   admissions: {
-    title: 'Admissions for 2084 are open.', other: 'वि.सं. २०८४ को भर्ना खुला छ।',
-    body: 'Nursery to Class 10. Dates and fees will be confirmed by the school office.',
-    steps: [
-      ['Visit or call', 'Come to Hetauda-4, Chisapani, or call 057‑525563.'],
-      ['Bring the documents', "Birth certificate, the previous school's record and photos."],
-      ['Your child joins', 'Meet the class teacher and get the parent app on the first day.'],
-    ] as [string, string][],
-    directions: 'Get directions',
+    // while the school's admissions are open: the banner on the home page's first screen, and the pinned first story
+    // on the News page
+    open: true, banner: 'Admissions for 2084 are open', read: 'Read more',
   },
-  footer: { find: 'Find us', address: ['Hetauda-4, Chisapani', 'Hetauda, Makwanpur 44100'], write: 'Call or write', staff: 'Parents and staff', parentLogin: 'Parent login', staffLogin: 'Staff login', legal: "© 2083 BS Satyam Xavier's English Boarding School, Hetauda" },
+  footer: { find: 'Find us', address: ['Hetauda-4, Chisapani', 'Hetauda, Makwanpur 44100'], write: 'Call or write', staff: 'Parents and staff', parentLogin: 'Parent login', staffLogin: 'Staff login', legal: "© 2083 BS Satyam Xavier's English Secondary Boarding School, Hetauda" },
 };
 
 type Copy = typeof en;
 
 const ne: Copy = {
   school: 'सत्यम जेभियर्स',
-  schoolSub: 'इङ्लिस बोर्डिङ स्कुल, हेटौंडा',
-  nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', programmes: 'पढाइ', gallery: 'तस्बिर', admissions: 'भर्ना', news: 'समाचार', contact: 'सम्पर्क' },
+  schoolSub: 'इङ्लिस माध्यमिक बोर्डिङ स्कुल, हेटौंडा',
+  nav: { classes: 'कक्षाहरू', about: 'हाम्रो बारेमा', programmes: 'पढाइ', gallery: 'तस्बिर', admissions: 'भर्ना', news: 'सूचना', contact: 'सम्पर्क' },
   more: { life: 'विद्यालय जीवन थप', admissions: 'भर्नाबारे सबै', academics: 'हरेक चरणको पढाइ' },
   switchTo: 'English',
   start: 'भर्ना सुरु गर्नुहोस्',
   login: 'लगइन',
   call: 'फोन 057-525563',
   loading: 'विद्यालय बन्दैछ',
+  schoolView: 'चिसापानी, हेटौंडामा सत्यम जेभियर्सको विद्यालय भवन, बार्दलीसहितको अगाडिको भाग',
   mood: { morning: 'बिहान', day: 'दिउँसो' },
-  hero: { label: 'हेटौंडा-४, चिसापानी। नर्सरीदेखि कक्षा १० सम्म।', lines: ['२०५९ देखि', 'चिसापानीमा', 'हुर्कँदै।'], other: 'Growing up in Chisapani since 2059.' },
+  hero: { label: 'हेटौंडा-४, चिसापानी। वि.सं. २०४८ देखि।', lines: ['पढ्ने ठाउँ,', 'अघि बढ्ने ठाउँ।'], other: 'A Place to Learn. A Place to Become.',
+    body: 'सत्यम जेभियर्समा पढाइ कक्षाकोठामा मात्र सीमित छैन। यहाँ बच्चाहरू सिक्छन्, आत्मविश्वास बढाउँछन् र असल मान्छे बन्छन्।' },
   scroll: 'भित्र जान स्क्रोल गर्नुहोस्',
   storeys: 'विद्यालयका तलाहरू',
   floors: [
@@ -83,28 +72,10 @@ const ne: Copy = {
     body: 'कक्षा शिक्षकले हाजिरी लिनेबित्तिकै विद्यालयको अभिभावक एपले देखाउँछ: आज विद्यालयमा, र समय। अङ्क, शुल्क र सूचना पनि त्यहीँ, अंग्रेजी वा नेपालीमा।',
     phone: { date: 'शुक्रबार, ९ असोज', hello: 'नमस्ते', kid: 'आरव, कक्षा ४ A', status: 'आज विद्यालयमा', marked: 'कक्षा शिक्षकले बिहान ९:४२ मा उपस्थित जनाउनुभयो', fee: 'शुल्क बुझाउने: १५ कात्तिक', exam: 'पहिलो त्रैमासिक', example: 'उदाहरणका नाम र अङ्क', week: ['आइत', 'सोम', 'मङ्गल', 'बुध', 'बिही', 'शुक्र'], p: 'उ', a: 'अ', other: 'रिया' },
   },
-  result: { title: 'हाम्रा एक विद्यार्थीले ३.९६ GPA ल्याई वडा नं. ४ कार्यालयबाट सम्मान पाए।', body: 'विद्यालय र परिवारको अनुमतिसहित हरेक वर्ष SEE नतिजा यहाँ प्रकाशित गर्नेछौँ।', caption: 'वडा नं. ४ कार्यालय, हेटौंडाबाट सम्मानित' },
-  life: {
-    title: 'विद्यालय जीवन, हाम्रै पेजबाट।', body: 'यहाँका सबै फोटो विद्यालयले नै पोस्ट गरेका हुन्।',
-    photos: [
-      ['rice2', 'असार १५, धान रोपाइँ', 'हिलो खेतमा धान रोप्दै विद्यार्थी'],
-      ['himal', 'चन्द्रागिरिमा कक्षा १०', 'पछाडि हिमाल देखिने चन्द्रागिरिमा कक्षा १० का विद्यार्थी'],
-      ['dance', 'सांस्कृतिक कार्यक्रम', 'परम्परागत पोसाकमा मञ्चमा विद्यार्थी'],
-      ['medal3', 'पदक दिवस', 'पदक देखाउँदै दुई विद्यार्थी'],
-      ['ashram', 'मानव सेवा आश्रम भ्रमण', 'मानव सेवा आश्रम बाहिर विद्यार्थी र शिक्षक'],
-    ],
-  },
   admissions: {
-    title: 'वि.सं. २०८४ को भर्ना खुला छ।', other: 'Admissions for 2084 are open.',
-    body: 'नर्सरीदेखि कक्षा १० सम्म। मिति र शुल्क विद्यालयको कार्यालयले पुष्टि गर्नेछ।',
-    steps: [
-      ['आउनुहोस् वा फोन गर्नुहोस्', 'हेटौंडा-४, चिसापानी आउनुहोस्, वा 057‑525563 मा फोन गर्नुहोस्।'],
-      ['कागजात ल्याउनुहोस्', 'जन्मदर्ता, अघिल्लो विद्यालयको रेकर्ड र फोटो।'],
-      ['बच्चा भर्ना हुन्छ', 'पहिलो दिन कक्षा शिक्षकलाई भेट्नुहोस् र अभिभावक एप पाउनुहोस्।'],
-    ],
-    directions: 'बाटो हेर्नुहोस्',
+    open: true, banner: 'वि.सं. २०८४ को भर्ना खुला छ', read: 'थप पढ्नुहोस्',
   },
-  footer: { find: 'हामीलाई भेट्नुहोस्', address: ['हेटौंडा-४, चिसापानी', 'हेटौंडा, मकवानपुर ४४१००'], write: 'फोन वा इमेल', staff: 'अभिभावक र कर्मचारी', parentLogin: 'अभिभावक लगइन', staffLogin: 'कर्मचारी लगइन', legal: '© वि.सं. २०८३ सत्यम जेभियर्स इङ्लिस बोर्डिङ स्कुल, हेटौंडा' },
+  footer: { find: 'हामीलाई भेट्नुहोस्', address: ['हेटौंडा-४, चिसापानी', 'हेटौंडा, मकवानपुर ४४१००'], write: 'फोन वा इमेल', staff: 'अभिभावक र कर्मचारी', parentLogin: 'अभिभावक लगइन', staffLogin: 'कर्मचारी लगइन', legal: '© वि.सं. २०८३ सत्यम जेभियर्स इङ्लिस माध्यमिक बोर्डिङ स्कुल, हेटौंडा' },
 };
 
 export const copy: Record<Lang, Copy> = { en, ne };

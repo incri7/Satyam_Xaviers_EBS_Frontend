@@ -1,0 +1,154 @@
+/* Programmes: one navy world, the signboard's own (the first page's opening band), ruled like the blueprint the
+   school is picked up onto (styles.css .pickup-bg), its lines light on the navy. The page fades into it from white,
+   the climb holds on it, and everything after stays on it as glass panels (white at a low alpha, a thin light edge),
+   until the school's badge grows back over its end. The app's text styles
+   1:1 (h1 30, h2 24, h3 19; card radius 20, row 14, chip 8). Selectors start at .prog so they outrank styles.css. */
+.prog {
+  --navy-a: #0F223D; --navy-b: #172B48; --navy-c: #233856;
+  --glass: rgb(255 255 255 / .06); --glass-line: rgb(255 255 255 / .13); --dim: rgb(255 255 255 / .62); --soft-t: rgb(255 255 255 / .82);
+  --st0: #B4D8E4; --st1: #86BBD6; --st2: #4F8FC9; --st3: #ECEDE8;
+  position: relative; color: #fff; font-size: 16px; padding-bottom: clamp(56px, 6vw, 88px);
+}
+/* the navy ground, ruled as a blueprint; the school's badge grows back over its end (Story's scene 3) */
+.prog::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background:
+    linear-gradient(rgb(180 216 228 / .09) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .09) 1px, transparent 1px),
+    linear-gradient(rgb(180 216 228 / .035) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .035) 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(90deg, var(--navy-a) 0%, var(--navy-b) 50%, var(--navy-c) 100%);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px, auto, auto; }
+/* on its own route it opens under the light page head: the navy fades in */
+.prog.from-light > .fade-in { display: block; position: relative; z-index: 1; height: clamp(120px, 12vw, 180px);
+  background: linear-gradient(180deg, var(--canvas) 0%, rgb(244 247 250 / 0) 100%); }
+.prog :is(p, ul, ol, dl, dt, dd, figure, h3, h4) { margin: 0; }
+.prog ul, .prog ol { list-style: none; padding: 0; }
+.prog .prog-block { position: relative; z-index: 1; padding-inline: var(--gutter); }
+.prog .journey + .prog-block, .prog .prog-block + .prog-block { margin-top: clamp(56px, 7vw, 104px); }
+.prog .prog-head { margin-bottom: clamp(18px, 2vw, 26px); max-width: 64ch; }
+.prog .prog-h { font: 700 30px/1.15 var(--display); letter-spacing: -.025em; color: #ECEDE8; text-shadow: -1px 2px 0 #081428; }
+html:lang(ne) .prog .prog-h { letter-spacing: 0; line-height: 1.35; }
+.prog .prog-lede { margin-top: 8px; font-size: 16px; line-height: 1.6; color: var(--dim); }
+.prog .card { background: var(--glass); border: 1px solid var(--glass-line); border-radius: 20px; padding: clamp(18px, 2vw, 26px); }
+.prog .card-h { font: 700 24px/1.25 var(--display); letter-spacing: -.02em; color: #fff; }
+html:lang(ne) .prog .card-h { letter-spacing: 0; line-height: 1.4; }
+.prog .card-p { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--soft-t); }
+.prog .card-note { margin-top: 14px; font-size: 14px; line-height: 1.5; color: var(--dim); }
+.prog .bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(12px, 1.4vw, 20px); }
+
+/* The climb: the four stages. The thirteen classes are a ladder of chips; on a wide screen (.is-held, set by the
+   page's motion) the band holds while the reader scrolls, the chips light stage by stage and the stage panels take
+   turns in one place. Without it the four panels simply stack. --lit lights a rung, --on marks the stage being
+   read; both rest at 1 so the band reads without motion. The band carries the page's own navy so it stays whole
+   while it is held. */
+.prog .journey { position: relative; z-index: 1; color: #fff;
+  background:
+    linear-gradient(rgb(180 216 228 / .09) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .09) 1px, transparent 1px),
+    linear-gradient(rgb(180 216 228 / .035) 1px, transparent 1px), linear-gradient(90deg, rgb(180 216 228 / .035) 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(90deg, var(--navy-a) 0%, var(--navy-b) 50%, var(--navy-c) 100%);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px, auto, auto; }
+.prog .journey-inner { padding: clamp(40px, 5vw, 64px) var(--gutter); display: grid; gap: clamp(18px, 2.2vw, 28px); }
+.prog .journey.is-held .journey-inner { height: 100vh; box-sizing: border-box; padding-top: calc(76px + clamp(16px, 2.4vh, 32px)); padding-bottom: clamp(16px, 3vh, 36px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto; align-content: stretch; }
+.prog .journey-h { font: 700 30px/1.15 var(--display); letter-spacing: -.025em; color: #ECEDE8; text-shadow: -1px 2px 0 #081428; }
+html:lang(ne) .prog .journey-h { letter-spacing: 0; line-height: 1.35; }
+.prog .journey-lede { margin-top: 8px; max-width: 64ch; font-size: 16px; line-height: 1.6; color: rgb(255 255 255 / .78); }
+.prog .ladder { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 6px; }
+.prog .rung { --lit: 1; --c: var(--st0); position: relative; padding: 10px 4px 8px; border-radius: 8px; text-align: center; font: 600 13px/1.2 var(--font);
+  color: color-mix(in srgb, #0F223D calc(var(--lit) * 100%), rgb(255 255 255 / .55));
+  background: color-mix(in srgb, var(--c) calc(var(--lit) * 100%), rgb(255 255 255 / .06));
+  border: 1px solid color-mix(in srgb, var(--c) calc(var(--lit) * 100%), rgb(255 255 255 / .14)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog .journey.is-held .rung { --lit: 0; }
+.prog .journey.is-held .rung.s0 { --lit: 1; }   /* the first stage is lit as the band arrives */
+.prog .rung.s1 { --c: var(--st1); } .prog .rung.s2 { --c: var(--st2); } .prog .rung.s3 { --c: var(--st3); }
+.prog .panels { display: grid; gap: clamp(14px, 2vw, 24px); }
+.prog .journey.is-held .panels { min-height: 0; }
+.prog .journey.is-held .panel { grid-area: 1 / 1; min-height: 0; height: 100%; }
+.prog .panel { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 44px); align-items: center; }
+.prog .panel-photo { margin: 0; border-radius: 20px; overflow: hidden; aspect-ratio: 4 / 3; box-shadow: 0 30px 60px -30px rgb(0 0 0 / .6); }
+.prog .journey.is-held .panel-photo { aspect-ratio: auto; height: 100%; max-height: 100%; }
+.prog .panel-photo img { display: block; width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+.prog .stage-meta { display: flex; align-items: baseline; gap: 10px; font-size: 14px; color: rgb(255 255 255 / .65); }
+.prog .stage-meta b { font: 600 15px/1.3 var(--display); color: var(--sky); }
+.prog .panel-title { margin-top: 8px; font: 700 clamp(28px, 2.8vw, 38px)/1.12 var(--display); letter-spacing: -.03em; color: #fff; }
+html:lang(ne) .prog .panel-title { letter-spacing: 0; line-height: 1.3; }
+.prog .panel-dl { margin-top: 18px; display: grid; gap: 14px; max-width: 52ch; }
+.prog .panel-dl dt { font: 600 13px/1.3 var(--font); color: var(--sky); }
+.prog .panel-dl dd { margin-top: 4px; font-size: 15px; line-height: 1.6; color: rgb(255 255 255 / .86); }
+.prog .jdots { display: none; }
+.prog .journey.is-held .jdots { display: flex; gap: 22px; }
+.prog .jdot { --on: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: color-mix(in srgb, #fff calc(40% + var(--on) * 60%), transparent); }
+.prog .jdot::before { content: ""; width: calc(10px + var(--on) * 18px); height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--sky) calc(30% + var(--on) * 70%), transparent); }
+.prog .jdot b { font-weight: 600; }
+
+/* a school day: a sky line runs through the hours as the reader passes; --p draws it, --lit lights an hour; both
+   rest at 1 so the card reads without motion */
+.prog .day { grid-column: span 12; }
+.prog .day-line-wrap { --p: 1; position: relative; margin-top: 26px; }
+.prog .hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+.prog .day-line { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: rgb(255 255 255 / .14); border-radius: 2px; }
+.prog .day-line i { position: absolute; inset: 0; background: var(--sky); border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--p)); }
+.prog .hour { --lit: 1; position: relative; padding-top: 24px; }
+.prog .hour::before { content: ""; position: absolute; left: 0; top: -5px; width: 13px; height: 13px; border-radius: 50%; box-sizing: border-box;
+  border: 3px solid color-mix(in srgb, var(--sky) calc(var(--lit) * 100%), rgb(255 255 255 / .2));
+  background: color-mix(in srgb, var(--sky) calc(var(--lit) * 100%), var(--navy-b)); }
+.prog .hour-t { display: flex; align-items: baseline; gap: 4px; color: color-mix(in srgb, #fff calc(var(--lit) * 100%), rgb(255 255 255 / .28)); }
+.prog .hour-t b { font: 700 34px/1.1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+html:lang(ne) .prog .hour-t b { font-family: "Mukta", sans-serif; letter-spacing: 0; }
+.prog .hour-t small { font: 600 12px var(--font); color: var(--sky); opacity: calc(.4 + var(--lit) * .6); }
+.prog .hour-what { display: block; margin-top: 6px; font: 600 15px/1.3 var(--display); color: #fff; }
+.prog .hour p { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+
+/* the school buses, the approvals and the age guide, side by side */
+.prog .bus { grid-column: span 4; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.prog .bus-photo { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: 50% 62%; }
+.prog .bus-body { padding: clamp(18px, 2vw, 24px); display: flex; flex-direction: column; flex: 1; }
+.prog .bus-call { margin-top: auto; padding-top: 16px; font: 600 15px var(--font); color: var(--sky); text-decoration: none; }
+.prog .bus-call:hover { text-decoration: underline; }
+.prog .bus-call:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; border-radius: 4px; }
+.prog .approved { grid-column: span 4; }
+.prog .levels-list { margin-top: 16px; display: grid; gap: 8px; }
+.prog .levels-list li { --c: var(--st0); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px 12px 18px; border-radius: 14px; background: rgb(255 255 255 / .05); border: 1px solid var(--glass-line); position: relative; overflow: hidden; }
+.prog .levels-list li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--c); }
+.prog .levels-list li.s1 { --c: var(--st1); } .prog .levels-list li.s2 { --c: var(--st2); } .prog .levels-list li.s3 { --c: var(--st3); }
+.prog .lvl { font-size: 14px; color: var(--dim); }
+.prog .lvl b { display: block; font: 600 15px/1.3 var(--display); color: #fff; }
+.prog .date { font: 700 19px/1 var(--display); color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+html:lang(ne) .prog .date { font-family: "Mukta", sans-serif; }
+.prog .date small { font: 600 12px var(--font); color: var(--sky); }
+.prog .ages { grid-column: span 4; display: flex; flex-direction: column; }
+.prog .age-list { margin-top: 14px; display: grid; gap: 2px; }
+.prog .age-list div { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--glass-line); }
+.prog .age-list :is(dt, dd) { display: block; margin: 0; }
+.prog .age-list dt { font-size: 15px; color: #fff; }
+.prog .age-list dd { font: 600 15px var(--font); color: var(--sky); text-align: right; }
+.prog .ages-cta { margin-top: auto; padding-top: 18px; }
+.prog .ages-cta .btn { background: var(--sky); color: var(--navy-a); border-color: var(--sky); }
+.prog .ages-cta .btn:hover { background: #fff; border-color: #fff; }
+
+@media (max-width: 1100px) {
+  .prog .bus { grid-column: span 12; }
+  .prog .approved, .prog .ages { grid-column: span 6; }
+  .prog .hours { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 28px; }
+  .prog .day-line { display: none; }
+}
+@media (max-width: 900px) {
+  /* the climb stacks: each stage its own panel, photo above */
+  .prog .panel { grid-template-columns: 1fr; }
+  .prog .ladder { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .prog .panels { gap: 36px; }
+}
+@media (max-width: 760px) {
+  .prog .approved, .prog .ages { grid-column: span 12; }
+  .prog .ladder { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .prog .prog-h { font-size: 26px; }
+  /* the day runs down the card, its line beside it */
+  .prog .hours { grid-template-columns: 1fr; gap: 16px; padding-left: 26px; }
+  .prog .day-line { display: block; left: 5px; right: auto; top: 6px; bottom: 6px; width: 3px; height: auto; }
+  .prog .day-line i { transform-origin: 50% 0; transform: scaleY(var(--p)); }
+  .prog .hour { padding-top: 0; }
+  .prog .hour::before { left: -26px; top: 10px; }
+  .prog .hour-t b { font-size: 26px; }
+}
+

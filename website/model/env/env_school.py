@@ -1,0 +1,314 @@
+# The school's main block, from the client's photos (IMG_3017, 3019, 3020, 3082-3086). Run after
+# env_street.py in the same globals (W, gz, plane, obj, MAT, image_mat, new_mat, node, finish, srgb...).
+#
+# A long, narrow concrete block, its short end facing the driveway. Open corridors run across the
+# front and turn down the long side (viewer's right) round a rounded corner: four corridor levels
+# over a semi-basement, each a deep slate-blue slab edge with a steel railing, thin steel posts from
+# slab to slab. Walls yellow up to the door heads, white above. A flat roof with rebar left up for a
+# future floor, a stair head, and the flag. Painted storeys: make_school_textures.py.
+import bpy, bmesh, math
+from mathutils import Vector
+
+ST = DATA
+SF = 30.5            # front corridor's outer edge, metres along the driveway (photo GPS: its corner is ~29 m in)
+CORR = 1.6           # corridor depth
+# The school stands left of the driveway's right-hand wall line (t = -3.3), which runs on past it: the 3 m between
+# that wall and the long side's corridor is the side path (IMG_3017: the building sits centre-left; IMG_3055).
+WALL_T = -3.3
+TL = 11.6            # the front's left end (square)
+TR = WALL_T + 2.9    # outer edge of the side corridor (the viewer's right)
+TC = TR + CORR       # the core's right wall
+SB = 60.5            # the back
+R = 1.6              # the rounded corner's radius
+S_ENT = (SF + CORR + SB) / 2    # the main entrance in the exact middle of the long side: steps up from the side path, the WELCOME gate; a collapsible gate on every floor above it
+Z0, STOREY, SLAB = 1.0, 3.2, 0.45
+LEVELS = [Z0 + STOREY * k for k in range(5)]          # four corridor floors and the roof
+G = gz(SF + 10, 0.0)                                  # the plot is levelled: one ground height
+
+def P(s, t, z): return W(s, t, G + z)
+
+def mat_img(name, file, rough=0.8, alpha=False):
+    m, nt = new_mat(name)
+    t = nt.nodes.new('ShaderNodeTexImage'); t.image = bpy.data.images.load(f'{ST}/{file}', check_existing=True)
+    t.extension = 'REPEAT'
+    uv = nt.nodes.new('ShaderNodeUVMap'); uv.uv_map = 'UVMap'; nt.links.new(uv.outputs[0], t.inputs[0])
+    b = node(nt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=rough)
+    nt.links.new(t.outputs[0], b.inputs['Base Color'])
+    finish(nt, b.outputs[0]); return m
+SM = {
+    'front': mat_img('MAT-school_front', 'school_front.png'),
+    'side': mat_img('MAT-school_side', 'school_side.png'),
+    'fascia': mat_img('MAT-school_slab_edge', 'school_fascia.png', 0.7),
+    'gate': mat_img('MAT-school_basement_gate', 'school_gate.png', 0.5),
+    'banner': mat_img('MAT-school_banner', 'school_banner.jpg', 0.6),
+    'soffit': flat('MAT-school_soffit', '#ecebe4', 0.85),
+    'deck': flat('MAT-school_corridor_floor', '#8f8d88', 0.6),
+    'plain': flat('MAT-school_wall_plain', '#eedc92', 0.85),
+    'post': flat('MAT-school_post_steel', '#c9ccd0', 0.25, 1.0),
+    'rebar': flat('MAT-rebar', '#4a3a30', 0.7, 1.0),
+    'flag': flat('MAT-flag_nepal', '#c8102e', 0.6),
+    'ac': flat('MAT-ac_unit', '#e9ebec', 0.4),
+    'front_ground': mat_img('MAT-school_front_ground', 'school_front_ground.png'),
+    'side_ground': mat_img('MAT-school_side_ground', 'school_side_ground.png'),
+    'base_front': mat_img('MAT-school_basement_front', 'school_base_front.png'),
+    'base_side': mat_img('MAT-school_basement_side', 'school_base_side.png'),
+    'concrete': flat('MAT-school_ramp_wall', '#b9b6ae', 0.9),
+    'bracket': flat('MAT-school_bracket', '#5d80a8', 0.6),
+}
+W_FRONT_TEX = 10.4      # make_school_textures.py's front width; the core's front is TL - TC wide
+
+def mesh(name, build, mats):
+    bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
+    build(bm, uvl)
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    for m in mats: me.materials.append(m)
+    return obj(name, me)
+
+def quad(bm, uvl, a, b, c, d, uvs, mi=0):
+    f = bm.faces.new([bm.verts.new(v) for v in (a, b, c, d)]); f.material_index = mi
+    for lp, uv in zip(f.loops, uvs): lp[uvl].uv = uv
+    return f
+
+# --- the outline of a corridor slab: across the front, round the corner, down the long side ------------------
+def outer_line():
+    pts = [(SF, TL), (SF, TR + R)]
+    for i in range(1, 9):                      # the rounded corner, centre (SF + R, TR + R)
+        a = math.pi + (math.pi / 2) * i / 8    # from facing -s to facing -t
+        pts.append((SF + R + R * math.cos(a), TR + R + R * math.sin(a)))
+    pts.append((SB, TR))
+    return pts
+OUT = outer_line()
+INNER = [(SB, TC), (SF + CORR, TC), (SF + CORR, TL)]
+
+def slab(name, z, full=False):
+    """A slab whose outer edge is the blue fascia; full covers the core too (the roof)."""
+    ring = OUT + ([(SB, TL)] if full else INNER)
+    def build(bm, uvl):
+        top = [bm.verts.new(P(s, t, z)) for s, t in ring]
+        bot = [bm.verts.new(P(s, t, z - SLAB)) for s, t in ring]
+        ft = bm.faces.new(top); ft.material_index = 1
+        fb = bm.faces.new(bot[::-1]); fb.material_index = 2
+        for f in (ft, fb):
+            for lp in f.loops: lp[uvl].uv = (lp.vert.co.x, lp.vert.co.y)
+        u = 0.0
+        n_out = len(OUT) if not full else len(OUT) + 1
+        for i in range(len(ring)):
+            j = (i + 1) % len(ring)
+            seg = math.dist(ring[i], ring[j])
+            f = bm.faces.new((bot[i], bot[j], top[j], top[i]))
+            f.material_index = 0 if i < n_out - 1 or full else 2
+            for lp, uv in zip(f.loops, ((u / 4, 0), ((u + seg) / 4, 0), ((u + seg) / 4, 1), (u / 4, 1))): lp[uvl].uv = uv
+            u += seg
+    return mesh(name, build, [SM['fascia'], SM['deck'], SM['soffit']])
+
+for k, z in enumerate(LEVELS):
+    slab(f'GEO-school_slab_{k}', z, full=(k == len(LEVELS) - 1))
+
+# --- railings on every corridor level, along the slab's outer edge --------------------------------------------
+def railing(name, z, gap=None):
+    """gap: (s0, s1) left open on the long side, where the entrance steps come up."""
+    pieces = []
+    for (s0, t0), (s1, t1) in zip(OUT, OUT[1:]):
+        if gap and t0 == t1 == TR and s0 < gap[0] < gap[1] < s1:
+            pieces += [((s0, t0), (gap[0], t1)), ((gap[1], t0), (s1, t1))]
+        else:
+            pieces.append(((s0, t0), (s1, t1)))
+    def build(bm, uvl):
+        u = 0.0
+        for (s0, t0), (s1, t1) in pieces:
+            seg = math.dist((s0, t0), (s1, t1))
+            # 6 cm inside the edge
+            d = Vector((s1 - s0, t1 - t0)).normalized(); n = Vector((-d.y, d.x)) * 0.06
+            a, b = (s0 + n.x, t0 + n.y), (s1 + n.x, t1 + n.y)
+            quad(bm, uvl, P(*a, z), P(*b, z), P(*b, z + 1.0), P(*a, z + 1.0), [(u, 0), (u + seg, 0), (u + seg, 1), (u, 1)])
+            u += seg
+    return mesh(name, build, [MAT['rail']])
+for k, z in enumerate(LEVELS[:4]):
+    railing(f'GEO-school_railing_{k}', z, gap=(S_ENT - 1.0, S_ENT + 1.0) if k == 0 else None)
+
+# --- thin steel posts from the ground corridor to the roof, at the corners and down the long side ---------------
+posts = [(SF + 0.08, TL - 0.08), (SF + 0.1, TR + R + 0.0), (SF + R, TR + 0.1)]
+s = SF + R + 3.95
+while s < SB - 0.5:
+    posts.append((s, TR + 0.08)); s += 3.95
+for i, (s, t) in enumerate(posts):
+    cylinder(f'GEO-school_post_{i}', P(s, t, Z0), LEVELS[-1] - SLAB - Z0, 0.035, SM['post'], seg=8)
+
+# --- the core: painted storeys on the front and the long side; plain walls behind ------------------------------
+def wall_strip(name, a, b, z0, z1, m, u1, v0=0.0):
+    return mesh(name, lambda bm, uvl: quad(bm, uvl, P(*a, z0), P(*b, z0), P(*b, z1), P(*a, z1), [(0, v0), (u1, v0), (u1, 1), (0, 1)]), [m])
+for k in range(4):
+    z = LEVELS[k]
+    ground_floor = k == 0       # the ground storey's wall is painted with pupils, the flag, a welcome panel
+    wall_strip(f'GEO-school_front_{k}', (SF + CORR, TL), (SF + CORR, TC), z, z + STOREY - SLAB + 0.45,
+               SM['front_ground' if ground_floor else 'front'], 1.0)
+    wall_strip(f'GEO-school_side_{k}', (SF + CORR, TC), (SB, TC), z, z + STOREY - SLAB + 0.45,
+               SM['side_ground' if ground_floor else 'side'], (SB - SF - CORR) / 30.0)
+# The semi-basement under the ground-floor corridor: barred windows, and on the front the collapsible gate at
+# the foot of a ramp between two low concrete walls (IMG_3055 0:02, 0:14). The painted band is 1.6 m tall;
+# the 1 m above the ground shows its upper part (the rest is below the ramp's level).
+wall_strip('GEO-school_basement_front', (SF + CORR, TL), (SF + CORR, TC), 0.0, Z0, SM['base_front'], 1.0, v0=0.375)
+wall_strip('GEO-school_basement_side', (SF + CORR, TC), (SB, TC), 0.0, Z0, SM['base_side'], (SB - SF - CORR) / 30.0, v0=0.375)
+GATE_T = TL - (W_FRONT_TEX / 2 + 0.4)          # the gate's centre: where make_school_textures.py paints it
+for i, t in enumerate((GATE_T + 1.75, GATE_T - 1.75)):
+    off = G - gz(SF - 1.6, t)
+    box(f'GEO-school_ramp_wall_{i}', SF - 3.6, SF + 0.05, t - 0.13, t + 0.13, off, off + 0.85, SM['concrete'])
+# blue brackets under every corridor slab, at the posts and across the front (IMG_3099 4:00, 4:40)
+def bracket(name, s0, s1, t0, t1, z):
+    off = G - gz((s0 + s1) / 2, (t0 + t1) / 2)
+    box(name, s0, s1, t0, t1, off + z - SLAB - 0.32, off + z - SLAB + 0.01, SM['bracket'])
+for k, z in enumerate(LEVELS):
+    for i, t in enumerate((TL - 0.15, TL - 3.6, TL - 7.0)):
+        bracket(f'GEO-school_bracket_f{k}_{i}', SF + 0.05, SF + CORR, t - 0.09, t + 0.09, z)
+    for i, (ps, pt) in enumerate(posts[3:]):
+        bracket(f'GEO-school_bracket_s{k}_{i}', ps - 0.09, ps + 0.09, TR + 0.05, TC, z)
+wall_strip('GEO-school_wall_left', (SB, TL), (SF + CORR, TL), 0.0, LEVELS[-1], SM['plain'], 1.0)
+wall_strip('GEO-school_wall_back', (SB, TC), (SB, TL), 0.0, LEVELS[-1], SM['plain'], 1.0)
+wall_strip('GEO-school_left_end_cap', (SF + CORR, TL), (SF, TL), 0.0, Z0, SM['plain'], 1.0)
+
+# --- the banner on the first-floor railing (IMG_3017, IMG_3019) ---------------------------------------------------
+z = LEVELS[1]
+wall_strip('GEO-school_banner', (SF - 0.03, TL - 7.3), (SF - 0.03, TL - 11.3), z + 0.05, z + 1.0, SM['banner'], 1.0)
+
+# --- the roof: rebar left up for another floor, the stair head, the AC unit, the flag -----------------------------
+roof = LEVELS[-1]
+bm = bmesh.new()
+spots = [(SF + CORR + 0.3, TL - 0.3), (SF + CORR + 0.3, TC + 0.3), (SF + CORR + 0.3, TL - 6.2)]
+s = SF + CORR + 3.95
+while s < SB - 0.5:
+    spots += [(s, TC + 0.3), (s, TL - 0.3)]; s += 3.95
+for s, t in spots:
+    for dx, dy in ((0.1, 0.1), (-0.1, 0.1), (0.1, -0.1), (-0.1, -0.1)):
+        base = P(s, t, roof); lean = Vector((dx, dy, 0)) * 0.4
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=5, radius1=0.009, radius2=0.009, depth=1.3,
+                              matrix=__import__('mathutils').Matrix.Translation(base + Vector((dx, dy, 0.65)) + lean))
+me = bpy.data.meshes.new('rebar'); bm.to_mesh(me); bm.free(); me.materials.append(SM['rebar']); obj('GEO-school_rebar', me)
+def on_level(name, s0, s1, t0, t1, z0, z1, m):
+    # box() stands on the ground under its centre; the school's plot is levelled at G
+    off = G - gz((s0 + s1) / 2, (t0 + t1) / 2)
+    return box(name, s0, s1, t0, t1, off + z0, off + z1, m)
+on_level('GEO-school_stair_head', SB - 7.0, SB - 3.5, TC + 0.6, TC + 4.0, roof, roof + 2.7, SM['plain'])
+# The flag: a pole at the roof's front corner, the flag flying just above the roof in the front view, along the
+# front so it is seen broadside. Nepal's flag (make_flag.py) on a cloth with a gentle ripple, its transparent
+# ground cutting the cloth to the two pennants.
+cylinder('GEO-school_flag_pole', P(SF + CORR + 0.6, TC + 0.7, roof), 3.3, 0.03, SM['post'], seg=8)
+fp = P(SF + CORR + 0.6, TC + 0.7, roof + 3.25)
+along = (W(1, 0, 0) - W(0, 0, 0)); along.z = 0; along.normalize()
+out = (W(0, -1, 0) - W(0, 0, 0)); out.z = 0; out.normalize()
+fly = (along * 0.85 + out * 0.5).normalized()        # along the front, a little towards the viewer: seen from the street too
+FW, FH = 1.25, 1.52
+nrm = Vector((0, 0, 1)).cross(fly).normalized()
+fm, fnt = new_mat('MAT-flag_nepal')
+ftex = fnt.nodes.new('ShaderNodeTexImage'); ftex.image = bpy.data.images.load(f'{ST}/school_flag_nepal.png', check_existing=True)
+ftex.extension = 'CLIP'
+fuv = fnt.nodes.new('ShaderNodeUVMap'); fuv.uv_map = 'UVMap'; fnt.links.new(fuv.outputs[0], ftex.inputs[0])
+fb = node(fnt, 'ShaderNodeBsdfPrincipled', (300, 0), Roughness=0.75)
+fnt.links.new(ftex.outputs['Color'], fb.inputs['Base Color']); fnt.links.new(ftex.outputs['Alpha'], fb.inputs['Alpha'])
+finish(fnt, fb.outputs[0])
+def flag(bm, uvl):
+    N = 14
+    def pt(u, v):
+        ripple = math.sin(u * math.tau * 1.15 + 0.4) * 0.06 * u + math.sin(u * math.tau * 2.3) * 0.02 * u
+        return fp + fly * (FW * u) + nrm * ripple + Vector((0, 0, -FH * v - 0.05 * u * u))
+    for i in range(N):
+        u0, u1 = i / N, (i + 1) / N
+        f = bm.faces.new([bm.verts.new(pt(u0, 0)), bm.verts.new(pt(u1, 0)), bm.verts.new(pt(u1, 1)), bm.verts.new(pt(u0, 1))])
+        for lp, uv in zip(f.loops, ((u0, 1), (u1, 1), (u1, 0), (u0, 0))): lp[uvl].uv = uv
+fo = mesh('GEO-school_flag', flag, [fm])
+on_level('GEO-school_ac_unit', SF + CORR - 0.32, SF + CORR - 0.02, TL - 1.65, TL - 0.8, LEVELS[3] + 2.0, LEVELS[3] + 2.6, SM['ac'])
+
+# === The real way in (IMG_3055): not through the front. The front's ramp goes down to the semi-basement; people
+# turn right at the rounded corner, walk the side path along the long side, and climb granite steps to the
+# ground-floor corridor at the main entrance: a maroon collapsible gate with WELCOME painted beside it. =========
+SM['entrance'] = mat_img('MAT-school_entrance_gate', 'school_entrance_gate.png', 0.5)
+SM['welcome'] = mat_img('MAT-school_welcome', 'school_welcome.png', 0.8)
+SM['granite'] = pbr('MAT-granite_steps', 'white_plaster_02', 0.8, tint='#b9b7b1', bump=0.2)
+SM['bwall'] = pbr('MAT-boundary_wall_blocks', 'concrete_wall_003', 2.0, tint='#b3afa6', bump=0.6)
+SM['ramp'] = flat('MAT-ramp_concrete', '#87847d', 0.9)
+
+# --- the side path, from the corner to the back, under the corridor's overhang, up to the boundary wall ---------
+strip('GEO-side_path', SF - 1.0, SB, WALL_T, TC, MAT['drive'], lift=0.05)
+# the boundary wall: the driveway's wall line, in concrete blocks from where the brick ends
+box('GEO-boundary_wall', 24.0, SB, WALL_T - 0.3, WALL_T - 0.05, 0, 1.9, SM['bwall'])
+box('GEO-boundary_wall_cap', 24.0, SB, WALL_T - 0.34, WALL_T - 0.01, 1.9, 1.96, SM['bwall'])
+import random as _r2
+_rr = _r2.Random(19); s_ = SF - 4.0
+while s_ < SB:                      # banana plants and bushes behind the wall
+    tree(f'GEO-behind_wall_{s_:.1f}', _rr.choice(['shrub_02_a_LOD1', 'shrub_02_c_LOD1']), s_, WALL_T - 1.2 - _rr.uniform(0, 1.2),
+         _rr.uniform(1.8, 2.6), _rr.uniform(0, 6.28))
+    s_ += _rr.uniform(2.0, 3.5)
+
+# --- the steps: five granite steps from the path to the corridor floor, a steel handrail each side --------------
+for k in range(5):
+    on_level(f'GEO-entrance_step_{k}', S_ENT - 1.0, S_ENT + 1.0, TR - 1.5 + 0.3 * k, TR + 0.02, 0.0, 0.2 * (k + 1), SM['granite'])
+def rod(name, a, b, r=0.024):
+    cu = bpy.data.curves.new(name, 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 2
+    sp = cu.splines.new('POLY'); sp.points.add(1)
+    sp.points[0].co = (*a, 1); sp.points[1].co = (*b, 1)
+    cu.materials.append(SM['post']); return obj(name, cu)
+for i, s_ in enumerate((S_ENT - 0.95, S_ENT + 0.95)):
+    lo, hi = P(s_, TR - 1.4, 0.2), P(s_, TR + 0.05, Z0)
+    for j, p in enumerate((lo, hi)):
+        rod(f'GEO-entrance_rail_post_{i}_{j}', p, p + Vector((0, 0, 0.9)))
+    rod(f'GEO-entrance_rail_{i}', lo + Vector((0, 0, 0.9)), hi + Vector((0, 0, 0.9)))
+
+# --- the main entrance: the gate across the hall's opening, WELCOME down the wall beside it ---------------------
+wall_strip('GEO-entrance_gate', (S_ENT - 1.5, TC - 0.03), (S_ENT + 1.5, TC - 0.03), Z0, Z0 + 2.45, SM['entrance'], 1.0)
+wall_strip('GEO-entrance_welcome', (S_ENT + 1.65, TC - 0.03), (S_ENT + 2.25, TC - 0.03), Z0 + 0.1, Z0 + 2.4, SM['welcome'], 1.0)
+wall_strip('GEO-entrance_threshold', (S_ENT - 1.5, TC - 0.6), (S_ENT + 1.5, TC - 0.6), Z0 + 0.005, Z0 + 0.006, SM['granite'], 1.0)
+# the same collapsible gate on every floor above, over the stair hall in the middle
+for k in range(1, 4):
+    wall_strip(f'GEO-floor_gate_{k}', (S_ENT - 1.5, TC - 0.03), (S_ENT + 1.5, TC - 0.03), LEVELS[k], LEVELS[k] + 2.45, SM['entrance'], 1.0)
+
+# --- the board on the roof, facing the front: the crest and the school's name (make_roof_board.py) --------------
+SM['roof_board'] = mat_img('MAT-school_roof_board', 'school_roof_board.png', 0.6)
+BS0, BS1 = S_ENT - 7.0, S_ENT + 7.0
+BT = TR + 0.5                                         # just in from the roof's front edge
+bz0, bz1 = LEVELS[-1] + 0.3, LEVELS[-1] + 2.3
+wall_strip('GEO-roof_board', (BS0, BT), (BS1, BT), bz0, bz1, SM['roof_board'], 1.0)
+wall_strip('GEO-roof_board_back', (BS1, BT + 0.06), (BS0, BT + 0.06), bz0, bz1, SM['plain'], 1.0)
+for i in range(5):                                   # steel legs from the roof up to the board's top
+    s_ = BS0 + 0.3 + (BS1 - BS0 - 0.6) * i / 4
+    cylinder(f'GEO-roof_board_leg_{i}', P(s_, BT + 0.12, LEVELS[-1]), bz1 - LEVELS[-1], 0.045, SM['post'], seg=8)
+
+# --- the underground path: the front ramp really goes down. The ground is cut away over it (the terrain's and
+# the dirt's materials turn transparent inside the cut), and the ramp falls 1.35 m between retaining walls to the
+# semi-basement's gate under the front corridor ------------------------------------------------------------------
+DEPTH = 1.35
+RS0, RS1 = SF - 3.6, SF + CORR
+RT0, RT1 = GATE_T - 1.62, GATE_T + 1.62
+def cut_hole(mat, s0, s1, t0, t1):
+    nt = mat.node_tree
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    src = out.inputs['Surface'].links[0].from_socket
+    geo = nt.nodes.new('ShaderNodeNewGeometry')
+    rel = nt.nodes.new('ShaderNodeVectorMath'); rel.operation = 'SUBTRACT'; rel.inputs[1].default_value = (M.x, M.y, 0)
+    nt.links.new(geo.outputs['Position'], rel.inputs[0])
+    def dot(v):
+        n = nt.nodes.new('ShaderNodeVectorMath'); n.operation = 'DOT_PRODUCT'; n.inputs[1].default_value = (v.x, v.y, 0)
+        nt.links.new(rel.outputs[0], n.inputs[0]); return n.outputs['Value']
+    ss, tt = dot(U), dot(L)
+    inside = math_node(nt, 'MULTIPLY',
+                       math_node(nt, 'MULTIPLY', math_node(nt, 'GREATER_THAN', ss, s0), math_node(nt, 'LESS_THAN', ss, s1)),
+                       math_node(nt, 'MULTIPLY', math_node(nt, 'GREATER_THAN', tt, t0), math_node(nt, 'LESS_THAN', tt, t1)))
+    tr = nt.nodes.new('ShaderNodeBsdfTransparent')
+    mx = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(inside, mx.inputs[0]); nt.links.new(src, mx.inputs[1]); nt.links.new(tr.outputs[0], mx.inputs[2])
+    nt.links.new(mx.outputs[0], out.inputs['Surface'])
+for name in ('MAT-terrain_real', 'MAT-drive_dirt'):
+    cut_hole(bpy.data.materials[name], RS0, RS1, RT0, RT1)
+for i, t in enumerate((RT0 - 0.13, RT1 + 0.13)):                  # retaining walls under the parapets
+    on_level(f'GEO-ramp_retaining_{i}', RS0, RS1, t - 0.13, t + 0.13, -DEPTH - 0.1, 0.0, SM['concrete'])
+mesh('GEO-ramp', lambda bm, uvl: quad(bm, uvl, P(RS0, RT0, 0.02), P(RS0, RT1, 0.02), P(RS1, RT1, -DEPTH), P(RS1, RT0, -DEPTH),
+                                      [(0, 0), (1, 0), (1, 1), (0, 1)]), [SM['ramp']])
+wall_strip('GEO-school_basement_gate_deep', (RS1 - 0.02, GATE_T + 1.55), (RS1 - 0.02, GATE_T - 1.55), -DEPTH, 0.95, SM['gate'], 1.0)
+
+# --- the walk's two new views: round the corner onto the side path; at the foot of the entrance steps ------------
+camera('CAM-sidepath', SF - 2.0, WALL_T + 1.2, 1.55, 22.0, pitch=4.0, yaw=-4.0)
+camera('CAM-entrance', S_ENT - 0.3, WALL_T + 0.25, 1.6, 16.0, pitch=12.0, yaw=-90.0)
+# The front view: the long side with its balconies, as the client's own photos show the school (IMG_3082-3084):
+# straight on from the open ground past the boundary wall, 11 m up (below the roof, so its top is not seen), aimed
+# at the middle of the building with its board and flag: they fill the middle 72% of the frame's height, so a screen
+# up to 2.4 : 1 wide, which crops the top and bottom, still shows all of them.
+camera('CAM-front', (SF + SB) / 2 + CORR / 2, TR - 28.0, 11.0, 27.0, pitch=-5.4, yaw=-90.0)
+print('school built')

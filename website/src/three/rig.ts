@@ -120,3 +120,26 @@ export const light = { day: 0 };
 export const photos = { f0: 0, f1: 0, f2: 0, f3: 0 } as Record<string, number>;
 export const rise = { f0: 0, f1: 0, f2: 0, f3: 0, roof: 0, tower: 0, gate: 0, students: 0 } as Record<string, number>;
 export const pointer = { x: 0, y: 0 };
+/** The school's real street (sections/Arrival.tsx). o: its opacity (0 once the next page has picked its picture
+    up); v: which view, 0 the street, 1 the high view, fractions crossfading; d0, d1: how far each view has been
+    walked into; r: a rise from the street into the front view (the fallback while the flight's frames load);
+    t: the camera's flight from the street to the front (sections/Travel.tsx), 0 .. 1; q: how much of the flight
+    shows over the street view. */
+export const arrive = { o: 1, v: 0, d0: 0, d1: 0, r: 0, t: 0, q: 0 };
+/** What the flight (sections/Travel.tsx) is showing, for the layers round it: whether it is on screen, which frame
+    (x, of n), and whether it covers the street view entirely (which then need not draw). */
+export const travel = { shown: false, covers: false, x: 0, n: 1 };
+/** The street view's lean towards the pointer as its shader applies it this frame (sections/Arrival.tsx): a point of
+    the picture at nearness z (0 far .. 1 near, the depth map's measure) shows shifted by (x, y) * z, in the picture's
+    own 0..1 units. The signboard's lettering (SignIntro) follows it, so it never parts from the board. */
+export const parallax = { x: 0, y: 0 };
+/** What the street's canvas measures, for the ?signdebug view (sections/SignIntro.tsx). */
+export const glInfo = { mode: 'starting', cw: 0, ch: 0, bw: 0, bh: 0, dbw: 0, dbh: 0, iw: 0, ih: 0 };
+/** The first scroll (sections/SignIntro.tsx): the school's signboard in the opening view. lift: its lettering
+    leaves the board and comes round to face the viewer (0 .. 1); fill: the board swings forward to fill the
+    screen, the first page's cover (0 .. 1); out: after the first page, the whole board fades away (0 .. 1). */
+export const sign = { lift: 0, fill: 0, out: 0 };
+/** The way into Gallery (sections/Classroom.tsx), one shot from the school's front view to the first-floor classroom
+    door, in, and onto its whiteboard, where the Gallery is drawn in marker: f, how far along it is (0 .. 1); q: on
+    screen at all. covers: a frame is drawn over the whole stage (the street view need not draw). */
+export const room = { q: 0, f: 0, covers: false };

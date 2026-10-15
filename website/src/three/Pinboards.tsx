@@ -4,7 +4,7 @@ import { useLoader } from '@react-three/fiber';
 
 /* Each illustrative classroom shows that stage's real photos, framed on its east wall,
    so the rooms carry the school's own life. Coordinates follow website/model/build_school.py. */
-const PHOTOS = [['ey1', 'ey4', 'ey2'], ['cls2', 'write1', 'cls1'], ['cls3', 'cls5', 'cls4'], ['batch', 'himal', 'heart']];
+const PHOTOS = [['ey1', 'ey4', 'ey2'], ['cls2', 'write1', 'cls1'], ['cls3', 'cls5', 'cls4'], ['batch', 'himal', 'boat']];
 const OX = -13, BAY = 3.8, PLINTH = 1.0, H = 3.2, SLAB = 0.35;
 const FRAME_Z = [-0.6, -1.75, -2.9];
 

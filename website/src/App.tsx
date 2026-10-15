@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -7,7 +7,7 @@ import { useLang } from './lang';
 import Story from './sections/Story';
 import { Nav, Footer } from './sections/Sections';
 import { pointer } from './three/rig';
-import { scroller } from './scroll';
+import { MOMENTS, restorePlace, scroller, storyY } from './scroll';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -49,13 +49,29 @@ export function Layout() {
     return () => { live = false; };
   }, []);
 
-  // A new page starts at the top (or at its #section).
+  // A new page starts at the top (or at its #section). A change of language is not a new page: the reader stays
+  // where they were, in the other language.
+  const last = useRef('');
   useEffect(() => {
-    const el = hash ? document.querySelector(hash) : null;
-    if (el) (lenis ? lenis.scrollTo(el as HTMLElement, { immediate: true }) : el.scrollIntoView());
-    else if (lenis) lenis.scrollTo(0, { immediate: true });
-    else window.scrollTo(0, 0);
-    requestAnimationFrame(() => ScrollTrigger.refresh());
+    const here = (pathname.replace(/^\/ne(?=\/|$)/, '') || '/') + hash;
+    const sameStop = here === last.current;
+    last.current = here;
+    if (sameStop) {
+      if (restorePlace()) requestAnimationFrame(() => ScrollTrigger.refresh());
+      return;
+    }
+    // a #section (About and Programmes in the nav, from another page) is reached in one blink
+    const id = hash ? MOMENTS[hash.slice(1)] ?? hash.slice(1) : '';
+    const el = id ? document.getElementById(id) : null;
+    // the smooth scroller still knows the last page's height: measure the new one first, or the jump stops short
+    const go = () => {
+      lenis?.resize();
+      if (el) { const y = storyY(el as HTMLElement); if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y); }
+      else if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
+      else window.scrollTo(0, 0);
+    };
+    go();
+    requestAnimationFrame(() => { ScrollTrigger.refresh(); go(); });
   }, [pathname, hash]);
 
   // The building leans a little toward the pointer (desktop only).
@@ -70,15 +86,15 @@ export function Layout() {
     <>
       <Nav />
       <main id="top"><Outlet /></main>
-      <Footer />
+      {/* the Notices page ends the home page (and is its own page at /news): the board is the last thing, no footer */}
+      {['/', '/news'].includes(pathname.replace(/^\/ne(?=\/|$)/, '').replace(/\/$/, '') || '/') ? null : <Footer />}
     </>
   );
 }
 
 export function Home() {
   const lang = useLang();
-  const [tier] = useState(() => (matchMedia('(max-width: 760px)').matches ? 'mobile' : 'desktop') as 'mobile' | 'desktop');
   return (
-    <Story lang={lang} tier={tier} reduce={reduce} />
+    <Story lang={lang} reduce={reduce} />
   );
 }

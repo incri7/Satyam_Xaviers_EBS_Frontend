@@ -6,12 +6,14 @@ Only what has been checked. Anything not in the "Verified" list stays `[TBC]` on
 
 | Fact | Value |
 |---|---|
-| Name on Facebook and in the app | Satyam Xavier's English Boarding School |
+| Official name | Satyam Xavier's English Secondary Boarding School (School Info.md, 2026-10-11; Facebook and the app say "English Boarding School") |
 | Address | Hetauda-4, Chisapani, Hetauda, Makwanpur 44100 |
 | Phone | 057-525563 |
 | Email | mailme.satyamxaviers@gmail.com |
 | Classes | Nursery, LKG, UKG, Class 1 to Class 10 (13 classes) |
-| Founded | 2059 BS (from a public listing; confirm with the school) |
+| Founded | 2048 BS (School Info.md, 2026-10-11). Buildings: began 2048, moved 2051 and 2071, present building since 2078 BS |
+| Principal | Gita Acharya (the client's draft doc, 2026-10-11) |
+| Office hours | 9:30 am to 5:00 pm (the client's draft doc, 2026-10-11) |
 | Result | A student scored a 3.96 GPA and was honoured by the Ward No. 4 Office (which exam: TBC) |
 | Early years | LKG and UKG children selected for the district-level drawing and colouring competition |
 | Province level | One student reached the province-level drawing competition (name: TBC, with the family's permission) |

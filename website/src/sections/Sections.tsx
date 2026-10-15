@@ -1,8 +1,10 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
+import { jumpTo, markMoment, rememberPlace } from '../scroll';
 import { copy, type Lang } from '../content';
 import { otherLang, pagePath, switchPath, useLang } from '../lang';
 
-const PAGES = ['programmes', 'about', 'gallery', 'admissions', 'news', 'contact'] as const;
+const PAGES = ['about', 'programmes', 'gallery', 'news', 'contact'] as const;
+const STORY = { about: 'about', programmes: 'programmes', gallery: 'gallery', news: 'news', contact: 'contact' } as const;   // their moments on the home page (scroll.ts MOMENTS)
 
 export function Nav() {
   const lang = useLang();
@@ -13,22 +15,29 @@ export function Nav() {
     <header className="nav">
       <Link className="brand" to={pagePath(lang)}><img src="/photos/crest.png" alt="" /><span>{t.school}<small>{t.schoolSub}</small></span></Link>
       <ul>
-        {PAGES.map((p) => <li key={p}><NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink></li>)}
+        {PAGES.map((p) => {
+          // About, Programmes and Gallery are moments of the home story: the sign's board become the first page's cover,
+          // the school's front view the second page picks up, and the classroom's whiteboard with the Gallery written
+          // on it. A click goes straight there, in one blink.
+          const at = STORY[p as keyof typeof STORY];
+          return <li key={p}>{at
+            ? <Link to={{ pathname: pagePath(lang), hash: '#' + at }} onClick={(e) => { if (pathname === pagePath(lang) && jumpTo(at === 'about' ? 'intro' : at)) { e.preventDefault(); markMoment(at); } }}>{t.nav[p]}</Link>
+            : <NavLink to={pagePath(lang, p)}>{t.nav[p]}</NavLink>}</li>;
+        })}
       </ul>
       <div className="nav-end">
-        <Link className="lang" to={switched} lang={otherLang(lang)}>{t.switchTo}</Link>
+        <Link className="lang" to={switched} lang={otherLang(lang)} preventScrollReset onClick={rememberPlace}>{t.switchTo}</Link>
         {/* The school app (parents, teachers, staff) lives on the same domain at /login: a full page load. */}
         <a className="btn line login" href="/login">{t.login}</a>
-        <Link className="btn" to={pagePath(lang, 'admissions')}>{t.start}</Link>
       </div>
     </header>
   );
 }
 
-export function Parents({ lang }: { lang: Lang }) {
+/** The school's app, as a parent sees it: its home on a phone, and what it is for. */
+export function ParentsApp({ lang }: { lang: Lang }) {
   const t = copy[lang].parents, p = t.phone, kid = p.kid.split(',')[0];
   return (
-    <section className="block parent" id="parents">
       <div className="split">
         <figure className="phone" aria-label={p.example}>
           {/* The app's parent home, drawn with the app's own card styles (v3 logo blue). */}
@@ -51,48 +60,6 @@ export function Parents({ lang }: { lang: Lang }) {
           <p className="lede">{t.body}</p>
         </div>
       </div>
-    </section>
-  );
-}
-
-export function Result({ lang }: { lang: Lang }) {
-  const t = copy[lang].result;
-  return (
-    <section className="block result">
-      <div className="split">
-        <div><h2 className="wide">{t.title}</h2><p className="lede">{t.body}</p></div>
-        <figure><img src="/photos/gpa.webp" alt={t.caption} loading="lazy" width={1000} height={1250} /><figcaption>{t.caption}</figcaption></figure>
-      </div>
-    </section>
-  );
-}
-
-export function Life({ lang }: { lang: Lang }) {
-  const t = copy[lang].life;
-  return (
-    <section className="block life" id="life">
-      <h2 className="wide">{t.title}</h2>
-      <p className="lede">{t.body}</p>
-      <div className="life-grid">
-        {t.photos.map(([img, cap, alt], i) => (
-          <figure className={'p' + i} key={img}><img src={`/photos/${img}.webp`} alt={alt} loading="lazy" /><figcaption>{cap}</figcaption></figure>
-        ))}
-      </div>
-      <p className="more"><Link className="btn line" to={pagePath(lang, 'gallery')}>{copy[lang].more.life}</Link></p>
-    </section>
-  );
-}
-
-export function Admissions({ lang }: { lang: Lang }) {
-  const t = copy[lang], a = t.admissions;
-  return (
-    <section className="block admit" id="admissions">
-      <h2 className="wide">{a.title}</h2>
-      <p className="other" lang={lang === 'en' ? 'ne' : 'en'}>{a.other}</p>
-      <p className="lede">{a.body}</p>
-      <ol className="steps">{a.steps.map(([h, b]) => <li key={h}><b>{h}</b><span>{b}</span></li>)}</ol>
-      <div className="ctas"><a className="btn" href="tel:057525563">{t.call}</a><Link className="btn line" to={pagePath(lang, 'admissions')}>{t.more.admissions}</Link><Link className="btn line" to={pagePath(lang, 'contact')}>{a.directions}</Link></div>
-    </section>
   );
 }
 
