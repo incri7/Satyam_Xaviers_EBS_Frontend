@@ -245,8 +245,7 @@ html:lang(ne) .chapter-num { font-family: "Mukta", sans-serif; letter-spacing: 0
 
 /* an opened folder: a page of its own over the whole site (the nav too), which alone scrolls while the page under it
    stands still (html.gal-locked, and Lenis stopped); written plainly above its photos, the way back always in reach */
-/* (the gutter kept, so nothing under it is laid out again for the scrollbar going) */
-html.gal-locked { overflow: hidden; scrollbar-gutter: stable; }
+html.gal-locked { overflow: hidden; overflow-anchor: none; }
 .gal-page { position: fixed; inset: 0; z-index: 40; overflow-y: auto; overscroll-behavior: contain; background: #fff; }
 .gal-page .gal-open { overflow: clip; padding: 0 var(--gutter); }   /* clip, not hidden: the way back sticks to the page's top */
 .gal-open > .gal-top { position: sticky; top: 0; z-index: 2; margin: 0 calc(-1 * var(--gutter)); padding: 20px var(--gutter) 0;

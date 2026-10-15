@@ -152,12 +152,14 @@ export function GalleryBody() {
   // (unless a photo is open large, which Escape closes first).
   useLayoutEffect(() => {
     if (open === null) return;
-    const html = document.documentElement;
-    scroller.lenis?.stop(); html.classList.add('gal-locked');
+    // the scrollbar goes, and its width is made up, so the page under it is not one pixel wider: the story lays
+    // itself out again for any change of width, which would move it
+    const html = document.documentElement, bar = innerWidth - html.clientWidth;
+    scroller.lenis?.stop(); html.style.paddingRight = bar ? `${bar}px` : ''; html.classList.add('gal-locked');
     page.current?.querySelector<HTMLElement>('.gal-back')?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !dialog.current?.open) backRef.current(); };
     addEventListener('keydown', key);
-    return () => { removeEventListener('keydown', key); html.classList.remove('gal-locked'); scroller.lenis?.start(); };
+    return () => { removeEventListener('keydown', key); html.classList.remove('gal-locked'); html.style.paddingRight = ''; scroller.lenis?.start(); };
   }, [open]);
 
   useLayoutEffect(() => {
