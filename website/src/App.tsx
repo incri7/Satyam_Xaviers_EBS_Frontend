@@ -86,7 +86,8 @@ export function Layout() {
     <>
       <Nav />
       <main id="top"><Outlet /></main>
-      <Footer />
+      {/* the Notices page ends the home page (and is its own page at /news): the board is the last thing, no footer */}
+      {['/', '/news'].includes(pathname.replace(/^\/ne(?=\/|$)/, '').replace(/\/$/, '') || '/') ? null : <Footer />}
     </>
   );
 }
