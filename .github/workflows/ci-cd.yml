@@ -62,10 +62,12 @@ jobs:
           ssh-keyscan -H "${{ secrets.VM_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Sync frontend code to VM
-        # No --delete: VM-only files are preserved. The frontend lives beside
-        # the backend as ~/Satyam_Xaviers_EBS_Frontend (the compose build context).
+        # --delete mirrors the repo onto the VM so files removed in a refactor
+        # (e.g. a renamed/deleted page) don't linger and break the Docker build.
+        # Excluded paths (node_modules, .env, website/model, …) are NOT in the
+        # repo but are protected from deletion because rsync keeps excluded files.
         run: |
-          rsync -az \
+          rsync -az --delete \
             --exclude='.git' --exclude='node_modules' --exclude='dist' \
             --exclude='website/model' --exclude='website/prototype' --exclude='website/refs' \
             --exclude='.env' --exclude='.env.production' --exclude='*.log' \
